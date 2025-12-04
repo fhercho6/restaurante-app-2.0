@@ -324,7 +324,7 @@ export default function App() {
                     <div className="flex justify-between items-center mb-4">
                         <div className="flex gap-2">
                             <button onClick={() => setIsCategoryModalOpen(true)} className="p-2 bg-gray-100 rounded-full"><Settings size={20}/></button>
-                            <div className="flex gap-2 overflow-x-auto hide-scrollbar">{filterCategories.map(cat => (<button key={cat} onClick={() => setFilter(cat)} className={`px-3 py-1 rounded-full text-sm whitespace-nowrap ${filter === cat ? 'bg-orange-500 text-white' : 'bg-white border'}`}>{cat}</button>))}</div>
+                            <div className="flex flex-wrap gap-2">{filterCategories.map(cat => (<button key={cat} onClick={() => setFilter(cat)} className={`px-3 py-1 rounded-full text-sm whitespace-nowrap ${filter === cat ? 'bg-orange-500 text-white' : 'bg-white border'}`}>{cat}</button>))}</div>
                         </div>
                         <button onClick={() => { setCurrentItem(null); setIsModalOpen(true); }} className="px-4 py-2 bg-green-600 text-white rounded-full flex gap-2 shadow"><Plus size={20}/> Nuevo</button>
                     </div>
