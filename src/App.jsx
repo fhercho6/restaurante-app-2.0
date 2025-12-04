@@ -1,8 +1,8 @@
-// src/App.jsx - VERSIÓN FINAL (Corregida)
+// src/App.jsx - VERSIÓN FINAL CON MENÚ POR CATEGORÍAS
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
-  Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign 
+  Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign, ArrowLeft 
 } from 'lucide-react';
 import { onAuthStateChanged, signOut, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
 import { collection, doc, setDoc, addDoc, deleteDoc, onSnapshot, updateDoc } from 'firebase/firestore';
@@ -15,7 +15,7 @@ import StaffManagerView from './components/StaffManagerView';
 import SalesDashboard from './components/SalesDashboard';
 import Receipt from './components/Receipt';
 import PaymentModal from './components/PaymentModal';
-import CashierView from './components/CashierView'; // <--- AGREGADO
+import CashierView from './components/CashierView';
 
 import { 
   AuthModal, BrandingModal, ProductModal, CategoryManager, RoleManager 
@@ -56,13 +56,14 @@ export default function App() {
   // Estados de Pago
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [pendingSale, setPendingSale] = useState(null);
-  const [orderToPay, setOrderToPay] = useState(null); // <--- NUEVO
+  const [orderToPay, setOrderToPay] = useState(null); 
   const [lastSale, setLastSale] = useState(null);
 
   // --- HANDLERS NAVEGACIÓN ---
   const handleLogin = (userApp) => { setIsAuthModalOpen(false); setView('admin'); toast.success(`Bienvenido`); };
   const handleLogout = async () => { await signOut(auth); setView('landing'); toast('Sesión cerrada', { icon: '👋' }); };
-  const handleEnterMenu = () => setView('menu');
+  // Al entrar al menú, reseteamos el filtro a 'Todos' para mostrar las categorías primero
+  const handleEnterMenu = () => { setFilter('Todos'); setView('menu'); };
   const handleEnterStaff = () => setView('pin_login');
   const handleEnterAdmin = () => { if (currentUser && !currentUser.isAnonymous) setView('admin'); else setIsAuthModalOpen(true); };
   const handlePrintCredential = (member) => { setCredentialToPrint(member); setView('credential_print'); };
@@ -75,7 +76,7 @@ export default function App() {
   
   const handlePrint = () => window.print();
 
-  // --- LÓGICA DEL CAJERO (FALTABA ESTA FUNCIÓN) ---
+  // --- LÓGICA DEL CAJERO ---
   const handleStartPaymentFromCashier = (order) => {
       setOrderToPay(order); 
       setPendingSale({ 
@@ -87,13 +88,11 @@ export default function App() {
 
   // --- LÓGICA DE VENTAS ---
   const handlePOSCheckout = (cart, clearCart) => {
-    // Venta directa desde POS (Caja Rápida)
     setOrderToPay(null);
     setPendingSale({ cart, clearCart });
     setIsPaymentModalOpen(true);
   };
 
-  // MESERO: Enviar a Caja (Imprimir Comanda)
   const handleSendToKitchen = async (cart, clearCart) => {
     if (cart.length === 0) return;
     
@@ -114,11 +113,7 @@ export default function App() {
         const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
         await addDoc(collection(db, ordersCol), orderData);
 
-        const preCheckData = { 
-            ...orderData, 
-            type: 'order',
-            date: new Date().toLocaleString() 
-        };
+        const preCheckData = { ...orderData, type: 'order', date: new Date().toLocaleString() };
         
         clearCart([]);
         setLastSale(preCheckData);
@@ -131,7 +126,6 @@ export default function App() {
     }
   };
 
-  // FINALIZAR VENTA (Guardar y Cobrar)
   const handleFinalizeSale = async (paymentResult) => {
     if (!db) return;
     
@@ -140,13 +134,12 @@ export default function App() {
     
     const itemsToProcess = orderToPay ? orderToPay.items : pendingSale.cart;
     const { paymentsList, totalPaid, change } = paymentResult;
-    const totalToProcess = totalPaid - change; // Total real de la venta
+    const totalToProcess = totalPaid - change;
 
     try {
       const batchPromises = [];
       const timestamp = new Date();
 
-      // A. Crear registro en Ventas
       const saleData = {
         date: timestamp.toISOString(),
         total: totalToProcess,
@@ -161,7 +154,6 @@ export default function App() {
       const salesCollection = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`;
       const docRef = await addDoc(collection(db, salesCollection), saleData);
 
-      // B. Descontar Stock
       itemsToProcess.forEach(item => {
         if (item.stock !== undefined && item.stock !== '') {
           const newStock = parseInt(item.stock) - item.qty;
@@ -169,7 +161,6 @@ export default function App() {
         }
       });
 
-      // C. Borrar de Pendientes (Si vino de Caja)
       if (orderToPay) {
           const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
           batchPromises.push(deleteDoc(doc(db, ordersCol, orderToPay.id)));
@@ -177,7 +168,6 @@ export default function App() {
 
       await Promise.all(batchPromises);
 
-      // D. Ticket Final
       const receiptData = {
         businessName: appName,
         date: timestamp.toLocaleString(),
@@ -204,7 +194,7 @@ export default function App() {
     }
   };
 
-  // --- EFECTOS ---
+  // --- EFECTOS Y CONFIG ---
   useEffect(() => {
     const initAuth = async () => {
         if (!auth.currentUser) {
@@ -221,29 +211,14 @@ export default function App() {
 
   useEffect(() => {
     if (!db) return;
-
-    // 1. CARGA DE PRODUCTOS (Con filtro Anti-Duplicados)
     const itemsUnsub = onSnapshot(collection(db, getCollName('items')), (s) => {
       const rawItems = s.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      
-      // ESTA ES LA CORRECCIÓN MÁGICA:
-      // Usamos un Map para asegurar que cada ID sea único
       const uniqueItems = Array.from(new Map(rawItems.map(item => [item.id, item])).values());
-      
       setItems(uniqueItems);
     }, (e) => { 
-        if (e.code === 'permission-denied') { 
-            setDbStatus('error'); 
-            setDbErrorMsg(currentUser ? 'Sin permisos.' : 'Inicia sesión.'); 
-        } 
+        if (e.code === 'permission-denied') { setDbStatus('error'); setDbErrorMsg(currentUser ? 'Sin permisos.' : 'Inicia sesión.'); } 
     });
-
-    // 2. CARGA DE PERSONAL
-    const staffUnsub = onSnapshot(collection(db, getCollName('staff')), (s) => {
-        setStaff(s.docs.map(d => ({id: d.id, ...d.data()})));
-    });
-
-    // 3. CARGA DE CONFIGURACIÓN
+    const staffUnsub = onSnapshot(collection(db, getCollName('staff')), (s) => setStaff(s.docs.map(d => ({id: d.id, ...d.data()}))));
     const settingsUnsub = onSnapshot(collection(db, getCollName('settings')), (s) => {
         s.docs.forEach(d => {
             const data = d.data();
@@ -252,7 +227,6 @@ export default function App() {
             if (d.id === 'branding') { setLogo(data.logo); if(data.appName) setAppName(data.appName); }
         });
     });
-
     return () => { itemsUnsub(); staffUnsub(); settingsUnsub(); };
   }, [currentUser]);
 
@@ -275,7 +249,7 @@ export default function App() {
   const handleAddRole = (n) => setDoc(doc(db, getCollName('settings'), 'roles'), { list: [...roles, n] });
   const handleRenameRole = (i, n) => { const l = [...roles]; l[i] = n; setDoc(doc(db, getCollName('settings'), 'roles'), { list: l }); };
   const handleDeleteRole = (i) => { const l = roles.filter((_, x) => x !== i); setDoc(doc(db, getCollName('settings'), 'roles'), { list: l }); };
-  const handleSaveBranding = (l, n) => { setDoc(doc(db, getCollName('settings'), 'branding'), { logo: l, appName: n }, { merge: true }); setLogo(l); setAppName(n); };
+  const handleSaveBranding = (l, n) => { setDoc(doc(db, getCollName('settings'), 'branding'), { logo: l, appName: n }, { merge: true }); setLogo(l); setAppName(n); toast.success('Marca actualizada'); };
 
   const filterCategories = ['Todos', ...categories];
   const filteredItems = filter === 'Todos' ? items : items.filter(i => i.category === filter);
@@ -341,7 +315,69 @@ export default function App() {
             {view === 'pin_login' && <PinLoginView staffMembers={staff} onLoginSuccess={handleStaffPinLogin} onCancel={() => setView('landing')} />}
             {view === 'pos' && <POSInterface items={items} categories={categories} staffMember={staffMember} onCheckout={handlePOSCheckout} onPrintOrder={handleSendToKitchen} onExit={() => setView('landing')} />}
             {view === 'receipt_view' && <Receipt data={lastSale} onPrint={handlePrint} onClose={() => { if(currentUser && !currentUser.isAnonymous) setView('cashier'); else setView('pos'); }} />}
-            {view === 'menu' && ( <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"> {filteredItems.length > 0 ? filteredItems.map(item => (<MenuCard key={item.id} item={item} />)) : <div className="col-span-full text-center py-20"><Search size={48} className="mx-auto text-gray-300"/><h3 className="text-xl text-gray-500 mt-4">Sin resultados</h3></div>} </div> )}
+
+            {/* --- MENÚ CLIENTE: LÓGICA DE CATEGORÍAS PRIMERO --- */}
+            {view === 'menu' && (
+              <>
+                {filter === 'Todos' ? (
+                   /* VISTA 1: GALERÍA DE CATEGORÍAS */
+                   <div className="animate-in fade-in">
+                      <div className="text-center mb-6 mt-4">
+                        <h2 className="text-2xl font-black text-gray-800">Nuestra Carta</h2>
+                        <p className="text-gray-500 text-sm">Selecciona una categoría para ver los productos</p>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pb-20">
+                        {categories.map(cat => {
+                           // Truco: Usar la imagen del primer producto como portada de la categoría
+                           const firstItem = items.find(i => i.category === cat);
+                           const bgImage = firstItem ? firstItem.image : null;
+                           
+                           return (
+                             <button 
+                                key={cat}
+                                onClick={() => setFilter(cat)}
+                                className="relative h-32 rounded-xl overflow-hidden shadow-md active:scale-95 transition-all group"
+                             >
+                                {/* Imagen de Fondo */}
+                                {bgImage ? (
+                                   <img src={bgImage} alt={cat} className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                                ) : (
+                                   <div className="absolute inset-0 bg-gradient-to-br from-orange-400 to-orange-600"></div>
+                                )}
+                                {/* Sombra para leer texto */}
+                                <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-colors"></div>
+                                
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                   <span className="text-white font-bold text-lg uppercase tracking-wider text-center px-2">{cat}</span>
+                                </div>
+                             </button>
+                           )
+                        })}
+                      </div>
+                   </div>
+                ) : (
+                   /* VISTA 2: LISTA DE PRODUCTOS DE LA CATEGORÍA */
+                   <div className="animate-in slide-in-from-right duration-300">
+                      <div className="flex items-center gap-2 mb-4">
+                         <button onClick={() => setFilter('Todos')} className="p-2 bg-gray-200 rounded-full hover:bg-gray-300 transition-colors">
+                            <ArrowLeft size={20} className="text-gray-700" />
+                         </button>
+                         <h2 className="text-xl font-bold text-gray-800">{filter}</h2>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 pb-20">
+                        {filteredItems.length > 0 ? (
+                           filteredItems.map(item => (<MenuCard key={item.id} item={item} />))
+                        ) : (
+                           <div className="col-span-full text-center py-20 text-gray-400">
+                              <p>No hay productos en esta categoría.</p>
+                           </div>
+                        )}
+                      </div>
+                   </div>
+                )}
+              </>
+            )}
           </main>
 
           <div className={`fixed bottom-0 w-full p-1 text-[10px] text-center text-white ${dbStatus === 'connected' ? 'bg-green-600' : 'bg-red-600'}`}> {dbStatus === 'connected' ? 'Sistema Online' : 'Desconectado'} </div>
