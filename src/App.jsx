@@ -1,4 +1,4 @@
-// src/App.jsx
+// src/App.jsx - VERSIÓN FINAL (Cajero Restringido + Anulación con Ticket)
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
@@ -17,14 +17,10 @@ import Receipt from './components/Receipt';
 import PaymentModal from './components/PaymentModal';
 import CashierView from './components/CashierView';
 
-import { 
-  AuthModal, BrandingModal, ProductModal, CategoryManager, RoleManager 
-} from './components/Modals';
-import { 
-  MenuCard, PinLoginView, CredentialPrintView, PrintableView, AdminRow 
-} from './components/Views';
+import { AuthModal, BrandingModal, ProductModal, CategoryManager, RoleManager } from './components/Modals';
+import { MenuCard, PinLoginView, CredentialPrintView, PrintableView, AdminRow } from './components/Views';
 
-// --- 🔴 PEGA AQUÍ EL ENLACE DE TU LOGO (Entre las comillas) ---
+// --- 🔴 TU LOGO AQUÍ ---
 const LOGO_URL_FIJO = ""; 
 
 const INITIAL_CATEGORIES = []; 
@@ -52,13 +48,13 @@ export default function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isBrandingModalOpen, setIsBrandingModalOpen] = useState(false);
   
-  // Estados de Operación
+  // Estados
   const [currentItem, setCurrentItem] = useState(null);
   const [filter, setFilter] = useState('Todos');
   const [credentialToPrint, setCredentialToPrint] = useState(null);
   const [staffMember, setStaffMember] = useState(null);
   
-  // Estados de Pago
+  // Pagos
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [pendingSale, setPendingSale] = useState(null);
   const [orderToPay, setOrderToPay] = useState(null); 
@@ -71,22 +67,44 @@ export default function App() {
   const handleEnterStaff = () => setView('pin_login');
   const handleEnterAdmin = () => { if (currentUser && !currentUser.isAnonymous) setView('admin'); else setIsAuthModalOpen(true); };
   const handlePrintCredential = (member) => { setCredentialToPrint(member); setView('credential_print'); };
-  
+  const handlePrint = () => window.print();
+
   const handleStaffPinLogin = (member) => { 
     setStaffMember(member); 
-    
-    // Si es Cajero o Admin, lo mandamos directo a la gestión de Caja
     if (member.role === 'Cajero' || member.role === 'Administrador') {
         setView('cashier'); 
         toast.success(`Caja abierta: ${member.name}`);
     } else {
-        // Si es Garzón/Cocinero, va al POS a tomar pedidos
         setView('pos'); 
         toast.success(`Turno iniciado: ${member.name}`); 
     }
   };
-  
-  const handlePrint = () => window.print();
+
+  // --- FUNCIONALIDAD DE ANULACIÓN (NUEVO) ---
+  const handleVoidAndPrint = async (order) => {
+     try {
+        // 1. Borrar de la BD
+        const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
+        await deleteDoc(doc(db, ordersCol, order.id));
+        
+        // 2. Preparar Ticket de Anulación (Rojo)
+        const voidData = {
+            ...order,
+            type: 'void', // Esto activa el borde rojo en Receipt.jsx
+            businessName: appName,
+            date: new Date().toLocaleString()
+        };
+        setLastSale(voidData);
+        
+        // 3. Mostrar pantalla de impresión
+        toast.success("Pedido anulado. Imprimiendo comprobante...");
+        setView('receipt_view');
+
+     } catch (error) {
+        console.error(error);
+        toast.error("Error al anular");
+     }
+  };
 
   const handleStartPaymentFromCashier = (order) => {
       setOrderToPay(order); 
@@ -122,16 +140,12 @@ export default function App() {
         toast.success('Pedido enviado a caja', { id: toastId });
         setView('receipt_view'); 
     } catch (error) {
-        console.error(error);
         toast.error('Error al enviar pedido', { id: toastId });
     }
   };
 
-  // src/App.jsx (Solo reemplaza esta función)
-
   const handleFinalizeSale = async (paymentResult) => {
     if (!db) return;
-    
     const toastId = toast.loading('Procesando pago...');
     setIsPaymentModalOpen(false);
     
@@ -142,8 +156,6 @@ export default function App() {
     try {
       const batchPromises = [];
       const timestamp = new Date();
-
-      // 1. Guardar Venta
       const saleData = {
         date: timestamp.toISOString(),
         total: totalToProcess,
@@ -154,11 +166,9 @@ export default function App() {
         totalPaid: totalPaid,
         changeGiven: change
       };
-      
       const salesCollection = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`;
       const docRef = await addDoc(collection(db, salesCollection), saleData);
 
-      // 2. Actualizar Stock
       itemsToProcess.forEach(item => {
         if (item.stock !== undefined && item.stock !== '') {
           const newStock = parseInt(item.stock) - item.qty;
@@ -166,15 +176,12 @@ export default function App() {
         }
       });
 
-      // 3. Borrar de Pendientes (Si era comanda)
       if (orderToPay) {
           const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
           batchPromises.push(deleteDoc(doc(db, ordersCol, orderToPay.id)));
       }
-
       await Promise.all(batchPromises);
 
-      // 4. Preparar datos del Ticket (por si se necesita después)
       const receiptData = {
         businessName: appName,
         date: timestamp.toLocaleString(),
@@ -188,22 +195,16 @@ export default function App() {
 
       setLastSale(receiptData);
       if (pendingSale && pendingSale.clearCart) pendingSale.clearCart([]);
-      
       setPendingSale(null);
-      
       toast.success('¡Cobro exitoso!', { id: toastId });
-
-      // --- LÓGICA DE REDIRECCIÓN MEJORADA ---
+      
+      // Si es cajero, volvemos a su panel tras cobrar, si no, mostramos ticket
       if (orderToPay) {
-          // CASO 1: Viene de la Caja (Comanda de Mesero)
-          // Limpiamos la orden actual y volvemos directo a la lista de pendientes
-          setOrderToPay(null);
-          setView('cashier'); 
+         setOrderToPay(null);
+         setView('cashier'); // <-- Cajero vuelve a su lista
       } else {
-          // CASO 2: Venta Directa (POS Rápido)
-          // Mostramos el ticket porque el cliente está esperando el papel
-          setOrderToPay(null);
-          setView('receipt_view');
+         setOrderToPay(null);
+         setView('receipt_view');
       }
 
     } catch (e) {
@@ -212,7 +213,6 @@ export default function App() {
     }
   };
 
-  // --- EFECTOS ---
   useEffect(() => {
     const initAuth = async () => {
         if (!auth.currentUser) {
@@ -233,19 +233,14 @@ export default function App() {
       const rawItems = s.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       const uniqueItems = Array.from(new Map(rawItems.map(item => [item.id, item])).values());
       setItems(uniqueItems);
-    }, (e) => { 
-        if (e.code === 'permission-denied') { setDbStatus('error'); setDbErrorMsg(currentUser ? 'Sin permisos.' : 'Inicia sesión.'); } 
-    });
+    }, (e) => { if (e.code === 'permission-denied') { setDbStatus('error'); setDbErrorMsg(currentUser ? 'Sin permisos.' : 'Inicia sesión.'); } });
     const staffUnsub = onSnapshot(collection(db, getCollName('staff')), (s) => setStaff(s.docs.map(d => ({id: d.id, ...d.data()}))));
     const settingsUnsub = onSnapshot(collection(db, getCollName('settings')), (s) => {
         s.docs.forEach(d => {
             const data = d.data();
             if (d.id === 'categories') setCategories(data.list || []);
             if (d.id === 'roles') setRoles(data.list || INITIAL_ROLES);
-            if (d.id === 'branding') { 
-              setLogo(data.logo); 
-              if(data.appName) setAppName(data.appName);
-            }
+            if (d.id === 'branding') { setLogo(data.logo); if(data.appName) setAppName(data.appName); }
         });
         setIsLoadingApp(false);
     });
@@ -259,7 +254,7 @@ export default function App() {
     return isPersonalProject ? 'settings' : `${ROOT_COLLECTION}settings`;
   }
 
-  // Crud Wrappers
+  // Crud
   const handleSave = async (d) => { try { if(currentItem) await setDoc(doc(db, getCollName('items'), currentItem.id), d); else await addDoc(collection(db, getCollName('items')), d); toast.success('Guardado'); setIsModalOpen(false); } catch { toast.error('Error'); }};
   const handleDelete = async (id) => { try { await deleteDoc(doc(db, getCollName('items'), id)); toast.success('Eliminado'); } catch { toast.error('Error'); }};
   const handleAddStaff = async (d) => { await addDoc(collection(db, getCollName('staff')), d); toast.success('Personal creado'); };
@@ -276,27 +271,23 @@ export default function App() {
   const filterCategories = ['Todos', ...categories];
   const filteredItems = filter === 'Todos' ? items : items.filter(i => i.category === filter);
   const isAdminMode = view === 'admin' || view === 'report' || view === 'staff_admin' || view === 'cashier';
+  
+  // --- LÓGICA DE VISTA RESTRINGIDA (SOLO CAJERO) ---
+  const isCashierOnly = staffMember && staffMember.role === 'Cajero';
 
-  // --- PANTALLA DE CARGA MEJORADA ---
+  // Lógica para botón "Volver" en el recibo
+  const handleReceiptClose = () => {
+    // Si es Admin o Cajero (con PIN), vuelve a la caja
+    if (isCashierOnly || (currentUser && !currentUser.isAnonymous) || (staffMember?.role === 'Administrador')) {
+        setView('cashier');
+    } else {
+        // Si es garzón, vuelve a vender
+        setView('pos');
+    }
+  };
+
   if (isLoadingApp) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 animate-in fade-in">
-        <div className="bg-white p-8 rounded-3xl shadow-xl flex flex-col items-center">
-           <div className="relative mb-4">
-             <div className="absolute inset-0 bg-orange-200 rounded-full animate-ping opacity-75"></div>
-             <div className="relative bg-white p-4 rounded-full border-4 border-orange-500 overflow-hidden w-24 h-24 flex items-center justify-center">
-               {LOGO_URL_FIJO ? (
-                 <img src={LOGO_URL_FIJO} alt="Cargando" className="w-full h-full object-contain animate-pulse" />
-               ) : (
-                 <ChefHat size={48} className="text-orange-500" />
-               )}
-             </div>
-           </div>
-           <h2 className="text-xl font-bold text-gray-800">Cargando sistema...</h2>
-           <p className="text-sm text-gray-400 mt-2">Conectando con la nube</p>
-        </div>
-      </div>
-    );
+    return <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 animate-in fade-in"><div className="bg-white p-8 rounded-3xl shadow-xl flex flex-col items-center"><div className="relative mb-4"><div className="absolute inset-0 bg-orange-200 rounded-full animate-ping opacity-75"></div><div className="relative bg-white p-4 rounded-full border-4 border-orange-500 overflow-hidden w-24 h-24 flex items-center justify-center">{LOGO_URL_FIJO ? (<img src={LOGO_URL_FIJO} alt="Cargando" className="w-full h-full object-contain animate-pulse" />) : (<ChefHat size={48} className="text-orange-500" />)}</div></div><h2 className="text-xl font-bold text-gray-800">Cargando sistema...</h2><p className="text-sm text-gray-400 mt-2">Conectando con la nube</p></div></div>;
   }
 
   return (
@@ -309,7 +300,7 @@ export default function App() {
         <>
           <header className="bg-white sticky top-0 z-30 shadow-sm border-b border-gray-100 no-print">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-              <div className="flex items-center gap-3" onClick={() => isAdminMode && setIsBrandingModalOpen(true)}>
+              <div className="flex items-center gap-3" onClick={() => isAdminMode && !isCashierOnly && setIsBrandingModalOpen(true)}>
                 <div className={`rounded-lg overflow-hidden flex items-center justify-center ${logo ? 'bg-white' : 'bg-orange-500 p-2 text-white'}`} style={{ width: '44px', height: '44px' }}>{logo ? <img src={logo} className="w-full h-full object-contain"/> : <ChefHat size={28} />}</div>
                 <div><h1 className="text-xl font-bold text-gray-800 leading-none">{appName}</h1><span className="text-xs text-gray-500 font-medium uppercase">Cloud Menu</span></div>
               </div>
@@ -325,18 +316,30 @@ export default function App() {
               <>
                 <div className="mb-8 no-print overflow-x-auto">
                   <div className="flex border-b border-gray-200 min-w-max">
-                    <button onClick={() => setView('admin')} className={`pb-4 px-6 text-lg font-bold border-b-2 transition-colors flex gap-2 ${view === 'admin' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><ClipboardList/> Inventario</button>
+                    {/* SI ES SOLO CAJERO, OCULTAMOS INVENTARIO Y PERSONAL */}
+                    {!isCashierOnly && (
+                        <button onClick={() => setView('admin')} className={`pb-4 px-6 text-lg font-bold border-b-2 transition-colors flex gap-2 ${view === 'admin' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><ClipboardList/> Inventario</button>
+                    )}
+                    
                     <button onClick={() => setView('cashier')} className={`pb-4 px-6 text-lg font-bold border-b-2 transition-colors flex gap-2 ${view === 'cashier' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><DollarSign/> Caja / Pedidos</button>
-                    <button onClick={() => setView('staff_admin')} className={`pb-4 px-6 text-lg font-bold border-b-2 transition-colors flex gap-2 ${view === 'staff_admin' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><Users/> Personal</button>
+                    
+                    {!isCashierOnly && (
+                        <button onClick={() => setView('staff_admin')} className={`pb-4 px-6 text-lg font-bold border-b-2 transition-colors flex gap-2 ${view === 'staff_admin' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><Users/> Personal</button>
+                    )}
+                    
+                    {/* El reporte quizás le sirva al cajero para su arqueo, lo dejamos opcional o visible */}
                     <button onClick={() => setView('report')} className={`pb-4 px-6 text-lg font-bold border-b-2 transition-colors flex gap-2 ${view === 'report' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><FileText/> Reporte</button>
                   </div>
                 </div>
 
                 {view === 'report' && <div className="animate-in fade-in"><SalesDashboard /><div className="hidden print:block mt-8"><PrintableView items={items} /></div></div>}
-                {view === 'cashier' && <CashierView onProcessPayment={handleStartPaymentFromCashier} />}
-                {view === 'staff_admin' && <StaffManagerView staff={staff} roles={roles} onAddStaff={handleAddStaff} onUpdateStaff={handleUpdateStaff} onDeleteStaff={handleDeleteStaff} onManageRoles={() => setIsRoleModalOpen(true)} onPrintCredential={handlePrintCredential} />}
+                
+                {/* AQUÍ PASAMOS LA FUNCIÓN DE ANULAR */}
+                {view === 'cashier' && <CashierView onProcessPayment={handleStartPaymentFromCashier} onVoidOrder={handleVoidAndPrint} />}
+                
+                {view === 'staff_admin' && !isCashierOnly && <StaffManagerView staff={staff} roles={roles} onAddStaff={handleAddStaff} onUpdateStaff={handleUpdateStaff} onDeleteStaff={handleDeleteStaff} onManageRoles={() => setIsRoleModalOpen(true)} onPrintCredential={handlePrintCredential} />}
                 {view === 'credential_print' && credentialToPrint && <div className="flex flex-col items-center"><button onClick={() => setView('staff_admin')} className="no-print mb-4 px-4 py-2 bg-gray-200 rounded">Volver</button><CredentialPrintView member={credentialToPrint} appName={appName} /></div>}
-                {view === 'admin' && (
+                {view === 'admin' && !isCashierOnly && (
                   <div className="space-y-6">
                     <div className="flex justify-between items-center mb-4">
                         <div className="flex gap-2">
@@ -357,9 +360,10 @@ export default function App() {
 
             {view === 'pin_login' && <PinLoginView staffMembers={staff} onLoginSuccess={handleStaffPinLogin} onCancel={() => setView('landing')} />}
             {view === 'pos' && <POSInterface items={items} categories={categories} staffMember={staffMember} onCheckout={handlePOSCheckout} onPrintOrder={handleSendToKitchen} onExit={() => setView('landing')} />}
-            {view === 'receipt_view' && <Receipt data={lastSale} onPrint={handlePrint} onClose={() => { if(currentUser && !currentUser.isAnonymous) setView('cashier'); else setView('pos'); }} />}
+            
+            {/* AQUÍ USAMOS LA NUEVA FUNCIÓN DE CIERRE */}
+            {view === 'receipt_view' && <Receipt data={lastSale} onPrint={handlePrint} onClose={handleReceiptClose} />}
 
-            {/* --- MENÚ CLIENTE: DISEÑO PREMIUM --- */}
             {view === 'menu' && (
               <>
                 {filter === 'Todos' ? (

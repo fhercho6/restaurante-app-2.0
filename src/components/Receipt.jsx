@@ -1,12 +1,17 @@
 // src/components/Receipt.jsx
 import React from 'react';
-import { ChefHat, Printer, ArrowLeft, CheckCircle, ClipboardList } from 'lucide-react';
+import { ChefHat, Printer, ArrowLeft, CheckCircle, ClipboardList, XCircle } from 'lucide-react';
 
 const Receipt = ({ data, onPrint, onClose }) => {
   if (!data) return null;
 
-  // Detectar si es una Comanda (Pre-cuenta) o Venta Final
   const isPreCheck = data.type === 'order';
+  const isVoid = data.type === 'void'; // Nuevo tipo para anulaciones
+
+  // Colores y Borde según el tipo de documento
+  let borderClass = 'border-green-500'; // Venta Normal
+  if (isPreCheck) borderClass = 'border-yellow-400'; // Comanda
+  if (isVoid) borderClass = 'border-red-500'; // Anulación
 
   return (
     <div className="flex flex-col items-center min-h-screen bg-gray-100 p-4 animate-in zoom-in duration-300">
@@ -17,7 +22,7 @@ const Receipt = ({ data, onPrint, onClose }) => {
           onClick={onClose} 
           className="flex items-center gap-2 px-6 py-3 bg-gray-600 text-white rounded-full shadow-lg hover:bg-gray-700 transition-all font-bold"
         >
-          <ArrowLeft size={20}/> {isPreCheck ? 'Volver al POS' : 'Nueva Venta'}
+          <ArrowLeft size={20}/> {isVoid ? 'Volver a Caja' : 'Continuar'}
         </button>
         <button 
           onClick={onPrint} 
@@ -30,32 +35,32 @@ const Receipt = ({ data, onPrint, onClose }) => {
       {/* --- EL TICKET --- */}
       <div 
         id="printable-ticket" 
-        className={`bg-white p-4 shadow-2xl w-[300px] text-gray-900 font-mono text-sm leading-tight relative print:shadow-none print:w-full print:m-0 ${isPreCheck ? 'border-t-8 border-yellow-400' : 'border-t-8 border-green-500'}`}
+        className={`bg-white p-4 shadow-2xl w-[300px] text-gray-900 font-mono text-sm leading-tight relative print:shadow-none print:w-full print:m-0 border-t-8 ${borderClass}`}
       >
         {/* Encabezado */}
         <div className="text-center border-b-2 border-dashed border-gray-300 pb-4 mb-4">
           <div className="flex justify-center mb-2">
-            {isPreCheck ? <ClipboardList size={32} className="text-gray-800"/> : <ChefHat size={32} className="text-gray-800"/>}
+            {isVoid ? <XCircle size={32} className="text-red-600"/> : (isPreCheck ? <ClipboardList size={32} className="text-gray-800"/> : <ChefHat size={32} className="text-gray-800"/>)}
           </div>
           <h2 className="text-xl font-black uppercase tracking-widest">{data.businessName || 'RESTAURANTE'}</h2>
           
-          {/* TÍTULO CAMBIANTE */}
-          <p className="text-sm font-bold mt-1 bg-black text-white inline-block px-2 py-0.5 rounded">
-            {isPreCheck ? 'COMANDA / PRE-CUENTA' : 'TICKET DE VENTA'}
+          {/* TÍTULO DINÁMICO */}
+          <p className={`text-sm font-bold mt-1 inline-block px-2 py-0.5 rounded text-white ${isVoid ? 'bg-red-600' : 'bg-black'}`}>
+            {isVoid ? 'COMPROBANTE DE ANULACIÓN' : (isPreCheck ? 'COMANDA / PRE-CUENTA' : 'TICKET DE VENTA')}
           </p>
           
           <p className="text-xs text-gray-400 mt-1">{data.date}</p>
         </div>
 
-        {/* Info Cliente/Mesero */}
+        {/* Info */}
         <div className="mb-4 text-xs">
           <div className="flex justify-between">
-            <span className="text-gray-500">Atendido por:</span>
+            <span className="text-gray-500">{isVoid ? 'Anulado por:' : 'Atendido por:'}</span>
             <span className="font-bold uppercase">{data.staffName}</span>
           </div>
           {data.orderId && (
              <div className="flex justify-between mt-1">
-               <span className="text-gray-500">ID Ref:</span>
+               <span className="text-gray-500">Ref:</span>
                <span>#{data.orderId.slice(-6).toUpperCase()}</span>
              </div>
           )}
@@ -83,8 +88,8 @@ const Receipt = ({ data, onPrint, onClose }) => {
           </table>
         </div>
 
-        {/* --- SOLO SI ES VENTA FINAL (Mostrar Pagos) --- */}
-        {!isPreCheck && (
+        {/* --- TOTALES (Ocultar pagos si es anulación) --- */}
+        {!isPreCheck && !isVoid && (
           <div className="mb-4 pt-2 border-t border-dashed border-gray-300">
              <div className="text-[10px] font-bold uppercase text-gray-500 mb-1">Pagos Recibidos:</div>
              {data.payments && data.payments.length > 0 ? (
@@ -96,8 +101,8 @@ const Receipt = ({ data, onPrint, onClose }) => {
                ))
              ) : (
                <div className="flex justify-between text-xs">
-                  <span>Efectivo</span>
-                  <span>Bs. {data.total.toFixed(2)}</span>
+                  <span>{data.paymentMethod || 'Efectivo'}</span>
+                  <span>Bs. {(data.received || data.total).toFixed(2)}</span>
                </div>
              )}
              {data.change > 0 && (
@@ -109,32 +114,32 @@ const Receipt = ({ data, onPrint, onClose }) => {
           </div>
         )}
 
-        {/* --- TOTAL FINAL --- */}
+        {/* Total Final */}
         <div className="flex justify-between items-end mb-6 border-t-2 border-black pt-2">
-          <span className="text-sm font-bold">TOTAL A PAGAR</span>
-          <span className="text-2xl font-black">Bs. {data.total.toFixed(2)}</span>
+          <span className="text-sm font-bold">TOTAL {isVoid ? 'CANCELADO' : ''}</span>
+          <span className={`text-2xl font-black ${isVoid ? 'text-red-600 line-through' : 'text-black'}`}>Bs. {data.total.toFixed(2)}</span>
         </div>
 
         {/* Pie de página */}
         <div className="text-center text-[10px] text-gray-400 mt-4 pt-4 border-t border-gray-200">
-          {isPreCheck ? (
-            <p className="font-bold text-black border-2 border-black p-1 rounded uppercase">PENDIENTE DE PAGO</p>
+          {isVoid ? (
+             <p className="font-bold text-red-600 uppercase">OPERACIÓN ANULADA - SIN VALOR</p>
           ) : (
-            <>
-              <p className="mb-1">¡GRACIAS POR SU PREFERENCIA!</p>
-              <div className="mt-2 text-[8px] opacity-50">Sistema Powered by ZZIF Cloud</div>
-            </>
+             <>
+               <p className="mb-1">¡GRACIAS POR SU PREFERENCIA!</p>
+               <div className="mt-2 text-[8px] opacity-50">Sistema Powered by ZZIF Cloud</div>
+             </>
           )}
         </div>
 
-        {/* Marca visual (Solo pantalla) */}
-        <div className={`no-print absolute -top-3 -right-3 text-white rounded-full p-2 shadow-lg ${isPreCheck ? 'bg-yellow-500' : 'bg-green-500'}`}>
-          {isPreCheck ? <ClipboardList size={24}/> : <CheckCircle size={24}/>}
+        {/* Marca visual en pantalla */}
+        <div className={`no-print absolute -top-3 -right-3 text-white rounded-full p-2 shadow-lg ${isVoid ? 'bg-red-600' : (isPreCheck ? 'bg-yellow-500' : 'bg-green-500')}`}>
+          {isVoid ? <XCircle size={24}/> : (isPreCheck ? <ClipboardList size={24}/> : <CheckCircle size={24}/>)}
         </div>
       </div>
 
       <p className="no-print mt-4 text-gray-400 text-xs text-center max-w-xs">
-        {isPreCheck ? 'Imprima esto para la cocina o para entregar al cliente antes de pagar.' : 'Comprobante de venta finalizado.'}
+        {isVoid ? 'Imprima este comprobante para control de caja.' : 'Recibo oficial.'}
       </p>
     </div>
   );
