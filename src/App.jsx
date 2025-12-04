@@ -316,39 +316,57 @@ export default function App() {
             {view === 'pos' && <POSInterface items={items} categories={categories} staffMember={staffMember} onCheckout={handlePOSCheckout} onPrintOrder={handleSendToKitchen} onExit={() => setView('landing')} />}
             {view === 'receipt_view' && <Receipt data={lastSale} onPrint={handlePrint} onClose={() => { if(currentUser && !currentUser.isAnonymous) setView('cashier'); else setView('pos'); }} />}
 
-            {/* --- MENÚ CLIENTE: LÓGICA DE CATEGORÍAS PRIMERO --- */}
+            {/* --- MENÚ CLIENTE: DISEÑO PREMIUM VIBRANTE --- */}
             {view === 'menu' && (
               <>
                 {filter === 'Todos' ? (
-                   /* VISTA 1: GALERÍA DE CATEGORÍAS */
-                   <div className="animate-in fade-in">
-                      <div className="text-center mb-6 mt-4">
-                        <h2 className="text-2xl font-black text-gray-800">Nuestra Carta</h2>
-                        <p className="text-gray-500 text-sm">Selecciona una categoría para ver los productos</p>
+                   /* VISTA 1: GALERÍA DE CATEGORÍAS (ESTILO NUEVO) */
+                   <div className="animate-in fade-in pb-20">
+                      
+                      {/* Título y Bienvenida */}
+                      <div className="text-center mb-8 mt-6">
+                        <div className="inline-block p-3 rounded-full bg-black mb-3 shadow-lg shadow-purple-500/20">
+                            {logo ? <img src={logo} className="w-12 h-12 object-contain" alt="Logo"/> : <ChefHat className="text-white" size={32}/>}
+                        </div>
+                        <h2 className="text-3xl font-black text-gray-900 tracking-tight">NUESTRO MENÚ</h2>
+                        <p className="text-gray-500 font-medium">Selecciona una categoría</p>
                       </div>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pb-20">
-                        {categories.map(cat => {
-                           // Truco: Usar la imagen del primer producto como portada de la categoría
-                           const firstItem = items.find(i => i.category === cat);
-                           const bgImage = firstItem ? firstItem.image : null;
-                           
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 px-2">
+                        {categories.map((cat, index) => {
+                           // 1. Asignamos gradientes vibrantes según el orden (Repite si hay muchas)
+                           const gradients = [
+                             'from-orange-500 to-purple-600', // Naranja -> Morado
+                             'from-pink-500 to-blue-500',     // Rosa -> Azul
+                             'from-purple-500 to-pink-500',   // Morado -> Rosa
+                             'from-yellow-400 to-green-500',  // Amarillo -> Verde
+                             'from-green-400 to-blue-600',    // Verde -> Azul
+                             'from-orange-400 to-yellow-500'  // Naranja -> Amarillo
+                           ];
+                           const currentGradient = gradients[index % gradients.length];
+
                            return (
                              <button 
                                 key={cat}
                                 onClick={() => setFilter(cat)}
-                                className="relative h-32 rounded-xl overflow-hidden shadow-md active:scale-95 transition-all group"
+                                className={`relative h-40 rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl active:scale-95 transition-all group bg-gradient-to-br ${currentGradient}`}
                              >
-                                {/* Imagen de Fondo */}
-                                {bgImage ? (
-                                   <img src={bgImage} alt={cat} className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
-                                ) : (
-                                   <div className="absolute inset-0 bg-gradient-to-br from-orange-400 to-orange-600"></div>
+                                {/* LOGO DE FONDO (Marca de agua difusa) */}
+                                {logo && (
+                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
+                                        <img 
+                                            src={logo} 
+                                            alt="" 
+                                            className="w-[80%] h-[80%] object-contain opacity-20 mix-blend-overlay rotate-12 scale-125 transition-transform duration-700 group-hover:scale-110 group-hover:rotate-6" 
+                                        />
+                                    </div>
                                 )}
-                                {/* Sombra para leer texto */}
-                                <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-colors"></div>
                                 
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                   <span className="text-white font-bold text-lg uppercase tracking-wider text-center px-2">{cat}</span>
+                                {/* TEXTO (Capa superior) */}
+                                <div className="absolute inset-0 flex items-center justify-center z-10">
+                                   <span className="text-white font-black text-3xl uppercase tracking-wide drop-shadow-md text-center px-4">
+                                     {cat}
+                                   </span>
                                 </div>
                              </button>
                            )
@@ -356,20 +374,23 @@ export default function App() {
                       </div>
                    </div>
                 ) : (
-                   /* VISTA 2: LISTA DE PRODUCTOS DE LA CATEGORÍA */
+                   /* VISTA 2: LISTA DE PRODUCTOS (Se mantiene igual, solo agregamos botón negro atrás) */
                    <div className="animate-in slide-in-from-right duration-300">
-                      <div className="flex items-center gap-2 mb-4">
-                         <button onClick={() => setFilter('Todos')} className="p-2 bg-gray-200 rounded-full hover:bg-gray-300 transition-colors">
-                            <ArrowLeft size={20} className="text-gray-700" />
-                         </button>
-                         <h2 className="text-xl font-bold text-gray-800">{filter}</h2>
+                      <div className="sticky top-20 z-20 bg-gray-50/95 backdrop-blur py-2 mb-4 border-b border-gray-200">
+                          <div className="flex items-center gap-3">
+                             <button onClick={() => setFilter('Todos')} className="p-2 bg-black text-white rounded-full hover:bg-gray-800 shadow-lg transition-transform active:scale-90">
+                                <ArrowLeft size={24} />
+                             </button>
+                             <h2 className="text-2xl font-black text-gray-800 uppercase tracking-wide">{filter}</h2>
+                          </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 pb-20">
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 pb-20 px-2">
                         {filteredItems.length > 0 ? (
                            filteredItems.map(item => (<MenuCard key={item.id} item={item} />))
                         ) : (
-                           <div className="col-span-full text-center py-20 text-gray-400">
+                           <div className="col-span-full text-center py-20 text-gray-400 flex flex-col items-center">
+                              <Search size={48} className="mb-2 opacity-20"/>
                               <p>No hay productos en esta categoría.</p>
                            </div>
                         )}
@@ -378,11 +399,6 @@ export default function App() {
                 )}
               </>
             )}
-          </main>
-
-          <div className={`fixed bottom-0 w-full p-1 text-[10px] text-center text-white ${dbStatus === 'connected' ? 'bg-green-600' : 'bg-red-600'}`}> {dbStatus === 'connected' ? 'Sistema Online' : 'Desconectado'} </div>
-        </>
-      )}
 
       <PaymentModal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} total={orderToPay ? orderToPay.total : (pendingSale ? pendingSale.cart.reduce((acc, i) => acc + (i.price * i.qty), 0) : 0)} onConfirm={handleFinalizeSale} />
       <ProductModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSave} item={currentItem} categories={categories} />
