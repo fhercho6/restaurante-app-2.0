@@ -1,4 +1,4 @@
-// src/App.jsx - VERSIÓN FINAL CON LOGO EN CARGA
+// Versión final corregida v2
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
