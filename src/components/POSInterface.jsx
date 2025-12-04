@@ -81,15 +81,26 @@ const POSInterface = ({ items, categories, onCheckout, onPrintOrder, onExit, sta
         {/* --- COLUMNA IZQUIERDA: PRODUCTOS --- */}
         <div className="flex-1 flex flex-col overflow-hidden w-full">
           
-          {/* Categorías (Scroll Horizontal) */}
-          <div className="p-2 bg-white shadow-sm z-10">
-            <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar">
-                <button onClick={() => setFilter('Todos')} className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${filter === 'Todos' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600'}`}>Todos</button>
-                {categories.map(cat => (
-                <button key={cat} onClick={() => setFilter(cat)} className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${filter === cat ? 'bg-orange-500 text-white shadow-md' : 'bg-gray-100 text-gray-600'}`}>{cat}</button>
-                ))}
-            </div>
-          </div>
+          {/* Categorías (Diseño Envolvente / Multilínea) */}
+<div className="p-2 bg-white shadow-sm z-10 border-b border-gray-100">
+  <div className="flex flex-wrap gap-2 justify-start max-h-32 overflow-y-auto">
+      <button 
+        onClick={() => setFilter('Todos')} 
+        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${filter === 'Todos' ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200'}`}
+      >
+        Todos
+      </button>
+      {categories.map(cat => (
+        <button 
+          key={cat} 
+          onClick={() => setFilter(cat)} 
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${filter === cat ? 'bg-orange-500 text-white border-orange-500 shadow-sm' : 'bg-white text-gray-600 border-gray-200'}`}
+        >
+          {cat}
+        </button>
+      ))}
+  </div>
+</div>
 
           {/* Grid de Productos (Adaptable) */}
           <div className="flex-1 overflow-y-auto p-3 pb-24 md:pb-4">
