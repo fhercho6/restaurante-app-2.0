@@ -144,8 +144,11 @@ export default function App() {
     }
   };
 
+  // src/App.jsx (Reemplaza solo esta función)
+
   const handleFinalizeSale = async (paymentResult) => {
     if (!db) return;
+    
     const toastId = toast.loading('Procesando pago...');
     setIsPaymentModalOpen(false);
     
@@ -156,19 +159,37 @@ export default function App() {
     try {
       const batchPromises = [];
       const timestamp = new Date();
+
+      // --- 1. IDENTIFICAR ROLES ---
+      // ¿Quién es el Cajero? (El usuario actual logueado)
+      let cashierName = 'Caja General';
+      if (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador')) {
+          cashierName = staffMember.name;
+      } else if (currentUser && !currentUser.isAnonymous) {
+          cashierName = 'Administrador';
+      }
+
+      // ¿Quién es el Mesero? (Viene de la orden pendiente o es el usuario actual si es venta directa)
+      const waiterName = orderToPay ? orderToPay.staffName : (staffMember ? staffMember.name : 'Barra');
+      const waiterId = orderToPay ? orderToPay.staffId : (staffMember ? staffMember.id : 'anon');
+
+      // --- 2. GUARDAR VENTA ---
       const saleData = {
         date: timestamp.toISOString(),
         total: totalToProcess,
         items: itemsToProcess,
-        staffId: staffMember ? staffMember.id : (orderToPay ? orderToPay.staffId : 'admin'),
-        staffName: staffMember ? staffMember.name : (orderToPay ? orderToPay.staffName : 'Caja'),
+        staffId: waiterId,    // Guardamos ID del mesero para sus comisiones
+        staffName: waiterName, // Nombre del mesero
+        cashier: cashierName,  // <--- NUEVO: Guardamos quién cobró
         payments: paymentsList,
         totalPaid: totalPaid,
         changeGiven: change
       };
+      
       const salesCollection = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`;
       const docRef = await addDoc(collection(db, salesCollection), saleData);
 
+      // --- 3. DESCONTAR STOCK ---
       itemsToProcess.forEach(item => {
         if (item.stock !== undefined && item.stock !== '') {
           const newStock = parseInt(item.stock) - item.qty;
@@ -176,16 +197,20 @@ export default function App() {
         }
       });
 
+      // --- 4. BORRAR PENDIENTE ---
       if (orderToPay) {
           const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
           batchPromises.push(deleteDoc(doc(db, ordersCol, orderToPay.id)));
       }
+
       await Promise.all(batchPromises);
 
+      // --- 5. DATOS PARA EL RECIBO ---
       const receiptData = {
         businessName: appName,
         date: timestamp.toLocaleString(),
-        staffName: saleData.staffName,
+        staffName: waiterName,   // Mesero
+        cashierName: cashierName,// Cajero (Para imprimir)
         orderId: docRef.id,
         items: itemsToProcess,
         total: totalToProcess,
@@ -195,13 +220,15 @@ export default function App() {
 
       setLastSale(receiptData);
       if (pendingSale && pendingSale.clearCart) pendingSale.clearCart([]);
+      
       setPendingSale(null);
       toast.success('¡Cobro exitoso!', { id: toastId });
       
-      // Si es cajero, volvemos a su panel tras cobrar, si no, mostramos ticket
+      // Lógica de redirección
       if (orderToPay) {
          setOrderToPay(null);
-         setView('cashier'); // <-- Cajero vuelve a su lista
+         // Al venir de caja, queremos ver el recibo para imprimirlo y dárselo al cliente
+         setView('receipt_view'); 
       } else {
          setOrderToPay(null);
          setView('receipt_view');
