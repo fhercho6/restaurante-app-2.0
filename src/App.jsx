@@ -1,11 +1,11 @@
-// src/App.jsx - VERSIÓN FINAL (Cajero Restringido + Anulación con Ticket)
+// src/App.jsx - VERSIÓN FINAL CON CONTROL DE CAJA (APERTURA/CIERRE)
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
-  Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign, ArrowLeft, RefreshCw 
+  Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign, ArrowLeft, Lock, Unlock 
 } from 'lucide-react';
 import { onAuthStateChanged, signOut, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
-import { collection, doc, setDoc, addDoc, deleteDoc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, addDoc, deleteDoc, onSnapshot, updateDoc, query, where, limit, getDocs } from 'firebase/firestore';
 import toast, { Toaster } from 'react-hot-toast';
 
 import { auth, db, ROOT_COLLECTION, isPersonalProject, firebaseConfig } from './config/firebase';
@@ -16,6 +16,7 @@ import SalesDashboard from './components/SalesDashboard';
 import Receipt from './components/Receipt';
 import PaymentModal from './components/PaymentModal';
 import CashierView from './components/CashierView';
+import OpenRegisterModal from './components/OpenRegisterModal'; // <--- NUEVO IMPORT
 
 import { AuthModal, BrandingModal, ProductModal, CategoryManager, RoleManager } from './components/Modals';
 import { MenuCard, PinLoginView, CredentialPrintView, PrintableView, AdminRow } from './components/Views';
@@ -31,15 +32,21 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [isLoadingApp, setIsLoadingApp] = useState(true);
 
+  // Datos
   const [items, setItems] = useState([]);
   const [staff, setStaff] = useState([]);
   const [categories, setCategories] = useState(INITIAL_CATEGORIES);
   const [roles, setRoles] = useState(INITIAL_ROLES);
   
+  // Config
   const [dbStatus, setDbStatus] = useState('connecting');
   const [dbErrorMsg, setDbErrorMsg] = useState('');
   const [logo, setLogo] = useState(null);
   const [appName, setAppName] = useState(""); 
+
+  // Estado de Caja (Sesión)
+  const [registerSession, setRegisterSession] = useState(null); // null = Cerrada, {id, amount...} = Abierta
+  const [isOpenRegisterModalOpen, setIsOpenRegisterModalOpen] = useState(false);
 
   // Modales
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -48,7 +55,7 @@ export default function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isBrandingModalOpen, setIsBrandingModalOpen] = useState(false);
   
-  // Estados
+  // Estados Operativos
   const [currentItem, setCurrentItem] = useState(null);
   const [filter, setFilter] = useState('Todos');
   const [credentialToPrint, setCredentialToPrint] = useState(null);
@@ -80,45 +87,79 @@ export default function App() {
     }
   };
 
-  // --- FUNCIONALIDAD DE ANULACIÓN (NUEVO) ---
-  const handleVoidAndPrint = async (order) => {
-     try {
-        // 1. Borrar de la BD
-        const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
-        await deleteDoc(doc(db, ordersCol, order.id));
-        
-        // 2. Preparar Ticket de Anulación (Rojo)
-        const voidData = {
-            ...order,
-            type: 'void', // Esto activa el borde rojo en Receipt.jsx
-            businessName: appName,
-            date: new Date().toLocaleString()
-        };
-        setLastSale(voidData);
-        
-        // 3. Mostrar pantalla de impresión
-        toast.success("Pedido anulado. Imprimiendo comprobante...");
-        setView('receipt_view');
-
-     } catch (error) {
-        console.error(error);
-        toast.error("Error al anular");
-     }
+  // --- LÓGICA DE CONTROL DE CAJA (APERTURA/CIERRE) ---
+  
+  const checkRegisterStatus = () => {
+    if (!registerSession) {
+        setIsOpenRegisterModalOpen(true);
+        return false;
+    }
+    return true;
   };
 
+  const handleOpenRegister = async (amount) => {
+      try {
+          const sessionData = {
+              status: 'open',
+              openedBy: staffMember ? staffMember.name : (currentUser?.email || 'Admin'),
+              openedAt: new Date().toISOString(),
+              openingAmount: amount,
+              salesTotal: 0
+          };
+          const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`;
+          const docRef = await addDoc(collection(db, colName), sessionData);
+          
+          setRegisterSession({ id: docRef.id, ...sessionData });
+          setIsOpenRegisterModalOpen(false);
+          toast.success(`Caja Abierta con Bs. ${amount.toFixed(2)}`, { icon: '🔓' });
+
+      } catch (error) {
+          console.error(error);
+          toast.error("Error al abrir caja");
+      }
+  };
+
+  const handleCloseRegister = async () => {
+      if (!registerSession) return;
+      if (!window.confirm("¿Estás seguro de realizar el CIERRE DE CAJA? Esto finalizará el turno actual.")) return;
+
+      try {
+          const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`;
+          await updateDoc(doc(db, colName, registerSession.id), {
+              status: 'closed',
+              closedAt: new Date().toISOString(),
+              closedBy: staffMember ? staffMember.name : 'Admin'
+          });
+          setRegisterSession(null);
+          toast.success("Caja Cerrada Correctamente", { icon: '🔒' });
+      } catch (error) {
+          toast.error("Error al cerrar caja");
+      }
+  };
+
+
+  // --- LÓGICA DE COBRO (Protegida por Caja) ---
+  
   const handleStartPaymentFromCashier = (order) => {
+      // 1. VERIFICAR CAJA ABIERTA
+      if (!checkRegisterStatus()) return;
+
       setOrderToPay(order); 
       setPendingSale({ cart: order.items, clearCart: () => {} });
       setIsPaymentModalOpen(true);
   };
 
   const handlePOSCheckout = (cart, clearCart) => {
+    // 1. VERIFICAR CAJA ABIERTA
+    if (!checkRegisterStatus()) return;
+
     setOrderToPay(null);
     setPendingSale({ cart, clearCart });
     setIsPaymentModalOpen(true);
   };
 
   const handleSendToKitchen = async (cart, clearCart) => {
+    // Garzones pueden enviar a cocina sin abrir caja (la caja es solo para cobrar)
     if (cart.length === 0) return;
     const toastId = toast.loading('Procesando comanda...');
     try {
@@ -144,11 +185,32 @@ export default function App() {
     }
   };
 
-  // src/App.jsx (Reemplaza solo esta función)
+  const handleVoidAndPrint = async (order) => {
+     try {
+        const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
+        await deleteDoc(doc(db, ordersCol, order.id));
+        const voidData = {
+            ...order,
+            type: 'void', 
+            businessName: appName,
+            date: new Date().toLocaleString()
+        };
+        setLastSale(voidData);
+        toast.success("Pedido anulado. Imprimiendo comprobante...");
+        setView('receipt_view');
+     } catch (error) {
+        toast.error("Error al anular");
+     }
+  };
 
   const handleFinalizeSale = async (paymentResult) => {
     if (!db) return;
-    
+    // Doble verificación por seguridad
+    if (!registerSession) {
+        toast.error("¡La caja está cerrada!");
+        return;
+    }
+
     const toastId = toast.loading('Procesando pago...');
     setIsPaymentModalOpen(false);
     
@@ -160,27 +222,23 @@ export default function App() {
       const batchPromises = [];
       const timestamp = new Date();
 
-      // --- 1. IDENTIFICAR ROLES ---
-      // ¿Quién es el Cajero? (El usuario actual logueado)
       let cashierName = 'Caja General';
       if (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador')) {
           cashierName = staffMember.name;
       } else if (currentUser && !currentUser.isAnonymous) {
           cashierName = 'Administrador';
       }
-
-      // ¿Quién es el Mesero? (Viene de la orden pendiente o es el usuario actual si es venta directa)
       const waiterName = orderToPay ? orderToPay.staffName : (staffMember ? staffMember.name : 'Barra');
       const waiterId = orderToPay ? orderToPay.staffId : (staffMember ? staffMember.id : 'anon');
 
-      // --- 2. GUARDAR VENTA ---
       const saleData = {
         date: timestamp.toISOString(),
         total: totalToProcess,
         items: itemsToProcess,
-        staffId: waiterId,    // Guardamos ID del mesero para sus comisiones
-        staffName: waiterName, // Nombre del mesero
-        cashier: cashierName,  // <--- NUEVO: Guardamos quién cobró
+        staffId: waiterId,
+        staffName: waiterName,
+        cashier: cashierName,
+        registerId: registerSession.id, // <--- ASOCIAMOS VENTA A LA CAJA ABIERTA
         payments: paymentsList,
         totalPaid: totalPaid,
         changeGiven: change
@@ -189,7 +247,6 @@ export default function App() {
       const salesCollection = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`;
       const docRef = await addDoc(collection(db, salesCollection), saleData);
 
-      // --- 3. DESCONTAR STOCK ---
       itemsToProcess.forEach(item => {
         if (item.stock !== undefined && item.stock !== '') {
           const newStock = parseInt(item.stock) - item.qty;
@@ -197,20 +254,17 @@ export default function App() {
         }
       });
 
-      // --- 4. BORRAR PENDIENTE ---
       if (orderToPay) {
           const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
           batchPromises.push(deleteDoc(doc(db, ordersCol, orderToPay.id)));
       }
-
       await Promise.all(batchPromises);
 
-      // --- 5. DATOS PARA EL RECIBO ---
       const receiptData = {
         businessName: appName,
         date: timestamp.toLocaleString(),
-        staffName: waiterName,   // Mesero
-        cashierName: cashierName,// Cajero (Para imprimir)
+        staffName: waiterName,
+        cashierName: cashierName,
         orderId: docRef.id,
         items: itemsToProcess,
         total: totalToProcess,
@@ -220,15 +274,12 @@ export default function App() {
 
       setLastSale(receiptData);
       if (pendingSale && pendingSale.clearCart) pendingSale.clearCart([]);
-      
       setPendingSale(null);
       toast.success('¡Cobro exitoso!', { id: toastId });
       
-      // Lógica de redirección
       if (orderToPay) {
          setOrderToPay(null);
-         // Al venir de caja, queremos ver el recibo para imprimirlo y dárselo al cliente
-         setView('receipt_view'); 
+         setView('cashier'); 
       } else {
          setOrderToPay(null);
          setView('receipt_view');
@@ -240,6 +291,7 @@ export default function App() {
     }
   };
 
+  // --- EFECTOS ---
   useEffect(() => {
     const initAuth = async () => {
         if (!auth.currentUser) {
@@ -253,6 +305,21 @@ export default function App() {
     initAuth();
     return onAuthStateChanged(auth, (u) => { setCurrentUser(u); if (u) { setDbStatus('connected'); setDbErrorMsg(''); } });
   }, []);
+
+  // Verificar si hay una caja abierta al cargar
+  useEffect(() => {
+      if (!db) return;
+      const checkSession = async () => {
+          const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`;
+          const q = query(collection(db, colName), where('status', '==', 'open'), limit(1));
+          const snap = await getDocs(q);
+          if (!snap.empty) {
+              const data = snap.docs[0].data();
+              setRegisterSession({ id: snap.docs[0].id, ...data });
+          }
+      };
+      checkSession();
+  }, [db, currentUser]);
 
   useEffect(() => {
     if (!db) return;
@@ -298,20 +365,7 @@ export default function App() {
   const filterCategories = ['Todos', ...categories];
   const filteredItems = filter === 'Todos' ? items : items.filter(i => i.category === filter);
   const isAdminMode = view === 'admin' || view === 'report' || view === 'staff_admin' || view === 'cashier';
-  
-  // --- LÓGICA DE VISTA RESTRINGIDA (SOLO CAJERO) ---
   const isCashierOnly = staffMember && staffMember.role === 'Cajero';
-
-  // Lógica para botón "Volver" en el recibo
-  const handleReceiptClose = () => {
-    // Si es Admin o Cajero (con PIN), vuelve a la caja
-    if (isCashierOnly || (currentUser && !currentUser.isAnonymous) || (staffMember?.role === 'Administrador')) {
-        setView('cashier');
-    } else {
-        // Si es garzón, vuelve a vender
-        setView('pos');
-    }
-  };
 
   if (isLoadingApp) {
     return <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 animate-in fade-in"><div className="bg-white p-8 rounded-3xl shadow-xl flex flex-col items-center"><div className="relative mb-4"><div className="absolute inset-0 bg-orange-200 rounded-full animate-ping opacity-75"></div><div className="relative bg-white p-4 rounded-full border-4 border-orange-500 overflow-hidden w-24 h-24 flex items-center justify-center">{LOGO_URL_FIJO ? (<img src={LOGO_URL_FIJO} alt="Cargando" className="w-full h-full object-contain animate-pulse" />) : (<ChefHat size={48} className="text-orange-500" />)}</div></div><h2 className="text-xl font-bold text-gray-800">Cargando sistema...</h2><p className="text-sm text-gray-400 mt-2">Conectando con la nube</p></div></div>;
@@ -321,15 +375,32 @@ export default function App() {
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900 pb-20">
       <Toaster position="top-center" reverseOrder={false} />
       
+      {/* --- BARRA SUPERIOR CON ESTADO DE CAJA --- */}
+      {view !== 'landing' && (
+          <div className={`w-full p-1 text-[10px] text-center font-bold text-white flex justify-center items-center gap-2 shadow-md sticky top-0 z-50 ${registerSession ? 'bg-green-600' : 'bg-red-600'}`}>
+              {registerSession ? (
+                  <>
+                      <Unlock size={12}/> CAJA ABIERTA (Bs. {registerSession.openingAmount})
+                      {/* Botón secreto de cierre para Admin/Cajero */}
+                      {(isAdminMode) && (
+                          <button onClick={handleCloseRegister} className="ml-2 bg-black/20 hover:bg-black/40 px-2 rounded text-white underline">Cerrar Turno</button>
+                      )}
+                  </>
+              ) : (
+                  <><Lock size={12}/> CAJA CERRADA - No se pueden realizar cobros</>
+              )}
+          </div>
+      )}
+
       {view === 'landing' ? (
         <LandingPage appName={appName || 'Cargando...'} logo={logo} onSelectClient={handleEnterMenu} onSelectStaff={handleEnterStaff} onSelectAdmin={handleEnterAdmin} />
       ) : (
         <>
-          <header className="bg-white sticky top-0 z-30 shadow-sm border-b border-gray-100 no-print">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+          <header className="bg-white shadow-sm border-b border-gray-100 no-print">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
               <div className="flex items-center gap-3" onClick={() => isAdminMode && !isCashierOnly && setIsBrandingModalOpen(true)}>
-                <div className={`rounded-lg overflow-hidden flex items-center justify-center ${logo ? 'bg-white' : 'bg-orange-500 p-2 text-white'}`} style={{ width: '44px', height: '44px' }}>{logo ? <img src={logo} className="w-full h-full object-contain"/> : <ChefHat size={28} />}</div>
-                <div><h1 className="text-xl font-bold text-gray-800 leading-none">{appName}</h1><span className="text-xs text-gray-500 font-medium uppercase">Cloud Menu</span></div>
+                <div className={`rounded-lg overflow-hidden flex items-center justify-center ${logo ? 'bg-white' : 'bg-orange-500 p-2 text-white'}`} style={{ width: '40px', height: '40px' }}>{logo ? <img src={logo} className="w-full h-full object-contain"/> : <ChefHat size={24} />}</div>
+                <div><h1 className="text-lg font-bold text-gray-800 leading-none">{appName}</h1><span className="text-[10px] text-gray-500 font-medium uppercase">Cloud Menu</span></div>
               </div>
               <div className="flex items-center gap-2 header-buttons">
                 {!isAdminMode && <button onClick={() => setView('landing')} className="p-2 rounded-full hover:bg-gray-100 text-gray-500"><Home size={20}/></button>}
@@ -338,32 +409,20 @@ export default function App() {
             </div>
           </header>
 
-          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             {isAdminMode && (
               <>
-                <div className="mb-8 no-print overflow-x-auto">
+                <div className="mb-6 no-print overflow-x-auto">
                   <div className="flex border-b border-gray-200 min-w-max">
-                    {/* SI ES SOLO CAJERO, OCULTAMOS INVENTARIO Y PERSONAL */}
-                    {!isCashierOnly && (
-                        <button onClick={() => setView('admin')} className={`pb-4 px-6 text-lg font-bold border-b-2 transition-colors flex gap-2 ${view === 'admin' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><ClipboardList/> Inventario</button>
-                    )}
-                    
-                    <button onClick={() => setView('cashier')} className={`pb-4 px-6 text-lg font-bold border-b-2 transition-colors flex gap-2 ${view === 'cashier' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><DollarSign/> Caja / Pedidos</button>
-                    
-                    {!isCashierOnly && (
-                        <button onClick={() => setView('staff_admin')} className={`pb-4 px-6 text-lg font-bold border-b-2 transition-colors flex gap-2 ${view === 'staff_admin' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><Users/> Personal</button>
-                    )}
-                    
-                    {/* El reporte quizás le sirva al cajero para su arqueo, lo dejamos opcional o visible */}
-                    <button onClick={() => setView('report')} className={`pb-4 px-6 text-lg font-bold border-b-2 transition-colors flex gap-2 ${view === 'report' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><FileText/> Reporte</button>
+                    {!isCashierOnly && <button onClick={() => setView('admin')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'admin' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><ClipboardList size={18}/> Inventario</button>}
+                    <button onClick={() => setView('cashier')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'cashier' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><DollarSign size={18}/> Caja</button>
+                    {!isCashierOnly && <button onClick={() => setView('staff_admin')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'staff_admin' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><Users size={18}/> Personal</button>}
+                    <button onClick={() => setView('report')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'report' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><FileText size={18}/> Reporte</button>
                   </div>
                 </div>
 
                 {view === 'report' && <div className="animate-in fade-in"><SalesDashboard /><div className="hidden print:block mt-8"><PrintableView items={items} /></div></div>}
-                
-                {/* AQUÍ PASAMOS LA FUNCIÓN DE ANULAR */}
                 {view === 'cashier' && <CashierView onProcessPayment={handleStartPaymentFromCashier} onVoidOrder={handleVoidAndPrint} />}
-                
                 {view === 'staff_admin' && !isCashierOnly && <StaffManagerView staff={staff} roles={roles} onAddStaff={handleAddStaff} onUpdateStaff={handleUpdateStaff} onDeleteStaff={handleDeleteStaff} onManageRoles={() => setIsRoleModalOpen(true)} onPrintCredential={handlePrintCredential} />}
                 {view === 'credential_print' && credentialToPrint && <div className="flex flex-col items-center"><button onClick={() => setView('staff_admin')} className="no-print mb-4 px-4 py-2 bg-gray-200 rounded">Volver</button><CredentialPrintView member={credentialToPrint} appName={appName} /></div>}
                 {view === 'admin' && !isCashierOnly && (
@@ -387,10 +446,8 @@ export default function App() {
 
             {view === 'pin_login' && <PinLoginView staffMembers={staff} onLoginSuccess={handleStaffPinLogin} onCancel={() => setView('landing')} />}
             {view === 'pos' && <POSInterface items={items} categories={categories} staffMember={staffMember} onCheckout={handlePOSCheckout} onPrintOrder={handleSendToKitchen} onExit={() => setView('landing')} />}
+            {view === 'receipt_view' && <Receipt data={lastSale} onPrint={handlePrint} onClose={() => { if(isCashierOnly || (currentUser && !currentUser.isAnonymous) || (staffMember?.role === 'Administrador')) setView('cashier'); else setView('pos'); }} />}
             
-            {/* AQUÍ USAMOS LA NUEVA FUNCIÓN DE CIERRE */}
-            {view === 'receipt_view' && <Receipt data={lastSale} onPrint={handlePrint} onClose={handleReceiptClose} />}
-
             {view === 'menu' && (
               <>
                 {filter === 'Todos' ? (
@@ -431,9 +488,10 @@ export default function App() {
               </>
             )}
           </main>
-          <div className={`fixed bottom-0 w-full p-1 text-[10px] text-center text-white ${dbStatus === 'connected' ? 'bg-green-600' : 'bg-red-600'}`}> {dbStatus === 'connected' ? 'Sistema Online' : 'Desconectado'} </div>
         </>
       )}
+      
+      <OpenRegisterModal isOpen={isOpenRegisterModalOpen} onClose={() => {}} onOpenRegister={handleOpenRegister} />
       <PaymentModal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} total={orderToPay ? orderToPay.total : (pendingSale ? pendingSale.cart.reduce((acc, i) => acc + (i.price * i.qty), 0) : 0)} onConfirm={handleFinalizeSale} />
       <ProductModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSave} item={currentItem} categories={categories} />
       <CategoryManager isOpen={isCategoryModalOpen} onClose={() => setIsCategoryModalOpen(false)} categories={categories} onAdd={handleAddCategory} onRename={handleRenameCategory} onDelete={handleDeleteCategory} />
