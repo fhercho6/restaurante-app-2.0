@@ -1,10 +1,10 @@
 // src/components/Modals.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  X, Lock, Github, Eye, EyeOff, RefreshCw, ImageIcon, 
+  X, Lock, Eye, EyeOff, RefreshCw, ImageIcon, 
   Settings, AlertCircle, Plus, Edit2, Trash2, Briefcase, Check, Upload
 } from 'lucide-react';
-import { signInWithPopup, GithubAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { auth, isPersonalProject } from '../config/firebase';
 
 // Helper para comprimir imágenes
@@ -29,7 +29,7 @@ const compressImage = (file, quality = 0.6, maxWidth = 500) => {
   });
 };
 
-// --- AUTH MODAL ---
+// --- AUTH MODAL (SOLO CORREO) ---
 export const AuthModal = ({ isOpen, onClose, onLogin }) => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -38,16 +38,6 @@ export const AuthModal = ({ isOpen, onClose, onLogin }) => {
   const [isLoading, setIsLoading] = useState(false);
 
   if (!isOpen) return null;
-
-  const handleGithubLogin = async () => {
-    setError(''); setIsLoading(true);
-    if (!auth) return;
-    try {
-      const provider = new GithubAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      onLogin(result.user);
-    } catch (err) { setError("Error GitHub: " + err.message); } finally { setIsLoading(false); }
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -72,15 +62,16 @@ export const AuthModal = ({ isOpen, onClose, onLogin }) => {
             <h2 className="text-2xl font-bold text-gray-800">{isRegistering ? 'Nuevo Admin' : 'Acceso Admin'}</h2>
             <p className="text-gray-500 text-sm mt-2">{isPersonalProject ? 'Conectado a tu BD Privada' : 'Modo Demo'}</p>
           </div>
+          
           {error && <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm mb-6 border border-red-100">{String(error)}</div>}
-          <button onClick={handleGithubLogin} disabled={isLoading} className="w-full bg-gray-900 hover:bg-black text-white font-bold py-3 rounded-lg mb-6 flex justify-center items-center gap-2"><Github size={20} />{isLoading ? '...' : 'GitHub'}</button>
-          <div className="flex items-center mb-6"><div className="flex-grow border-t"></div><span className="flex-shrink-0 mx-4 text-gray-400 text-sm">o correo</span><div className="flex-grow border-t"></div></div>
+          
           <form onSubmit={handleSubmit} className="space-y-4">
             {isRegistering && <div><label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label><input type="text" className="w-full px-4 py-2 border rounded-lg" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} /></div>}
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Correo</label><input type="email" className="w-full px-4 py-2 border rounded-lg" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Correo</label><input type="email" className="w-full px-4 py-2 border rounded-lg" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="admin@zzif.com" /></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label><div className="relative"><input type={showPassword ? "text" : "password"} className="w-full px-4 py-2 border rounded-lg" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} /><button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-2.5 text-gray-400">{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div></div>
-            <button type="submit" disabled={isLoading} className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 rounded-lg mt-4">{isLoading ? '...' : (isRegistering ? 'Registrarse' : 'Entrar')}</button>
+            <button type="submit" disabled={isLoading} className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 rounded-lg mt-4 shadow-lg active:scale-95 transition-transform">{isLoading ? 'Cargando...' : (isRegistering ? 'Registrarse' : 'Entrar al Sistema')}</button>
           </form>
+          
           <div className="mt-6 text-center text-sm"><button onClick={() => { setIsRegistering(!isRegistering); setError(''); }} className="text-orange-600 font-bold hover:underline">{isRegistering ? '¿Ya tienes cuenta?' : '¿Crear cuenta?'}</button></div>
         </div>
       </div>
