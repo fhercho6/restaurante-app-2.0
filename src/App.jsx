@@ -1,8 +1,8 @@
-// src/App.jsx - VERSIÓN DEFINITIVA CORREGIDA
+// src/App.jsx - VERSIÓN FINAL CON PANTALLA DE CARGA
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
-  Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign, ArrowLeft 
+  Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign, ArrowLeft, RefreshCw 
 } from 'lucide-react';
 import { onAuthStateChanged, signOut, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
 import { collection, doc, setDoc, addDoc, deleteDoc, onSnapshot, updateDoc } from 'firebase/firestore';
@@ -24,12 +24,17 @@ import {
   MenuCard, PinLoginView, CredentialPrintView, PrintableView, AdminRow 
 } from './components/Views';
 
-const INITIAL_CATEGORIES = ['Entradas', 'Platos Fuertes', 'Postres', 'Bebidas', 'Hamburguesas', 'Tacos'];
+// Categorías vacías al inicio para no mostrar datos falsos
+const INITIAL_CATEGORIES = []; 
 const INITIAL_ROLES = ['Garzón', 'Cajero', 'Cocinero', 'Administrador'];
 
 export default function App() {
   const [view, setView] = useState('landing');
   const [currentUser, setCurrentUser] = useState(null);
+  
+  // ESTADO DE CARGA: Inicia en true para ocultar la app hasta tener datos
+  const [isLoadingApp, setIsLoadingApp] = useState(true);
+
   const [items, setItems] = useState([]);
   const [staff, setStaff] = useState([]);
   const [categories, setCategories] = useState(INITIAL_CATEGORIES);
@@ -38,7 +43,9 @@ export default function App() {
   const [dbStatus, setDbStatus] = useState('connecting');
   const [dbErrorMsg, setDbErrorMsg] = useState('');
   const [logo, setLogo] = useState(null);
-  const [appName, setAppName] = useState("Delizioso");
+  
+  // Nombre vacío al inicio para no mostrar "Delizioso" por defecto
+  const [appName, setAppName] = useState(""); 
 
   // Modales
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -59,7 +66,7 @@ export default function App() {
   const [orderToPay, setOrderToPay] = useState(null); 
   const [lastSale, setLastSale] = useState(null);
 
-  // --- HANDLERS ---
+  // --- HANDLERS NAVEGACIÓN ---
   const handleLogin = (userApp) => { setIsAuthModalOpen(false); setView('admin'); toast.success(`Bienvenido`); };
   const handleLogout = async () => { await signOut(auth); setView('landing'); toast('Sesión cerrada', { icon: '👋' }); };
   const handleEnterMenu = () => { setFilter('Todos'); setView('menu'); };
@@ -78,7 +85,10 @@ export default function App() {
   // --- LÓGICA DEL CAJERO ---
   const handleStartPaymentFromCashier = (order) => {
       setOrderToPay(order); 
-      setPendingSale({ cart: order.items, clearCart: () => {} });
+      setPendingSale({ 
+          cart: order.items, 
+          clearCart: () => {} 
+      });
       setIsPaymentModalOpen(true);
   };
 
@@ -91,9 +101,11 @@ export default function App() {
 
   const handleSendToKitchen = async (cart, clearCart) => {
     if (cart.length === 0) return;
+    
     const toastId = toast.loading('Procesando comanda...');
     try {
         const totalOrder = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
+        
         const orderData = {
             date: new Date().toISOString(),
             staffId: staffMember ? staffMember.id : 'anon',
@@ -103,13 +115,17 @@ export default function App() {
             total: totalOrder,
             status: 'pending'
         };
+
         const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
         await addDoc(collection(db, ordersCol), orderData);
+
         const preCheckData = { ...orderData, type: 'order', date: new Date().toLocaleString() };
+        
         clearCart([]);
         setLastSale(preCheckData);
         toast.success('Pedido enviado a caja', { id: toastId });
         setView('receipt_view'); 
+
     } catch (error) {
         console.error(error);
         toast.error('Error al enviar pedido', { id: toastId });
@@ -118,6 +134,7 @@ export default function App() {
 
   const handleFinalizeSale = async (paymentResult) => {
     if (!db) return;
+    
     const toastId = toast.loading('Procesando pago...');
     setIsPaymentModalOpen(false);
     
@@ -128,6 +145,7 @@ export default function App() {
     try {
       const batchPromises = [];
       const timestamp = new Date();
+
       const saleData = {
         date: timestamp.toISOString(),
         total: totalToProcess,
@@ -169,17 +187,20 @@ export default function App() {
 
       setLastSale(receiptData);
       if (pendingSale && pendingSale.clearCart) pendingSale.clearCart([]);
+      
       setPendingSale(null);
       setOrderToPay(null);
+      
       toast.success('¡Cobro exitoso!', { id: toastId });
       setView('receipt_view');
+
     } catch (e) {
       console.error(e);
       toast.error('Error al cobrar', { id: toastId });
     }
   };
 
-  // --- EFECTOS ---
+  // --- EFECTOS Y CONFIG ---
   useEffect(() => {
     const initAuth = async () => {
         if (!auth.currentUser) {
@@ -204,13 +225,22 @@ export default function App() {
         if (e.code === 'permission-denied') { setDbStatus('error'); setDbErrorMsg(currentUser ? 'Sin permisos.' : 'Inicia sesión.'); } 
     });
     const staffUnsub = onSnapshot(collection(db, getCollName('staff')), (s) => setStaff(s.docs.map(d => ({id: d.id, ...d.data()}))));
+    
+    // Aquí es donde obtenemos la marca y las categorías
     const settingsUnsub = onSnapshot(collection(db, getCollName('settings')), (s) => {
+        let brandingLoaded = false;
         s.docs.forEach(d => {
             const data = d.data();
-            if (d.id === 'categories') setCategories(data.list || INITIAL_CATEGORIES);
+            if (d.id === 'categories') setCategories(data.list || []);
             if (d.id === 'roles') setRoles(data.list || INITIAL_ROLES);
-            if (d.id === 'branding') { setLogo(data.logo); if(data.appName) setAppName(data.appName); }
+            if (d.id === 'branding') { 
+              setLogo(data.logo); 
+              if(data.appName) setAppName(data.appName);
+              brandingLoaded = true;
+            }
         });
+        // Una vez que Firebase responde, quitamos la pantalla de carga
+        setIsLoadingApp(false);
     });
     return () => { itemsUnsub(); staffUnsub(); settingsUnsub(); };
   }, [currentUser]);
@@ -240,11 +270,30 @@ export default function App() {
   const filteredItems = filter === 'Todos' ? items : items.filter(i => i.category === filter);
   const isAdminMode = view === 'admin' || view === 'report' || view === 'staff_admin' || view === 'cashier';
 
+  // --- PANTALLA DE CARGA (Para no mostrar datos falsos) ---
+  if (isLoadingApp) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 animate-in fade-in">
+        <div className="bg-white p-8 rounded-3xl shadow-xl flex flex-col items-center">
+           <div className="relative mb-4">
+             <div className="absolute inset-0 bg-orange-200 rounded-full animate-ping opacity-75"></div>
+             <div className="relative bg-orange-500 text-white p-4 rounded-full">
+               <ChefHat size={48} />
+             </div>
+           </div>
+           <h2 className="text-xl font-bold text-gray-800">Cargando sistema...</h2>
+           <p className="text-sm text-gray-400 mt-2">Conectando con la nube</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900 pb-20">
       <Toaster position="top-center" reverseOrder={false} />
+      
       {view === 'landing' ? (
-        <LandingPage appName={appName} logo={logo} onSelectClient={handleEnterMenu} onSelectStaff={handleEnterStaff} onSelectAdmin={handleEnterAdmin} />
+        <LandingPage appName={appName || 'Cargando...'} logo={logo} onSelectClient={handleEnterMenu} onSelectStaff={handleEnterStaff} onSelectAdmin={handleEnterAdmin} />
       ) : (
         <>
           <header className="bg-white sticky top-0 z-30 shadow-sm border-b border-gray-100 no-print">
@@ -271,6 +320,7 @@ export default function App() {
                     <button onClick={() => setView('report')} className={`pb-4 px-6 text-lg font-bold border-b-2 transition-colors flex gap-2 ${view === 'report' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><FileText/> Reporte</button>
                   </div>
                 </div>
+
                 {view === 'report' && <div className="animate-in fade-in"><SalesDashboard /><div className="hidden print:block mt-8"><PrintableView items={items} /></div></div>}
                 {view === 'cashier' && <CashierView onProcessPayment={handleStartPaymentFromCashier} />}
                 {view === 'staff_admin' && <StaffManagerView staff={staff} roles={roles} onAddStaff={handleAddStaff} onUpdateStaff={handleUpdateStaff} onDeleteStaff={handleDeleteStaff} onManageRoles={() => setIsRoleModalOpen(true)} onPrintCredential={handlePrintCredential} />}
