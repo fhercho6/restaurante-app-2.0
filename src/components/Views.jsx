@@ -2,23 +2,59 @@
 import React, { useState } from 'react';
 import { Lock, Delete, ChefHat, Edit2, Trash2, AlertTriangle, RefreshCw } from 'lucide-react';
 
-// --- 1. TARJETA DE MENÚ (Cliente) ---
-export const MenuCard = ({ item }) => (
-  <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 h-full flex flex-col">
-    <div className="h-48 overflow-hidden relative group bg-gray-100 flex items-center justify-center flex-shrink-0">
-      {item.image ? (
-        <img src={item.image} alt={item.name || 'Producto'} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" onError={(e) => { e.target.style.display = 'none'; }} />
-      ) : <div className="text-gray-300 flex flex-col items-center"><ChefHat size={40} /><span className="text-xs mt-2">Sin imagen</span></div>}
-      <div className="absolute top-2 right-2 bg-orange-500 text-white px-3 py-1 rounded-full font-bold shadow-md">Bs. {(Number(item.price) || 0).toFixed(2)}</div>
-      {item.stock !== undefined && item.stock !== '' && <div className={`absolute bottom-2 left-2 px-2 py-1 rounded text-xs font-bold shadow-sm ${Number(item.stock) > 0 ? 'bg-white text-gray-700' : 'bg-red-500 text-white'}`}>{Number(item.stock) > 0 ? `${item.stock} disp.` : 'AGOTADO'}</div>}
+// --- 1. TARJETA DE MENÚ (Cliente - Diseño "Lista Amigable" Móvil) ---
+export const MenuCard = ({ item }) => {
+  const hasStock = item.stock === undefined || item.stock === '' || parseInt(item.stock) > 0;
+
+  return (
+    // Contenedor principal: Flex horizontal (fila), altura controlada
+    <div className={`bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex h-28 sm:h-32 transition-all ${!hasStock ? 'opacity-70 grayscale' : 'hover:shadow-md'}`}>
+
+      {/* LADO IZQUIERDO: Imagen Cuadrada Pequeña (aprox 112px - 128px) */}
+      <div className="w-28 sm:w-32 h-full relative bg-gray-100 flex-shrink-0">
+        {item.image ? (
+          <img
+            src={item.image}
+            alt={item.name || 'Producto'}
+            className="w-full h-full object-cover"
+            loading="lazy"
+            onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+          />
+        ) : null}
+         {/* Fallback si falla la imagen o no hay */}
+        <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 absolute inset-0 bg-gray-100" style={{display: item.image ? 'none' : 'flex'}}>
+           <ChefHat size={24} />
+        </div>
+
+        {/* Badge de Stock (esquina inferior de la imagen) */}
+        {item.stock !== undefined && item.stock !== '' && (
+          <div className={`absolute bottom-1 left-1 px-1.5 py-0.5 rounded text-[10px] font-bold shadow-sm ${hasStock ? 'bg-white/80 text-gray-700 backdrop-blur-sm' : 'bg-red-500 text-white'}`}>
+              {hasStock ? `${item.stock} u.` : 'AGOTADO'}
+          </div>
+        )}
+      </div>
+
+      {/* LADO DERECHO: Información del producto */}
+      <div className="p-3 flex flex-col flex-grow justify-between min-w-0">
+        <div>
+           {/* Categoría pequeña */}
+           <div className="text-[10px] font-bold text-orange-500 uppercase tracking-wider leading-none mb-1 truncate">{item.category}</div>
+           {/* Nombre del producto (máximo 2 líneas para no romper el diseño) */}
+           <h3 className="font-bold text-gray-900 text-sm sm:text-base leading-tight line-clamp-2">{item.name}</h3>
+           {/* Descripción corta (oculta en celulares muy pequeños para ahorrar espacio, visible en tablets) */}
+           <p className="text-xs text-gray-500 mt-1 line-clamp-2 hidden sm:block">{item.description}</p>
+        </div>
+
+        {/* Precio grande abajo a la derecha */}
+        <div className="text-right mt-1">
+           <div className="text-base sm:text-lg font-black text-gray-900 leading-none">
+             Bs. {(Number(item.price) || 0).toFixed(2)}
+           </div>
+        </div>
+      </div>
     </div>
-    <div className="p-5 flex flex-col flex-grow">
-      <div className="text-xs font-semibold text-orange-600 uppercase tracking-wide mb-1">{item.category}</div>
-      <h3 className="text-xl font-bold text-gray-800 mb-2">{item.name}</h3>
-      <p className="text-gray-600 text-sm leading-relaxed flex-grow">{item.description}</p>
-    </div>
-  </div>
-);
+  );
+};
 
 // --- 2. LOGIN CON PIN ---
 export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
