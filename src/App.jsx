@@ -1,4 +1,5 @@
 // Versión final corregida v2
+// Actualización forzada: [15:07]
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
