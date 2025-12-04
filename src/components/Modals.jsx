@@ -167,13 +167,11 @@ export const RoleManager = ({ isOpen, onClose, roles, onAdd, onRename, onDelete 
     );
 };
 
-// --- PRODUCT FORM MODAL (CORREGIDO: EVITA DOBLE CLICK) ---
+// --- PRODUCT FORM MODAL (SIN COMAS Y SIN DOBLE CLICK) ---
 export const ProductModal = ({ isOpen, onClose, onSave, item, categories }) => {
   const [formData, setFormData] = useState({ name: '', description: '', price: '', cost: '', stock: '', category: '', image: '' });
   const [isProcessingImg, setIsProcessingImg] = useState(false);
-  
-  // NUEVO ESTADO: Para bloquear el botón mientras guarda
-  const [isSaving, setIsSaving] = useState(false); 
+  const [isSaving, setIsSaving] = useState(false);
   
   const fileInputRef = useRef(null);
 
@@ -183,12 +181,18 @@ export const ProductModal = ({ isOpen, onClose, onSave, item, categories }) => {
     } else {
       setFormData({ name: '', description: '', price: '', cost: '', stock: '', category: categories[0] || '', image: '' });
     }
-    // Reiniciamos el estado de guardado al abrir
     setIsSaving(false);
   }, [item, isOpen, categories]);
 
   const handleChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   
+  // --- NUEVA FUNCIÓN: BLOQUEA LA COMA ---
+  const preventComma = (e) => {
+    if (e.key === ',') {
+      e.preventDefault();
+    }
+  };
+
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -204,16 +208,11 @@ export const ProductModal = ({ isOpen, onClose, onSave, item, categories }) => {
     }
   };
 
-  // --- LÓGICA CORREGIDA AQUÍ ---
   const handleSubmit = async () => { 
-    // 1. Si ya está guardando, ignoramos nuevos clicks
     if (isSaving) return;
-
-    // 2. Bloqueamos el botón
     setIsSaving(true);
 
     try {
-        // 3. Esperamos a que App.jsx termine de guardar
         await onSave({ 
             ...formData, 
             price: parseFloat(formData.price) || 0, 
@@ -222,11 +221,8 @@ export const ProductModal = ({ isOpen, onClose, onSave, item, categories }) => {
         });
     } catch (error) {
         console.error(error);
-        // Si hubo error y no se cerró el modal, desbloqueamos el botón
         setIsSaving(false);
     }
-    // Nota: Si onSave tiene éxito, el modal se cierra y este componente muere,
-    // así que no hace falta setear false.
   };
 
   if (!isOpen) return null;
@@ -248,8 +244,32 @@ export const ProductModal = ({ isOpen, onClose, onSave, item, categories }) => {
             </div>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <div><label className="block text-sm font-medium mb-1">Costo (Bs.)</label><input type="number" name="cost" value={formData.cost} onChange={handleChange} className="w-full p-2 border rounded-lg outline-none" placeholder="0.00" step="0.10"/></div>
-                <div><label className="block text-sm font-medium mb-1">Precio (Bs.)</label><input type="number" name="price" value={formData.price} onChange={handleChange} className="w-full p-2 border rounded-lg outline-none" placeholder="0.00" step="0.50"/></div>
+                <div>
+                    <label className="block text-sm font-medium mb-1">Costo (Bs.)</label>
+                    <input 
+                        type="number" 
+                        name="cost" 
+                        value={formData.cost} 
+                        onChange={handleChange} 
+                        onKeyDown={preventComma} // <--- AQUÍ BLOQUEAMOS LA COMA
+                        className="w-full p-2 border rounded-lg outline-none" 
+                        placeholder="0.00" 
+                        step="0.10"
+                    />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium mb-1">Precio (Bs.)</label>
+                    <input 
+                        type="number" 
+                        name="price" 
+                        value={formData.price} 
+                        onChange={handleChange} 
+                        onKeyDown={preventComma} // <--- AQUÍ TAMBIÉN
+                        className="w-full p-2 border rounded-lg outline-none" 
+                        placeholder="0.00" 
+                        step="0.50"
+                    />
+                </div>
               </div>
               <div><label className="block text-sm font-medium mb-1 text-blue-600">Stock (Opcional)</label><input type="number" name="stock" value={formData.stock} onChange={handleChange} className="w-full p-2 border border-blue-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" placeholder="Cantidad disponible..."/></div>
               <div>
@@ -265,20 +285,8 @@ export const ProductModal = ({ isOpen, onClose, onSave, item, categories }) => {
         
         <div className="p-6 border-t bg-gray-50 flex justify-end gap-3">
             <button onClick={onClose} disabled={isSaving} className="px-6 py-2 rounded-lg text-gray-600 font-medium disabled:opacity-50">Cancelar</button>
-            
-            {/* BOTÓN CON ESTADO DE CARGA */}
-            <button 
-                onClick={handleSubmit} 
-                disabled={isProcessingImg || isSaving} 
-                className="px-6 py-2 rounded-lg bg-orange-600 text-white font-medium shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-                {isSaving ? (
-                    <>
-                        <RefreshCw size={18} className="animate-spin"/> Guardando...
-                    </>
-                ) : (
-                    isProcessingImg ? 'Procesando img...' : 'Guardar'
-                )}
+            <button onClick={handleSubmit} disabled={isProcessingImg || isSaving} className="px-6 py-2 rounded-lg bg-orange-600 text-white font-medium shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2">
+                {isSaving ? <><RefreshCw size={18} className="animate-spin"/> Guardando...</> : (isProcessingImg ? 'Procesando img...' : 'Guardar')}
             </button>
         </div>
       </div>
