@@ -127,8 +127,11 @@ export default function App() {
     }
   };
 
+  // src/App.jsx (Solo reemplaza esta función)
+
   const handleFinalizeSale = async (paymentResult) => {
     if (!db) return;
+    
     const toastId = toast.loading('Procesando pago...');
     setIsPaymentModalOpen(false);
     
@@ -139,6 +142,8 @@ export default function App() {
     try {
       const batchPromises = [];
       const timestamp = new Date();
+
+      // 1. Guardar Venta
       const saleData = {
         date: timestamp.toISOString(),
         total: totalToProcess,
@@ -153,6 +158,7 @@ export default function App() {
       const salesCollection = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`;
       const docRef = await addDoc(collection(db, salesCollection), saleData);
 
+      // 2. Actualizar Stock
       itemsToProcess.forEach(item => {
         if (item.stock !== undefined && item.stock !== '') {
           const newStock = parseInt(item.stock) - item.qty;
@@ -160,6 +166,7 @@ export default function App() {
         }
       });
 
+      // 3. Borrar de Pendientes (Si era comanda)
       if (orderToPay) {
           const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
           batchPromises.push(deleteDoc(doc(db, ordersCol, orderToPay.id)));
@@ -167,6 +174,7 @@ export default function App() {
 
       await Promise.all(batchPromises);
 
+      // 4. Preparar datos del Ticket (por si se necesita después)
       const receiptData = {
         businessName: appName,
         date: timestamp.toLocaleString(),
@@ -180,10 +188,24 @@ export default function App() {
 
       setLastSale(receiptData);
       if (pendingSale && pendingSale.clearCart) pendingSale.clearCart([]);
+      
       setPendingSale(null);
-      setOrderToPay(null);
+      
       toast.success('¡Cobro exitoso!', { id: toastId });
-      setView('receipt_view');
+
+      // --- LÓGICA DE REDIRECCIÓN MEJORADA ---
+      if (orderToPay) {
+          // CASO 1: Viene de la Caja (Comanda de Mesero)
+          // Limpiamos la orden actual y volvemos directo a la lista de pendientes
+          setOrderToPay(null);
+          setView('cashier'); 
+      } else {
+          // CASO 2: Venta Directa (POS Rápido)
+          // Mostramos el ticket porque el cliente está esperando el papel
+          setOrderToPay(null);
+          setView('receipt_view');
+      }
+
     } catch (e) {
       console.error(e);
       toast.error('Error al cobrar', { id: toastId });
