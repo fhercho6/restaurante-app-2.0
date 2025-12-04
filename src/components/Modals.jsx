@@ -167,32 +167,78 @@ export const RoleManager = ({ isOpen, onClose, roles, onAdd, onRename, onDelete 
     );
 };
 
-// --- PRODUCT FORM MODAL ---
+// --- PRODUCT FORM MODAL (CORREGIDO: EVITA DOBLE CLICK) ---
 export const ProductModal = ({ isOpen, onClose, onSave, item, categories }) => {
   const [formData, setFormData] = useState({ name: '', description: '', price: '', cost: '', stock: '', category: '', image: '' });
   const [isProcessingImg, setIsProcessingImg] = useState(false);
+  
+  // NUEVO ESTADO: Para bloquear el botón mientras guarda
+  const [isSaving, setIsSaving] = useState(false); 
+  
   const fileInputRef = useRef(null);
 
   useEffect(() => {
-    if (item) setFormData(item);
-    else setFormData({ name: '', description: '', price: '', cost: '', stock: '', category: categories[0] || '', image: '' });
+    if (item) {
+      setFormData(item);
+    } else {
+      setFormData({ name: '', description: '', price: '', cost: '', stock: '', category: categories[0] || '', image: '' });
+    }
+    // Reiniciamos el estado de guardado al abrir
+    setIsSaving(false);
   }, [item, isOpen, categories]);
 
   const handleChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (file) {
       setIsProcessingImg(true);
-      try { const compressedImage = await compressImage(file); setFormData(prev => ({ ...prev, image: compressedImage })); } catch { alert("Error imagen"); } finally { setIsProcessingImg(false); }
+      try { 
+        const compressedImage = await compressImage(file); 
+        setFormData(prev => ({ ...prev, image: compressedImage })); 
+      } catch { 
+        alert("Error imagen"); 
+      } finally { 
+        setIsProcessingImg(false); 
+      }
     }
   };
-  const handleSubmit = () => { onSave({ ...formData, price: parseFloat(formData.price) || 0, cost: parseFloat(formData.cost) || 0, stock: formData.stock === '' ? '' : parseInt(formData.stock) || 0 }); };
+
+  // --- LÓGICA CORREGIDA AQUÍ ---
+  const handleSubmit = async () => { 
+    // 1. Si ya está guardando, ignoramos nuevos clicks
+    if (isSaving) return;
+
+    // 2. Bloqueamos el botón
+    setIsSaving(true);
+
+    try {
+        // 3. Esperamos a que App.jsx termine de guardar
+        await onSave({ 
+            ...formData, 
+            price: parseFloat(formData.price) || 0, 
+            cost: parseFloat(formData.cost) || 0, 
+            stock: formData.stock === '' ? '' : parseInt(formData.stock) || 0 
+        });
+    } catch (error) {
+        console.error(error);
+        // Si hubo error y no se cerró el modal, desbloqueamos el botón
+        setIsSaving(false);
+    }
+    // Nota: Si onSave tiene éxito, el modal se cierra y este componente muere,
+    // así que no hace falta setear false.
+  };
 
   if (!isOpen) return null;
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
       <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-        <div className="p-6 border-b flex justify-between items-center"><h2 className="text-2xl font-bold">{item ? 'Editar' : 'Nuevo'} Producto</h2><button onClick={onClose}><X size={24} /></button></div>
+        <div className="p-6 border-b flex justify-between items-center">
+            <h2 className="text-2xl font-bold">{item ? 'Editar' : 'Nuevo'} Producto</h2>
+            <button onClick={onClose}><X size={24} /></button>
+        </div>
+        
         <div className="p-6 overflow-y-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
@@ -208,15 +254,33 @@ export const ProductModal = ({ isOpen, onClose, onSave, item, categories }) => {
               <div><label className="block text-sm font-medium mb-1 text-blue-600">Stock (Opcional)</label><input type="number" name="stock" value={formData.stock} onChange={handleChange} className="w-full p-2 border border-blue-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" placeholder="Cantidad disponible..."/></div>
               <div>
                 <label className="block text-sm font-medium mb-1">Imagen</label>
-                <div onClick={() => fileInputRef.current.click()} className="h-24 w-full border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 relative overflow-hidden">
+                <div onClick={() => !isSaving && fileInputRef.current.click()} className={`h-24 w-full border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer relative overflow-hidden ${isSaving ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}>
                   {isProcessingImg ? <RefreshCw className="animate-spin text-orange-500"/> : formData.image ? <img src={formData.image} alt="Preview" className="w-full h-full object-cover"/> : <Upload className="text-gray-400"/>}
-                  <input type="file" ref={fileInputRef} onChange={handleImageUpload} className="hidden" accept="image/*"/>
+                  <input type="file" ref={fileInputRef} onChange={handleImageUpload} className="hidden" accept="image/*" disabled={isSaving}/>
                 </div>
               </div>
             </div>
           </div>
         </div>
-        <div className="p-6 border-t bg-gray-50 flex justify-end gap-3"><button onClick={onClose} className="px-6 py-2 rounded-lg text-gray-600 font-medium">Cancelar</button><button onClick={handleSubmit} disabled={isProcessingImg} className="px-6 py-2 rounded-lg bg-orange-600 text-white font-medium shadow-lg">{isProcessingImg ? '...' : 'Guardar'}</button></div>
+        
+        <div className="p-6 border-t bg-gray-50 flex justify-end gap-3">
+            <button onClick={onClose} disabled={isSaving} className="px-6 py-2 rounded-lg text-gray-600 font-medium disabled:opacity-50">Cancelar</button>
+            
+            {/* BOTÓN CON ESTADO DE CARGA */}
+            <button 
+                onClick={handleSubmit} 
+                disabled={isProcessingImg || isSaving} 
+                className="px-6 py-2 rounded-lg bg-orange-600 text-white font-medium shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+                {isSaving ? (
+                    <>
+                        <RefreshCw size={18} className="animate-spin"/> Guardando...
+                    </>
+                ) : (
+                    isProcessingImg ? 'Procesando img...' : 'Guardar'
+                )}
+            </button>
+        </div>
       </div>
     </div>
   );
