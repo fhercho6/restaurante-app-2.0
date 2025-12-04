@@ -73,8 +73,20 @@ export default function App() {
   const handleEnterAdmin = () => { if (currentUser && !currentUser.isAnonymous) setView('admin'); else setIsAuthModalOpen(true); };
   const handlePrintCredential = (member) => { setCredentialToPrint(member); setView('credential_print'); };
   
-  // --- HANDLER: INICIO DE SESIÓN CON PIN (LÓGICA INTELIGENTE) ---
-  const handleStaffPinLogin = if (member.role === 'Cajero') setView('cashier'); else setView('pos');
+  // --- HANDLER: INICIO DE SESIÓN CON PIN (CORREGIDO) ---
+  const handleStaffPinLogin = (member) => { 
+    setStaffMember(member); 
+    
+    // Si es Cajero o Admin, lo mandamos directo a la gestión de Caja
+    if (member.role === 'Cajero' || member.role === 'Administrador') {
+        setView('cashier'); 
+        toast.success(`Caja abierta: ${member.name}`);
+    } else {
+        // Si es Garzón/Cocinero, va al POS a tomar pedidos
+        setView('pos'); 
+        toast.success(`Turno iniciado: ${member.name}`); 
+    }
+  };
     
     // Si es Cajero o Admin, lo mandamos directo a la gestión de Caja
     if (member.role === 'Cajero' || member.role === 'Administrador') {
