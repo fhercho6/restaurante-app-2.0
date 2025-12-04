@@ -118,23 +118,56 @@ export default function App() {
       }
   };
 
-  const handleCloseRegister = async () => {
-      if (!registerSession) return;
-      if (!window.confirm("¿Estás seguro de realizar el CIERRE DE CAJA?")) return;
+  // --- LÓGICA DE CIERRE DE CAJA (CORREGIDA PARA MÓVIL) ---
 
-      try {
-          const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`;
-          await updateDoc(doc(db, colName, registerSession.id), {
-              status: 'closed',
-              closedAt: new Date().toISOString(),
-              closedBy: staffMember ? staffMember.name : 'Admin'
-          });
-          setRegisterSession(null);
-          toast.success("Caja Cerrada Correctamente", { icon: '🔒' });
-      } catch (error) {
-          toast.error("Error al cerrar caja");
-      }
-  };
+  // 1. Acción real de cierre (Se llama al confirmar)
+  const confirmCloseRegister = async () => {
+    try {
+        const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`;
+        await updateDoc(doc(db, colName, registerSession.id), {
+            status: 'closed',
+            closedAt: new Date().toISOString(),
+            closedBy: staffMember ? staffMember.name : 'Admin',
+            // Aquí podrías guardar el total de ventas calculado también
+            finalSales: registerSession.salesTotal || 0 
+        });
+        setRegisterSession(null);
+        toast.success("Caja Cerrada. Turno finalizado.", { icon: '🔒' });
+        // Redirigir al inicio para obligar a nueva apertura
+        setView('landing');
+    } catch (error) {
+        console.error(error);
+        toast.error("Error al cerrar caja");
+    }
+};
+
+// 2. Botón que muestra la pregunta (Reemplaza al window.confirm)
+const handleCloseRegister = () => {
+    if (!registerSession) return;
+
+    toast((t) => (
+      <div className="flex flex-col gap-3">
+        <span className="font-bold text-gray-800">¿Cerrar Caja y finalizar turno?</span>
+        <div className="flex gap-2">
+          <button 
+            onClick={() => {
+              confirmCloseRegister(); // <--- Llama a la función de arriba
+              toast.dismiss(t.id);
+            }}
+            className="bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm"
+          >
+            SÍ, CERRAR
+          </button>
+          <button 
+            onClick={() => toast.dismiss(t.id)}
+            className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg text-xs font-bold"
+          >
+            CANCELAR
+          </button>
+        </div>
+      </div>
+    ), { duration: 5000, icon: <Lock className="text-red-600"/> });
+};
 
   // --- LÓGICA DE COBRO ---
   const handleStartPaymentFromCashier = (order) => {
