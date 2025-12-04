@@ -1,5 +1,4 @@
-// Versión final corregida v2
-// Actualización forzada: [15:07]
+// src/App.jsx
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
@@ -26,8 +25,7 @@ import {
 } from './components/Views';
 
 // --- 🔴 PEGA AQUÍ EL ENLACE DE TU LOGO (Entre las comillas) ---
-const LOGO_URL_FIJO = "";
-
+const LOGO_URL_FIJO = ""; 
 
 const INITIAL_CATEGORIES = []; 
 const INITIAL_ROLES = ['Garzón', 'Cajero', 'Cocinero', 'Administrador'];
@@ -74,20 +72,8 @@ export default function App() {
   const handleEnterAdmin = () => { if (currentUser && !currentUser.isAnonymous) setView('admin'); else setIsAuthModalOpen(true); };
   const handlePrintCredential = (member) => { setCredentialToPrint(member); setView('credential_print'); };
   
-  // --- HANDLER: INICIO DE SESIÓN CON PIN (CORREGIDO) ---
   const handleStaffPinLogin = (member) => { 
     setStaffMember(member); 
-    
-    // Si es Cajero o Admin, lo mandamos directo a la gestión de Caja
-    if (member.role === 'Cajero' || member.role === 'Administrador') {
-        setView('cashier'); 
-        toast.success(`Caja abierta: ${member.name}`);
-    } else {
-        // Si es Garzón/Cocinero, va al POS a tomar pedidos
-        setView('pos'); 
-        toast.success(`Turno iniciado: ${member.name}`); 
-    }
-  };
     
     // Si es Cajero o Admin, lo mandamos directo a la gestión de Caja
     if (member.role === 'Cajero' || member.role === 'Administrador') {
@@ -230,7 +216,6 @@ export default function App() {
     });
     const staffUnsub = onSnapshot(collection(db, getCollName('staff')), (s) => setStaff(s.docs.map(d => ({id: d.id, ...d.data()}))));
     const settingsUnsub = onSnapshot(collection(db, getCollName('settings')), (s) => {
-        let brandingLoaded = false;
         s.docs.forEach(d => {
             const data = d.data();
             if (d.id === 'categories') setCategories(data.list || []);
@@ -238,7 +223,6 @@ export default function App() {
             if (d.id === 'branding') { 
               setLogo(data.logo); 
               if(data.appName) setAppName(data.appName);
-              brandingLoaded = true;
             }
         });
         setIsLoadingApp(false);
@@ -279,7 +263,6 @@ export default function App() {
            <div className="relative mb-4">
              <div className="absolute inset-0 bg-orange-200 rounded-full animate-ping opacity-75"></div>
              <div className="relative bg-white p-4 rounded-full border-4 border-orange-500 overflow-hidden w-24 h-24 flex items-center justify-center">
-               {/* AQUÍ SE MUESTRA TU LOGO SI LO PEGASTE ARRIBA */}
                {LOGO_URL_FIJO ? (
                  <img src={LOGO_URL_FIJO} alt="Cargando" className="w-full h-full object-contain animate-pulse" />
                ) : (
