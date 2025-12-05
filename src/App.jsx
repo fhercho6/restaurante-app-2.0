@@ -1,4 +1,4 @@
-// src/App.jsx
+// src/App.jsx - VERSIÓN FINAL MAESTRA (Con Cierre de Recibo Inteligente)
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
@@ -32,38 +32,43 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [isLoadingApp, setIsLoadingApp] = useState(true);
 
+  // Datos
   const [items, setItems] = useState([]);
   const [staff, setStaff] = useState([]);
   const [categories, setCategories] = useState(INITIAL_CATEGORIES);
   const [roles, setRoles] = useState(INITIAL_ROLES);
   
+  // Config
   const [dbStatus, setDbStatus] = useState('connecting');
   const [dbErrorMsg, setDbErrorMsg] = useState('');
   const [logo, setLogo] = useState(null);
   const [appName, setAppName] = useState(""); 
 
+  // Estado de Caja
   const [registerSession, setRegisterSession] = useState(null);
   const [isOpenRegisterModalOpen, setIsOpenRegisterModalOpen] = useState(false);
-  
-  // NUEVO: Estadísticas del turno en vivo
   const [sessionStats, setSessionStats] = useState({ cashSales: 0, digitalSales: 0, totalExpenses: 0, expensesList: [] });
 
+  // Modales
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isBrandingModalOpen, setIsBrandingModalOpen] = useState(false);
   
+  // Estados Operativos
   const [currentItem, setCurrentItem] = useState(null);
   const [filter, setFilter] = useState('Todos');
   const [credentialToPrint, setCredentialToPrint] = useState(null);
   const [staffMember, setStaffMember] = useState(null);
   
+  // Pagos
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [pendingSale, setPendingSale] = useState(null);
   const [orderToPay, setOrderToPay] = useState(null); 
   const [lastSale, setLastSale] = useState(null);
 
+  // --- HANDLERS ---
   const handleLogin = (userApp) => { setIsAuthModalOpen(false); setView('admin'); toast.success(`Bienvenido`); };
   const handleLogout = async () => { await signOut(auth); setView('landing'); toast('Sesión cerrada', { icon: '👋' }); };
   const handleEnterMenu = () => { setFilter('Todos'); setView('menu'); };
@@ -83,6 +88,7 @@ export default function App() {
     }
   };
 
+  // --- LÓGICA DE CONTROL DE CAJA ---
   const checkRegisterStatus = () => {
     if (registerSession) {
         const isAdmin = currentUser && !currentUser.isAnonymous;
@@ -106,22 +112,23 @@ export default function App() {
               openedBy: staffMember ? staffMember.name : (currentUser?.email || 'Admin'),
               openedAt: new Date().toISOString(),
               openingAmount: amount,
-              activeTeam: activeTeam
+              activeTeam: activeTeam,
+              salesTotal: 0
           };
           const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`;
           const docRef = await addDoc(collection(db, colName), sessionData);
+          
           setRegisterSession({ id: docRef.id, ...sessionData });
           setIsOpenRegisterModalOpen(false);
           toast.success(`Turno Abierto`, { icon: '🔓' });
       } catch (error) { toast.error("Error al abrir caja"); }
   };
 
-  // --- NUEVO: GESTIÓN DE GASTOS ---
   const handleAddExpense = async (description, amount) => {
     if (!registerSession) return;
     try {
         const expenseData = {
-            registerId: registerSession.id, // Vinculado al turno actual
+            registerId: registerSession.id,
             description,
             amount,
             date: new Date().toISOString(),
@@ -142,17 +149,15 @@ export default function App() {
       } catch (e) { toast.error("Error"); }
   };
 
-  // CIERRE DE CAJA CON REPORTE
   const handleCloseRegister = () => {
       if (!registerSession) return;
-      // Calculamos el efectivo final esperado
       const cashFinal = registerSession.openingAmount + sessionStats.cashSales - sessionStats.totalExpenses;
       
       toast((t) => (
         <div className="flex flex-col gap-3 min-w-[200px]">
           <div className="border-b pb-2">
              <p className="font-bold text-gray-800">¿Cerrar Caja?</p>
-             <p className="text-xs text-gray-500">Deberías tener en efectivo:</p>
+             <p className="text-xs text-gray-500">Efectivo esperado:</p>
              <p className="text-xl font-black text-green-600">Bs. {cashFinal.toFixed(2)}</p>
           </div>
           <div className="flex gap-2">
@@ -171,15 +176,34 @@ export default function App() {
               closedAt: new Date().toISOString(),
               closedBy: staffMember ? staffMember.name : 'Admin',
               finalCashCalculated: finalCash,
-              finalSalesStats: sessionStats // Guardamos la foto final de los números
+              finalSalesStats: sessionStats
           });
+
+          // Ticket de Cierre
+          const zReportData = {
+             type: 'z-report',
+             businessName: appName,
+             date: new Date().toLocaleString(),
+             staffName: staffMember ? staffMember.name : 'Admin',
+             registerId: registerSession.id,
+             openedAt: registerSession.openedAt,
+             openingAmount: registerSession.openingAmount,
+             finalCash: finalCash,
+             stats: sessionStats,
+             expensesList: sessionStats.expensesList
+          };
+
           setRegisterSession(null);
           setSessionStats({ cashSales: 0, digitalSales: 0, totalExpenses: 0, expensesList: [] });
-          toast.success("Turno finalizado", { icon: '🔒' });
-          setView('landing');
+          
+          setLastSale(zReportData);
+          setView('receipt_view');
+          toast.success("Cierre exitoso", { icon: '🖨️' });
+
       } catch (error) { toast.error("Error cerrando"); }
   };
 
+  // --- LÓGICA DE COBRO ---
   const handleStartPaymentFromCashier = (order) => {
       if (!checkRegisterStatus()) return;
       setOrderToPay(order); 
@@ -214,9 +238,11 @@ export default function App() {
         const preCheckData = { ...orderData, type: 'order', date: new Date().toLocaleString() };
         clearCart([]);
         setLastSale(preCheckData);
-        toast.success('Pedido enviado', { id: toastId });
+        toast.success('Pedido enviado a caja', { id: toastId });
         setView('receipt_view'); 
-    } catch (error) { toast.error('Error al enviar', { id: toastId }); }
+    } catch (error) {
+        toast.error('Error al enviar pedido', { id: toastId });
+    }
   };
 
   const handleVoidAndPrint = async (order) => {
@@ -262,7 +288,7 @@ export default function App() {
         staffId: waiterId,
         staffName: waiterName,
         cashier: cashierName,
-        registerId: registerSession.id, // VITAL: Ligar venta al turno
+        registerId: registerSession.id,
         payments: paymentsList,
         totalPaid: totalPaid,
         changeGiven: change
@@ -300,12 +326,32 @@ export default function App() {
       if (pendingSale && pendingSale.clearCart) pendingSale.clearCart([]);
       setPendingSale(null);
       toast.success('¡Cobro exitoso!', { id: toastId });
-      if (orderToPay) { setOrderToPay(null); setView('cashier'); } 
+      
+      if (orderToPay) { setOrderToPay(null); setView('receipt_view'); } 
       else { setOrderToPay(null); setView('receipt_view'); }
 
     } catch (e) { console.error(e); toast.error('Error al cobrar', { id: toastId }); }
   };
 
+  // --- FUNCIÓN DE NAVEGACIÓN INTELIGENTE DESDE EL RECIBO ---
+  const handleReceiptClose = () => {
+      // 1. Si es un reporte Z (Cierre), vamos al inicio para que el siguiente turno entre
+      if (lastSale && lastSale.type === 'z-report') {
+          setView('landing');
+          return;
+      }
+
+      // 2. Detectamos roles para saber a dónde volver
+      const isCashier = (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador')) || (currentUser && !currentUser.isAnonymous);
+      
+      if (isCashier) {
+          setView('cashier'); // Cajero vuelve a su lista de mesas
+      } else {
+          setView('pos'); // Mesero vuelve a su pantalla de venta
+      }
+  };
+
+  // --- EFECTOS Y CARGA DE DATOS ---
   useEffect(() => {
     const initAuth = async () => {
         if (!auth.currentUser) {
@@ -320,7 +366,6 @@ export default function App() {
     return onAuthStateChanged(auth, (u) => { setCurrentUser(u); if (u) { setDbStatus('connected'); setDbErrorMsg(''); } });
   }, []);
 
-  // EFECTO: Escuchar estado de la caja
   useEffect(() => {
       if (!db) return;
       const checkSession = async () => {
@@ -335,15 +380,10 @@ export default function App() {
       checkSession();
   }, [db, currentUser]);
 
-  // EFECTO NUEVO: CALCULAR TOTALES DEL TURNO EN VIVO
   useEffect(() => {
-      if (!db || !registerSession) return; // Solo si hay caja abierta
-
-      // 1. Escuchar Ventas del Turno
+      if (!db || !registerSession) return;
       const salesCol = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`;
       const qSales = query(collection(db, salesCol), where('registerId', '==', registerSession.id));
-      
-      // 2. Escuchar Gastos del Turno
       const expensesCol = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`;
       const qExpenses = query(collection(db, expensesCol), where('registerId', '==', registerSession.id));
 
@@ -351,19 +391,15 @@ export default function App() {
           let cash = 0, digital = 0;
           snap.forEach(doc => {
               const sale = doc.data();
-              // Calcular efectivo neto (recibido - cambio) y otros
               if (sale.payments) {
                   sale.payments.forEach(p => {
                       const amt = parseFloat(p.amount) || 0;
-                      if (p.method === 'Efectivo') cash += amt;
-                      else digital += amt;
+                      if (p.method === 'Efectivo') cash += amt; else digital += amt;
                   });
                   if (sale.changeGiven) cash -= parseFloat(sale.changeGiven);
               } else {
-                  // Legacy
                   const total = parseFloat(sale.total);
-                  if (sale.paymentMethod === 'Efectivo') cash += total;
-                  else digital += total;
+                  if (sale.paymentMethod === 'Efectivo') cash += total; else digital += total;
               }
           });
           setSessionStats(prev => ({ ...prev, cashSales: cash, digitalSales: digital }));
@@ -381,7 +417,7 @@ export default function App() {
       });
 
       return () => { unsubSales(); unsubExpenses(); };
-  }, [registerSession]); // Se reinicia si cambia la sesión
+  }, [registerSession]);
 
   useEffect(() => {
     if (!db) return;
@@ -411,7 +447,6 @@ export default function App() {
     return isPersonalProject ? 'settings' : `${ROOT_COLLECTION}settings`;
   }
 
-  // Crud (Sin cambios)
   const handleSave = async (d) => { try { if(currentItem) await setDoc(doc(db, getCollName('items'), currentItem.id), d); else await addDoc(collection(db, getCollName('items')), d); toast.success('Guardado'); setIsModalOpen(false); } catch { toast.error('Error'); }};
   const handleDelete = async (id) => { try { await deleteDoc(doc(db, getCollName('items'), id)); toast.success('Eliminado'); } catch { toast.error('Error'); }};
   const handleAddStaff = async (d) => { await addDoc(collection(db, getCollName('staff')), d); toast.success('Personal creado'); };
@@ -474,10 +509,7 @@ export default function App() {
                   <div className="flex border-b border-gray-200 min-w-max">
                     {!isCashierOnly && <button onClick={() => setView('admin')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'admin' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><ClipboardList size={18}/> Inventario</button>}
                     <button onClick={() => setView('cashier')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'cashier' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><DollarSign size={18}/> Caja</button>
-                    
-                    {/* BOTÓN CONTROL CAJA */}
                     <button onClick={() => setView('register_control')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'register_control' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><Wallet size={18}/> Control Caja</button>
-                    
                     {!isCashierOnly && <button onClick={() => setView('staff_admin')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'staff_admin' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><Users size={18}/> Personal</button>}
                     <button onClick={() => setView('report')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'report' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><FileText size={18}/> Reporte</button>
                   </div>
@@ -486,7 +518,6 @@ export default function App() {
                 {view === 'report' && <div className="animate-in fade-in"><SalesDashboard /><div className="hidden print:block mt-8"><PrintableView items={items} /></div></div>}
                 {view === 'cashier' && <CashierView onProcessPayment={handleStartPaymentFromCashier} onVoidOrder={handleVoidAndPrint} />}
                 
-                {/* VISTA CONTROL CAJA */}
                 {view === 'register_control' && (
                     <RegisterControlView 
                         session={registerSession} 
@@ -519,11 +550,11 @@ export default function App() {
                 )}
               </>
             )}
-            
-            {/* ... Resto de vistas (POS, Menu, etc) sin cambios ... */}
+
             {view === 'pin_login' && <PinLoginView staffMembers={staff} onLoginSuccess={handleStaffPinLogin} onCancel={() => setView('landing')} />}
             {view === 'pos' && <POSInterface items={items} categories={categories} staffMember={staffMember} onCheckout={handlePOSCheckout} onPrintOrder={handleSendToKitchen} onExit={() => setView('landing')} />}
             {view === 'receipt_view' && <Receipt data={lastSale} onPrint={handlePrint} onClose={handleReceiptClose} />}
+            
             {view === 'menu' && (
               <>
                 {filter === 'Todos' ? (
