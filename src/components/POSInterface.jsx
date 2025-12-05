@@ -6,9 +6,11 @@ const POSInterface = ({ items, categories, onCheckout, onPrintOrder, onExit, sta
   const [cart, setCart] = useState([]);
   const [filter, setFilter] = useState('Todos');
   const [searchTerm, setSearchTerm] = useState('');
-  
-  // ESTADO NUEVO: Controla si el carrito está abierto en el celular
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
+
+  // --- SEGURIDAD DE ROLES ---
+  // Si es Garzón o Cocinero, NO puede cobrar. Solo Cajero, Admin o Dueño (staffMember null) pueden.
+  const canCharge = !staffMember || (staffMember.role !== 'Garzón' && staffMember.role !== 'Cocinero');
 
   const filteredItems = items.filter(item => {
     const matchesCategory = filter === 'Todos' || item.category === filter;
@@ -61,12 +63,11 @@ const POSInterface = ({ items, categories, onCheckout, onPrintOrder, onExit, sta
              </h2>
              {staffMember && (
                <div className="text-[10px] text-gray-500 font-medium truncate max-w-[120px]">
-                  {staffMember.name}
+                  {staffMember.name} ({staffMember.role})
                </div>
              )}
           </div>
         </div>
-        {/* Buscador Rápido */}
         <input 
             type="text" 
             placeholder="Buscar..." 
@@ -81,28 +82,17 @@ const POSInterface = ({ items, categories, onCheckout, onPrintOrder, onExit, sta
         {/* --- COLUMNA IZQUIERDA: PRODUCTOS --- */}
         <div className="flex-1 flex flex-col overflow-hidden w-full">
           
-          {/* Categorías (Diseño Envolvente / Multilínea) */}
-<div className="p-2 bg-white shadow-sm z-10 border-b border-gray-100">
-  <div className="flex flex-wrap gap-2 justify-start max-h-32 overflow-y-auto">
-      <button 
-        onClick={() => setFilter('Todos')} 
-        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${filter === 'Todos' ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200'}`}
-      >
-        Todos
-      </button>
-      {categories.map(cat => (
-        <button 
-          key={cat} 
-          onClick={() => setFilter(cat)} 
-          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${filter === cat ? 'bg-orange-500 text-white border-orange-500 shadow-sm' : 'bg-white text-gray-600 border-gray-200'}`}
-        >
-          {cat}
-        </button>
-      ))}
-  </div>
-</div>
+          {/* Categorías Multilínea */}
+          <div className="p-2 bg-white shadow-sm z-10 border-b border-gray-100">
+            <div className="flex flex-wrap gap-2 justify-start max-h-32 overflow-y-auto">
+                <button onClick={() => setFilter('Todos')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${filter === 'Todos' ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200'}`}>Todos</button>
+                {categories.map(cat => (
+                <button key={cat} onClick={() => setFilter(cat)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${filter === cat ? 'bg-orange-500 text-white border-orange-500 shadow-sm' : 'bg-white text-gray-600 border-gray-200'}`}>{cat}</button>
+                ))}
+            </div>
+          </div>
 
-          {/* Grid de Productos (Adaptable) */}
+          {/* Grid de Productos */}
           <div className="flex-1 overflow-y-auto p-3 pb-24 md:pb-4">
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-3">
                 {filteredItems.map(item => {
@@ -126,7 +116,7 @@ const POSInterface = ({ items, categories, onCheckout, onPrintOrder, onExit, sta
           </div>
         </div>
 
-        {/* --- BOTÓN FLOTANTE MÓVIL (Solo visible en pantallas chicas cuando hay items) --- */}
+        {/* --- BOTÓN FLOTANTE MÓVIL --- */}
         {cart.length > 0 && (
             <div className="md:hidden fixed bottom-4 left-4 right-4 z-50">
                 <button 
@@ -146,19 +136,17 @@ const POSInterface = ({ items, categories, onCheckout, onPrintOrder, onExit, sta
             </div>
         )}
 
-        {/* --- COLUMNA DERECHA: CARRITO (Slide-over en móvil / Fijo en PC) --- */}
+        {/* --- COLUMNA DERECHA: CARRITO --- */}
         <div className={`
             fixed inset-0 z-50 bg-black/50 transition-opacity md:static md:bg-transparent md:w-96 md:flex md:flex-col md:border-l md:shadow-xl
             ${isMobileCartOpen ? 'opacity-100 visible' : 'opacity-0 invisible md:opacity-100 md:visible'}
         `}>
-            {/* Contenedor Blanco del Carrito */}
             <div className={`
                 absolute bottom-0 left-0 right-0 top-20 bg-white rounded-t-3xl shadow-2xl flex flex-col transition-transform duration-300
                 md:static md:h-full md:rounded-none md:translate-y-0
                 ${isMobileCartOpen ? 'translate-y-0' : 'translate-y-full'}
             `}>
                 
-                {/* Header del Carrito (Solo Móvil) */}
                 <div className="md:hidden flex justify-center pt-3 pb-1" onClick={() => setIsMobileCartOpen(false)}>
                     <div className="w-12 h-1.5 bg-gray-300 rounded-full mb-2"></div>
                 </div>
@@ -167,7 +155,6 @@ const POSInterface = ({ items, categories, onCheckout, onPrintOrder, onExit, sta
                     <button onClick={() => setIsMobileCartOpen(false)} className="md:hidden p-2 bg-gray-100 rounded-full"><X size={20}/></button>
                 </div>
 
-                {/* Lista de Items */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-white">
                     {cart.length === 0 ? (
                         <div className="h-full flex flex-col items-center justify-center text-gray-400">
@@ -192,34 +179,37 @@ const POSInterface = ({ items, categories, onCheckout, onPrintOrder, onExit, sta
                     )}
                 </div>
 
-                {/* Footer de Acciones */}
                 <div className="p-4 bg-gray-50 border-t space-y-3 pb-8 md:pb-4">
                     <div className="flex justify-between items-center text-xl font-black text-gray-900">
                         <span>Total</span>
                         <span>Bs. {total.toFixed(2)}</span>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-3">
+                    {/* --- BOTONES SEGÚN ROL --- */}
+                    <div className={`grid ${canCharge ? 'grid-cols-2' : 'grid-cols-1'} gap-3`}>
+                        {/* Botón AMARILLO (Siempre visible) */}
                         <button 
                             onClick={() => onPrintOrder(cart, setCart)} 
                             disabled={cart.length === 0} 
                             className="py-3.5 rounded-xl font-bold text-gray-800 bg-yellow-400 active:bg-yellow-500 shadow-sm flex items-center justify-center gap-2 transition-all disabled:opacity-50 text-sm"
                         >
-                            <Printer size={18} /> Comanda
+                            <Printer size={18} /> {canCharge ? 'Comanda' : 'ENVIAR PEDIDO'}
                         </button>
 
-                        <button 
-                            onClick={() => onCheckout(cart, setCart)} 
-                            disabled={cart.length === 0} 
-                            className="py-3.5 rounded-xl font-bold text-white bg-gray-900 active:bg-black shadow-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                        >
-                            <CreditCard size={18} /> Cobrar
-                        </button>
+                        {/* Botón AZUL (Solo si puede cobrar) */}
+                        {canCharge && (
+                            <button 
+                                onClick={() => onCheckout(cart, setCart)} 
+                                disabled={cart.length === 0} 
+                                className="py-3.5 rounded-xl font-bold text-white bg-gray-900 active:bg-black shadow-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                            >
+                                <CreditCard size={18} /> Cobrar
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
         </div>
-
       </div>
     </div>
   );

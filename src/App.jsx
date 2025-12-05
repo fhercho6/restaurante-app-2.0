@@ -265,6 +265,14 @@ const handleCloseRegister = () => {
 
   const handleFinalizeSale = async (paymentResult) => {
     if (!db) return;
+    // --- BLOQUEO DE SEGURIDAD POR ROL ---
+    // Si hay un miembro logueado y NO es Cajero/Admin, prohibimos el cobro.
+    if (staffMember && staffMember.role !== 'Cajero' && staffMember.role !== 'Administrador') {
+      toast.error("⛔ ACCESO DENEGADO: Solo Cajeros pueden cobrar.", { duration: 4000 });
+      setIsPaymentModalOpen(false);
+      return;
+    }
+    
     if (!registerSession) { toast.error("¡La caja está cerrada!"); return; }
 
     const toastId = toast.loading('Procesando pago...');
