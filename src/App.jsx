@@ -1,4 +1,4 @@
-// src/App.jsx - VERSIÓN FINAL MAESTRA (Con Cierre de Recibo Inteligente)
+// src/App.jsx - VERSIÓN FINAL CORREGIDA (Garzones habilitados)
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
@@ -32,43 +32,36 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [isLoadingApp, setIsLoadingApp] = useState(true);
 
-  // Datos
   const [items, setItems] = useState([]);
   const [staff, setStaff] = useState([]);
   const [categories, setCategories] = useState(INITIAL_CATEGORIES);
   const [roles, setRoles] = useState(INITIAL_ROLES);
   
-  // Config
   const [dbStatus, setDbStatus] = useState('connecting');
   const [dbErrorMsg, setDbErrorMsg] = useState('');
   const [logo, setLogo] = useState(null);
   const [appName, setAppName] = useState(""); 
 
-  // Estado de Caja
   const [registerSession, setRegisterSession] = useState(null);
   const [isOpenRegisterModalOpen, setIsOpenRegisterModalOpen] = useState(false);
   const [sessionStats, setSessionStats] = useState({ cashSales: 0, digitalSales: 0, totalExpenses: 0, expensesList: [] });
 
-  // Modales
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isBrandingModalOpen, setIsBrandingModalOpen] = useState(false);
   
-  // Estados Operativos
   const [currentItem, setCurrentItem] = useState(null);
   const [filter, setFilter] = useState('Todos');
   const [credentialToPrint, setCredentialToPrint] = useState(null);
   const [staffMember, setStaffMember] = useState(null);
   
-  // Pagos
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [pendingSale, setPendingSale] = useState(null);
   const [orderToPay, setOrderToPay] = useState(null); 
   const [lastSale, setLastSale] = useState(null);
 
-  // --- HANDLERS ---
   const handleLogin = (userApp) => { setIsAuthModalOpen(false); setView('admin'); toast.success(`Bienvenido`); };
   const handleLogout = async () => { await signOut(auth); setView('landing'); toast('Sesión cerrada', { icon: '👋' }); };
   const handleEnterMenu = () => { setFilter('Todos'); setView('menu'); };
@@ -88,21 +81,36 @@ export default function App() {
     }
   };
 
-  // --- LÓGICA DE CONTROL DE CAJA ---
-  const checkRegisterStatus = () => {
-    if (registerSession) {
+  // --- LÓGICA DE CONTROL DE CAJA (CORREGIDA PARA GARZONES) ---
+  // requireOwnership = true (Solo para cobrar) | false (Para pedidos de garzón)
+  const checkRegisterStatus = (requireOwnership = false) => {
+    // 1. Si NO hay caja abierta, nadie pasa (ni garzón ni cajero)
+    if (!registerSession) {
+        const canOpenRegister = (currentUser && !currentUser.isAnonymous) || (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador'));
+        if (canOpenRegister) {
+            setIsOpenRegisterModalOpen(true);
+        } else {
+            toast.error("⚠️ LA CAJA ESTÁ CERRADA.\nSolicita a un Cajero que inicie turno.", { icon: '🔒' });
+        }
+        return false;
+    }
+
+    // 2. Si hay caja, y se requiere propiedad (COBRAR), verificamos dueño
+    if (requireOwnership) {
         const isAdmin = currentUser && !currentUser.isAnonymous;
         const isOwner = staffMember && registerSession.openedBy === staffMember.name;
+
         if (!isAdmin && !isOwner) {
-            toast.error(`⛔ ACCESO DENEGADO\nEsta caja es de: ${registerSession.openedBy}`, { duration: 5000 });
+            toast.error(`⛔ ACCESO DENEGADO\nTurno de: ${registerSession.openedBy}`, {
+                duration: 5000,
+                style: { border: '2px solid red', fontWeight: 'bold' }
+            });
             return false;
         }
-        return true;
     }
-    const canOpenRegister = (currentUser && !currentUser.isAnonymous) || (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador'));
-    if (canOpenRegister) setIsOpenRegisterModalOpen(true);
-    else toast.error("⚠️ LA CAJA ESTÁ CERRADA.", { icon: '🔒' });
-    return false;
+
+    // 3. Si es garzón (requireOwnership = false), PASA si la caja está abierta
+    return true;
   };
 
   const handleOpenRegister = async (amount, activeTeam = []) => {
@@ -179,7 +187,6 @@ export default function App() {
               finalSalesStats: sessionStats
           });
 
-          // Ticket de Cierre
           const zReportData = {
              type: 'z-report',
              businessName: appName,
@@ -203,23 +210,26 @@ export default function App() {
       } catch (error) { toast.error("Error cerrando"); }
   };
 
-  // --- LÓGICA DE COBRO ---
+  // --- LÓGICA DE COBRO (REQUIERE SER DUEÑO) ---
   const handleStartPaymentFromCashier = (order) => {
-      if (!checkRegisterStatus()) return;
+      if (!checkRegisterStatus(true)) return; // TRUE = Estricto (Solo dueño)
       setOrderToPay(order); 
       setPendingSale({ cart: order.items, clearCart: () => {} });
       setIsPaymentModalOpen(true);
   };
 
   const handlePOSCheckout = (cart, clearCart) => {
-    if (!checkRegisterStatus()) return;
+    if (!checkRegisterStatus(true)) return; // TRUE = Estricto (Solo dueño)
     setOrderToPay(null);
     setPendingSale({ cart, clearCart });
     setIsPaymentModalOpen(true);
   };
 
+  // --- LÓGICA DE PEDIDO (SOLO REQUIERE CAJA ABIERTA) ---
   const handleSendToKitchen = async (cart, clearCart) => {
-    if (!checkRegisterStatus()) return;
+    // FALSE = No estricto (Cualquiera puede si hay caja abierta)
+    if (!checkRegisterStatus(false)) return; 
+    
     if (cart.length === 0) return;
     const toastId = toast.loading('Procesando comanda...');
     try {
@@ -258,10 +268,8 @@ export default function App() {
 
   const handleFinalizeSale = async (paymentResult) => {
     if (!db) return;
-    if (staffMember && staffMember.role !== 'Cajero' && staffMember.role !== 'Administrador') {
-        toast.error("⛔ ACCESO DENEGADO: Solo Cajeros pueden cobrar."); setIsPaymentModalOpen(false); return;
-    }
-    if (!registerSession) { toast.error("¡La caja está cerrada!"); return; }
+    // Doble verificación por seguridad
+    if (!checkRegisterStatus(true)) { setIsPaymentModalOpen(false); return; }
 
     const toastId = toast.loading('Procesando pago...');
     setIsPaymentModalOpen(false);
@@ -327,31 +335,19 @@ export default function App() {
       setPendingSale(null);
       toast.success('¡Cobro exitoso!', { id: toastId });
       
-      if (orderToPay) { setOrderToPay(null); setView('receipt_view'); } 
+      if (orderToPay) { setOrderToPay(null); setView('cashier'); } 
       else { setOrderToPay(null); setView('receipt_view'); }
 
     } catch (e) { console.error(e); toast.error('Error al cobrar', { id: toastId }); }
   };
 
-  // --- FUNCIÓN DE NAVEGACIÓN INTELIGENTE DESDE EL RECIBO ---
   const handleReceiptClose = () => {
-      // 1. Si es un reporte Z (Cierre), vamos al inicio para que el siguiente turno entre
-      if (lastSale && lastSale.type === 'z-report') {
-          setView('landing');
-          return;
-      }
-
-      // 2. Detectamos roles para saber a dónde volver
+      if (lastSale && lastSale.type === 'z-report') { setView('landing'); return; }
       const isCashier = (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador')) || (currentUser && !currentUser.isAnonymous);
-      
-      if (isCashier) {
-          setView('cashier'); // Cajero vuelve a su lista de mesas
-      } else {
-          setView('pos'); // Mesero vuelve a su pantalla de venta
-      }
+      if (isCashier) setView('cashier'); else setView('pos');
   };
 
-  // --- EFECTOS Y CARGA DE DATOS ---
+  // --- EFECTOS ---
   useEffect(() => {
     const initAuth = async () => {
         if (!auth.currentUser) {
@@ -476,11 +472,15 @@ export default function App() {
               {registerSession ? (
                   <>
                       <Unlock size={12}/> 
-                      <span className="uppercase">TURNO: {registerSession.openedBy} | Bs. {registerSession.openingAmount}</span>
-                      {(isAdminMode) && <button onClick={handleCloseRegister} className="ml-4 bg-black/20 hover:bg-black/40 px-3 py-0.5 rounded-full text-white flex items-center gap-1 transition-colors border border-white/30"><Lock size={10}/> Cerrar</button>}
+                      <span className="uppercase">
+                        TURNO: {registerSession.openedBy} | Bs. {registerSession.openingAmount}
+                      </span>
+                      {((staffMember && registerSession.openedBy === staffMember.name) || (currentUser && !currentUser.isAnonymous)) && (
+                          <button onClick={handleCloseRegister} className="ml-4 bg-black/20 hover:bg-black/40 px-3 py-0.5 rounded-full text-white flex items-center gap-1 transition-colors border border-white/30"><Lock size={10}/> Cerrar</button>
+                      )}
                   </>
               ) : (
-                  <><Lock size={12}/> CAJA CERRADA</>
+                  <><Lock size={12}/> CAJA CERRADA - Inicie turno para operar</>
               )}
           </div>
       )}
@@ -517,19 +517,7 @@ export default function App() {
 
                 {view === 'report' && <div className="animate-in fade-in"><SalesDashboard /><div className="hidden print:block mt-8"><PrintableView items={items} /></div></div>}
                 {view === 'cashier' && <CashierView onProcessPayment={handleStartPaymentFromCashier} onVoidOrder={handleVoidAndPrint} />}
-                
-                {view === 'register_control' && (
-                    <RegisterControlView 
-                        session={registerSession} 
-                        onOpen={handleOpenRegister} 
-                        onClose={handleCloseRegister}
-                        staff={staff}
-                        stats={sessionStats}
-                        onAddExpense={handleAddExpense}
-                        onDeleteExpense={handleDeleteExpense}
-                    />
-                )}
-
+                {view === 'register_control' && <RegisterControlView session={registerSession} onOpen={handleOpenRegister} onClose={handleCloseRegister} staff={staff} stats={sessionStats} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} />}
                 {view === 'staff_admin' && !isCashierOnly && <StaffManagerView staff={staff} roles={roles} onAddStaff={handleAddStaff} onUpdateStaff={handleUpdateStaff} onDeleteStaff={handleDeleteStaff} onManageRoles={() => setIsRoleModalOpen(true)} onPrintCredential={handlePrintCredential} />}
                 {view === 'credential_print' && credentialToPrint && <div className="flex flex-col items-center"><button onClick={() => setView('staff_admin')} className="no-print mb-4 px-4 py-2 bg-gray-200 rounded">Volver</button><CredentialPrintView member={credentialToPrint} appName={appName} /></div>}
                 {view === 'admin' && !isCashierOnly && (
