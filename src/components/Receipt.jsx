@@ -1,8 +1,9 @@
-// src/components/Receipt.jsx
-import React from 'react';
+// src/components/Receipt.jsx - VERSIÓN AUTÓNOMA (Imprime por sí mismo)
+import React, { useEffect } from 'react';
 import { ChefHat, Printer, ArrowLeft, CheckCircle, ClipboardList, XCircle, Lock } from 'lucide-react';
 
-const Receipt = ({ data, onPrint, onClose }) => {
+const Receipt = ({ data, onClose }) => {
+  // Si no hay datos, no mostramos nada
   if (!data) return null;
 
   const isPreCheck = data.type === 'order';
@@ -34,29 +35,54 @@ const Receipt = ({ data, onPrint, onClose }) => {
       bgLabel = 'bg-gray-800';
   }
 
+  // Función de impresión directa (Independiente de App.jsx)
+  const handlePrintNow = () => {
+    setTimeout(() => {
+        window.print();
+    }, 100); // Pequeña pausa para asegurar que los estilos cargaron
+  };
+
   return (
     <div className="flex flex-col items-center min-h-screen bg-gray-100 p-4 animate-in zoom-in duration-300">
       
-      {/* Botones de Acción (Clase 'no-print' para que no salgan en papel) */}
+      {/* --- ESTILOS DE IMPRESIÓN INCRUSTADOS (Para que no fallen nunca) --- */}
+      <style>{`
+        @media print {
+          @page { margin: 0; size: auto; }
+          body * { visibility: hidden; height: 0; overflow: hidden; }
+          #printable-ticket, #printable-ticket * { visibility: visible; height: auto; overflow: visible; }
+          #printable-ticket {
+            position: absolute; left: 0; top: 0; width: 100% !important;
+            margin: 0 !important; padding: 0 !important;
+            border: none !important; box-shadow: none !important;
+            border-top: 2px dashed #000 !important; /* Mantiene borde superior visual */
+          }
+          .no-print { display: none !important; }
+        }
+      `}</style>
+
+      {/* Botones de Acción */}
       <div className="no-print flex gap-4 mb-6 sticky top-4 z-50">
         <button 
           onClick={onClose} 
           className="flex items-center gap-2 px-6 py-3 bg-gray-600 text-white rounded-full shadow-lg hover:bg-gray-700 transition-all font-bold"
         >
-          <ArrowLeft size={20}/> {isZReport ? 'Salir' : 'Volver'}
+          <ArrowLeft size={20}/> {isZReport ? 'Finalizar' : 'Volver'}
         </button>
+        
+        {/* BOTÓN DE IMPRESIÓN DIRECTA */}
         <button 
-          onClick={onPrint} 
+          onClick={handlePrintNow} 
           className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all font-bold animate-pulse"
         >
-          <Printer size={20}/> IMPRIMIR
+          <Printer size={20}/> IMPRIMIR AHORA
         </button>
       </div>
 
-      {/* --- TICKET IMPRIMIBLE (ID IMPORTANTE: printable-ticket) --- */}
+      {/* --- EL TICKET --- */}
       <div 
         id="printable-ticket" 
-        className={`bg-white p-4 shadow-2xl w-[300px] text-gray-900 font-mono text-sm leading-tight relative print:w-full print:m-0 print:shadow-none border-t-8 ${borderClass}`}
+        className={`bg-white p-4 shadow-2xl w-[300px] text-gray-900 font-mono text-sm leading-tight relative border-t-8 ${borderClass}`}
       >
         {/* Encabezado */}
         <div className="text-center border-b-2 border-dashed border-gray-300 pb-4 mb-3">
@@ -68,70 +94,39 @@ const Receipt = ({ data, onPrint, onClose }) => {
           <p className="text-[10px] text-gray-500 mt-2">{data.date}</p>
         </div>
 
-        {/* CONTENIDO: REPORTE Z */}
+        {/* --- CONTENIDO REPORTE Z --- */}
         {isZReport ? (
             <div className="text-xs">
                 <div className="mb-3 pb-3 border-b border-dashed border-gray-300">
                     <div className="flex justify-between"><span className="text-gray-500">Cajero:</span><span className="font-bold uppercase">{data.staffName}</span></div>
-                    <div className="flex justify-between mt-1"><span className="text-gray-500">ID Cierre:</span><span>#{data.registerId.slice(-6)}</span></div>
+                    <div className="flex justify-between mt-1"><span className="text-gray-500">Turno ID:</span><span>#{data.registerId.slice(-6)}</span></div>
                 </div>
 
                 <div className="mb-3 pb-3 border-b border-dashed border-gray-300">
-                    <p className="font-bold mb-2 uppercase border-b border-gray-100 pb-1">Resumen Financiero</p>
-                    
+                    <p className="font-bold mb-2 uppercase border-b border-gray-100 pb-1">Resumen</p>
                     <div className="flex justify-between mb-1"><span>Fondo Inicial:</span><span>Bs. {data.openingAmount.toFixed(2)}</span></div>
                     <div className="flex justify-between mb-1"><span>(+) Ventas Efec.:</span><span>Bs. {data.stats.cashSales.toFixed(2)}</span></div>
-                    <div className="flex justify-between mb-1 text-red-600"><span>(-) Gastos:</span><span>- Bs. {data.stats.totalExpenses.toFixed(2)}</span></div>
-                    
-                    <div className="flex justify-between mt-2 pt-1 border-t border-dotted border-gray-400 font-black text-sm">
-                        <span>= EFECTIVO REAL:</span>
-                        <span>Bs. {data.finalCash.toFixed(2)}</span>
-                    </div>
-                </div>
-
-                <div className="mb-3">
-                    <p className="font-bold mb-2 uppercase border-b border-gray-100 pb-1">Digital / Bancos</p>
-                    <div className="flex justify-between mb-1"><span>Ventas QR/Tarjeta:</span><span>Bs. {data.stats.digitalSales.toFixed(2)}</span></div>
-                    <div className="flex justify-between font-bold mt-1 pt-1 border-t border-gray-200"><span>VENTA TOTAL:</span><span>Bs. {(data.stats.cashSales + data.stats.digitalSales).toFixed(2)}</span></div>
+                    <div className="flex justify-between mb-1 text-red-500"><span>(-) Gastos:</span><span>- Bs. {data.stats.totalExpenses.toFixed(2)}</span></div>
+                    <div className="flex justify-between mt-2 pt-1 border-t border-dotted border-gray-400 font-black text-sm"><span>= EFECTIVO CAJA:</span><span>Bs. {data.finalCash.toFixed(2)}</span></div>
                 </div>
                 
-                {/* Gastos */}
                 {data.expensesList && data.expensesList.length > 0 && (
                     <div className="mb-3 pt-2 border-t border-dashed border-gray-300">
-                        <p className="font-bold mb-1 uppercase text-[10px]">Detalle Gastos:</p>
+                        <p className="font-bold mb-1 uppercase text-[10px]">Gastos:</p>
                         {data.expensesList.map((ex, i) => (
-                            <div key={i} className="flex justify-between text-[10px] text-gray-500">
-                                <span>{ex.description}</span>
-                                <span>-{ex.amount.toFixed(2)}</span>
-                            </div>
+                            <div key={i} className="flex justify-between text-[10px] text-gray-500"><span>{ex.description}</span><span>-{ex.amount.toFixed(2)}</span></div>
                         ))}
                     </div>
                 )}
-
-                <div className="text-center mt-8 mb-4">
-                    <div className="border-b border-black w-3/4 mx-auto mb-1"></div>
-                    <span className="text-[10px] uppercase">Firma Responsable</span>
-                </div>
+                <div className="text-center mt-8 mb-4"><div className="border-b border-black w-3/4 mx-auto mb-1"></div><span className="text-[10px] uppercase">Firma Cajero</span></div>
             </div>
         ) : (
-            /* CONTENIDO: VENTA / COMANDA / ANULACION */
+            /* --- CONTENIDO VENTA/COMANDA --- */
             <>
                 <div className="mb-3 pb-3 border-b border-dashed border-gray-300 text-xs">
-                <div className="flex justify-between">
-                    <span className="text-gray-500">{isVoid ? 'Anulado por:' : 'Atendido por:'}</span>
-                    <span className="font-bold uppercase">{data.staffName}</span>
-                </div>
-                {!isPreCheck && !isVoid && data.cashierName && (
-                    <div className="flex justify-between mt-1">
-                    <span className="text-gray-500">Cajero:</span>
-                    <span className="font-bold uppercase">{data.cashierName}</span>
-                    </div>
-                )}
-                {data.orderId && (
-                    <div className="flex justify-between mt-1 text-[10px] text-gray-400">
-                    <span>Ref:</span><span>#{data.orderId.slice(-6).toUpperCase()}</span>
-                    </div>
-                )}
+                <div className="flex justify-between"><span className="text-gray-500">{isVoid ? 'Anulado por:' : 'Atendido por:'}</span><span className="font-bold uppercase">{data.staffName}</span></div>
+                {!isPreCheck && !isVoid && data.cashierName && (<div className="flex justify-between mt-1"><span className="text-gray-500">Cajero:</span><span className="font-bold uppercase">{data.cashierName}</span></div>)}
+                {data.orderId && (<div className="flex justify-between mt-1 text-[10px] text-gray-400"><span>Ref:</span><span>#{data.orderId.slice(-6).toUpperCase()}</span></div>)}
                 </div>
 
                 <div className="border-b border-dashed border-gray-300 pb-3 mb-3">
@@ -150,11 +145,7 @@ const Receipt = ({ data, onPrint, onClose }) => {
                 {!isPreCheck && !isVoid && (
                 <div className="mb-3 pt-1 text-xs">
                     <div className="text-[10px] font-bold uppercase text-gray-400 mb-1">Pago:</div>
-                    {data.payments && data.payments.length > 0 ? (
-                    data.payments.map((p, idx) => (<div key={idx} className="flex justify-between"><span>{p.method}</span><span>{p.amount.toFixed(2)}</span></div>))
-                    ) : (
-                    <div className="flex justify-between"><span>Efectivo</span><span>{(data.received || data.total).toFixed(2)}</span></div>
-                    )}
+                    {data.payments && data.payments.length > 0 ? (data.payments.map((p, idx) => (<div key={idx} className="flex justify-between"><span>{p.method}</span><span>{p.amount.toFixed(2)}</span></div>))) : (<div className="flex justify-between"><span>Efectivo</span><span>{(data.received || data.total).toFixed(2)}</span></div>)}
                     {data.change > 0 && (<div className="flex justify-between mt-1 pt-1 border-t border-dotted border-gray-200 font-bold"><span>Cambio:</span><span>{data.change.toFixed(2)}</span></div>)}
                 </div>
                 )}
@@ -163,14 +154,11 @@ const Receipt = ({ data, onPrint, onClose }) => {
                 <span className="text-sm font-bold">TOTAL {isVoid ? 'CANCELADO' : ''}</span>
                 <span className={`text-2xl font-black ${isVoid ? 'text-red-600 line-through' : 'text-black'}`}>Bs. {data.total.toFixed(2)}</span>
                 </div>
-
-                <div className="text-center text-[10px] text-gray-400 mt-4">
-                     {isVoid ? 'OPERACIÓN ANULADA' : 'GRACIAS POR SU VISITA'}
-                </div>
+                <div className="text-center text-[10px] text-gray-400 mt-4">{isVoid ? 'OPERACIÓN ANULADA' : 'GRACIAS POR SU VISITA'}</div>
             </>
         )}
       </div>
-      <div className="no-print mt-4 text-xs text-gray-400">Sistema ZZIF Cloud</div>
+      <p className="no-print mt-4 text-gray-400 text-xs text-center">Vista previa (80mm/58mm)</p>
     </div>
   );
 };
