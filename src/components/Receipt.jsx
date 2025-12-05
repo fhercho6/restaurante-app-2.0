@@ -34,7 +34,7 @@ const Receipt = ({ data, onPrint, onClose }) => {
       {/* --- TICKET --- */}
       <div 
         id="printable-ticket" 
-        className={`bg-white p-4 shadow-2xl w-[300px] text-gray-900 font-mono text-sm leading-tight relative print:shadow-none print:w-full print:m-0 border-t-8 ${borderClass}`}
+        className={`bg-white p-4 shadow-2xl w-[300px] ... print:w-full print:m-0 ...`}
       >
         {/* Encabezado */}
         <div className="text-center border-b border-dashed border-gray-300 pb-4 mb-3">

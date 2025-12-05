@@ -13,3 +13,43 @@ body {
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;  /* Firefox */
 }
+/* --- ESTILOS DE IMPRESIÓN TÉRMICA --- */
+@media print {
+  /* 1. Ocultar todo lo que no sea el ticket */
+  body * {
+    visibility: hidden;
+    height: 0;
+    overflow: hidden;
+  }
+
+  /* 2. Mostrar solo el ticket y su contenido */
+  #printable-ticket, #printable-ticket * {
+    visibility: visible;
+    height: auto;
+    overflow: visible;
+  }
+
+  /* 3. Posicionar el ticket al inicio absoluto del papel */
+  #printable-ticket {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important; /* Ocupa todo el ancho del papel configurado */
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-top: 2px dashed #000 !important; /* Mantenemos borde superior visual */
+  }
+
+  /* 4. Configuración de la página física (Quitar encabezados/pies de navegador) */
+  @page {
+    size: auto;   /* Auto ajusta el largo según el contenido (rollo continuo) */
+    margin: 0mm;  /* CERO márgenes */
+  }
+
+  /* Ajustes específicos para textos en térmica */
+  .font-mono {
+    font-family: 'Courier New', Courier, monospace !important; /* Fuente que se lee mejor en térmica */
+  }
+}
