@@ -7,9 +7,9 @@ const Receipt = ({ data, onPrint, onClose }) => {
 
   const isPreCheck = data.type === 'order';
   const isVoid = data.type === 'void';
-  const isZReport = data.type === 'z-report'; // <--- NUEVO TIPO: CIERRE DE CAJA
+  const isZReport = data.type === 'z-report';
 
-  // Configuración Visual según el tipo
+  // Configuración Visual
   let borderClass = 'border-green-600'; 
   let icon = <CheckCircle size={32} className="text-gray-800"/>;
   let title = 'TICKET DE VENTA';
@@ -37,13 +37,13 @@ const Receipt = ({ data, onPrint, onClose }) => {
   return (
     <div className="flex flex-col items-center min-h-screen bg-gray-100 p-4 animate-in zoom-in duration-300">
       
-      {/* Botones */}
+      {/* Botones de Acción (Clase 'no-print' para que no salgan en papel) */}
       <div className="no-print flex gap-4 mb-6 sticky top-4 z-50">
         <button 
           onClick={onClose} 
           className="flex items-center gap-2 px-6 py-3 bg-gray-600 text-white rounded-full shadow-lg hover:bg-gray-700 transition-all font-bold"
         >
-          <ArrowLeft size={20}/> {isZReport ? 'Finalizar y Salir' : (isVoid ? 'Volver' : 'Continuar')}
+          <ArrowLeft size={20}/> {isZReport ? 'Salir' : 'Volver'}
         </button>
         <button 
           onClick={onPrint} 
@@ -53,10 +53,10 @@ const Receipt = ({ data, onPrint, onClose }) => {
         </button>
       </div>
 
-      {/* --- TICKET --- */}
+      {/* --- TICKET IMPRIMIBLE (ID IMPORTANTE: printable-ticket) --- */}
       <div 
         id="printable-ticket" 
-        className={`bg-white p-4 shadow-2xl w-[300px] text-gray-900 font-mono text-sm leading-tight relative print:shadow-none print:w-full print:m-0 border-t-8 ${borderClass}`}
+        className={`bg-white p-4 shadow-2xl w-[300px] text-gray-900 font-mono text-sm leading-tight relative print:w-full print:m-0 print:shadow-none border-t-8 ${borderClass}`}
       >
         {/* Encabezado */}
         <div className="text-center border-b-2 border-dashed border-gray-300 pb-4 mb-3">
@@ -68,54 +68,37 @@ const Receipt = ({ data, onPrint, onClose }) => {
           <p className="text-[10px] text-gray-500 mt-2">{data.date}</p>
         </div>
 
-        {/* --- CONTENIDO ESPECÍFICO: REPORTE Z (CIERRE) --- */}
+        {/* CONTENIDO: REPORTE Z */}
         {isZReport ? (
             <div className="text-xs">
                 <div className="mb-3 pb-3 border-b border-dashed border-gray-300">
                     <div className="flex justify-between"><span className="text-gray-500">Cajero:</span><span className="font-bold uppercase">{data.staffName}</span></div>
-                    <div className="flex justify-between mt-1"><span className="text-gray-500">Turno ID:</span><span>#{data.registerId.slice(-6)}</span></div>
-                    <div className="flex justify-between mt-1"><span className="text-gray-500">Apertura:</span><span>{new Date(data.openedAt).toLocaleTimeString()}</span></div>
-                    <div className="flex justify-between mt-1"><span className="text-gray-500">Cierre:</span><span>{new Date().toLocaleTimeString()}</span></div>
+                    <div className="flex justify-between mt-1"><span className="text-gray-500">ID Cierre:</span><span>#{data.registerId.slice(-6)}</span></div>
                 </div>
 
                 <div className="mb-3 pb-3 border-b border-dashed border-gray-300">
-                    <p className="font-bold mb-2 uppercase border-b border-gray-100 pb-1">Resumen de Movimientos</p>
+                    <p className="font-bold mb-2 uppercase border-b border-gray-100 pb-1">Resumen Financiero</p>
                     
-                    <div className="flex justify-between mb-1">
-                        <span>(+) Fondo Inicial:</span>
-                        <span>Bs. {data.openingAmount.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between mb-1">
-                        <span>(+) Ventas Efectivo:</span>
-                        <span>Bs. {data.stats.cashSales.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between mb-1 text-red-500">
-                        <span>(-) Gastos:</span>
-                        <span>- Bs. {data.stats.totalExpenses.toFixed(2)}</span>
-                    </div>
+                    <div className="flex justify-between mb-1"><span>Fondo Inicial:</span><span>Bs. {data.openingAmount.toFixed(2)}</span></div>
+                    <div className="flex justify-between mb-1"><span>(+) Ventas Efec.:</span><span>Bs. {data.stats.cashSales.toFixed(2)}</span></div>
+                    <div className="flex justify-between mb-1 text-red-600"><span>(-) Gastos:</span><span>- Bs. {data.stats.totalExpenses.toFixed(2)}</span></div>
                     
                     <div className="flex justify-between mt-2 pt-1 border-t border-dotted border-gray-400 font-black text-sm">
-                        <span>= EFECTIVO EN CAJA:</span>
+                        <span>= EFECTIVO REAL:</span>
                         <span>Bs. {data.finalCash.toFixed(2)}</span>
                     </div>
                 </div>
 
-                <div className="mb-3 pb-3 border-b border-dashed border-gray-300">
-                    <p className="font-bold mb-2 uppercase border-b border-gray-100 pb-1">Otros Medios (Banco)</p>
-                    <div className="flex justify-between mb-1">
-                        <span>Ventas QR/Tarjeta:</span>
-                        <span>Bs. {data.stats.digitalSales.toFixed(2)}</span>
-                    </div>
-                     <div className="flex justify-between font-bold mt-1">
-                        <span>TOTAL VENDIDO:</span>
-                        <span>Bs. {(data.stats.cashSales + data.stats.digitalSales).toFixed(2)}</span>
-                    </div>
+                <div className="mb-3">
+                    <p className="font-bold mb-2 uppercase border-b border-gray-100 pb-1">Digital / Bancos</p>
+                    <div className="flex justify-between mb-1"><span>Ventas QR/Tarjeta:</span><span>Bs. {data.stats.digitalSales.toFixed(2)}</span></div>
+                    <div className="flex justify-between font-bold mt-1 pt-1 border-t border-gray-200"><span>VENTA TOTAL:</span><span>Bs. {(data.stats.cashSales + data.stats.digitalSales).toFixed(2)}</span></div>
                 </div>
                 
-                {/* Lista de Gastos si hay */}
+                {/* Gastos */}
                 {data.expensesList && data.expensesList.length > 0 && (
-                    <div className="mb-3">
-                        <p className="font-bold mb-1 uppercase text-[10px]">Detalle de Gastos:</p>
+                    <div className="mb-3 pt-2 border-t border-dashed border-gray-300">
+                        <p className="font-bold mb-1 uppercase text-[10px]">Detalle Gastos:</p>
                         {data.expensesList.map((ex, i) => (
                             <div key={i} className="flex justify-between text-[10px] text-gray-500">
                                 <span>{ex.description}</span>
@@ -127,11 +110,11 @@ const Receipt = ({ data, onPrint, onClose }) => {
 
                 <div className="text-center mt-8 mb-4">
                     <div className="border-b border-black w-3/4 mx-auto mb-1"></div>
-                    <span className="text-[10px] uppercase">Firma Cajero</span>
+                    <span className="text-[10px] uppercase">Firma Responsable</span>
                 </div>
             </div>
         ) : (
-            /* --- CONTENIDO NORMAL (VENTA O COMANDA) --- */
+            /* CONTENIDO: VENTA / COMANDA / ANULACION */
             <>
                 <div className="mb-3 pb-3 border-b border-dashed border-gray-300 text-xs">
                 <div className="flex justify-between">
@@ -166,7 +149,7 @@ const Receipt = ({ data, onPrint, onClose }) => {
 
                 {!isPreCheck && !isVoid && (
                 <div className="mb-3 pt-1 text-xs">
-                    <div className="text-[10px] font-bold uppercase text-gray-400 mb-1">Detalle de Pago:</div>
+                    <div className="text-[10px] font-bold uppercase text-gray-400 mb-1">Pago:</div>
                     {data.payments && data.payments.length > 0 ? (
                     data.payments.map((p, idx) => (<div key={idx} className="flex justify-between"><span>{p.method}</span><span>{p.amount.toFixed(2)}</span></div>))
                     ) : (
@@ -180,14 +163,14 @@ const Receipt = ({ data, onPrint, onClose }) => {
                 <span className="text-sm font-bold">TOTAL {isVoid ? 'CANCELADO' : ''}</span>
                 <span className={`text-2xl font-black ${isVoid ? 'text-red-600 line-through' : 'text-black'}`}>Bs. {data.total.toFixed(2)}</span>
                 </div>
+
+                <div className="text-center text-[10px] text-gray-400 mt-4">
+                     {isVoid ? 'OPERACIÓN ANULADA' : 'GRACIAS POR SU VISITA'}
+                </div>
             </>
         )}
-
-        <div className="text-center text-[10px] text-gray-400 mt-4">
-             {isZReport ? 'Cierre de turno.' : (isVoid ? 'OPERACIÓN SIN VALOR' : 'GRACIAS POR SU PREFERENCIA')}
-             <div className="mt-1 text-[8px] opacity-50">Sistema Powered by ZZIF Cloud</div>
-        </div>
       </div>
+      <div className="no-print mt-4 text-xs text-gray-400">Sistema ZZIF Cloud</div>
     </div>
   );
 };

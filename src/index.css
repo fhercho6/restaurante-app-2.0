@@ -1,11 +1,16 @@
+/* src/index.css */
+
+/* Importar fuente bonita */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap');
 
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background-color: #f9fafb; /* Un gris muy suave de fondo */
+  background-color: #f9fafb;
   margin: 0;
+  -webkit-font-smoothing: antialiased;
 }
-/* Ocultar scrollbar pero permitir scroll */
+
+/* Ocultar barras de scroll para que parezca App nativa */
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
@@ -13,16 +18,17 @@ body {
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;  /* Firefox */
 }
-/* --- ESTILOS DE IMPRESIÓN TÉRMICA --- */
+
+/* --- REGLAS DE IMPRESIÓN TÉRMICA (CRUCIAL) --- */
 @media print {
-  /* 1. Ocultar todo lo que no sea el ticket */
+  /* 1. Ocultar TODO lo que hay en la pantalla por defecto */
   body * {
     visibility: hidden;
     height: 0;
     overflow: hidden;
   }
 
-  /* 2. Mostrar solo el ticket y su contenido */
+  /* 2. Hacer visible SOLO el ticket y su contenido interno */
   #printable-ticket, #printable-ticket * {
     visibility: visible;
     height: auto;
@@ -34,22 +40,23 @@ body {
     position: absolute;
     left: 0;
     top: 0;
-    width: 100% !important; /* Ocupa todo el ancho del papel configurado */
+    width: 100% !important; /* Ocupa todo el ancho del papel */
     margin: 0 !important;
     padding: 0 !important;
-    box-shadow: none !important;
+    background-color: white !important;
+    color: black !important;
     border: none !important;
-    border-top: 2px dashed #000 !important; /* Mantenemos borde superior visual */
+    box-shadow: none !important;
   }
 
-  /* 4. Configuración de la página física (Quitar encabezados/pies de navegador) */
+  /* 4. Configuración de la página física */
   @page {
-    size: auto;   /* Auto ajusta el largo según el contenido (rollo continuo) */
-    margin: 0mm;  /* CERO márgenes */
+    size: auto;   /* Se adapta al largo del contenido */
+    margin: 0mm;  /* Sin márgenes blancos */
   }
 
-  /* Ajustes específicos para textos en térmica */
-  .font-mono {
-    font-family: 'Courier New', Courier, monospace !important; /* Fuente que se lee mejor en térmica */
+  /* Ocultar botones y elementos "no-print" explícitamente */
+  .no-print {
+    display: none !important;
   }
 }
