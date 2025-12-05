@@ -419,12 +419,23 @@ const handleCloseRegister = () => {
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900 pb-20">
       <Toaster position="top-center" reverseOrder={false} />
       
-      {/* BARRA DE ESTADO DE CAJA */}
+      {/* --- BARRA SUPERIOR CON ESTADO DE CAJA MEJORADA --- */}
       {view !== 'landing' && (
           <div className={`w-full p-1 text-[10px] text-center font-bold text-white flex justify-center items-center gap-2 shadow-md sticky top-0 z-50 ${registerSession ? 'bg-green-600' : 'bg-red-600'}`}>
               {registerSession ? (
                   <>
-                      <Unlock size={12}/> CAJA ABIERTA (Bs. {registerSession.openingAmount})
+                      <Unlock size={12}/> 
+                      <span>CAJA ABIERTA ({new Date(registerSession.openedAt).toLocaleDateString()}) - Bs. {registerSession.openingAmount}</span>
+                      
+                      {/* Botón de cierre rápido para Cajero/Admin */}
+                      {(staffMember?.role === 'Cajero' || staffMember?.role === 'Administrador' || currentUser) && (
+                          <button 
+                            onClick={handleCloseRegister} 
+                            className="ml-4 bg-black/20 hover:bg-black/40 px-3 py-0.5 rounded-full text-white flex items-center gap-1 transition-colors border border-white/30"
+                          >
+                            <Lock size={10}/> Cerrar Turno
+                          </button>
+                      )}
                   </>
               ) : (
                   <><Lock size={12}/> CAJA CERRADA - No se pueden realizar cobros</>
