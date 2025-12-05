@@ -1,9 +1,8 @@
-// src/components/Receipt.jsx - VERSIÓN AUTÓNOMA (Imprime por sí mismo)
-import React, { useEffect } from 'react';
+// src/components/Receipt.jsx
+import React from 'react';
 import { ChefHat, Printer, ArrowLeft, CheckCircle, ClipboardList, XCircle, Lock } from 'lucide-react';
 
 const Receipt = ({ data, onClose }) => {
-  // Si no hay datos, no mostramos nada
   if (!data) return null;
 
   const isPreCheck = data.type === 'order';
@@ -35,17 +34,17 @@ const Receipt = ({ data, onClose }) => {
       bgLabel = 'bg-gray-800';
   }
 
-  // Función de impresión directa (Independiente de App.jsx)
+  // --- FUNCIÓN DE IMPRESIÓN DIRECTA ---
   const handlePrintNow = () => {
     setTimeout(() => {
         window.print();
-    }, 100); // Pequeña pausa para asegurar que los estilos cargaron
+    }, 100);
   };
 
   return (
     <div className="flex flex-col items-center min-h-screen bg-gray-100 p-4 animate-in zoom-in duration-300">
       
-      {/* --- ESTILOS DE IMPRESIÓN INCRUSTADOS (Para que no fallen nunca) --- */}
+      {/* --- ESTILOS DE IMPRESIÓN INCRUSTADOS (NO BORRAR) --- */}
       <style>{`
         @media print {
           @page { margin: 0; size: auto; }
