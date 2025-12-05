@@ -34,32 +34,9 @@ const Receipt = ({ data, onClose }) => {
       bgLabel = 'bg-gray-800';
   }
 
-  // --- FUNCIÓN DE IMPRESIÓN DIRECTA ---
-  const handlePrintNow = () => {
-    setTimeout(() => {
-        window.print();
-    }, 100);
-  };
-
   return (
     <div className="flex flex-col items-center min-h-screen bg-gray-100 p-4 animate-in zoom-in duration-300">
       
-      {/* --- ESTILOS DE IMPRESIÓN INCRUSTADOS (NO BORRAR) --- */}
-      <style>{`
-        @media print {
-          @page { margin: 0; size: auto; }
-          body * { visibility: hidden; height: 0; overflow: hidden; }
-          #printable-ticket, #printable-ticket * { visibility: visible; height: auto; overflow: visible; }
-          #printable-ticket {
-            position: absolute; left: 0; top: 0; width: 100% !important;
-            margin: 0 !important; padding: 0 !important;
-            border: none !important; box-shadow: none !important;
-            border-top: 2px dashed #000 !important; /* Mantiene borde superior visual */
-          }
-          .no-print { display: none !important; }
-        }
-      `}</style>
-
       {/* Botones de Acción */}
       <div className="no-print flex gap-4 mb-6 sticky top-4 z-50">
         <button 
@@ -69,16 +46,16 @@ const Receipt = ({ data, onClose }) => {
           <ArrowLeft size={20}/> {isZReport ? 'Finalizar' : 'Volver'}
         </button>
         
-        {/* BOTÓN DE IMPRESIÓN DIRECTA */}
+        {/* BOTÓN DIRECTO (Sin lógica compleja) */}
         <button 
-          onClick={handlePrintNow} 
+          onClick={() => window.print()} 
           className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all font-bold animate-pulse"
         >
           <Printer size={20}/> IMPRIMIR AHORA
         </button>
       </div>
 
-      {/* --- EL TICKET --- */}
+      {/* --- TICKET --- */}
       <div 
         id="printable-ticket" 
         className={`bg-white p-4 shadow-2xl w-[300px] text-gray-900 font-mono text-sm leading-tight relative border-t-8 ${borderClass}`}
@@ -100,7 +77,6 @@ const Receipt = ({ data, onClose }) => {
                     <div className="flex justify-between"><span className="text-gray-500">Cajero:</span><span className="font-bold uppercase">{data.staffName}</span></div>
                     <div className="flex justify-between mt-1"><span className="text-gray-500">Turno ID:</span><span>#{data.registerId.slice(-6)}</span></div>
                 </div>
-
                 <div className="mb-3 pb-3 border-b border-dashed border-gray-300">
                     <p className="font-bold mb-2 uppercase border-b border-gray-100 pb-1">Resumen</p>
                     <div className="flex justify-between mb-1"><span>Fondo Inicial:</span><span>Bs. {data.openingAmount.toFixed(2)}</span></div>
@@ -108,7 +84,6 @@ const Receipt = ({ data, onClose }) => {
                     <div className="flex justify-between mb-1 text-red-500"><span>(-) Gastos:</span><span>- Bs. {data.stats.totalExpenses.toFixed(2)}</span></div>
                     <div className="flex justify-between mt-2 pt-1 border-t border-dotted border-gray-400 font-black text-sm"><span>= EFECTIVO CAJA:</span><span>Bs. {data.finalCash.toFixed(2)}</span></div>
                 </div>
-                
                 {data.expensesList && data.expensesList.length > 0 && (
                     <div className="mb-3 pt-2 border-t border-dashed border-gray-300">
                         <p className="font-bold mb-1 uppercase text-[10px]">Gastos:</p>

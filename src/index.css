@@ -1,61 +1,55 @@
 /* src/index.css */
-
-/* Importar fuente bonita */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap');
 
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background-color: #f9fafb;
   margin: 0;
-  -webkit-font-smoothing: antialiased;
 }
 
-/* Ocultar barras de scroll para que parezca App nativa */
-.hide-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.hide-scrollbar {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
-}
+/* Ocultar scrollbar */
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* --- REGLAS DE IMPRESIÓN TÉRMICA (CRUCIAL) --- */
+/* --- REGLAS DE IMPRESIÓN (ESTO ES LO QUE IMPORTA) --- */
 @media print {
-  /* 1. Ocultar TODO lo que hay en la pantalla por defecto */
+  /* 1. Ocultar todo el cuerpo de la app */
   body * {
     visibility: hidden;
     height: 0;
     overflow: hidden;
   }
 
-  /* 2. Hacer visible SOLO el ticket y su contenido interno */
+  /* 2. Forzar que el Ticket sea visible */
   #printable-ticket, #printable-ticket * {
-    visibility: visible;
-    height: auto;
-    overflow: visible;
+    visibility: visible !important;
+    height: auto !important;
+    overflow: visible !important;
+    color: black !important; /* Forzar tinta negra */
   }
 
-  /* 3. Posicionar el ticket al inicio absoluto del papel */
+  /* 3. Posicionar el ticket al inicio del papel */
   #printable-ticket {
     position: absolute;
     left: 0;
     top: 0;
-    width: 100% !important; /* Ocupa todo el ancho del papel */
+    width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
-    background-color: white !important;
-    color: black !important;
-    border: none !important;
+    background: white !important;
     box-shadow: none !important;
+    border: none !important;
+    /* Mantenemos un borde visual arriba para saber donde empieza */
+    border-top: 1px dashed #000 !important; 
   }
 
-  /* 4. Configuración de la página física */
+  /* 4. Configuración de página física */
   @page {
-    size: auto;   /* Se adapta al largo del contenido */
-    margin: 0mm;  /* Sin márgenes blancos */
+    size: auto;
+    margin: 0mm;
   }
 
-  /* Ocultar botones y elementos "no-print" explícitamente */
+  /* 5. Ocultar explícitamente los botones */
   .no-print {
     display: none !important;
   }
