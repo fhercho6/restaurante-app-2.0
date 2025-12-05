@@ -125,26 +125,28 @@ export default function App() {
     return false;
   };
 
-  const handleOpenRegister = async (amount) => {
-      try {
-          const sessionData = {
-              status: 'open',
-              openedBy: staffMember ? staffMember.name : (currentUser?.email || 'Admin'),
-              openedAt: new Date().toISOString(),
-              openingAmount: amount,
-              salesTotal: 0
-          };
-          const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`;
-          const docRef = await addDoc(collection(db, colName), sessionData);
-          
-          setRegisterSession({ id: docRef.id, ...sessionData });
-          setIsOpenRegisterModalOpen(false);
-          toast.success(`Caja Abierta con Bs. ${amount.toFixed(2)}`, { icon: '🔓' });
-      } catch (error) {
-          console.error(error);
-          toast.error("Error al abrir caja");
-      }
-  };
+  const handleOpenRegister = async (amount, activeTeam = []) => {
+    try {
+        const sessionData = {
+            status: 'open',
+            openedBy: staffMember ? staffMember.name : (currentUser?.email || 'Admin'),
+            openedAt: new Date().toISOString(),
+            openingAmount: amount,
+            salesTotal: 0,
+            activeTeam: activeTeam // <--- GUARDAMOS EL EQUIPO
+        };
+        const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`;
+        const docRef = await addDoc(collection(db, colName), sessionData);
+        
+        setRegisterSession({ id: docRef.id, ...sessionData });
+        setIsOpenRegisterModalOpen(false);
+        toast.success(`Caja Abierta con ${activeTeam.length} empleados`, { icon: '🔓' });
+
+    } catch (error) {
+        console.error(error);
+        toast.error("Error al abrir caja");
+    }
+};
 
   // --- LÓGICA DE CIERRE DE CAJA (CORREGIDA PARA MÓVIL) ---
 
@@ -507,10 +509,12 @@ const handleCloseRegister = () => {
                     <RegisterControlView 
                         session={registerSession} 
                         onOpen={handleOpenRegister} 
-                        onClose={handleCloseRegister} 
+                        onClose={handleCloseRegister}
+                        staff={staff}
                     />
                 )}
-
+                
+                {/* --- VISTA DE ADMINISTRACIÓN DE PERSONAL --- */}         
                 {view === 'staff_admin' && !isCashierOnly && <StaffManagerView staff={staff} roles={roles} onAddStaff={handleAddStaff} onUpdateStaff={handleUpdateStaff} onDeleteStaff={handleDeleteStaff} onManageRoles={() => setIsRoleModalOpen(true)} onPrintCredential={handlePrintCredential} />}
                 {view === 'credential_print' && credentialToPrint && <div className="flex flex-col items-center"><button onClick={() => setView('staff_admin')} className="no-print mb-4 px-4 py-2 bg-gray-200 rounded">Volver</button><CredentialPrintView member={credentialToPrint} appName={appName} /></div>}
                 {view === 'admin' && !isCashierOnly && (
