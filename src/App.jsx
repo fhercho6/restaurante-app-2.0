@@ -255,6 +255,102 @@ export default function App() {
     }
   };
 
+  const handleFinalizeSale = async (paymentResult) => {
+    if (!db) return;
+    
+    // Verificaciones de seguridad
+    if (staffMember && staffMember.role !== 'Cajero' && staffMember.role !== 'Administrador') {
+        toast.error("⛔ ACCESO DENEGADO: Solo Cajeros pueden cobrar."); 
+        setIsPaymentModalOpen(false); 
+        return;
+    }
+    if (!registerSession) { 
+        toast.error("¡La caja está cerrada!"); 
+        return; 
+    }
+
+    const toastId = toast.loading('Procesando pago...');
+    setIsPaymentModalOpen(false);
+    
+    const itemsToProcess = orderToPay ? orderToPay.items : pendingSale.cart;
+    const { paymentsList, totalPaid, change } = paymentResult;
+    const totalToProcess = totalPaid - change;
+
+    try {
+      const batchPromises = [];
+      const timestamp = new Date();
+
+      let cashierName = 'Caja General';
+      if (staffMember) cashierName = staffMember.name;
+      else if (currentUser) cashierName = 'Administrador';
+      
+      // Datos de quién atendió (Mesero original) vs quién cobra (Cajero actual)
+      const waiterName = orderToPay ? orderToPay.staffName : (staffMember ? staffMember.name : 'Barra');
+      const waiterId = orderToPay ? orderToPay.staffId : (staffMember ? staffMember.id : 'anon');
+
+      // 1. Guardar Venta
+      const saleData = {
+        date: timestamp.toISOString(),
+        total: totalToProcess,
+        items: itemsToProcess,
+        staffId: waiterId,
+        staffName: waiterName,
+        cashier: cashierName,
+        registerId: registerSession.id,
+        payments: paymentsList,
+        totalPaid: totalPaid,
+        changeGiven: change
+      };
+      
+      const salesCollection = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`;
+      const docRef = await addDoc(collection(db, salesCollection), saleData);
+
+      // 2. Descontar Stock
+      itemsToProcess.forEach(item => {
+        if (item.stock !== undefined && item.stock !== '') {
+          const newStock = parseInt(item.stock) - item.qty;
+          batchPromises.push(updateDoc(doc(db, getCollName('items'), item.id), { stock: newStock }));
+        }
+      });
+
+      // 3. Borrar de Pendientes (Si venía de una comanda)
+      if (orderToPay) {
+          const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
+          batchPromises.push(deleteDoc(doc(db, ordersCol, orderToPay.id)));
+      }
+      await Promise.all(batchPromises);
+
+      // 4. Preparar Recibo
+      const receiptData = {
+        businessName: appName,
+        date: timestamp.toLocaleString(),
+        staffName: waiterName,    // Mesero
+        cashierName: cashierName, // Cajero
+        orderId: docRef.id,
+        items: itemsToProcess,
+        total: totalToProcess,
+        payments: paymentsList,
+        change: change
+      };
+
+      setLastSale(receiptData);
+      
+      // Limpiezas
+      if (pendingSale && pendingSale.clearCart) pendingSale.clearCart([]);
+      setPendingSale(null);
+      setOrderToPay(null); // Limpiamos la orden pendiente de la memoria
+      
+      toast.success('¡Cobro exitoso!', { id: toastId });
+      
+      // --- CAMBIO CLAVE: SIEMPRE MOSTRAR TICKET ---
+      setView('receipt_view');
+
+    } catch (e) { 
+      console.error(e); 
+      toast.error('Error al cobrar', { id: toastId }); 
+    }
+  };
+
   const handleVoidAndPrint = async (order) => {
      try {
         const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
