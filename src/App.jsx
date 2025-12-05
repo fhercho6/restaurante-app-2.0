@@ -184,11 +184,18 @@ const handleCloseRegister = () => {
     setIsPaymentModalOpen(true);
   };
 
+  // src/App.jsx (Reemplaza solo esta función)
+
   const handleSendToKitchen = async (cart, clearCart) => {
+    // 1. SEGURIDAD: Verificar si hay caja abierta antes de nada
+    if (!checkRegisterStatus()) return; 
+
     if (cart.length === 0) return;
+    
     const toastId = toast.loading('Procesando comanda...');
     try {
         const totalOrder = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
+        
         const orderData = {
             date: new Date().toISOString(),
             staffId: staffMember ? staffMember.id : 'anon',
@@ -198,14 +205,19 @@ const handleCloseRegister = () => {
             total: totalOrder,
             status: 'pending'
         };
+
         const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
         await addDoc(collection(db, ordersCol), orderData);
+
         const preCheckData = { ...orderData, type: 'order', date: new Date().toLocaleString() };
+        
         clearCart([]);
         setLastSale(preCheckData);
         toast.success('Pedido enviado a caja', { id: toastId });
         setView('receipt_view'); 
+
     } catch (error) {
+        console.error(error);
         toast.error('Error al enviar pedido', { id: toastId });
     }
   };
