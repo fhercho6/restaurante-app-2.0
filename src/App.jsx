@@ -1,4 +1,4 @@
-// src/App.jsx - VERSIÓN FINAL CORREGIDA (Garzones habilitados)
+// src/App.jsx - VERSIÓN FINAL MAESTRA SIN ERRORES
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
@@ -22,6 +22,7 @@ import RegisterControlView from './components/RegisterControlView';
 import { AuthModal, BrandingModal, ProductModal, CategoryManager, RoleManager } from './components/Modals';
 import { MenuCard, PinLoginView, CredentialPrintView, PrintableView, AdminRow } from './components/Views';
 
+// --- 🔴 PEGA AQUÍ EL ENLACE DE TU LOGO SI LO TIENES ---
 const LOGO_URL_FIJO = ""; 
 
 const INITIAL_CATEGORIES = []; 
@@ -32,36 +33,43 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [isLoadingApp, setIsLoadingApp] = useState(true);
 
+  // Datos
   const [items, setItems] = useState([]);
   const [staff, setStaff] = useState([]);
   const [categories, setCategories] = useState(INITIAL_CATEGORIES);
   const [roles, setRoles] = useState(INITIAL_ROLES);
   
+  // Config
   const [dbStatus, setDbStatus] = useState('connecting');
   const [dbErrorMsg, setDbErrorMsg] = useState('');
   const [logo, setLogo] = useState(null);
   const [appName, setAppName] = useState(""); 
 
+  // Estado de Caja
   const [registerSession, setRegisterSession] = useState(null);
   const [isOpenRegisterModalOpen, setIsOpenRegisterModalOpen] = useState(false);
   const [sessionStats, setSessionStats] = useState({ cashSales: 0, digitalSales: 0, totalExpenses: 0, expensesList: [] });
 
+  // Modales
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isBrandingModalOpen, setIsBrandingModalOpen] = useState(false);
   
+  // Estados Operativos
   const [currentItem, setCurrentItem] = useState(null);
   const [filter, setFilter] = useState('Todos');
   const [credentialToPrint, setCredentialToPrint] = useState(null);
   const [staffMember, setStaffMember] = useState(null);
   
+  // Pagos
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [pendingSale, setPendingSale] = useState(null);
   const [orderToPay, setOrderToPay] = useState(null); 
   const [lastSale, setLastSale] = useState(null);
 
+  // --- HANDLERS ---
   const handleLogin = (userApp) => { setIsAuthModalOpen(false); setView('admin'); toast.success(`Bienvenido`); };
   const handleLogout = async () => { await signOut(auth); setView('landing'); toast('Sesión cerrada', { icon: '👋' }); };
   const handleEnterMenu = () => { setFilter('Todos'); setView('menu'); };
@@ -81,36 +89,25 @@ export default function App() {
     }
   };
 
-  // --- LÓGICA DE CONTROL DE CAJA (CORREGIDA PARA GARZONES) ---
-  // requireOwnership = true (Solo para cobrar) | false (Para pedidos de garzón)
+  // --- LÓGICA DE CONTROL DE CAJA ---
   const checkRegisterStatus = (requireOwnership = false) => {
-    // 1. Si NO hay caja abierta, nadie pasa (ni garzón ni cajero)
-    if (!registerSession) {
-        const canOpenRegister = (currentUser && !currentUser.isAnonymous) || (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador'));
-        if (canOpenRegister) {
-            setIsOpenRegisterModalOpen(true);
-        } else {
-            toast.error("⚠️ LA CAJA ESTÁ CERRADA.\nSolicita a un Cajero que inicie turno.", { icon: '🔒' });
-        }
-        return false;
-    }
-
-    // 2. Si hay caja, y se requiere propiedad (COBRAR), verificamos dueño
-    if (requireOwnership) {
+    if (registerSession) {
         const isAdmin = currentUser && !currentUser.isAnonymous;
         const isOwner = staffMember && registerSession.openedBy === staffMember.name;
-
-        if (!isAdmin && !isOwner) {
-            toast.error(`⛔ ACCESO DENEGADO\nTurno de: ${registerSession.openedBy}`, {
-                duration: 5000,
-                style: { border: '2px solid red', fontWeight: 'bold' }
-            });
+        
+        // Si requiere propiedad (cobrar) y no es el dueño, bloqueamos
+        if (requireOwnership && !isAdmin && !isOwner) {
+            toast.error(`⛔ ACCESO DENEGADO\nEsta caja es de: ${registerSession.openedBy}`, { duration: 5000 });
             return false;
         }
+        return true;
     }
-
-    // 3. Si es garzón (requireOwnership = false), PASA si la caja está abierta
-    return true;
+    
+    // Si no hay caja, verificamos si puede abrirla
+    const canOpenRegister = (currentUser && !currentUser.isAnonymous) || (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador'));
+    if (canOpenRegister) setIsOpenRegisterModalOpen(true);
+    else toast.error("⚠️ LA CAJA ESTÁ CERRADA.\nSolicita apertura.", { icon: '🔒' });
+    return false;
   };
 
   const handleOpenRegister = async (amount, activeTeam = []) => {
@@ -210,24 +207,23 @@ export default function App() {
       } catch (error) { toast.error("Error cerrando"); }
   };
 
-  // --- LÓGICA DE COBRO (REQUIERE SER DUEÑO) ---
+  // --- LÓGICA DE COBRO ---
   const handleStartPaymentFromCashier = (order) => {
-      if (!checkRegisterStatus(true)) return; // TRUE = Estricto (Solo dueño)
+      if (!checkRegisterStatus(true)) return;
       setOrderToPay(order); 
       setPendingSale({ cart: order.items, clearCart: () => {} });
       setIsPaymentModalOpen(true);
   };
 
   const handlePOSCheckout = (cart, clearCart) => {
-    if (!checkRegisterStatus(true)) return; // TRUE = Estricto (Solo dueño)
+    if (!checkRegisterStatus(true)) return;
     setOrderToPay(null);
     setPendingSale({ cart, clearCart });
     setIsPaymentModalOpen(true);
   };
 
-  // --- LÓGICA DE PEDIDO (SOLO REQUIERE CAJA ABIERTA) ---
   const handleSendToKitchen = async (cart, clearCart) => {
-    // FALSE = No estricto (Cualquiera puede si hay caja abierta)
+    // Garzones (checkRegisterStatus(false)) pueden enviar si hay caja abierta
     if (!checkRegisterStatus(false)) return; 
     
     if (cart.length === 0) return;
@@ -255,102 +251,6 @@ export default function App() {
     }
   };
 
-  const handleFinalizeSale = async (paymentResult) => {
-    if (!db) return;
-    
-    // Verificaciones de seguridad
-    if (staffMember && staffMember.role !== 'Cajero' && staffMember.role !== 'Administrador') {
-        toast.error("⛔ ACCESO DENEGADO: Solo Cajeros pueden cobrar."); 
-        setIsPaymentModalOpen(false); 
-        return;
-    }
-    if (!registerSession) { 
-        toast.error("¡La caja está cerrada!"); 
-        return; 
-    }
-
-    const toastId = toast.loading('Procesando pago...');
-    setIsPaymentModalOpen(false);
-    
-    const itemsToProcess = orderToPay ? orderToPay.items : pendingSale.cart;
-    const { paymentsList, totalPaid, change } = paymentResult;
-    const totalToProcess = totalPaid - change;
-
-    try {
-      const batchPromises = [];
-      const timestamp = new Date();
-
-      let cashierName = 'Caja General';
-      if (staffMember) cashierName = staffMember.name;
-      else if (currentUser) cashierName = 'Administrador';
-      
-      // Datos de quién atendió (Mesero original) vs quién cobra (Cajero actual)
-      const waiterName = orderToPay ? orderToPay.staffName : (staffMember ? staffMember.name : 'Barra');
-      const waiterId = orderToPay ? orderToPay.staffId : (staffMember ? staffMember.id : 'anon');
-
-      // 1. Guardar Venta
-      const saleData = {
-        date: timestamp.toISOString(),
-        total: totalToProcess,
-        items: itemsToProcess,
-        staffId: waiterId,
-        staffName: waiterName,
-        cashier: cashierName,
-        registerId: registerSession.id,
-        payments: paymentsList,
-        totalPaid: totalPaid,
-        changeGiven: change
-      };
-      
-      const salesCollection = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`;
-      const docRef = await addDoc(collection(db, salesCollection), saleData);
-
-      // 2. Descontar Stock
-      itemsToProcess.forEach(item => {
-        if (item.stock !== undefined && item.stock !== '') {
-          const newStock = parseInt(item.stock) - item.qty;
-          batchPromises.push(updateDoc(doc(db, getCollName('items'), item.id), { stock: newStock }));
-        }
-      });
-
-      // 3. Borrar de Pendientes (Si venía de una comanda)
-      if (orderToPay) {
-          const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
-          batchPromises.push(deleteDoc(doc(db, ordersCol, orderToPay.id)));
-      }
-      await Promise.all(batchPromises);
-
-      // 4. Preparar Recibo
-      const receiptData = {
-        businessName: appName,
-        date: timestamp.toLocaleString(),
-        staffName: waiterName,    // Mesero
-        cashierName: cashierName, // Cajero
-        orderId: docRef.id,
-        items: itemsToProcess,
-        total: totalToProcess,
-        payments: paymentsList,
-        change: change
-      };
-
-      setLastSale(receiptData);
-      
-      // Limpiezas
-      if (pendingSale && pendingSale.clearCart) pendingSale.clearCart([]);
-      setPendingSale(null);
-      setOrderToPay(null); // Limpiamos la orden pendiente de la memoria
-      
-      toast.success('¡Cobro exitoso!', { id: toastId });
-      
-      // --- CAMBIO CLAVE: SIEMPRE MOSTRAR TICKET ---
-      setView('receipt_view');
-
-    } catch (e) { 
-      console.error(e); 
-      toast.error('Error al cobrar', { id: toastId }); 
-    }
-  };
-
   const handleVoidAndPrint = async (order) => {
      try {
         const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
@@ -364,8 +264,11 @@ export default function App() {
 
   const handleFinalizeSale = async (paymentResult) => {
     if (!db) return;
-    // Doble verificación por seguridad
-    if (!checkRegisterStatus(true)) { setIsPaymentModalOpen(false); return; }
+    // Verificaciones de seguridad
+    if (staffMember && staffMember.role !== 'Cajero' && staffMember.role !== 'Administrador') {
+        toast.error("⛔ ACCESO DENEGADO: Solo Cajeros pueden cobrar."); setIsPaymentModalOpen(false); return;
+    }
+    if (!registerSession) { toast.error("¡La caja está cerrada!"); return; }
 
     const toastId = toast.loading('Procesando pago...');
     setIsPaymentModalOpen(false);
@@ -429,12 +332,17 @@ export default function App() {
       setLastSale(receiptData);
       if (pendingSale && pendingSale.clearCart) pendingSale.clearCart([]);
       setPendingSale(null);
+      setOrderToPay(null);
+      
       toast.success('¡Cobro exitoso!', { id: toastId });
       
-      if (orderToPay) { setOrderToPay(null); setView('cashier'); } 
-      else { setOrderToPay(null); setView('receipt_view'); }
+      // --- IMPORTANTE: SIEMPRE MOSTRAR EL TICKET ---
+      setView('receipt_view');
 
-    } catch (e) { console.error(e); toast.error('Error al cobrar', { id: toastId }); }
+    } catch (e) { 
+      console.error(e); 
+      toast.error('Error al cobrar', { id: toastId }); 
+    }
   };
 
   const handleReceiptClose = () => {
@@ -637,8 +545,10 @@ export default function App() {
 
             {view === 'pin_login' && <PinLoginView staffMembers={staff} onLoginSuccess={handleStaffPinLogin} onCancel={() => setView('landing')} />}
             {view === 'pos' && <POSInterface items={items} categories={categories} staffMember={staffMember} onCheckout={handlePOSCheckout} onPrintOrder={handleSendToKitchen} onExit={() => setView('landing')} />}
-            {view === 'receipt_view' && <Receipt data={lastSale} onPrint={handlePrint} onClose={handleReceiptClose} />}
             
+            {/* --- AQUÍ USAMOS handleReceiptClose --- */}
+            {view === 'receipt_view' && <Receipt data={lastSale} onPrint={handlePrint} onClose={handleReceiptClose} />}
+
             {view === 'menu' && (
               <>
                 {filter === 'Todos' ? (
