@@ -88,25 +88,38 @@ export default function App() {
     }
   };
 
-  // --- LÓGICA DE CONTROL DE CAJA (MEJORADA Y SEGURA) ---
+  // --- LÓGICA DE CONTROL DE CAJA (CON BLOQUEO DE USUARIO ÚNICO) ---
   const checkRegisterStatus = () => {
-    // 1. Si ya hay sesión, todo bien, pase adelante
-    if (registerSession) return true;
+    // 1. Verificar si la caja está abierta
+    if (registerSession) {
+        
+        // 2. VERIFICAR DUEÑO DE LA SESIÓN
+        // Permitimos pasar si:
+        // A) Es el Administrador (Dueño del sistema)
+        // B) Es el mismo empleado que abrió la caja
+        const isAdmin = currentUser && !currentUser.isAnonymous;
+        const isOwner = staffMember && registerSession.openedBy === staffMember.name;
 
-    // 2. Si NO hay sesión, verificamos si el usuario tiene PERMISO para abrirla
+        if (!isAdmin && !isOwner) {
+            toast.error(`⛔ ACCESO DENEGADO\nEsta caja fue abierta por: ${registerSession.openedBy}.\n\nDeben cerrar ese turno para que tú puedas operar.`, {
+                duration: 6000,
+                style: { border: '2px solid red', fontWeight: 'bold' }
+            });
+            return false; // Bloqueamos la acción
+        }
+        
+        return true; // Es el dueño, pase adelante
+    }
+
+    // 3. Si no hay sesión, verificamos si tiene permiso para abrirla
     const canOpenRegister = 
-        (currentUser && !currentUser.isAnonymous) || // Es el Dueño (Login con correo)
-        (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador')); // Es Staff autorizado
+        (currentUser && !currentUser.isAnonymous) || 
+        (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador'));
 
     if (canOpenRegister) {
-        // Si tiene permiso, le mostramos el modal para poner la plata
         setIsOpenRegisterModalOpen(true);
     } else {
-        // Si es Mesero/Cocinero, LE BLOQUEAMOS y mostramos alerta
-        toast.error("⚠️ LA CAJA ESTÁ CERRADA.\nSolicita a un Cajero o Admin que inicie turno.", {
-            duration: 5000,
-            icon: '🔒'
-        });
+        toast.error("⚠️ LA CAJA ESTÁ CERRADA.\nSolicita a un Cajero que inicie turno.", { icon: '🔒' });
     }
 
     return false;
@@ -419,26 +432,28 @@ const handleCloseRegister = () => {
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900 pb-20">
       <Toaster position="top-center" reverseOrder={false} />
       
-      {/* --- BARRA SUPERIOR CON ESTADO DE CAJA MEJORADA --- */}
+      {/* --- BARRA SUPERIOR CON DUEÑO DE CAJA --- */}
       {view !== 'landing' && (
           <div className={`w-full p-1 text-[10px] text-center font-bold text-white flex justify-center items-center gap-2 shadow-md sticky top-0 z-50 ${registerSession ? 'bg-green-600' : 'bg-red-600'}`}>
               {registerSession ? (
                   <>
                       <Unlock size={12}/> 
-                      <span>CAJA ABIERTA ({new Date(registerSession.openedAt).toLocaleDateString()}) - Bs. {registerSession.openingAmount}</span>
+                      <span className="uppercase">
+                        TURNO DE: {registerSession.openedBy} | Bs. {registerSession.openingAmount}
+                      </span>
                       
-                      {/* Botón de cierre rápido para Cajero/Admin */}
-                      {(staffMember?.role === 'Cajero' || staffMember?.role === 'Administrador' || currentUser) && (
+                      {/* El botón de cierre solo aparece si eres el dueño o Admin */}
+                      {((staffMember && registerSession.openedBy === staffMember.name) || (currentUser && !currentUser.isAnonymous)) && (
                           <button 
                             onClick={handleCloseRegister} 
                             className="ml-4 bg-black/20 hover:bg-black/40 px-3 py-0.5 rounded-full text-white flex items-center gap-1 transition-colors border border-white/30"
                           >
-                            <Lock size={10}/> Cerrar Turno
+                            <Lock size={10}/> Cerrar Mi Turno
                           </button>
                       )}
                   </>
               ) : (
-                  <><Lock size={12}/> CAJA CERRADA - No se pueden realizar cobros</>
+                  <><Lock size={12}/> CAJA CERRADA - Inicie turno para operar</>
               )}
           </div>
       )}
