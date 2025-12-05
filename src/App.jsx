@@ -88,13 +88,28 @@ export default function App() {
     }
   };
 
-  // --- LÓGICA DE CONTROL DE CAJA ---
+  // --- LÓGICA DE CONTROL DE CAJA (MEJORADA Y SEGURA) ---
   const checkRegisterStatus = () => {
-    if (!registerSession) {
+    // 1. Si ya hay sesión, todo bien, pase adelante
+    if (registerSession) return true;
+
+    // 2. Si NO hay sesión, verificamos si el usuario tiene PERMISO para abrirla
+    const canOpenRegister = 
+        (currentUser && !currentUser.isAnonymous) || // Es el Dueño (Login con correo)
+        (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador')); // Es Staff autorizado
+
+    if (canOpenRegister) {
+        // Si tiene permiso, le mostramos el modal para poner la plata
         setIsOpenRegisterModalOpen(true);
-        return false;
+    } else {
+        // Si es Mesero/Cocinero, LE BLOQUEAMOS y mostramos alerta
+        toast.error("⚠️ LA CAJA ESTÁ CERRADA.\nSolicita a un Cajero o Admin que inicie turno.", {
+            duration: 5000,
+            icon: '🔒'
+        });
     }
-    return true;
+
+    return false;
   };
 
   const handleOpenRegister = async (amount) => {
