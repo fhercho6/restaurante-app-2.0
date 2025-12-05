@@ -1,173 +1,246 @@
 // src/components/RegisterControlView.jsx
 import React, { useState } from 'react';
-import { Lock, Unlock, DollarSign, Clock, User, AlertTriangle, CheckCircle, Wallet, Users } from 'lucide-react';
+import { Lock, Unlock, DollarSign, Clock, User, AlertTriangle, CheckCircle, Wallet, Users, TrendingDown, TrendingUp, Plus, Trash2 } from 'lucide-react';
 
-// AHORA RECIBIMOS "staff" COMO PROPIEDAD
-const RegisterControlView = ({ session, onOpen, onClose, currentUser, staff }) => {
+const RegisterControlView = ({ session, onOpen, onClose, staff, stats, onAddExpense, onDeleteExpense }) => {
   const [amount, setAmount] = useState('');
   const [selectedStaff, setSelectedStaff] = useState([]);
+  
+  // Estado para nuevo gasto
+  const [expenseDesc, setExpenseDesc] = useState('');
+  const [expenseAmount, setExpenseAmount] = useState('');
 
-  // Manejar selección de personal
-  const toggleStaff = (memberId) => {
-    if (selectedStaff.includes(memberId)) {
-      setSelectedStaff(selectedStaff.filter(id => id !== memberId));
-    } else {
-      setSelectedStaff([...selectedStaff, memberId]);
-    }
+  const toggleStaff = (id) => {
+    if (selectedStaff.includes(id)) setSelectedStaff(selectedStaff.filter(s => s !== id));
+    else setSelectedStaff([...selectedStaff, id]);
   };
 
   const handleOpenSubmit = (e) => {
     e.preventDefault();
     if (!amount) return;
-    
-    // Filtramos los objetos completos del personal seleccionado para guardarlos en la sesión
-    const activeTeam = staff.filter(m => selectedStaff.includes(m.id)).map(m => ({
-        id: m.id,
-        name: m.name,
-        role: m.role
-    }));
-
+    const activeTeam = staff.filter(m => selectedStaff.includes(m.id)).map(m => ({ id: m.id, name: m.name, role: m.role }));
     onOpen(parseFloat(amount), activeTeam);
-    setAmount('');
-    setSelectedStaff([]);
+    setAmount(''); setSelectedStaff([]);
   };
 
+  const handleExpenseSubmit = (e) => {
+      e.preventDefault();
+      if (!expenseDesc || !expenseAmount) return;
+      onAddExpense(expenseDesc, parseFloat(expenseAmount));
+      setExpenseDesc('');
+      setExpenseAmount('');
+  };
+
+  // Cálculo final de caja esperada
+  const cashExpected = session ? (session.openingAmount + stats.cashSales - stats.totalExpenses) : 0;
+
   return (
-    <div className="animate-in fade-in max-w-4xl mx-auto pb-20">
+    <div className="animate-in fade-in max-w-6xl mx-auto pb-20">
       
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <Wallet className="text-orange-600"/> Control de Caja Chica
-        </h2>
-        <p className="text-gray-500 text-sm">Gestión de apertura, cierre y asistencia.</p>
+      <div className="mb-8 flex justify-between items-end">
+        <div>
+            <h2 className="text-3xl font-black text-gray-800 flex items-center gap-2">
+            <Wallet className="text-orange-600" size={32}/> Control de Caja
+            </h2>
+            <p className="text-gray-500 text-sm">Gestión de flujo de efectivo y arqueo.</p>
+        </div>
+        {session && (
+            <div className="text-right">
+                <p className="text-xs font-bold text-gray-400 uppercase">EFECTIVO ESPERADO</p>
+                <p className={`text-4xl font-black ${cashExpected >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    Bs. {cashExpected.toFixed(2)}
+                </p>
+            </div>
+        )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* --- ESTADO ACTUAL --- */}
-        <div className={`p-6 rounded-2xl shadow-lg text-white ${session ? 'bg-green-600' : 'bg-gray-800'}`}>
-          <div className="flex items-center justify-between mb-6">
-             <div className="flex items-center gap-3">
-                <div className="p-3 bg-white/20 rounded-full">
-                   {session ? <Unlock size={32}/> : <Lock size={32}/>}
-                </div>
-                <div>
-                   <h3 className="font-black text-xl uppercase tracking-wider">
-                     {session ? 'CAJA ABIERTA' : 'CAJA CERRADA'}
-                   </h3>
-                   <p className="text-sm opacity-80">Estado del sistema</p>
-                </div>
-             </div>
-             {session && <CheckCircle size={40} className="text-green-200 opacity-50"/>}
-          </div>
-
-          {session ? (
-            <div className="space-y-4 bg-white/10 p-4 rounded-xl">
-               <div className="flex justify-between border-b border-white/20 pb-2">
-                  <span className="flex items-center gap-2 text-sm"><User size={14}/> Responsable:</span>
-                  <span className="font-bold">{session.openedBy}</span>
-               </div>
-               <div className="flex justify-between border-b border-white/20 pb-2">
-                  <span className="flex items-center gap-2 text-sm"><Clock size={14}/> Apertura:</span>
-                  <span className="font-mono">{new Date(session.openedAt).toLocaleString()}</span>
-               </div>
-               <div className="flex justify-between items-center pt-2">
-                  <span className="flex items-center gap-2 text-sm"><DollarSign size={14}/> Monto Inicial:</span>
-                  <span className="text-2xl font-black bg-white text-green-700 px-3 py-1 rounded-lg">
-                    Bs. {session.openingAmount}
-                  </span>
-               </div>
-               
-               {/* MOSTRAR EQUIPO ACTIVO */}
-               {session.activeTeam && session.activeTeam.length > 0 && (
-                   <div className="pt-2 border-t border-white/20">
-                       <span className="flex items-center gap-2 text-sm mb-2"><Users size={14}/> Equipo en Turno:</span>
-                       <div className="flex flex-wrap gap-1">
-                           {session.activeTeam.map((s, idx) => (
-                               <span key={idx} className="text-[10px] bg-black/20 px-2 py-1 rounded border border-white/10">
-                                   {s.name}
-                               </span>
-                           ))}
-                       </div>
-                   </div>
-               )}
-            </div>
-          ) : (
-            <div className="text-center py-8 opacity-60">
-               <p>No hay turno activo actualmente.</p>
-               <p className="text-xs mt-2">Inicia apertura para comenzar a vender.</p>
-            </div>
-          )}
-        </div>
-
-        {/* --- ACCIONES (ABRIR / CERRAR) --- */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
-           {session ? (
-             <div className="h-full flex flex-col justify-center text-center">
-                <AlertTriangle size={48} className="mx-auto text-orange-500 mb-4"/>
-                <h3 className="text-xl font-bold text-gray-800 mb-2">¿Finalizar Turno?</h3>
-                <p className="text-gray-500 text-sm mb-6">
-                  Al cerrar caja, se registrará la hora y el equipo. 
-                  Asegúrate de haber realizado el arqueo físico.
-                </p>
-                <button 
-                  onClick={onClose}
-                  className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow-lg transition-transform active:scale-95 flex items-center justify-center gap-2"
-                >
-                  <Lock size={20}/> CERRAR CAJA AHORA
-                </button>
-             </div>
-           ) : (
-             <form onSubmit={handleOpenSubmit} className="h-full flex flex-col">
-                <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                  <Unlock size={20} className="text-blue-600"/> Nueva Apertura
-                </h3>
-                
-                <label className="block text-sm font-medium text-gray-600 mb-2">Monto en Efectivo (Cambio)</label>
-                <div className="relative mb-4">
-                   <DollarSign className="absolute left-3 top-3.5 text-gray-400" size={20}/>
-                   <input 
-                     type="number" 
-                     step="0.10"
-                     className="w-full pl-10 p-3 text-xl font-bold border-2 border-gray-200 rounded-xl focus:border-blue-500 outline-none"
-                     placeholder="0.00"
-                     value={amount}
-                     onChange={e => setAmount(e.target.value)}
-                     required
-                   />
-                </div>
-
-                {/* LISTA DE ASISTENCIA */}
-                <div className="mb-6 flex-1 overflow-y-auto max-h-48 border rounded-xl p-3 bg-gray-50">
-                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2 sticky top-0 bg-gray-50 pb-1">
-                        Registrar Personal Presente:
-                    </label>
-                    <div className="space-y-2">
-                        {staff.map(member => (
-                            <div key={member.id} className="flex items-center p-2 bg-white rounded-lg border border-gray-200 hover:border-blue-300 cursor-pointer" onClick={() => toggleStaff(member.id)}>
-                                <div className={`w-5 h-5 rounded border flex items-center justify-center mr-3 transition-colors ${selectedStaff.includes(member.id) ? 'bg-blue-600 border-blue-600' : 'border-gray-300'}`}>
-                                    {selectedStaff.includes(member.id) && <CheckCircle size={14} className="text-white"/>}
-                                </div>
-                                <div className="flex-1">
-                                    <p className="text-sm font-bold text-gray-800">{member.name}</p>
-                                    <p className="text-[10px] text-gray-500">{member.role}</p>
-                                </div>
-                            </div>
-                        ))}
-                        {staff.length === 0 && <p className="text-xs text-gray-400 italic text-center">No hay personal registrado.</p>}
+        {/* --- COLUMNA 1: ESTADO DEL TURNO --- */}
+        <div className="space-y-6">
+            <div className={`p-6 rounded-2xl shadow-lg text-white ${session ? 'bg-gray-900' : 'bg-gray-600'}`}>
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                        <div className="p-3 bg-white/10 rounded-full">
+                        {session ? <Unlock size={24}/> : <Lock size={24}/>}
+                        </div>
+                        <div>
+                        <h3 className="font-bold text-lg uppercase tracking-wider">
+                            {session ? 'TURNO ABIERTO' : 'CAJA CERRADA'}
+                        </h3>
+                        <p className="text-xs opacity-70">{session ? 'Operativo' : 'Sin actividad'}</p>
+                        </div>
                     </div>
                 </div>
 
-                <button 
-                  type="submit"
-                  className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg transition-all"
-                >
-                  ABRIR TURNO ({selectedStaff.length} Personal)
-                </button>
-             </form>
-           )}
+                {session ? (
+                    <div className="space-y-3 text-sm">
+                        <div className="flex justify-between border-b border-white/10 pb-2">
+                            <span className="opacity-70">Responsable</span>
+                            <span className="font-bold">{session.openedBy}</span>
+                        </div>
+                        <div className="flex justify-between border-b border-white/10 pb-2">
+                            <span className="opacity-70">Inicio</span>
+                            <span className="font-mono">{new Date(session.openedAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+                        </div>
+                        <div className="pt-2">
+                            <p className="text-xs opacity-70 mb-1">Equipo en Turno:</p>
+                            <div className="flex flex-wrap gap-1">
+                                {session.activeTeam?.map((s, i) => (
+                                    <span key={i} className="text-[10px] bg-white/20 px-2 py-0.5 rounded">{s.name}</span>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <p className="text-center opacity-50 py-4 text-sm">Inicia turno para ver detalles.</p>
+                )}
+            </div>
+
+            {/* Resumen Financiero (Solo si abierto) */}
+            {session && (
+                <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 space-y-3">
+                    <h4 className="font-bold text-gray-800 text-sm uppercase border-b pb-2">Resumen en Vivo</h4>
+                    
+                    <div className="flex justify-between items-center text-sm">
+                        <span className="text-gray-600 flex items-center gap-2"><DollarSign size={14}/> Fondo Inicial</span>
+                        <span className="font-bold">Bs. {session.openingAmount.toFixed(2)}</span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center text-sm text-green-600">
+                        <span className="flex items-center gap-2"><TrendingUp size={14}/> Ventas (Efectivo)</span>
+                        <span className="font-bold">+ Bs. {stats.cashSales.toFixed(2)}</span>
+                    </div>
+
+                    <div className="flex justify-between items-center text-sm text-red-500">
+                        <span className="flex items-center gap-2"><TrendingDown size={14}/> Gastos / Salidas</span>
+                        <span className="font-bold">- Bs. {stats.totalExpenses.toFixed(2)}</span>
+                    </div>
+                    
+                    <div className="pt-2 border-t mt-2 flex justify-between items-center">
+                        <span className="text-gray-400 text-xs">Ventas Digitales (QR/Tarjeta)</span>
+                        <span className="font-bold text-gray-400 text-xs">Bs. {stats.digitalSales.toFixed(2)}</span>
+                    </div>
+                </div>
+            )}
         </div>
 
+        {/* --- COLUMNA 2: REGISTRO DE GASTOS --- */}
+        <div className="lg:col-span-2 space-y-6">
+            
+            {session ? (
+                <>
+                    {/* Formulario de Gastos */}
+                    <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-200">
+                        <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <TrendingDown className="text-red-500"/> Registrar Salida de Dinero
+                        </h3>
+                        <form onSubmit={handleExpenseSubmit} className="flex gap-3 items-end">
+                            <div className="flex-1">
+                                <label className="text-xs font-bold text-gray-500">Motivo / Descripción</label>
+                                <input 
+                                    type="text" 
+                                    value={expenseDesc}
+                                    onChange={e => setExpenseDesc(e.target.value)}
+                                    className="w-full p-2 border rounded-lg outline-none focus:border-red-500"
+                                    placeholder="Ej. Compra de Hielo, Taxi..."
+                                    required
+                                />
+                            </div>
+                            <div className="w-32">
+                                <label className="text-xs font-bold text-gray-500">Monto (Bs.)</label>
+                                <input 
+                                    type="number" 
+                                    step="0.10"
+                                    value={expenseAmount}
+                                    onChange={e => setExpenseAmount(e.target.value)}
+                                    className="w-full p-2 border rounded-lg outline-none focus:border-red-500"
+                                    placeholder="0.00"
+                                    required
+                                />
+                            </div>
+                            <button type="submit" className="bg-red-50 text-red-600 hover:bg-red-100 px-4 py-2 rounded-lg font-bold flex items-center gap-2 border border-red-200">
+                                <Plus size={18}/> Registrar
+                            </button>
+                        </form>
+                    </div>
+
+                    {/* Lista de Gastos */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                        <div className="bg-gray-50 px-5 py-3 border-b border-gray-200 flex justify-between">
+                            <h3 className="font-bold text-gray-700 text-sm">Movimientos Registrados</h3>
+                            <span className="text-xs text-gray-500">{stats.expensesList.length} registros</span>
+                        </div>
+                        <div className="max-h-64 overflow-y-auto">
+                            {stats.expensesList.length === 0 ? (
+                                <p className="text-center py-8 text-gray-400 text-sm italic">No hay gastos registrados en este turno.</p>
+                            ) : (
+                                <table className="w-full text-sm text-left">
+                                    <tbody>
+                                        {stats.expensesList.map((ex) => (
+                                            <tr key={ex.id} className="border-b last:border-0 hover:bg-gray-50">
+                                                <td className="px-5 py-3 text-gray-600">{new Date(ex.date).toLocaleTimeString([],{hour:'2-digit', minute:'2-digit'})}</td>
+                                                <td className="px-5 py-3 font-medium text-gray-800">{ex.description}</td>
+                                                <td className="px-5 py-3 text-right font-bold text-red-600">- Bs. {ex.amount.toFixed(2)}</td>
+                                                <td className="px-5 py-3 text-right w-10">
+                                                    <button onClick={() => onDeleteExpense(ex.id)} className="text-gray-400 hover:text-red-500"><Trash2 size={16}/></button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Botón de Cierre */}
+                    <div className="mt-8 pt-6 border-t border-gray-200">
+                        <button 
+                            onClick={onClose}
+                            className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-black rounded-xl shadow-lg transition-transform active:scale-95 flex items-center justify-center gap-2 text-lg"
+                        >
+                            <Lock size={24}/> CERRAR CAJA Y GENERAR REPORTE
+                        </button>
+                        <p className="text-center text-xs text-gray-500 mt-2">Esto finalizará el turno y guardará el arqueo final.</p>
+                    </div>
+                </>
+            ) : (
+                // FORMULARIO DE APERTURA (Si está cerrada)
+                <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200 h-full flex flex-col justify-center">
+                    <h3 className="text-2xl font-black text-gray-800 mb-6 text-center">Iniciar Nuevo Turno</h3>
+                    <form onSubmit={handleOpenSubmit}>
+                        <label className="block text-sm font-bold text-gray-700 mb-2">Fondo de Caja (Cambio inicial)</label>
+                        <div className="relative mb-6">
+                            <DollarSign className="absolute left-3 top-3.5 text-gray-400" size={20}/>
+                            <input 
+                                type="number" 
+                                step="0.10"
+                                className="w-full pl-10 p-4 text-2xl font-bold border-2 border-gray-200 rounded-xl focus:border-blue-500 outline-none"
+                                placeholder="0.00"
+                                value={amount}
+                                onChange={e => setAmount(e.target.value)}
+                                autoFocus
+                            />
+                        </div>
+                        
+                        <div className="mb-6">
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Equipo presente:</label>
+                            <div className="flex flex-wrap gap-2">
+                                {staff.map(m => (
+                                    <div key={m.id} onClick={() => toggleStaff(m.id)} className={`cursor-pointer px-3 py-2 rounded-lg border text-sm font-bold transition-colors flex items-center gap-2 ${selectedStaff.includes(m.id) ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-400'}`}>
+                                        {m.name} {selectedStaff.includes(m.id) && <CheckCircle size={14}/>}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <button type="submit" disabled={!amount} className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg disabled:bg-gray-300">
+                            ABRIR TURNO
+                        </button>
+                    </form>
+                </div>
+            )}
+        </div>
       </div>
     </div>
   );

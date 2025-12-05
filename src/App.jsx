@@ -17,12 +17,11 @@ import Receipt from './components/Receipt';
 import PaymentModal from './components/PaymentModal';
 import CashierView from './components/CashierView';
 import OpenRegisterModal from './components/OpenRegisterModal';
-import RegisterControlView from './components/RegisterControlView'; // <--- NUEVO IMPORT
+import RegisterControlView from './components/RegisterControlView';
 
 import { AuthModal, BrandingModal, ProductModal, CategoryManager, RoleManager } from './components/Modals';
 import { MenuCard, PinLoginView, CredentialPrintView, PrintableView, AdminRow } from './components/Views';
 
-// --- 🔴 TU LOGO AQUÍ ---
 const LOGO_URL_FIJO = ""; 
 
 const INITIAL_CATEGORIES = []; 
@@ -33,42 +32,38 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [isLoadingApp, setIsLoadingApp] = useState(true);
 
-  // Datos
   const [items, setItems] = useState([]);
   const [staff, setStaff] = useState([]);
   const [categories, setCategories] = useState(INITIAL_CATEGORIES);
   const [roles, setRoles] = useState(INITIAL_ROLES);
   
-  // Config
   const [dbStatus, setDbStatus] = useState('connecting');
   const [dbErrorMsg, setDbErrorMsg] = useState('');
   const [logo, setLogo] = useState(null);
   const [appName, setAppName] = useState(""); 
 
-  // Estado de Caja
   const [registerSession, setRegisterSession] = useState(null);
   const [isOpenRegisterModalOpen, setIsOpenRegisterModalOpen] = useState(false);
+  
+  // NUEVO: Estadísticas del turno en vivo
+  const [sessionStats, setSessionStats] = useState({ cashSales: 0, digitalSales: 0, totalExpenses: 0, expensesList: [] });
 
-  // Modales
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isBrandingModalOpen, setIsBrandingModalOpen] = useState(false);
   
-  // Estados Operativos
   const [currentItem, setCurrentItem] = useState(null);
   const [filter, setFilter] = useState('Todos');
   const [credentialToPrint, setCredentialToPrint] = useState(null);
   const [staffMember, setStaffMember] = useState(null);
   
-  // Pagos
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [pendingSale, setPendingSale] = useState(null);
   const [orderToPay, setOrderToPay] = useState(null); 
   const [lastSale, setLastSale] = useState(null);
 
-  // --- HANDLERS ---
   const handleLogin = (userApp) => { setIsAuthModalOpen(false); setView('admin'); toast.success(`Bienvenido`); };
   const handleLogout = async () => { await signOut(auth); setView('landing'); toast('Sesión cerrada', { icon: '👋' }); };
   const handleEnterMenu = () => { setFilter('Todos'); setView('menu'); };
@@ -88,118 +83,103 @@ export default function App() {
     }
   };
 
-  // --- LÓGICA DE CONTROL DE CAJA (CON BLOQUEO DE USUARIO ÚNICO) ---
   const checkRegisterStatus = () => {
-    // 1. Verificar si la caja está abierta
     if (registerSession) {
-        
-        // 2. VERIFICAR DUEÑO DE LA SESIÓN
-        // Permitimos pasar si:
-        // A) Es el Administrador (Dueño del sistema)
-        // B) Es el mismo empleado que abrió la caja
         const isAdmin = currentUser && !currentUser.isAnonymous;
         const isOwner = staffMember && registerSession.openedBy === staffMember.name;
-
         if (!isAdmin && !isOwner) {
-            toast.error(`⛔ ACCESO DENEGADO\nEsta caja fue abierta por: ${registerSession.openedBy}.\n\nDeben cerrar ese turno para que tú puedas operar.`, {
-                duration: 6000,
-                style: { border: '2px solid red', fontWeight: 'bold' }
-            });
-            return false; // Bloqueamos la acción
+            toast.error(`⛔ ACCESO DENEGADO\nEsta caja es de: ${registerSession.openedBy}`, { duration: 5000 });
+            return false;
         }
-        
-        return true; // Es el dueño, pase adelante
+        return true;
     }
-
-    // 3. Si no hay sesión, verificamos si tiene permiso para abrirla
-    const canOpenRegister = 
-        (currentUser && !currentUser.isAnonymous) || 
-        (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador'));
-
-    if (canOpenRegister) {
-        setIsOpenRegisterModalOpen(true);
-    } else {
-        toast.error("⚠️ LA CAJA ESTÁ CERRADA.\nSolicita a un Cajero que inicie turno.", { icon: '🔒' });
-    }
-
+    const canOpenRegister = (currentUser && !currentUser.isAnonymous) || (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador'));
+    if (canOpenRegister) setIsOpenRegisterModalOpen(true);
+    else toast.error("⚠️ LA CAJA ESTÁ CERRADA.", { icon: '🔒' });
     return false;
   };
 
   const handleOpenRegister = async (amount, activeTeam = []) => {
-    try {
-        const sessionData = {
-            status: 'open',
-            openedBy: staffMember ? staffMember.name : (currentUser?.email || 'Admin'),
-            openedAt: new Date().toISOString(),
-            openingAmount: amount,
-            salesTotal: 0,
-            activeTeam: activeTeam // <--- GUARDAMOS EL EQUIPO
-        };
-        const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`;
-        const docRef = await addDoc(collection(db, colName), sessionData);
-        
-        setRegisterSession({ id: docRef.id, ...sessionData });
-        setIsOpenRegisterModalOpen(false);
-        toast.success(`Caja Abierta con ${activeTeam.length} empleados`, { icon: '🔓' });
+      try {
+          const sessionData = {
+              status: 'open',
+              openedBy: staffMember ? staffMember.name : (currentUser?.email || 'Admin'),
+              openedAt: new Date().toISOString(),
+              openingAmount: amount,
+              activeTeam: activeTeam
+          };
+          const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`;
+          const docRef = await addDoc(collection(db, colName), sessionData);
+          setRegisterSession({ id: docRef.id, ...sessionData });
+          setIsOpenRegisterModalOpen(false);
+          toast.success(`Turno Abierto`, { icon: '🔓' });
+      } catch (error) { toast.error("Error al abrir caja"); }
+  };
 
-    } catch (error) {
-        console.error(error);
-        toast.error("Error al abrir caja");
-    }
-};
-
-  // --- LÓGICA DE CIERRE DE CAJA (CORREGIDA PARA MÓVIL) ---
-
-  // 1. Acción real de cierre (Se llama al confirmar)
-  const confirmCloseRegister = async () => {
-    try {
-        const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`;
-        await updateDoc(doc(db, colName, registerSession.id), {
-            status: 'closed',
-            closedAt: new Date().toISOString(),
-            closedBy: staffMember ? staffMember.name : 'Admin',
-            // Aquí podrías guardar el total de ventas calculado también
-            finalSales: registerSession.salesTotal || 0 
-        });
-        setRegisterSession(null);
-        toast.success("Caja Cerrada. Turno finalizado.", { icon: '🔒' });
-        // Redirigir al inicio para obligar a nueva apertura
-        setView('landing');
-    } catch (error) {
-        console.error(error);
-        toast.error("Error al cerrar caja");
-    }
-};
-
-// 2. Botón que muestra la pregunta (Reemplaza al window.confirm)
-const handleCloseRegister = () => {
+  // --- NUEVO: GESTIÓN DE GASTOS ---
+  const handleAddExpense = async (description, amount) => {
     if (!registerSession) return;
+    try {
+        const expenseData = {
+            registerId: registerSession.id, // Vinculado al turno actual
+            description,
+            amount,
+            date: new Date().toISOString(),
+            createdBy: staffMember ? staffMember.name : 'Admin'
+        };
+        const colName = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`;
+        await addDoc(collection(db, colName), expenseData);
+        toast.success("Gasto registrado", { icon: '💸' });
+    } catch (e) { toast.error("Error guardando gasto"); }
+  };
 
-    toast((t) => (
-      <div className="flex flex-col gap-3">
-        <span className="font-bold text-gray-800">¿Cerrar Caja y finalizar turno?</span>
-        <div className="flex gap-2">
-          <button 
-            onClick={() => {
-              confirmCloseRegister(); // <--- Llama a la función de arriba
-              toast.dismiss(t.id);
-            }}
-            className="bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm"
-          >
-            SÍ, CERRAR
-          </button>
-          <button 
-            onClick={() => toast.dismiss(t.id)}
-            className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg text-xs font-bold"
-          >
-            CANCELAR
-          </button>
+  const handleDeleteExpense = async (id) => {
+      if(!window.confirm("¿Eliminar este gasto?")) return;
+      try {
+          const colName = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`;
+          await deleteDoc(doc(db, colName, id));
+          toast.success("Gasto eliminado");
+      } catch (e) { toast.error("Error"); }
+  };
+
+  // CIERRE DE CAJA CON REPORTE
+  const handleCloseRegister = () => {
+      if (!registerSession) return;
+      // Calculamos el efectivo final esperado
+      const cashFinal = registerSession.openingAmount + sessionStats.cashSales - sessionStats.totalExpenses;
+      
+      toast((t) => (
+        <div className="flex flex-col gap-3 min-w-[200px]">
+          <div className="border-b pb-2">
+             <p className="font-bold text-gray-800">¿Cerrar Caja?</p>
+             <p className="text-xs text-gray-500">Deberías tener en efectivo:</p>
+             <p className="text-xl font-black text-green-600">Bs. {cashFinal.toFixed(2)}</p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => { confirmCloseRegister(cashFinal); toast.dismiss(t.id); }} className="bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm flex-1">SÍ, CERRAR</button>
+            <button onClick={() => toast.dismiss(t.id)} className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg text-xs font-bold flex-1">CANCELAR</button>
+          </div>
         </div>
-      </div>
-    ), { duration: 5000, icon: <Lock className="text-red-600"/> });
-};
+      ), { duration: 8000, icon: <Lock className="text-red-600"/> });
+  };
 
-  // --- LÓGICA DE COBRO ---
+  const confirmCloseRegister = async (finalCash) => {
+      try {
+          const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`;
+          await updateDoc(doc(db, colName, registerSession.id), {
+              status: 'closed',
+              closedAt: new Date().toISOString(),
+              closedBy: staffMember ? staffMember.name : 'Admin',
+              finalCashCalculated: finalCash,
+              finalSalesStats: sessionStats // Guardamos la foto final de los números
+          });
+          setRegisterSession(null);
+          setSessionStats({ cashSales: 0, digitalSales: 0, totalExpenses: 0, expensesList: [] });
+          toast.success("Turno finalizado", { icon: '🔒' });
+          setView('landing');
+      } catch (error) { toast.error("Error cerrando"); }
+  };
+
   const handleStartPaymentFromCashier = (order) => {
       if (!checkRegisterStatus()) return;
       setOrderToPay(order); 
@@ -214,18 +194,12 @@ const handleCloseRegister = () => {
     setIsPaymentModalOpen(true);
   };
 
-  // src/App.jsx (Reemplaza solo esta función)
-
   const handleSendToKitchen = async (cart, clearCart) => {
-    // 1. SEGURIDAD: Verificar si hay caja abierta antes de nada
-    if (!checkRegisterStatus()) return; 
-
+    if (!checkRegisterStatus()) return;
     if (cart.length === 0) return;
-    
     const toastId = toast.loading('Procesando comanda...');
     try {
         const totalOrder = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
-        
         const orderData = {
             date: new Date().toISOString(),
             staffId: staffMember ? staffMember.id : 'anon',
@@ -235,21 +209,14 @@ const handleCloseRegister = () => {
             total: totalOrder,
             status: 'pending'
         };
-
         const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
         await addDoc(collection(db, ordersCol), orderData);
-
         const preCheckData = { ...orderData, type: 'order', date: new Date().toLocaleString() };
-        
         clearCart([]);
         setLastSale(preCheckData);
-        toast.success('Pedido enviado a caja', { id: toastId });
+        toast.success('Pedido enviado', { id: toastId });
         setView('receipt_view'); 
-
-    } catch (error) {
-        console.error(error);
-        toast.error('Error al enviar pedido', { id: toastId });
-    }
+    } catch (error) { toast.error('Error al enviar', { id: toastId }); }
   };
 
   const handleVoidAndPrint = async (order) => {
@@ -258,23 +225,16 @@ const handleCloseRegister = () => {
         await deleteDoc(doc(db, ordersCol, order.id));
         const voidData = { ...order, type: 'void', businessName: appName, date: new Date().toLocaleString() };
         setLastSale(voidData);
-        toast.success("Pedido anulado.");
+        toast.success("Pedido anulado");
         setView('receipt_view');
-     } catch (error) {
-        toast.error("Error al anular");
-     }
+     } catch (error) { toast.error("Error al anular"); }
   };
 
   const handleFinalizeSale = async (paymentResult) => {
     if (!db) return;
-    // --- BLOQUEO DE SEGURIDAD POR ROL ---
-    // Si hay un miembro logueado y NO es Cajero/Admin, prohibimos el cobro.
     if (staffMember && staffMember.role !== 'Cajero' && staffMember.role !== 'Administrador') {
-      toast.error("⛔ ACCESO DENEGADO: Solo Cajeros pueden cobrar.", { duration: 4000 });
-      setIsPaymentModalOpen(false);
-      return;
+        toast.error("⛔ ACCESO DENEGADO: Solo Cajeros pueden cobrar."); setIsPaymentModalOpen(false); return;
     }
-    
     if (!registerSession) { toast.error("¡La caja está cerrada!"); return; }
 
     const toastId = toast.loading('Procesando pago...');
@@ -289,11 +249,9 @@ const handleCloseRegister = () => {
       const timestamp = new Date();
 
       let cashierName = 'Caja General';
-      if (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador')) {
-          cashierName = staffMember.name;
-      } else if (currentUser && !currentUser.isAnonymous) {
-          cashierName = 'Administrador';
-      }
+      if (staffMember) cashierName = staffMember.name;
+      else if (currentUser) cashierName = 'Administrador';
+      
       const waiterName = orderToPay ? orderToPay.staffName : (staffMember ? staffMember.name : 'Barra');
       const waiterId = orderToPay ? orderToPay.staffId : (staffMember ? staffMember.id : 'anon');
 
@@ -304,7 +262,7 @@ const handleCloseRegister = () => {
         staffId: waiterId,
         staffName: waiterName,
         cashier: cashierName,
-        registerId: registerSession.id,
+        registerId: registerSession.id, // VITAL: Ligar venta al turno
         payments: paymentsList,
         totalPaid: totalPaid,
         changeGiven: change
@@ -342,17 +300,12 @@ const handleCloseRegister = () => {
       if (pendingSale && pendingSale.clearCart) pendingSale.clearCart([]);
       setPendingSale(null);
       toast.success('¡Cobro exitoso!', { id: toastId });
-      
       if (orderToPay) { setOrderToPay(null); setView('cashier'); } 
       else { setOrderToPay(null); setView('receipt_view'); }
 
-    } catch (e) {
-      console.error(e);
-      toast.error('Error al cobrar', { id: toastId });
-    }
+    } catch (e) { console.error(e); toast.error('Error al cobrar', { id: toastId }); }
   };
 
-  // --- EFECTOS ---
   useEffect(() => {
     const initAuth = async () => {
         if (!auth.currentUser) {
@@ -367,6 +320,7 @@ const handleCloseRegister = () => {
     return onAuthStateChanged(auth, (u) => { setCurrentUser(u); if (u) { setDbStatus('connected'); setDbErrorMsg(''); } });
   }, []);
 
+  // EFECTO: Escuchar estado de la caja
   useEffect(() => {
       if (!db) return;
       const checkSession = async () => {
@@ -381,6 +335,54 @@ const handleCloseRegister = () => {
       checkSession();
   }, [db, currentUser]);
 
+  // EFECTO NUEVO: CALCULAR TOTALES DEL TURNO EN VIVO
+  useEffect(() => {
+      if (!db || !registerSession) return; // Solo si hay caja abierta
+
+      // 1. Escuchar Ventas del Turno
+      const salesCol = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`;
+      const qSales = query(collection(db, salesCol), where('registerId', '==', registerSession.id));
+      
+      // 2. Escuchar Gastos del Turno
+      const expensesCol = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`;
+      const qExpenses = query(collection(db, expensesCol), where('registerId', '==', registerSession.id));
+
+      const unsubSales = onSnapshot(qSales, (snap) => {
+          let cash = 0, digital = 0;
+          snap.forEach(doc => {
+              const sale = doc.data();
+              // Calcular efectivo neto (recibido - cambio) y otros
+              if (sale.payments) {
+                  sale.payments.forEach(p => {
+                      const amt = parseFloat(p.amount) || 0;
+                      if (p.method === 'Efectivo') cash += amt;
+                      else digital += amt;
+                  });
+                  if (sale.changeGiven) cash -= parseFloat(sale.changeGiven);
+              } else {
+                  // Legacy
+                  const total = parseFloat(sale.total);
+                  if (sale.paymentMethod === 'Efectivo') cash += total;
+                  else digital += total;
+              }
+          });
+          setSessionStats(prev => ({ ...prev, cashSales: cash, digitalSales: digital }));
+      });
+
+      const unsubExpenses = onSnapshot(qExpenses, (snap) => {
+          let totalExp = 0;
+          const list = [];
+          snap.forEach(doc => {
+              const exp = doc.data();
+              totalExp += parseFloat(exp.amount);
+              list.push({ id: doc.id, ...exp });
+          });
+          setSessionStats(prev => ({ ...prev, totalExpenses: totalExp, expensesList: list }));
+      });
+
+      return () => { unsubSales(); unsubExpenses(); };
+  }, [registerSession]); // Se reinicia si cambia la sesión
+
   useEffect(() => {
     if (!db) return;
     const itemsUnsub = onSnapshot(collection(db, getCollName('items')), (s) => {
@@ -390,11 +392,12 @@ const handleCloseRegister = () => {
     }, (e) => { if (e.code === 'permission-denied') { setDbStatus('error'); setDbErrorMsg(currentUser ? 'Sin permisos.' : 'Inicia sesión.'); } });
     const staffUnsub = onSnapshot(collection(db, getCollName('staff')), (s) => setStaff(s.docs.map(d => ({id: d.id, ...d.data()}))));
     const settingsUnsub = onSnapshot(collection(db, getCollName('settings')), (s) => {
+        let brandingLoaded = false;
         s.docs.forEach(d => {
             const data = d.data();
             if (d.id === 'categories') setCategories(data.list || []);
             if (d.id === 'roles') setRoles(data.list || INITIAL_ROLES);
-            if (d.id === 'branding') { setLogo(data.logo); if(data.appName) setAppName(data.appName); }
+            if (d.id === 'branding') { setLogo(data.logo); if(data.appName) setAppName(data.appName); brandingLoaded = true; }
         });
         setIsLoadingApp(false);
     });
@@ -408,7 +411,7 @@ const handleCloseRegister = () => {
     return isPersonalProject ? 'settings' : `${ROOT_COLLECTION}settings`;
   }
 
-  // Crud wrappers... (omitiendo por brevedad, son los mismos)
+  // Crud (Sin cambios)
   const handleSave = async (d) => { try { if(currentItem) await setDoc(doc(db, getCollName('items'), currentItem.id), d); else await addDoc(collection(db, getCollName('items')), d); toast.success('Guardado'); setIsModalOpen(false); } catch { toast.error('Error'); }};
   const handleDelete = async (id) => { try { await deleteDoc(doc(db, getCollName('items'), id)); toast.success('Eliminado'); } catch { toast.error('Error'); }};
   const handleAddStaff = async (d) => { await addDoc(collection(db, getCollName('staff')), d); toast.success('Personal creado'); };
@@ -427,43 +430,22 @@ const handleCloseRegister = () => {
   const isAdminMode = view === 'admin' || view === 'report' || view === 'staff_admin' || view === 'cashier' || view === 'register_control';
   const isCashierOnly = staffMember && staffMember.role === 'Cajero';
 
-  // Botón para volver del ticket
-  const handleReceiptClose = () => {
-    if (isCashierOnly || (currentUser && !currentUser.isAnonymous) || (staffMember?.role === 'Administrador')) {
-        setView('cashier');
-    } else {
-        setView('pos');
-    }
-  };
-
   if (isLoadingApp) return <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 animate-in fade-in"><div className="bg-white p-8 rounded-3xl shadow-xl flex flex-col items-center"><div className="relative mb-4"><div className="absolute inset-0 bg-orange-200 rounded-full animate-ping opacity-75"></div><div className="relative bg-white p-4 rounded-full border-4 border-orange-500 overflow-hidden w-24 h-24 flex items-center justify-center">{LOGO_URL_FIJO ? (<img src={LOGO_URL_FIJO} alt="Cargando" className="w-full h-full object-contain animate-pulse" />) : (<ChefHat size={48} className="text-orange-500" />)}</div></div><h2 className="text-xl font-bold text-gray-800">Cargando sistema...</h2><p className="text-sm text-gray-400 mt-2">Conectando con la nube</p></div></div>;
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900 pb-20">
       <Toaster position="top-center" reverseOrder={false} />
       
-      {/* --- BARRA SUPERIOR CON DUEÑO DE CAJA --- */}
       {view !== 'landing' && (
           <div className={`w-full p-1 text-[10px] text-center font-bold text-white flex justify-center items-center gap-2 shadow-md sticky top-0 z-50 ${registerSession ? 'bg-green-600' : 'bg-red-600'}`}>
               {registerSession ? (
                   <>
                       <Unlock size={12}/> 
-                      <span className="uppercase">
-                        TURNO DE: {registerSession.openedBy} | Bs. {registerSession.openingAmount}
-                      </span>
-                      
-                      {/* El botón de cierre solo aparece si eres el dueño o Admin */}
-                      {((staffMember && registerSession.openedBy === staffMember.name) || (currentUser && !currentUser.isAnonymous)) && (
-                          <button 
-                            onClick={handleCloseRegister} 
-                            className="ml-4 bg-black/20 hover:bg-black/40 px-3 py-0.5 rounded-full text-white flex items-center gap-1 transition-colors border border-white/30"
-                          >
-                            <Lock size={10}/> Cerrar Mi Turno
-                          </button>
-                      )}
+                      <span className="uppercase">TURNO: {registerSession.openedBy} | Bs. {registerSession.openingAmount}</span>
+                      {(isAdminMode) && <button onClick={handleCloseRegister} className="ml-4 bg-black/20 hover:bg-black/40 px-3 py-0.5 rounded-full text-white flex items-center gap-1 transition-colors border border-white/30"><Lock size={10}/> Cerrar</button>}
                   </>
               ) : (
-                  <><Lock size={12}/> CAJA CERRADA - Inicie turno para operar</>
+                  <><Lock size={12}/> CAJA CERRADA</>
               )}
           </div>
       )}
@@ -493,7 +475,7 @@ const handleCloseRegister = () => {
                     {!isCashierOnly && <button onClick={() => setView('admin')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'admin' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><ClipboardList size={18}/> Inventario</button>}
                     <button onClick={() => setView('cashier')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'cashier' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><DollarSign size={18}/> Caja</button>
                     
-                    {/* --- NUEVO BOTÓN DE CONTROL DE CAJA --- */}
+                    {/* BOTÓN CONTROL CAJA */}
                     <button onClick={() => setView('register_control')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'register_control' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><Wallet size={18}/> Control Caja</button>
                     
                     {!isCashierOnly && <button onClick={() => setView('staff_admin')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'staff_admin' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><Users size={18}/> Personal</button>}
@@ -504,17 +486,19 @@ const handleCloseRegister = () => {
                 {view === 'report' && <div className="animate-in fade-in"><SalesDashboard /><div className="hidden print:block mt-8"><PrintableView items={items} /></div></div>}
                 {view === 'cashier' && <CashierView onProcessPayment={handleStartPaymentFromCashier} onVoidOrder={handleVoidAndPrint} />}
                 
-                {/* --- VISTA NUEVA: CONTROL DE CAJA --- */}
+                {/* VISTA CONTROL CAJA */}
                 {view === 'register_control' && (
                     <RegisterControlView 
                         session={registerSession} 
                         onOpen={handleOpenRegister} 
                         onClose={handleCloseRegister}
                         staff={staff}
+                        stats={sessionStats}
+                        onAddExpense={handleAddExpense}
+                        onDeleteExpense={handleDeleteExpense}
                     />
                 )}
-                
-                {/* --- VISTA DE ADMINISTRACIÓN DE PERSONAL --- */}         
+
                 {view === 'staff_admin' && !isCashierOnly && <StaffManagerView staff={staff} roles={roles} onAddStaff={handleAddStaff} onUpdateStaff={handleUpdateStaff} onDeleteStaff={handleDeleteStaff} onManageRoles={() => setIsRoleModalOpen(true)} onPrintCredential={handlePrintCredential} />}
                 {view === 'credential_print' && credentialToPrint && <div className="flex flex-col items-center"><button onClick={() => setView('staff_admin')} className="no-print mb-4 px-4 py-2 bg-gray-200 rounded">Volver</button><CredentialPrintView member={credentialToPrint} appName={appName} /></div>}
                 {view === 'admin' && !isCashierOnly && (
@@ -535,12 +519,11 @@ const handleCloseRegister = () => {
                 )}
               </>
             )}
-
+            
+            {/* ... Resto de vistas (POS, Menu, etc) sin cambios ... */}
             {view === 'pin_login' && <PinLoginView staffMembers={staff} onLoginSuccess={handleStaffPinLogin} onCancel={() => setView('landing')} />}
             {view === 'pos' && <POSInterface items={items} categories={categories} staffMember={staffMember} onCheckout={handlePOSCheckout} onPrintOrder={handleSendToKitchen} onExit={() => setView('landing')} />}
             {view === 'receipt_view' && <Receipt data={lastSale} onPrint={handlePrint} onClose={handleReceiptClose} />}
-            
-            {/* --- MENU CLIENTE --- */}
             {view === 'menu' && (
               <>
                 {filter === 'Todos' ? (
@@ -581,6 +564,7 @@ const handleCloseRegister = () => {
               </>
             )}
           </main>
+          <div className={`fixed bottom-0 w-full p-1 text-[10px] text-center text-white ${dbStatus === 'connected' ? 'bg-green-600' : 'bg-red-600'}`}> {dbStatus === 'connected' ? 'Sistema Online' : 'Desconectado'} </div>
         </>
       )}
       
