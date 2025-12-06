@@ -389,46 +389,68 @@ export default function App() {
   }, [db, currentUser]);
 
   // --- CORRECCIÓN DEL CÁLCULO SEPARADO ---
+  // src/App.jsx (Reemplaza este useEffect completo)
+
   useEffect(() => {
-      if (!db || !registerSession) return;
-      const salesCol = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`;
-      const qSales = query(collection(db, salesCol), where('registerId', '==', registerSession.id));
-      const expensesCol = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`;
-      const qExpenses = query(collection(db, expensesCol), where('registerId', '==', registerSession.id));
+    if (!db || !registerSession) return;
+    
+    const salesCol = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`;
+    const qSales = query(collection(db, salesCol), where('registerId', '==', registerSession.id));
+    
+    const expensesCol = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`;
+    const qExpenses = query(collection(db, expensesCol), where('registerId', '==', registerSession.id));
 
-      const unsubSales = onSnapshot(qSales, (snap) => {
-          let cash = 0, qr = 0, card = 0;
-          snap.forEach(doc => {
-              const sale = doc.data();
-              if (sale.payments) {
-                  sale.payments.forEach(p => {
-                      const amt = parseFloat(p.amount) || 0;
-                      if (p.method === 'Efectivo') cash += amt;
-                      else if (p.method === 'QR') qr += amt;
-                      else if (p.method === 'Tarjeta') card += amt;
-                  });
-                  if (sale.changeGiven) cash -= parseFloat(sale.changeGiven);
-              } else {
-                  const total = parseFloat(sale.total);
-                  if (sale.paymentMethod === 'Efectivo') cash += total; else qr += total;
-              }
-          });
-          setSessionStats(prev => ({ ...prev, cashSales: cash, qrSales: qr, cardSales: card, digitalSales: qr + card }));
-      });
+    const unsubSales = onSnapshot(qSales, (snap) => {
+        let cash = 0, qr = 0, card = 0, digital = 0;
+        
+        snap.forEach(doc => {
+            const sale = doc.data();
+            
+            if (sale.payments) {
+                // Lógica Multi-Pago
+                sale.payments.forEach(p => {
+                    const amt = parseFloat(p.amount) || 0;
+                    if (p.method === 'Efectivo') cash += amt;
+                    else if (p.method === 'QR') qr += amt;       // Sumar QR
+                    else if (p.method === 'Tarjeta') card += amt; // Sumar Tarjeta
+                });
+                // Restar cambio
+                if (sale.changeGiven) cash -= parseFloat(sale.changeGiven);
+            } else {
+                // Lógica Antigua (Respaldo)
+                const total = parseFloat(sale.total);
+                if (sale.paymentMethod === 'Efectivo') cash += total;
+                else if (sale.paymentMethod === 'QR') qr += total;
+                else card += total;
+            }
+        });
+        
+        // Total Digital combinado
+        digital = qr + card; 
 
-      const unsubExpenses = onSnapshot(qExpenses, (snap) => {
-          let totalExp = 0;
-          const list = [];
-          snap.forEach(doc => {
-              const exp = doc.data();
-              totalExp += parseFloat(exp.amount);
-              list.push({ id: doc.id, ...exp });
-          });
-          setSessionStats(prev => ({ ...prev, totalExpenses: totalExp, expensesList: list }));
-      });
+        // --- AQUÍ ESTABA EL ERROR: AHORA GUARDAMOS TODO ---
+        setSessionStats(prev => ({ 
+            ...prev, 
+            cashSales: cash, 
+            qrSales: qr,     // <--- AHORA SÍ APARECERÁ
+            cardSales: card, // <--- AHORA SÍ APARECERÁ
+            digitalSales: digital
+        }));
+    });
 
-      return () => { unsubSales(); unsubExpenses(); };
-  }, [registerSession]);
+    const unsubExpenses = onSnapshot(qExpenses, (snap) => {
+        let totalExp = 0;
+        const list = [];
+        snap.forEach(doc => {
+            const exp = doc.data();
+            totalExp += parseFloat(exp.amount);
+            list.push({ id: doc.id, ...exp });
+        });
+        setSessionStats(prev => ({ ...prev, totalExpenses: totalExp, expensesList: list }));
+    });
+
+    return () => { unsubSales(); unsubExpenses(); };
+}, [registerSession]);
 
   useEffect(() => {
     if (!db) return;
