@@ -1,4 +1,4 @@
-// src/App.jsx - VERSIÓN FINAL MAESTRA SIN ERRORES
+// src/App.jsx - VERSIÓN FINAL (Con Reimpresión de Cierre Activada)
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
@@ -22,7 +22,6 @@ import RegisterControlView from './components/RegisterControlView';
 import { AuthModal, BrandingModal, ProductModal, CategoryManager, RoleManager } from './components/Modals';
 import { MenuCard, PinLoginView, CredentialPrintView, PrintableView, AdminRow } from './components/Views';
 
-// --- 🔴 PEGA AQUÍ EL ENLACE DE TU LOGO SI LO TIENES ---
 const LOGO_URL_FIJO = ""; 
 
 const INITIAL_CATEGORIES = []; 
@@ -89,24 +88,19 @@ export default function App() {
     }
   };
 
-  // --- LÓGICA DE CONTROL DE CAJA ---
   const checkRegisterStatus = (requireOwnership = false) => {
     if (registerSession) {
         const isAdmin = currentUser && !currentUser.isAnonymous;
         const isOwner = staffMember && registerSession.openedBy === staffMember.name;
-        
-        // Si requiere propiedad (cobrar) y no es el dueño, bloqueamos
         if (requireOwnership && !isAdmin && !isOwner) {
-            toast.error(`⛔ ACCESO DENEGADO\nEsta caja es de: ${registerSession.openedBy}`, { duration: 5000 });
+            toast.error(`⛔ ACCESO DENEGADO\nTurno de: ${registerSession.openedBy}`, { duration: 5000 });
             return false;
         }
         return true;
     }
-    
-    // Si no hay caja, verificamos si puede abrirla
     const canOpenRegister = (currentUser && !currentUser.isAnonymous) || (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador'));
     if (canOpenRegister) setIsOpenRegisterModalOpen(true);
-    else toast.error("⚠️ LA CAJA ESTÁ CERRADA.\nSolicita apertura.", { icon: '🔒' });
+    else toast.error("⚠️ LA CAJA ESTÁ CERRADA.", { icon: '🔒' });
     return false;
   };
 
@@ -122,7 +116,6 @@ export default function App() {
           };
           const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`;
           const docRef = await addDoc(collection(db, colName), sessionData);
-          
           setRegisterSession({ id: docRef.id, ...sessionData });
           setIsOpenRegisterModalOpen(false);
           toast.success(`Turno Abierto`, { icon: '🔓' });
@@ -171,28 +164,6 @@ export default function App() {
           </div>
         </div>
       ), { duration: 8000, icon: <Lock className="text-red-600"/> });
-  
-  };
-
-  // --- HANDLER: REIMPRIMIR CIERRE DE CAJA (HISTORIAL) ---
-  const handleReprintZReport = (shiftData) => {
-    // Reconstruimos el objeto de reporte para el componente Receipt
-    const zReportData = {
-        type: 'z-report',
-        businessName: appName,
-        date: new Date(shiftData.closedAt).toLocaleString(), // Fecha del cierre original
-        staffName: shiftData.closedBy || 'Admin',
-        registerId: shiftData.id,
-        openedAt: shiftData.openedAt,
-        openingAmount: shiftData.openingAmount,
-        finalCash: shiftData.finalCashCalculated,
-        stats: shiftData.finalSalesStats || { cashSales:0, digitalSales:0, totalExpenses:0 },
-        expensesList: shiftData.finalSalesStats?.expensesList || []
-    };
-
-    setLastSale(zReportData);
-    setView('receipt_view');
-    toast.success("Generando copia del reporte...");
   };
 
   const confirmCloseRegister = async (finalCash) => {
@@ -205,7 +176,6 @@ export default function App() {
               finalCashCalculated: finalCash,
               finalSalesStats: sessionStats
           });
-
           const zReportData = {
              type: 'z-report',
              businessName: appName,
@@ -218,18 +188,33 @@ export default function App() {
              stats: sessionStats,
              expensesList: sessionStats.expensesList
           };
-
           setRegisterSession(null);
           setSessionStats({ cashSales: 0, digitalSales: 0, totalExpenses: 0, expensesList: [] });
-          
           setLastSale(zReportData);
           setView('receipt_view');
           toast.success("Cierre exitoso", { icon: '🖨️' });
-
       } catch (error) { toast.error("Error cerrando"); }
   };
 
-  // --- LÓGICA DE COBRO ---
+  // --- FUNCIÓN NUEVA: REIMPRIMIR REPORTE Z ---
+  const handleReprintZReport = (shiftData) => {
+      const zReportData = {
+          type: 'z-report',
+          businessName: appName,
+          date: new Date(shiftData.closedAt).toLocaleString(),
+          staffName: shiftData.closedBy || 'Admin',
+          registerId: shiftData.id,
+          openedAt: shiftData.openedAt,
+          openingAmount: shiftData.openingAmount,
+          finalCash: shiftData.finalCashCalculated,
+          stats: shiftData.finalSalesStats || { cashSales:0, digitalSales:0, totalExpenses:0 },
+          expensesList: shiftData.finalSalesStats?.expensesList || []
+      };
+      setLastSale(zReportData);
+      setView('receipt_view');
+      toast.success("Cargando copia del reporte...");
+  };
+
   const handleStartPaymentFromCashier = (order) => {
       if (!checkRegisterStatus(true)) return;
       setOrderToPay(order); 
@@ -245,9 +230,7 @@ export default function App() {
   };
 
   const handleSendToKitchen = async (cart, clearCart) => {
-    // Garzones (checkRegisterStatus(false)) pueden enviar si hay caja abierta
     if (!checkRegisterStatus(false)) return; 
-    
     if (cart.length === 0) return;
     const toastId = toast.loading('Procesando comanda...');
     try {
@@ -286,7 +269,6 @@ export default function App() {
 
   const handleFinalizeSale = async (paymentResult) => {
     if (!db) return;
-    // Verificaciones de seguridad
     if (staffMember && staffMember.role !== 'Cajero' && staffMember.role !== 'Administrador') {
         toast.error("⛔ ACCESO DENEGADO: Solo Cajeros pueden cobrar."); setIsPaymentModalOpen(false); return;
     }
@@ -354,17 +336,12 @@ export default function App() {
       setLastSale(receiptData);
       if (pendingSale && pendingSale.clearCart) pendingSale.clearCart([]);
       setPendingSale(null);
-      setOrderToPay(null);
-      
       toast.success('¡Cobro exitoso!', { id: toastId });
       
-      // --- IMPORTANTE: SIEMPRE MOSTRAR EL TICKET ---
-      setView('receipt_view');
+      if (orderToPay) { setOrderToPay(null); setView('receipt_view'); } 
+      else { setOrderToPay(null); setView('receipt_view'); }
 
-    } catch (e) { 
-      console.error(e); 
-      toast.error('Error al cobrar', { id: toastId }); 
-    }
+    } catch (e) { console.error(e); toast.error('Error al cobrar', { id: toastId }); }
   };
 
   const handleReceiptClose = () => {
@@ -373,7 +350,6 @@ export default function App() {
       if (isCashier) setView('cashier'); else setView('pos');
   };
 
-  // --- EFECTOS ---
   useEffect(() => {
     const initAuth = async () => {
         if (!auth.currentUser) {
@@ -506,7 +482,7 @@ export default function App() {
                       )}
                   </>
               ) : (
-                  <><Lock size={12}/> CAJA CERRADA - Inicie turno para operar</>
+                  <><Lock size={12}/> CAJA CERRADA</>
               )}
           </div>
       )}
@@ -541,6 +517,7 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* AQUÍ PASAMOS LA FUNCIÓN QUE FALTABA */}
                 {view === 'report' && <div className="animate-in fade-in"><SalesDashboard onReprintZ={handleReprintZReport} /><div className="hidden print:block mt-8"><PrintableView items={items} /></div></div>}
                 {view === 'cashier' && <CashierView onProcessPayment={handleStartPaymentFromCashier} onVoidOrder={handleVoidAndPrint} />}
                 {view === 'register_control' && <RegisterControlView session={registerSession} onOpen={handleOpenRegister} onClose={handleCloseRegister} staff={staff} stats={sessionStats} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} />}
@@ -567,10 +544,8 @@ export default function App() {
 
             {view === 'pin_login' && <PinLoginView staffMembers={staff} onLoginSuccess={handleStaffPinLogin} onCancel={() => setView('landing')} />}
             {view === 'pos' && <POSInterface items={items} categories={categories} staffMember={staffMember} onCheckout={handlePOSCheckout} onPrintOrder={handleSendToKitchen} onExit={() => setView('landing')} />}
-            
-            {/* --- AQUÍ USAMOS handleReceiptClose --- */}
             {view === 'receipt_view' && <Receipt data={lastSale} onPrint={handlePrint} onClose={handleReceiptClose} />}
-
+            
             {view === 'menu' && (
               <>
                 {filter === 'Todos' ? (
