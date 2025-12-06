@@ -171,6 +171,28 @@ export default function App() {
           </div>
         </div>
       ), { duration: 8000, icon: <Lock className="text-red-600"/> });
+  
+  };
+
+  // --- HANDLER: REIMPRIMIR CIERRE DE CAJA (HISTORIAL) ---
+  const handleReprintZReport = (shiftData) => {
+    // Reconstruimos el objeto de reporte para el componente Receipt
+    const zReportData = {
+        type: 'z-report',
+        businessName: appName,
+        date: new Date(shiftData.closedAt).toLocaleString(), // Fecha del cierre original
+        staffName: shiftData.closedBy || 'Admin',
+        registerId: shiftData.id,
+        openedAt: shiftData.openedAt,
+        openingAmount: shiftData.openingAmount,
+        finalCash: shiftData.finalCashCalculated,
+        stats: shiftData.finalSalesStats || { cashSales:0, digitalSales:0, totalExpenses:0 },
+        expensesList: shiftData.finalSalesStats?.expensesList || []
+    };
+
+    setLastSale(zReportData);
+    setView('receipt_view');
+    toast.success("Generando copia del reporte...");
   };
 
   const confirmCloseRegister = async (finalCash) => {
@@ -519,7 +541,7 @@ export default function App() {
                   </div>
                 </div>
 
-                {view === 'report' && <div className="animate-in fade-in"><SalesDashboard /><div className="hidden print:block mt-8"><PrintableView items={items} /></div></div>}
+                {view === 'report' && <div className="animate-in fade-in"><SalesDashboard onReprintZ={handleReprintZReport} /><div className="hidden print:block mt-8"><PrintableView items={items} /></div></div>}
                 {view === 'cashier' && <CashierView onProcessPayment={handleStartPaymentFromCashier} onVoidOrder={handleVoidAndPrint} />}
                 {view === 'register_control' && <RegisterControlView session={registerSession} onOpen={handleOpenRegister} onClose={handleCloseRegister} staff={staff} stats={sessionStats} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} />}
                 {view === 'staff_admin' && !isCashierOnly && <StaffManagerView staff={staff} roles={roles} onAddStaff={handleAddStaff} onUpdateStaff={handleUpdateStaff} onDeleteStaff={handleDeleteStaff} onManageRoles={() => setIsRoleModalOpen(true)} onPrintCredential={handlePrintCredential} />}
