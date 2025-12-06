@@ -1,15 +1,18 @@
-/* src/index.css */
+/* src/index.css - VERSIÓN LIMPIA */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap');
 
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background-color: #f9fafb;
   margin: 0;
+  padding: 0;
 }
 
-/* Ocultar barras de scroll */
-.hide-scrollbar::-webkit-scrollbar { display: none; }
-.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-/* NOTA: Hemos quitado @media print para evitar la pantalla blanca.
-   La impresión ahora la maneja el componente Receipt.jsx internamente. */
+/* Ocultar barras de scroll estéticamente */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
