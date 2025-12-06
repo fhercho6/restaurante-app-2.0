@@ -11,4 +11,5 @@ body {
 .hide-scrollbar::-webkit-scrollbar { display: none; }
 .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* BORRAMOS TODO LO DE @MEDIA PRINT AQUÍ PARA EVITAR PANTALLAS BLANCAS */
+/* NOTA: Hemos quitado @media print para evitar la pantalla blanca.
+   La impresión ahora la maneja el componente Receipt.jsx internamente. */
