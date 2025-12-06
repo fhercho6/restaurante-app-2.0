@@ -1,4 +1,4 @@
-// src/App.jsx - VERSIÓN MAESTRA FINAL (Con desglose QR/Tarjeta)
+// src/App.jsx - VERSIÓN FINAL CORREGIDA (Suma de QR/Tarjeta arreglada)
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
@@ -47,8 +47,6 @@ export default function App() {
   // Estado de Caja
   const [registerSession, setRegisterSession] = useState(null);
   const [isOpenRegisterModalOpen, setIsOpenRegisterModalOpen] = useState(false);
-  
-  // --- CORRECCIÓN AQUÍ: Inicializamos variables para QR y Tarjeta ---
   const [sessionStats, setSessionStats] = useState({ 
       cashSales: 0, 
       qrSales: 0, 
@@ -346,7 +344,6 @@ export default function App() {
       if (pendingSale && pendingSale.clearCart) pendingSale.clearCart([]);
       setPendingSale(null);
       setOrderToPay(null);
-      
       toast.success('¡Cobro exitoso!', { id: toastId });
       
       setView('receipt_view');
@@ -388,69 +385,70 @@ export default function App() {
       checkSession();
   }, [db, currentUser]);
 
-  // --- CORRECCIÓN DEL CÁLCULO SEPARADO ---
-  // src/App.jsx (Reemplaza este useEffect completo)
-
+  // --- CÁLCULO DE CAJA EN VIVO (CORREGIDO) ---
   useEffect(() => {
-    if (!db || !registerSession) return;
-    
-    const salesCol = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`;
-    const qSales = query(collection(db, salesCol), where('registerId', '==', registerSession.id));
-    
-    const expensesCol = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`;
-    const qExpenses = query(collection(db, expensesCol), where('registerId', '==', registerSession.id));
+      if (!db || !registerSession) return;
+      const salesCol = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`;
+      const qSales = query(collection(db, salesCol), where('registerId', '==', registerSession.id));
+      const expensesCol = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`;
+      const qExpenses = query(collection(db, expensesCol), where('registerId', '==', registerSession.id));
 
-    const unsubSales = onSnapshot(qSales, (snap) => {
-        let cash = 0, qr = 0, card = 0, digital = 0;
-        
-        snap.forEach(doc => {
-            const sale = doc.data();
-            
-            if (sale.payments) {
-                // Lógica Multi-Pago
-                sale.payments.forEach(p => {
-                    const amt = parseFloat(p.amount) || 0;
-                    if (p.method === 'Efectivo') cash += amt;
-                    else if (p.method === 'QR') qr += amt;       // Sumar QR
-                    else if (p.method === 'Tarjeta') card += amt; // Sumar Tarjeta
-                });
-                // Restar cambio
-                if (sale.changeGiven) cash -= parseFloat(sale.changeGiven);
-            } else {
-                // Lógica Antigua (Respaldo)
-                const total = parseFloat(sale.total);
-                if (sale.paymentMethod === 'Efectivo') cash += total;
-                else if (sale.paymentMethod === 'QR') qr += total;
-                else card += total;
-            }
-        });
-        
-        // Total Digital combinado
-        digital = qr + card; 
+      const unsubSales = onSnapshot(qSales, (snap) => {
+          let cash = 0, qr = 0, card = 0;
+          
+          snap.forEach(doc => {
+              const sale = doc.data();
+              // Lógica de suma robusta (busca "qr" y "tarjeta" sin importar mayúsculas)
+              if (sale.payments && Array.isArray(sale.payments)) {
+                  sale.payments.forEach(p => {
+                      const amt = parseFloat(p.amount) || 0;
+                      const method = p.method ? p.method.toLowerCase() : '';
+                      
+                      if (method.includes('efectivo')) cash += amt;
+                      else if (method.includes('qr')) qr += amt;
+                      else if (method.includes('tarjeta')) card += amt;
+                  });
+                  if (sale.changeGiven) cash -= parseFloat(sale.changeGiven);
+              } else {
+                  // Legacy
+                  const total = parseFloat(sale.total);
+                  const method = sale.paymentMethod ? sale.paymentMethod.toLowerCase() : 'efectivo';
+                  
+                  if (method.includes('efectivo')) {
+                     // Ajuste para ventas legacy simples
+                     const change = parseFloat(sale.changeGiven) || 0;
+                     const received = parseFloat(sale.amountReceived) || total;
+                     if(sale.amountReceived) cash += (received - change);
+                     else cash += total;
+                  }
+                  else if (method.includes('qr')) qr += total;
+                  else if (method.includes('tarjeta')) card += total;
+              }
+          });
+          
+          // Actualizamos todas las variables del estado
+          setSessionStats(prev => ({ 
+              ...prev, 
+              cashSales: cash, 
+              qrSales: qr, 
+              cardSales: card, 
+              digitalSales: qr + card 
+          }));
+      });
 
-        // --- AQUÍ ESTABA EL ERROR: AHORA GUARDAMOS TODO ---
-        setSessionStats(prev => ({ 
-            ...prev, 
-            cashSales: cash, 
-            qrSales: qr,     // <--- AHORA SÍ APARECERÁ
-            cardSales: card, // <--- AHORA SÍ APARECERÁ
-            digitalSales: digital
-        }));
-    });
+      const unsubExpenses = onSnapshot(qExpenses, (snap) => {
+          let totalExp = 0;
+          const list = [];
+          snap.forEach(doc => {
+              const exp = doc.data();
+              totalExp += parseFloat(exp.amount);
+              list.push({ id: doc.id, ...exp });
+          });
+          setSessionStats(prev => ({ ...prev, totalExpenses: totalExp, expensesList: list }));
+      });
 
-    const unsubExpenses = onSnapshot(qExpenses, (snap) => {
-        let totalExp = 0;
-        const list = [];
-        snap.forEach(doc => {
-            const exp = doc.data();
-            totalExp += parseFloat(exp.amount);
-            list.push({ id: doc.id, ...exp });
-        });
-        setSessionStats(prev => ({ ...prev, totalExpenses: totalExp, expensesList: list }));
-    });
-
-    return () => { unsubSales(); unsubExpenses(); };
-}, [registerSession]);
+      return () => { unsubSales(); unsubExpenses(); };
+  }, [registerSession]);
 
   useEffect(() => {
     if (!db) return;
@@ -517,7 +515,7 @@ export default function App() {
                       )}
                   </>
               ) : (
-                  <><Lock size={12}/> CAJA CERRADA</>
+                  <><Lock size={12}/> CAJA CERRADA - Inicie turno para operar</>
               )}
           </div>
       )}
