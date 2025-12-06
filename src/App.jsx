@@ -1,4 +1,4 @@
-// src/App.jsx - VERSIÓN FINAL CORREGIDA (Suma de QR/Tarjeta arreglada)
+// src/App.jsx - VERSIÓN FINAL SIN ERRORES DE SINTAXIS
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
@@ -47,6 +47,8 @@ export default function App() {
   // Estado de Caja
   const [registerSession, setRegisterSession] = useState(null);
   const [isOpenRegisterModalOpen, setIsOpenRegisterModalOpen] = useState(false);
+  
+  // Estadísticas del turno (Efectivo, QR, Tarjeta separados)
   const [sessionStats, setSessionStats] = useState({ 
       cashSales: 0, 
       qrSales: 0, 
@@ -123,7 +125,6 @@ export default function App() {
           };
           const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`;
           const docRef = await addDoc(collection(db, colName), sessionData);
-          
           setRegisterSession({ id: docRef.id, ...sessionData });
           setIsOpenRegisterModalOpen(false);
           toast.success(`Turno Abierto`, { icon: '🔓' });
@@ -204,6 +205,7 @@ export default function App() {
       } catch (error) { toast.error("Error cerrando"); }
   };
 
+  // --- HANDLER REIMPRIMIR ---
   const handleReprintZReport = (shiftData) => {
       const zReportData = {
           type: 'z-report',
@@ -385,7 +387,7 @@ export default function App() {
       checkSession();
   }, [db, currentUser]);
 
-  // --- CÁLCULO DE CAJA EN VIVO (CORREGIDO) ---
+  // --- CÁLCULO DE CAJA CON DETALLE (QR/TARJETA) ---
   useEffect(() => {
       if (!db || !registerSession) return;
       const salesCol = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`;
@@ -395,45 +397,30 @@ export default function App() {
 
       const unsubSales = onSnapshot(qSales, (snap) => {
           let cash = 0, qr = 0, card = 0;
-          
           snap.forEach(doc => {
               const sale = doc.data();
-              // Lógica de suma robusta (busca "qr" y "tarjeta" sin importar mayúsculas)
-              if (sale.payments && Array.isArray(sale.payments)) {
+              if (sale.payments) {
                   sale.payments.forEach(p => {
                       const amt = parseFloat(p.amount) || 0;
                       const method = p.method ? p.method.toLowerCase() : '';
-                      
                       if (method.includes('efectivo')) cash += amt;
                       else if (method.includes('qr')) qr += amt;
                       else if (method.includes('tarjeta')) card += amt;
                   });
                   if (sale.changeGiven) cash -= parseFloat(sale.changeGiven);
               } else {
-                  // Legacy
                   const total = parseFloat(sale.total);
                   const method = sale.paymentMethod ? sale.paymentMethod.toLowerCase() : 'efectivo';
-                  
                   if (method.includes('efectivo')) {
-                     // Ajuste para ventas legacy simples
-                     const change = parseFloat(sale.changeGiven) || 0;
-                     const received = parseFloat(sale.amountReceived) || total;
-                     if(sale.amountReceived) cash += (received - change);
-                     else cash += total;
+                      const change = parseFloat(sale.changeGiven) || 0;
+                      const received = parseFloat(sale.amountReceived) || total;
+                      if(sale.amountReceived) cash += (received - change); else cash += total;
                   }
                   else if (method.includes('qr')) qr += total;
                   else if (method.includes('tarjeta')) card += total;
               }
           });
-          
-          // Actualizamos todas las variables del estado
-          setSessionStats(prev => ({ 
-              ...prev, 
-              cashSales: cash, 
-              qrSales: qr, 
-              cardSales: card, 
-              digitalSales: qr + card 
-          }));
+          setSessionStats(prev => ({ ...prev, cashSales: cash, qrSales: qr, cardSales: card, digitalSales: qr + card }));
       });
 
       const unsubExpenses = onSnapshot(qExpenses, (snap) => {
@@ -550,10 +537,7 @@ export default function App() {
                   </div>
                 </div>
 
-                {view === 'report' && <div className="animate-in fade-in">SalesDashboard onReprintZ={handleReprintZReport} /> 
-        <div className="hidden print:block mt-8"><PrintableView items={items} /></div>
-    </div>
-)}
+                {view === 'report' && <div className="animate-in fade-in"><SalesDashboard onReprintZ={handleReprintZReport} /><div className="hidden print:block mt-8"><PrintableView items={items} /></div></div>}
                 {view === 'cashier' && <CashierView onProcessPayment={handleStartPaymentFromCashier} onVoidOrder={handleVoidAndPrint} />}
                 {view === 'register_control' && <RegisterControlView session={registerSession} onOpen={handleOpenRegister} onClose={handleCloseRegister} staff={staff} stats={sessionStats} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} />}
                 {view === 'staff_admin' && !isCashierOnly && <StaffManagerView staff={staff} roles={roles} onAddStaff={handleAddStaff} onUpdateStaff={handleUpdateStaff} onDeleteStaff={handleDeleteStaff} onManageRoles={() => setIsRoleModalOpen(true)} onPrintCredential={handlePrintCredential} />}
