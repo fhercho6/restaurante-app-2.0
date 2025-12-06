@@ -550,7 +550,10 @@ export default function App() {
                   </div>
                 </div>
 
-                {view === 'report' && <div className="animate-in fade-in"><SalesDashboard onReprintZ={handleReprintZReport} /><div className="hidden print:block mt-8"><PrintableView items={items} /></div></div>}
+                {view === 'report' && <div className="animate-in fade-in">SalesDashboard onReprintZ={handleReprintZReport} /> 
+        <div className="hidden print:block mt-8"><PrintableView items={items} /></div>
+    </div>
+)}
                 {view === 'cashier' && <CashierView onProcessPayment={handleStartPaymentFromCashier} onVoidOrder={handleVoidAndPrint} />}
                 {view === 'register_control' && <RegisterControlView session={registerSession} onOpen={handleOpenRegister} onClose={handleCloseRegister} staff={staff} stats={sessionStats} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} />}
                 {view === 'staff_admin' && !isCashierOnly && <StaffManagerView staff={staff} roles={roles} onAddStaff={handleAddStaff} onUpdateStaff={handleUpdateStaff} onDeleteStaff={handleDeleteStaff} onManageRoles={() => setIsRoleModalOpen(true)} onPrintCredential={handlePrintCredential} />}
