@@ -1,4 +1,4 @@
-// src/components/Receipt.jsx - VERSIÓN POPUP (No rompe la pantalla)
+// src/components/Receipt.jsx - VERSIÓN BLINDADA CONTRA ERRORES
 import React from 'react';
 import { ChefHat, Printer, ArrowLeft, CheckCircle, ClipboardList, XCircle, Lock } from 'lucide-react';
 
@@ -9,75 +9,69 @@ const Receipt = ({ data, onClose }) => {
   const isVoid = data.type === 'void';
   const isZReport = data.type === 'z-report';
 
-  // Configuración Visual para la pantalla
+  // --- FUNCIÓN DE SEGURIDAD (La magia que evita la pantalla blanca) ---
+  const fmt = (num) => {
+    return (Number(num) || 0).toFixed(2);
+  };
+
+  // Configuración Visual
   let borderClass = 'border-green-600'; 
   let icon = <CheckCircle size={32} className="text-gray-800"/>;
   let title = 'TICKET DE VENTA';
   let bgLabel = 'bg-green-600';
 
-  if (isPreCheck) { borderClass = 'border-yellow-400'; icon = <ClipboardList size={32} className="text-gray-800"/>; title = 'COMANDA'; bgLabel = 'bg-black'; }
+  if (isPreCheck) { borderClass = 'border-yellow-400'; icon = <ClipboardList size={32} className="text-gray-800"/>; title = 'COMANDA / PRE-CUENTA'; bgLabel = 'bg-black'; }
   if (isVoid) { borderClass = 'border-red-500'; icon = <XCircle size={32} className="text-red-600"/>; title = 'ANULACIÓN'; bgLabel = 'bg-red-600'; }
-  if (isZReport) { borderClass = 'border-gray-800'; icon = <Lock size={32} className="text-gray-800"/>; title = 'CIERRE DE CAJA'; bgLabel = 'bg-gray-800'; }
+  if (isZReport) { borderClass = 'border-gray-800'; icon = <Lock size={32} className="text-gray-800"/>; title = 'CIERRE DE CAJA (ARQUEO)'; bgLabel = 'bg-gray-800'; }
 
-  // --- FUNCIÓN DE IMPRESIÓN SEGURA (Abre ventana nueva) ---
-  const handlePrintPopup = () => {
-    // 1. Tomamos el contenido del ticket
-    const ticketContent = document.getElementById('printable-ticket').innerHTML;
-    
-    // 2. Abrimos una ventana en blanco
-    const win = window.open('', '', 'width=300,height=600');
-    
-    if (!win) {
-        alert("⚠️ Por favor, permite las ventanas emergentes (Pop-ups) para poder imprimir.");
-        return;
-    }
+  // --- FUNCIÓN DE IMPRESIÓN SEGURA (Popup) ---
+  const handlePrintSafe = () => {
+    const ticketContent = document.getElementById('printable-ticket');
+    if (!ticketContent) return;
 
-    // 3. Escribimos el ticket en la nueva ventana con estilos simples
+    const win = window.open('', '', 'width=320,height=600');
+    if (!win) { alert("⚠️ Habilita los pop-ups para imprimir"); return; }
+
     win.document.write(`
       <html>
         <head>
-          <title>Imprimir</title>
+          <title>Imprimir Ticket</title>
           <style>
-            body { font-family: 'Courier New', monospace; margin: 0; padding: 10px; width: 100%; font-size: 12px; }
+            body { font-family: monospace; margin: 0; padding: 5px; width: 100%; font-size: 12px; }
             .text-center { text-align: center; }
             .text-right { text-align: right; }
             .flex { display: flex; justify-content: space-between; }
             .font-bold { font-weight: bold; }
             .text-xs { font-size: 11px; }
-            .border-b { border-bottom: 1px dashed black; padding-bottom: 5px; margin-bottom: 5px; }
+            .border-b { border-bottom: 1px dashed #000; padding-bottom: 5px; margin-bottom: 5px; }
             .uppercase { text-transform: uppercase; }
-            img { max-width: 50%; height: auto; display: block; margin: 0 auto; }
-            /* Ocultar iconos que no se ven bien en papel */
+            img { max-width: 100px; height: auto; display: block; margin: 0 auto; }
             svg { display: none; } 
           </style>
         </head>
-        <body>
-          ${ticketContent}
-          <script>
-            // Imprimir automáticamente al cargar
-            window.onload = function() { window.print(); window.close(); }
-          </script>
-        </body>
+        <body>${ticketContent.innerHTML}</body>
       </html>
     `);
     
     win.document.close();
+    win.focus();
+    setTimeout(() => { win.print(); win.close(); }, 500);
   };
 
   return (
     <div className="flex flex-col items-center min-h-screen bg-gray-100 p-4 animate-in zoom-in duration-300">
       
-      {/* Botones de Acción */}
+      {/* Botones */}
       <div className="flex gap-4 mb-6 sticky top-4 z-50">
         <button onClick={onClose} className="flex items-center gap-2 px-6 py-3 bg-gray-600 text-white rounded-full shadow-lg font-bold">
           <ArrowLeft size={20}/> {isZReport ? 'Finalizar' : 'Volver'}
         </button>
-        <button onClick={handlePrintPopup} className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-full shadow-lg font-bold animate-pulse">
-          <Printer size={20}/> IMPRIMIR AHORA
+        <button onClick={handlePrintSafe} className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-full shadow-lg font-bold animate-pulse">
+          <Printer size={20}/> IMPRIMIR
         </button>
       </div>
 
-      {/* --- EL TICKET (Visible en pantalla) --- */}
+      {/* --- EL TICKET VISUAL --- */}
       <div id="printable-ticket" className={`bg-white p-4 shadow-2xl w-[300px] text-gray-900 font-mono text-sm leading-tight relative border-t-8 ${borderClass}`}>
         <div className="text-center border-b pb-4 mb-3">
           <div className="flex justify-center mb-2">{icon}</div>
@@ -86,33 +80,36 @@ const Receipt = ({ data, onClose }) => {
           <p className="text-[10px] text-gray-500 mt-2">{data.date}</p>
         </div>
 
+        {/* --- CONTENIDO REPORTE Z --- */}
         {isZReport ? (
             <div className="text-xs">
                 <div className="mb-3 pb-3 border-b">
                     <div className="flex justify-between"><span className="text-gray-500">Cajero:</span><span className="font-bold uppercase">{data.staffName}</span></div>
-                    <div className="flex justify-between mt-1"><span className="text-gray-500">ID:</span><span>#{data.registerId.slice(-6)}</span></div>
+                    <div className="flex justify-between mt-1"><span className="text-gray-500">ID:</span><span>#{data.registerId ? data.registerId.slice(-6) : '---'}</span></div>
                 </div>
                 <div className="mb-3 pb-3 border-b">
                     <p className="font-bold mb-2 uppercase border-b pb-1">Efectivo</p>
-                    <div className="flex justify-between mb-1"><span>Fondo Inicial:</span><span>Bs. {data.openingAmount.toFixed(2)}</span></div>
-                    <div className="flex justify-between mb-1"><span>(+) Ventas Efec.:</span><span>Bs. {data.stats.cashSales.toFixed(2)}</span></div>
-                    <div className="flex justify-between mb-1 text-red-500"><span>(-) Gastos:</span><span>- Bs. {data.stats.totalExpenses.toFixed(2)}</span></div>
-                    <div className="flex justify-between mt-2 pt-1 border-t font-black text-sm"><span>= EN CAJA:</span><span>Bs. {data.finalCash.toFixed(2)}</span></div>
+                    {/* USAMOS fmt() PARA EVITAR EL ERROR */}
+                    <div className="flex justify-between mb-1"><span>Fondo Inicial:</span><span>Bs. {fmt(data.openingAmount)}</span></div>
+                    <div className="flex justify-between mb-1"><span>(+) Ventas Efec.:</span><span>Bs. {fmt(data.stats?.cashSales)}</span></div>
+                    <div className="flex justify-between mb-1 text-red-500"><span>(-) Gastos:</span><span>- Bs. {fmt(data.stats?.totalExpenses)}</span></div>
+                    <div className="flex justify-between mt-2 pt-1 border-t font-black text-sm"><span>= EN CAJA:</span><span>Bs. {fmt(data.finalCash)}</span></div>
                 </div>
                 <div className="mb-3 pb-3 border-b">
                     <p className="font-bold mb-2 uppercase border-b pb-1">Bancos</p>
-                    <div className="flex justify-between mb-1"><span>QR:</span><span>Bs. {data.stats.qrSales.toFixed(2)}</span></div>
-                    <div className="flex justify-between mb-1"><span>Tarjeta:</span><span>Bs. {data.stats.cardSales.toFixed(2)}</span></div>
+                    <div className="flex justify-between mb-1"><span>QR:</span><span>Bs. {fmt(data.stats?.qrSales)}</span></div>
+                    <div className="flex justify-between mb-1"><span>Tarjeta:</span><span>Bs. {fmt(data.stats?.cardSales)}</span></div>
                 </div>
                 {data.expensesList?.length > 0 && (
                     <div className="mb-3 pt-2">
                         <p className="font-bold mb-1 uppercase text-[10px]">Gastos:</p>
-                        {data.expensesList.map((ex, i) => (<div key={i} className="flex justify-between text-[10px] text-gray-500"><span>{ex.description}</span><span>-{ex.amount.toFixed(2)}</span></div>))}
+                        {data.expensesList.map((ex, i) => (<div key={i} className="flex justify-between text-[10px] text-gray-500"><span>{ex.description}</span><span>-{fmt(ex.amount)}</span></div>))}
                     </div>
                 )}
                 <div className="text-center mt-8 mb-4"><br/>_______________________<br/><span className="text-[10px] uppercase">Firma Cajero</span></div>
             </div>
         ) : (
+            /* --- CONTENIDO NORMAL --- */
             <>
                 <div className="mb-3 pb-3 border-b text-xs">
                     <div className="flex justify-between"><span className="text-gray-500">{isVoid ? 'Anulado:' : 'Atendido:'}</span><span className="font-bold uppercase">{data.staffName}</span></div>
@@ -125,7 +122,7 @@ const Receipt = ({ data, onClose }) => {
                     <tbody className="text-xs font-medium">
                     {data.items.map((item, index) => (
                         <tr key={index}>
-                        <td style={{paddingRight:'5px'}}>{item.qty}</td><td style={{paddingRight:'5px'}}>{item.name}</td><td className="text-right">{(item.price * item.qty).toFixed(2)}</td>
+                        <td style={{paddingRight:'5px'}}>{item.qty}</td><td style={{paddingRight:'5px'}}>{item.name}</td><td className="text-right">{fmt(item.price * item.qty)}</td>
                         </tr>
                     ))}
                     </tbody>
@@ -134,13 +131,13 @@ const Receipt = ({ data, onClose }) => {
                 {!isPreCheck && !isVoid && (
                 <div className="mb-3 pt-1 text-xs">
                     <div className="text-[10px] font-bold uppercase text-gray-400 mb-1">Pago:</div>
-                    {data.payments && data.payments.length > 0 ? (data.payments.map((p, idx) => (<div key={idx} className="flex justify-between"><span>{p.method}</span><span>{p.amount.toFixed(2)}</span></div>))) : (<div className="flex justify-between"><span>Efectivo</span><span>{(data.received || data.total).toFixed(2)}</span></div>)}
-                    {data.change > 0 && (<div className="flex justify-between mt-1 pt-1 border-t font-bold"><span>Cambio:</span><span>{data.change.toFixed(2)}</span></div>)}
+                    {data.payments && data.payments.length > 0 ? (data.payments.map((p, idx) => (<div key={idx} className="flex justify-between"><span>{p.method}</span><span>{fmt(p.amount)}</span></div>))) : (<div className="flex justify-between"><span>Efectivo</span><span>{fmt(data.received || data.total)}</span></div>)}
+                    {data.change > 0 && (<div className="flex justify-between mt-1 pt-1 border-t font-bold"><span>Cambio:</span><span>{fmt(data.change)}</span></div>)}
                 </div>
                 )}
                 <div className="flex justify-between items-end mb-6 border-t-2 border-black pt-2">
                 <span className="text-sm font-bold">TOTAL {isVoid ? 'CANCELADO' : ''}</span>
-                <span className={`text-2xl font-black ${isVoid ? 'text-red-600 line-through' : 'text-black'}`}>Bs. {data.total.toFixed(2)}</span>
+                <span className={`text-2xl font-black ${isVoid ? 'text-red-600 line-through' : 'text-black'}`}>Bs. {fmt(data.total)}</span>
                 </div>
                 <div className="text-center text-[10px] text-gray-400 mt-4">{isVoid ? 'OPERACIÓN ANULADA' : 'GRACIAS POR SU VISITA'}</div>
             </>
