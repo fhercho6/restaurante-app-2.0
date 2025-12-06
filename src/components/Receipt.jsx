@@ -1,4 +1,4 @@
-// src/components/Receipt.jsx - VERSIÓN AGRESIVA (Iframe)
+// src/components/Receipt.jsx
 import React from 'react';
 import { ChefHat, Printer, ArrowLeft, CheckCircle, ClipboardList, XCircle, Lock } from 'lucide-react';
 
@@ -27,6 +27,7 @@ const Receipt = ({ data, onClose }) => {
       title = 'COMPROBANTE DE ANULACIÓN';
       bgLabel = 'bg-red-600';
   }
+  // TU CÓDIGO ACTUAL:
   if (isZReport) {
       borderClass = 'border-gray-800';
       icon = <Lock size={32} className="text-gray-800"/>;
@@ -34,64 +35,32 @@ const Receipt = ({ data, onClose }) => {
       bgLabel = 'bg-gray-800';
   }
 
-  // --- FUNCIÓN DE IMPRESIÓN "AGRESIVA" ---
-  // Crea un navegador invisible temporal para forzar la impresión
+  // --- FUNCIÓN DE IMPRESIÓN DIRECTA ---
   const handlePrintNow = () => {
-    // 1. Obtener el contenido del ticket
-    const printContent = document.getElementById('printable-ticket');
-    if (!printContent) return;
-
-    // 2. Crear un iframe invisible
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'fixed';
-    iframe.style.right = '0';
-    iframe.style.bottom = '0';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
-    iframe.style.border = '0';
-    
-    document.body.appendChild(iframe);
-    
-    // 3. Escribir el contenido dentro del iframe
-    const doc = iframe.contentWindow.document;
-    doc.write('<html><head><title>Imprimir Ticket</title>');
-    // Estilos básicos forzados para la impresora térmica
-    doc.write('<style>');
-    doc.write('body { font-family: monospace, sans-serif; margin: 0; padding: 0; }');
-    doc.write('.text-center { text-align: center; }');
-    doc.write('.text-right { text-align: right; }');
-    doc.write('.flex { display: flex; }');
-    doc.write('.justify-between { justify-content: space-between; }');
-    doc.write('.font-bold { font-weight: bold; }');
-    doc.write('.text-xs { font-size: 12px; }');
-    doc.write('.text-sm { font-size: 14px; }');
-    doc.write('.mb-1 { margin-bottom: 0.25rem; }');
-    doc.write('.mb-3 { margin-bottom: 0.75rem; }');
-    doc.write('.pb-3 { padding-bottom: 0.75rem; }');
-    doc.write('.mt-2 { margin-top: 0.5rem; }');
-    doc.write('.border-b { border-bottom: 1px dashed #000; }');
-    doc.write('.border-t { border-top: 1px dashed #000; }');
-    doc.write('table { width: 100%; border-collapse: collapse; }');
-    doc.write('td { vertical-align: top; }');
-    doc.write('</style>');
-    doc.write('</head><body>');
-    doc.write(printContent.innerHTML); // Copia el HTML del ticket
-    doc.write('</body></html>');
-    doc.close();
-
-    // 4. Mandar a imprimir y luego borrar el iframe
     setTimeout(() => {
-        iframe.contentWindow.focus();
-        iframe.contentWindow.print();
-        setTimeout(() => {
-            document.body.removeChild(iframe);
-        }, 1000);
-    }, 500);
+        window.print();
+    }, 100);
   };
 
   return (
     <div className="flex flex-col items-center min-h-screen bg-gray-100 p-4 animate-in zoom-in duration-300">
       
+      {/* --- ESTILOS DE IMPRESIÓN --- */}
+      <style>{`
+        @media print {
+          @page { margin: 0; size: auto; }
+          body * { visibility: hidden; height: 0; overflow: hidden; }
+          #printable-ticket, #printable-ticket * { visibility: visible; height: auto; overflow: visible; }
+          #printable-ticket {
+            position: absolute; left: 0; top: 0; width: 100% !important;
+            margin: 0 !important; padding: 0 !important;
+            border: none !important; box-shadow: none !important;
+            border-top: 2px dashed #000 !important;
+          }
+          .no-print { display: none !important; }
+        }
+      `}</style>
+
       {/* Botones de Acción */}
       <div className="no-print flex gap-4 mb-6 sticky top-4 z-50">
         <button 
@@ -100,8 +69,6 @@ const Receipt = ({ data, onClose }) => {
         >
           <ArrowLeft size={20}/> {isZReport ? 'Finalizar' : 'Volver'}
         </button>
-        
-        {/* BOTÓN QUE USA LA NUEVA FUNCIÓN */}
         <button 
           onClick={handlePrintNow} 
           className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all font-bold animate-pulse"
@@ -110,7 +77,7 @@ const Receipt = ({ data, onClose }) => {
         </button>
       </div>
 
-      {/* --- TICKET VISUAL --- */}
+      {/* --- EL TICKET --- */}
       <div 
         id="printable-ticket" 
         className={`bg-white p-4 shadow-2xl w-[300px] text-gray-900 font-mono text-sm leading-tight relative border-t-8 ${borderClass}`}
@@ -125,32 +92,80 @@ const Receipt = ({ data, onClose }) => {
           <p className="text-[10px] text-gray-500 mt-2">{data.date}</p>
         </div>
 
-        {/* --- CONTENIDO REPORTE Z --- */}
+        {/* --- CONTENIDO REPORTE Z (MODIFICADO) --- */}
         {isZReport ? (
             <div className="text-xs">
                 <div className="mb-3 pb-3 border-b border-dashed border-gray-300">
-                    <div className="flex justify-between"><span className="text-gray-500">Cajero:</span><span className="font-bold uppercase">{data.staffName}</span></div>
-                    <div className="flex justify-between mt-1"><span className="text-gray-500">Turno ID:</span><span>#{data.registerId.slice(-6)}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">Responsable:</span><span className="font-bold uppercase">{data.staffName}</span></div>
+                    <div className="flex justify-between mt-1"><span className="text-gray-500">ID Turno:</span><span>#{data.registerId.slice(-6)}</span></div>
+                    <div className="flex justify-between mt-1"><span className="text-gray-500">Apertura:</span><span>{new Date(data.openedAt).toLocaleTimeString()}</span></div>
+                    <div className="flex justify-between mt-1"><span className="text-gray-500">Cierre:</span><span>{new Date().toLocaleTimeString()}</span></div>
                 </div>
+
+                {/* ARQUEO DE EFECTIVO (LO FÍSICO) */}
                 <div className="mb-3 pb-3 border-b border-dashed border-gray-300">
-                    <p className="font-bold mb-2 uppercase border-b border-gray-100 pb-1">Resumen</p>
-                    <div className="flex justify-between mb-1"><span>Fondo Inicial:</span><span>Bs. {data.openingAmount.toFixed(2)}</span></div>
-                    <div className="flex justify-between mb-1"><span>(+) Ventas Efec.:</span><span>Bs. {data.stats.cashSales.toFixed(2)}</span></div>
-                    <div className="flex justify-between mb-1 text-red-500"><span>(-) Gastos:</span><span>- Bs. {data.stats.totalExpenses.toFixed(2)}</span></div>
-                    <div className="flex justify-between mt-2 pt-1 border-t border-dotted border-gray-400 font-black text-sm"><span>= EFECTIVO CAJA:</span><span>Bs. {data.finalCash.toFixed(2)}</span></div>
+                    <p className="font-bold mb-2 uppercase border-b border-gray-100 pb-1">Control de Efectivo</p>
+                    
+                    <div className="flex justify-between mb-1">
+                        <span>(+) Fondo Inicial (Cambio):</span>
+                        <span>Bs. {data.openingAmount.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between mb-1">
+                        <span>(+) Ventas Efectivo:</span>
+                        <span>Bs. {data.stats.cashSales.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between mb-1 text-red-500">
+                        <span>(-) Gastos Registrados:</span>
+                        <span>- Bs. {data.stats.totalExpenses.toFixed(2)}</span>
+                    </div>
+                    
+                    <div className="flex justify-between mt-2 pt-1 border-t border-dotted border-gray-400 font-black text-sm">
+                        <span>= DINERO EN CAJA:</span>
+                        <span>Bs. {data.finalCash.toFixed(2)}</span>
+                    </div>
                 </div>
+
+                {/* VENTAS DIGITALES (BANCOS) */}
+                <div className="mb-3 pb-3 border-b border-dashed border-gray-300">
+                    <p className="font-bold mb-2 uppercase border-b border-gray-100 pb-1">Ventas Digitales</p>
+                    <div className="flex justify-between mb-1">
+                        <span>Ventas QR:</span>
+                        <span>Bs. {data.stats.qrSales.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between mb-1">
+                        <span>Ventas Tarjeta:</span>
+                        <span>Bs. {data.stats.cardSales.toFixed(2)}</span>
+                    </div>
+                </div>
+
+                {/* TOTAL GLOBAL VENDIDO */}
+                <div className="mb-3 pb-3 border-b border-dashed border-gray-300 bg-gray-100 p-2 rounded">
+                    <div className="flex justify-between font-black text-sm">
+                        <span>TOTAL VENDIDO (Bruto):</span>
+                        <span>Bs. {(data.stats.cashSales + data.stats.qrSales + data.stats.cardSales).toFixed(2)}</span>
+                    </div>
+                </div>
+                
+                {/* LISTA DE GASTOS */}
                 {data.expensesList && data.expensesList.length > 0 && (
-                    <div className="mb-3 pt-2 border-t border-dashed border-gray-300">
-                        <p className="font-bold mb-1 uppercase text-[10px]">Gastos:</p>
+                    <div className="mb-3 pt-2">
+                        <p className="font-bold mb-1 uppercase text-[10px]">Detalle de Gastos:</p>
                         {data.expensesList.map((ex, i) => (
-                            <div key={i} className="flex justify-between text-[10px] text-gray-500"><span>{ex.description}</span><span>-{ex.amount.toFixed(2)}</span></div>
+                            <div key={i} className="flex justify-between text-[10px] text-gray-500">
+                                <span>{ex.description}</span>
+                                <span>-{ex.amount.toFixed(2)}</span>
+                            </div>
                         ))}
                     </div>
                 )}
-                <div className="text-center mt-8 mb-4"><div className="border-b border-black w-3/4 mx-auto mb-1"></div><span className="text-[10px] uppercase">Firma Cajero</span></div>
+
+                <div className="text-center mt-8 mb-4">
+                    <div className="border-b border-black w-3/4 mx-auto mb-1"></div>
+                    <span className="text-[10px] uppercase">Firma de Conformidad</span>
+                </div>
             </div>
         ) : (
-            /* --- CONTENIDO VENTA/COMANDA --- */
+            /* --- CONTENIDO NORMAL (VENTA / COMANDA) --- */
             <>
                 <div className="mb-3 pb-3 border-b border-dashed border-gray-300 text-xs">
                 <div className="flex justify-between"><span className="text-gray-500">{isVoid ? 'Anulado por:' : 'Atendido por:'}</span><span className="font-bold uppercase">{data.staffName}</span></div>
