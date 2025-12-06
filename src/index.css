@@ -1,4 +1,4 @@
-/* src/index.css - VERSIÓN LIMPIA */
+/* src/index.css - VERSIÓN LIMPIA Y SEGURA */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap');
 
 body {
@@ -6,9 +6,10 @@ body {
   background-color: #f9fafb;
   margin: 0;
   padding: 0;
+  color: #1f2937;
 }
 
-/* Ocultar barras de scroll estéticamente */
+/* Ocultar barras de scroll pero permitir deslizar */
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }

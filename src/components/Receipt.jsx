@@ -1,4 +1,4 @@
-// src/components/Receipt.jsx - VERSIÓN SEGURA (POPUP)
+// src/components/Receipt.jsx - VERSIÓN POPUP (No rompe la pantalla)
 import React from 'react';
 import { ChefHat, Printer, ArrowLeft, CheckCircle, ClipboardList, XCircle, Lock } from 'lucide-react';
 
@@ -9,7 +9,7 @@ const Receipt = ({ data, onClose }) => {
   const isVoid = data.type === 'void';
   const isZReport = data.type === 'z-report';
 
-  // Configuración Visual
+  // Configuración Visual para la pantalla
   let borderClass = 'border-green-600'; 
   let icon = <CheckCircle size={32} className="text-gray-800"/>;
   let title = 'TICKET DE VENTA';
@@ -19,54 +19,49 @@ const Receipt = ({ data, onClose }) => {
   if (isVoid) { borderClass = 'border-red-500'; icon = <XCircle size={32} className="text-red-600"/>; title = 'ANULACIÓN'; bgLabel = 'bg-red-600'; }
   if (isZReport) { borderClass = 'border-gray-800'; icon = <Lock size={32} className="text-gray-800"/>; title = 'CIERRE DE CAJA'; bgLabel = 'bg-gray-800'; }
 
-  // --- FUNCIÓN DE IMPRESIÓN SEGURA ---
-  const handlePrintSafe = () => {
-    // 1. Obtener el contenido visual del ticket
-    const ticketContent = document.getElementById('printable-ticket');
-    if (!ticketContent) return;
-
-    // 2. Abrir ventana nueva (Popup)
-    const win = window.open('', '', 'width=350,height=600');
+  // --- FUNCIÓN DE IMPRESIÓN SEGURA (Abre ventana nueva) ---
+  const handlePrintPopup = () => {
+    // 1. Tomamos el contenido del ticket
+    const ticketContent = document.getElementById('printable-ticket').innerHTML;
     
-    // 3. SEGURIDAD: Si el navegador bloquea el popup, avisar
+    // 2. Abrimos una ventana en blanco
+    const win = window.open('', '', 'width=300,height=600');
+    
     if (!win) {
-        alert("⚠️ El navegador bloqueó la ventana de impresión.\nPor favor, permite las ventanas emergentes (Pop-ups) para este sitio.");
+        alert("⚠️ Por favor, permite las ventanas emergentes (Pop-ups) para poder imprimir.");
         return;
     }
 
-    // 4. Escribir el ticket en la nueva ventana con estilos forzados
+    // 3. Escribimos el ticket en la nueva ventana con estilos simples
     win.document.write(`
       <html>
         <head>
-          <title>Imprimir Ticket</title>
+          <title>Imprimir</title>
           <style>
-            body { font-family: monospace; margin: 0; padding: 5px; width: 100%; }
+            body { font-family: 'Courier New', monospace; margin: 0; padding: 10px; width: 100%; font-size: 12px; }
             .text-center { text-align: center; }
             .text-right { text-align: right; }
             .flex { display: flex; justify-content: space-between; }
             .font-bold { font-weight: bold; }
             .text-xs { font-size: 11px; }
-            .text-sm { font-size: 13px; }
-            .border-b { border-bottom: 1px dashed #000; padding-bottom: 5px; margin-bottom: 5px; }
-            .border-t { border-top: 1px dashed #000; padding-top: 5px; margin-top: 5px; }
+            .border-b { border-bottom: 1px dashed black; padding-bottom: 5px; margin-bottom: 5px; }
             .uppercase { text-transform: uppercase; }
-            img { max-width: 100px; height: auto; } /* Controlar tamaño de imagen */
+            img { max-width: 50%; height: auto; display: block; margin: 0 auto; }
+            /* Ocultar iconos que no se ven bien en papel */
+            svg { display: none; } 
           </style>
         </head>
         <body>
-          ${ticketContent.innerHTML}
+          ${ticketContent}
+          <script>
+            // Imprimir automáticamente al cargar
+            window.onload = function() { window.print(); window.close(); }
+          </script>
         </body>
       </html>
     `);
     
     win.document.close();
-    win.focus();
-
-    // 5. Imprimir y cerrar la ventana auxiliar
-    setTimeout(() => {
-        win.print();
-        win.close();
-    }, 500);
   };
 
   return (
@@ -77,14 +72,15 @@ const Receipt = ({ data, onClose }) => {
         <button onClick={onClose} className="flex items-center gap-2 px-6 py-3 bg-gray-600 text-white rounded-full shadow-lg font-bold">
           <ArrowLeft size={20}/> {isZReport ? 'Finalizar' : 'Volver'}
         </button>
-        <button onClick={handlePrintSafe} className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-full shadow-lg font-bold animate-pulse">
+        <button onClick={handlePrintPopup} className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-full shadow-lg font-bold animate-pulse">
           <Printer size={20}/> IMPRIMIR AHORA
         </button>
       </div>
 
-      {/* --- EL TICKET VISUAL --- */}
+      {/* --- EL TICKET (Visible en pantalla) --- */}
       <div id="printable-ticket" className={`bg-white p-4 shadow-2xl w-[300px] text-gray-900 font-mono text-sm leading-tight relative border-t-8 ${borderClass}`}>
         <div className="text-center border-b pb-4 mb-3">
+          <div className="flex justify-center mb-2">{icon}</div>
           <h2 className="text-xl font-black uppercase tracking-widest mb-1">{data.businessName || 'RESTAURANTE'}</h2>
           <div className={`text-xs font-bold text-white px-2 py-1 inline-block rounded uppercase ${bgLabel}`}>{title}</div>
           <p className="text-[10px] text-gray-500 mt-2">{data.date}</p>
@@ -94,20 +90,19 @@ const Receipt = ({ data, onClose }) => {
             <div className="text-xs">
                 <div className="mb-3 pb-3 border-b">
                     <div className="flex justify-between"><span className="text-gray-500">Cajero:</span><span className="font-bold uppercase">{data.staffName}</span></div>
-                    <div className="flex justify-between mt-1"><span className="text-gray-500">Turno ID:</span><span>#{data.registerId.slice(-6)}</span></div>
+                    <div className="flex justify-between mt-1"><span className="text-gray-500">ID:</span><span>#{data.registerId.slice(-6)}</span></div>
                 </div>
                 <div className="mb-3 pb-3 border-b">
-                    <p className="font-bold mb-2 uppercase border-b pb-1">Arqueo</p>
+                    <p className="font-bold mb-2 uppercase border-b pb-1">Efectivo</p>
                     <div className="flex justify-between mb-1"><span>Fondo Inicial:</span><span>Bs. {data.openingAmount.toFixed(2)}</span></div>
-                    <div className="flex justify-between mb-1"><span>(+) Venta Efec.:</span><span>Bs. {data.stats.cashSales.toFixed(2)}</span></div>
+                    <div className="flex justify-between mb-1"><span>(+) Ventas Efec.:</span><span>Bs. {data.stats.cashSales.toFixed(2)}</span></div>
                     <div className="flex justify-between mb-1 text-red-500"><span>(-) Gastos:</span><span>- Bs. {data.stats.totalExpenses.toFixed(2)}</span></div>
-                    <div className="flex justify-between mt-2 pt-1 border-t font-black text-sm"><span>= CAJA REAL:</span><span>Bs. {data.finalCash.toFixed(2)}</span></div>
+                    <div className="flex justify-between mt-2 pt-1 border-t font-black text-sm"><span>= EN CAJA:</span><span>Bs. {data.finalCash.toFixed(2)}</span></div>
                 </div>
                 <div className="mb-3 pb-3 border-b">
-                    <p className="font-bold mb-2 uppercase border-b pb-1">Digital</p>
+                    <p className="font-bold mb-2 uppercase border-b pb-1">Bancos</p>
                     <div className="flex justify-between mb-1"><span>QR:</span><span>Bs. {data.stats.qrSales.toFixed(2)}</span></div>
                     <div className="flex justify-between mb-1"><span>Tarjeta:</span><span>Bs. {data.stats.cardSales.toFixed(2)}</span></div>
-                    <div className="flex justify-between mt-1 pt-1 font-bold"><span>TOTAL VENDIDO:</span><span>Bs. {(data.stats.cashSales + data.stats.qrSales + data.stats.cardSales).toFixed(2)}</span></div>
                 </div>
                 {data.expensesList?.length > 0 && (
                     <div className="mb-3 pt-2">
