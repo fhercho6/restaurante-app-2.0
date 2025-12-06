@@ -1,4 +1,4 @@
-// src/App.jsx - VERSIÓN FINAL (Con Desglose de QR y Tarjeta en Reporte)
+// src/App.jsx - VERSIÓN MAESTRA FINAL (Con desglose QR/Tarjeta)
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
@@ -48,11 +48,12 @@ export default function App() {
   const [registerSession, setRegisterSession] = useState(null);
   const [isOpenRegisterModalOpen, setIsOpenRegisterModalOpen] = useState(false);
   
-  // NUEVO: Estadísticas detalladas (Efectivo, QR, Tarjeta separados)
+  // --- CORRECCIÓN AQUÍ: Inicializamos variables para QR y Tarjeta ---
   const [sessionStats, setSessionStats] = useState({ 
       cashSales: 0, 
-      qrSales: 0,     // <--- NUEVO
-      cardSales: 0,   // <--- NUEVO
+      qrSales: 0, 
+      cardSales: 0, 
+      digitalSales: 0,
       totalExpenses: 0, 
       expensesList: [] 
   });
@@ -124,6 +125,7 @@ export default function App() {
           };
           const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`;
           const docRef = await addDoc(collection(db, colName), sessionData);
+          
           setRegisterSession({ id: docRef.id, ...sessionData });
           setIsOpenRegisterModalOpen(false);
           toast.success(`Turno Abierto`, { icon: '🔓' });
@@ -197,7 +199,7 @@ export default function App() {
              expensesList: sessionStats.expensesList
           };
           setRegisterSession(null);
-          setSessionStats({ cashSales: 0, qrSales: 0, cardSales: 0, totalExpenses: 0, expensesList: [] });
+          setSessionStats({ cashSales: 0, qrSales: 0, cardSales: 0, digitalSales: 0, totalExpenses: 0, expensesList: [] });
           setLastSale(zReportData);
           setView('receipt_view');
           toast.success("Cierre exitoso", { icon: '🖨️' });
@@ -344,6 +346,7 @@ export default function App() {
       if (pendingSale && pendingSale.clearCart) pendingSale.clearCart([]);
       setPendingSale(null);
       setOrderToPay(null);
+      
       toast.success('¡Cobro exitoso!', { id: toastId });
       
       setView('receipt_view');
@@ -385,6 +388,7 @@ export default function App() {
       checkSession();
   }, [db, currentUser]);
 
+  // --- CORRECCIÓN DEL CÁLCULO SEPARADO ---
   useEffect(() => {
       if (!db || !registerSession) return;
       const salesCol = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`;
@@ -392,7 +396,6 @@ export default function App() {
       const expensesCol = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`;
       const qExpenses = query(collection(db, expensesCol), where('registerId', '==', registerSession.id));
 
-      // --- CÁLCULO DE CAJA EN VIVO ---
       const unsubSales = onSnapshot(qSales, (snap) => {
           let cash = 0, qr = 0, card = 0;
           snap.forEach(doc => {
@@ -406,12 +409,11 @@ export default function App() {
                   });
                   if (sale.changeGiven) cash -= parseFloat(sale.changeGiven);
               } else {
-                  // Legacy
                   const total = parseFloat(sale.total);
-                  if (sale.paymentMethod === 'Efectivo') cash += total; else qr += total; // Asumimos QR si no es efectivo
+                  if (sale.paymentMethod === 'Efectivo') cash += total; else qr += total;
               }
           });
-          setSessionStats(prev => ({ ...prev, cashSales: cash, qrSales: qr, cardSales: card }));
+          setSessionStats(prev => ({ ...prev, cashSales: cash, qrSales: qr, cardSales: card, digitalSales: qr + card }));
       });
 
       const unsubExpenses = onSnapshot(qExpenses, (snap) => {
