@@ -1,4 +1,4 @@
-// src/components/Receipt.jsx
+// src/components/Receipt.jsx - VERSIÓN AGRESIVA (Iframe)
 import React from 'react';
 import { ChefHat, Printer, ArrowLeft, CheckCircle, ClipboardList, XCircle, Lock } from 'lucide-react';
 
@@ -34,6 +34,61 @@ const Receipt = ({ data, onClose }) => {
       bgLabel = 'bg-gray-800';
   }
 
+  // --- FUNCIÓN DE IMPRESIÓN "AGRESIVA" ---
+  // Crea un navegador invisible temporal para forzar la impresión
+  const handlePrintNow = () => {
+    // 1. Obtener el contenido del ticket
+    const printContent = document.getElementById('printable-ticket');
+    if (!printContent) return;
+
+    // 2. Crear un iframe invisible
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    
+    document.body.appendChild(iframe);
+    
+    // 3. Escribir el contenido dentro del iframe
+    const doc = iframe.contentWindow.document;
+    doc.write('<html><head><title>Imprimir Ticket</title>');
+    // Estilos básicos forzados para la impresora térmica
+    doc.write('<style>');
+    doc.write('body { font-family: monospace, sans-serif; margin: 0; padding: 0; }');
+    doc.write('.text-center { text-align: center; }');
+    doc.write('.text-right { text-align: right; }');
+    doc.write('.flex { display: flex; }');
+    doc.write('.justify-between { justify-content: space-between; }');
+    doc.write('.font-bold { font-weight: bold; }');
+    doc.write('.text-xs { font-size: 12px; }');
+    doc.write('.text-sm { font-size: 14px; }');
+    doc.write('.mb-1 { margin-bottom: 0.25rem; }');
+    doc.write('.mb-3 { margin-bottom: 0.75rem; }');
+    doc.write('.pb-3 { padding-bottom: 0.75rem; }');
+    doc.write('.mt-2 { margin-top: 0.5rem; }');
+    doc.write('.border-b { border-bottom: 1px dashed #000; }');
+    doc.write('.border-t { border-top: 1px dashed #000; }');
+    doc.write('table { width: 100%; border-collapse: collapse; }');
+    doc.write('td { vertical-align: top; }');
+    doc.write('</style>');
+    doc.write('</head><body>');
+    doc.write(printContent.innerHTML); // Copia el HTML del ticket
+    doc.write('</body></html>');
+    doc.close();
+
+    // 4. Mandar a imprimir y luego borrar el iframe
+    setTimeout(() => {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+        setTimeout(() => {
+            document.body.removeChild(iframe);
+        }, 1000);
+    }, 500);
+  };
+
   return (
     <div className="flex flex-col items-center min-h-screen bg-gray-100 p-4 animate-in zoom-in duration-300">
       
@@ -46,16 +101,16 @@ const Receipt = ({ data, onClose }) => {
           <ArrowLeft size={20}/> {isZReport ? 'Finalizar' : 'Volver'}
         </button>
         
-        {/* BOTÓN DIRECTO (Sin lógica compleja) */}
+        {/* BOTÓN QUE USA LA NUEVA FUNCIÓN */}
         <button 
-          onClick={() => window.print()} 
+          onClick={handlePrintNow} 
           className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all font-bold animate-pulse"
         >
           <Printer size={20}/> IMPRIMIR AHORA
         </button>
       </div>
 
-      {/* --- TICKET --- */}
+      {/* --- TICKET VISUAL --- */}
       <div 
         id="printable-ticket" 
         className={`bg-white p-4 shadow-2xl w-[300px] text-gray-900 font-mono text-sm leading-tight relative border-t-8 ${borderClass}`}
