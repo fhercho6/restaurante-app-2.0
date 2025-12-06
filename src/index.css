@@ -7,50 +7,8 @@ body {
   margin: 0;
 }
 
-/* Ocultar scrollbar */
+/* Ocultar barras de scroll */
 .hide-scrollbar::-webkit-scrollbar { display: none; }
 .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* --- REGLAS DE IMPRESIÓN (ESTO ES LO QUE IMPORTA) --- */
-@media print {
-  /* 1. Ocultar todo el cuerpo de la app */
-  body * {
-    visibility: hidden;
-    height: 0;
-    overflow: hidden;
-  }
-
-  /* 2. Forzar que el Ticket sea visible */
-  #printable-ticket, #printable-ticket * {
-    visibility: visible !important;
-    height: auto !important;
-    overflow: visible !important;
-    color: black !important; /* Forzar tinta negra */
-  }
-
-  /* 3. Posicionar el ticket al inicio del papel */
-  #printable-ticket {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    background: white !important;
-    box-shadow: none !important;
-    border: none !important;
-    /* Mantenemos un borde visual arriba para saber donde empieza */
-    border-top: 1px dashed #000 !important; 
-  }
-
-  /* 4. Configuración de página física */
-  @page {
-    size: auto;
-    margin: 0mm;
-  }
-
-  /* 5. Ocultar explícitamente los botones */
-  .no-print {
-    display: none !important;
-  }
-}
+/* BORRAMOS TODO LO DE @MEDIA PRINT AQUÍ PARA EVITAR PANTALLAS BLANCAS */
