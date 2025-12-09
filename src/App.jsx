@@ -1,4 +1,4 @@
-// src/App.jsx - VERSIÓN FINAL (Con botón de Reimpresión de Comanda)
+// src/App.jsx - VERSIÓN FINAL (Conexión Credenciales Arreglada)
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
@@ -59,7 +59,7 @@ export default function App() {
   // Estados Operativos
   const [currentItem, setCurrentItem] = useState(null);
   const [filter, setFilter] = useState('Todos');
-  const [credentialToPrint, setCredentialToPrint] = useState(null);
+  const [credentialToPrint, setCredentialToPrint] = useState(null); // <--- ESTADO CLAVE
   const [staffMember, setStaffMember] = useState(null);
   
   // Pagos
@@ -74,15 +74,17 @@ export default function App() {
   const handleEnterMenu = () => { setFilter('Todos'); setView('menu'); };
   const handleEnterStaff = () => setView('pin_login');
   const handleEnterAdmin = () => { if (currentUser && !currentUser.isAnonymous) setView('admin'); else setIsAuthModalOpen(true); };
+  
+  // --- FUNCIÓN DE IMPRESIÓN DE CREDENCIAL ARREGLADA ---
   const handlePrintCredential = (member) => { 
     if (!member) {
-        toast.error("Error: Empleado no válido");
+        toast.error("Error: Datos inválidos");
         return;
     }
-    console.log("Imprimiendo credencial de:", member.name); // Para depuración
-    setCredentialToPrint(member); 
-    setView('credential_print'); 
+    setCredentialToPrint(member); // 1. Guardamos el dato
+    setView('credential_print');  // 2. Cambiamos la vista
   };
+
   const handlePrint = () => window.print();
 
   const handleStaffPinLogin = (member) => { 
@@ -264,7 +266,6 @@ export default function App() {
      } catch (error) { toast.error("Error al anular"); }
   };
 
-  // --- NUEVA FUNCIÓN: REIMPRIMIR COMANDA DESDE CAJA ---
   const handleReprintOrder = (order) => {
       const preCheckData = {
           ...order,
@@ -388,7 +389,6 @@ export default function App() {
       checkSession();
   }, [db, currentUser]);
 
-  // CÁLCULO DE CAJA EN VIVO
   useEffect(() => {
       if (!db || !registerSession) return;
       const salesCol = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`;
@@ -540,18 +540,37 @@ export default function App() {
 
                 {view === 'report' && <div className="animate-in fade-in"><SalesDashboard onReprintZ={handleReprintZReport} /><div className="hidden print:block mt-8"><PrintableView items={items} /></div></div>}
                 
-                {/* --- AQUI PASAMOS LA FUNCIÓN DE REIMPRESIÓN NUEVA --- */}
                 {view === 'cashier' && (
                     <CashierView 
                         onProcessPayment={handleStartPaymentFromCashier} 
                         onVoidOrder={handleVoidAndPrint}
-                        onReprintOrder={handleReprintOrder} // <--- ¡AQUÍ ESTÁ!
+                        onReprintOrder={handleReprintOrder}
                     />
                 )}
                 
                 {view === 'register_control' && <RegisterControlView session={registerSession} onOpen={handleOpenRegister} onClose={handleCloseRegister} staff={staff} stats={sessionStats} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} />}
+                
+                {/* VISTA DE PERSONAL (Aquí está el botón que presionas) */}
                 {view === 'staff_admin' && !isCashierOnly && <StaffManagerView staff={staff} roles={roles} onAddStaff={handleAddStaff} onUpdateStaff={handleUpdateStaff} onDeleteStaff={handleDeleteStaff} onManageRoles={() => setIsRoleModalOpen(true)} onPrintCredential={handlePrintCredential} />}
-                {view === 'credential_print' && credentialToPrint && <div className="flex flex-col items-center"><button onClick={() => setView('staff_admin')} className="no-print mb-4 px-4 py-2 bg-gray-200 rounded">Volver</button><CredentialPrintView member={credentialToPrint} appName={appName} /></div>}
+                
+                {/* --- VISTA DE CREDENCIALES (Esta es la que se mostraba en blanco porque faltaba "credentialToPrint" en la condición) --- */}
+                {view === 'credential_print' && credentialToPrint && (
+                    <div className="flex flex-col items-center w-full min-h-screen bg-gray-100">
+                        {/* Botón flotante para volver */}
+                        <div className="w-full max-w-md p-4 flex justify-start no-print">
+                            <button 
+                                onClick={() => setView('staff_admin')} 
+                                className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-lg shadow hover:bg-gray-50 font-bold"
+                            >
+                                <ArrowLeft size={20} /> Volver a la Lista
+                            </button>
+                        </div>
+
+                        {/* El componente visual */}
+                        <CredentialPrintView member={credentialToPrint} appName={appName} />
+                    </div>
+                )}
+
                 {view === 'admin' && !isCashierOnly && (
                   <div className="space-y-6">
                     <div className="flex justify-between items-center mb-4">
@@ -629,4 +648,3 @@ export default function App() {
     </div>
   );
 }
-// FORZAR ACTUALIZACION V2
