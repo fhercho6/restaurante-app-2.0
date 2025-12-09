@@ -1,6 +1,7 @@
-// src/components/Views.jsx - VERSIÓN FINAL (Generador QR Automático)
+// src/components/Views.jsx - VERSIÓN QR OFFLINE
 import React, { useState } from 'react';
-import { Lock, Delete, ChefHat, Edit2, Trash2, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Lock, Delete, ChefHat, Edit2, Trash2, AlertTriangle } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react'; // <--- Esto funcionará gracias al cambio en package.json
 
 // --- 1. TARJETA DE MENÚ (Cliente) ---
 export const MenuCard = ({ item }) => (
@@ -57,15 +58,11 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
   );
 };
 
-// --- 3. VISTA DE CREDENCIAL QR ---
+// --- 3. VISTA DE CREDENCIAL QR (GENERACIÓN OFFLINE) ---
 export const CredentialPrintView = ({ member, appName }) => {
   if (!member) return <div className="text-center p-10 text-red-500 font-bold">Error: No se seleccionó empleado.</div>;
 
-  // El ID que se guardará en el QR
   const safeId = member.id || "ERROR";
-  
-  // --- USAMOS API GRATUITA (Funciona sin claves y es fiable) ---
-  const qrUrl = `https://quickchart.io/qr?text=${encodeURIComponent(safeId)}&size=300&ecLevel=H&margin=1`;
 
   return (
     <div className="bg-white min-h-screen flex flex-col items-center pt-10 animate-in fade-in">
@@ -76,12 +73,13 @@ export const CredentialPrintView = ({ member, appName }) => {
             <p className="text-[10px] font-bold uppercase text-gray-500">ACCESO PERSONAL</p>
         </div>
         
+        {/* AQUÍ SE GENERA EL QR SIN INTERNET */}
         <div className="mb-4 relative flex items-center justify-center w-48 h-48 border-4 border-black p-2 bg-white overflow-hidden rounded-xl">
-           <img 
-             src={qrUrl} 
-             alt="Código QR"
-             className="w-full h-full object-contain"
-             onError={(e) => { e.target.style.display='none'; }}
+           <QRCodeSVG 
+              value={safeId}
+              size={180}
+              level={"H"}
+              includeMargin={true}
            />
         </div>
         
