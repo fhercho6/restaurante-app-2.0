@@ -74,7 +74,15 @@ export default function App() {
   const handleEnterMenu = () => { setFilter('Todos'); setView('menu'); };
   const handleEnterStaff = () => setView('pin_login');
   const handleEnterAdmin = () => { if (currentUser && !currentUser.isAnonymous) setView('admin'); else setIsAuthModalOpen(true); };
-  const handlePrintCredential = (member) => { setCredentialToPrint(member); setView('credential_print'); };
+  const handlePrintCredential = (member) => { 
+    if (!member) {
+        toast.error("Error: Empleado no válido");
+        return;
+    }
+    console.log("Imprimiendo credencial de:", member.name); // Para depuración
+    setCredentialToPrint(member); 
+    setView('credential_print'); 
+  };
   const handlePrint = () => window.print();
 
   const handleStaffPinLogin = (member) => { 

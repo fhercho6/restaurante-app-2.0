@@ -1,4 +1,4 @@
-// src/components/Views.jsx - VERSIÓN ESTABLE (Vista Previa + CSS Print)
+// src/components/Views.jsx - VERSIÓN ESTABLE Y SEGURA
 import React, { useState } from 'react';
 import { Lock, Delete, ChefHat, Edit2, Trash2, User, Printer, ArrowLeft } from 'lucide-react';
 
@@ -57,54 +57,68 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
   );
 };
 
-// --- 3. VISTA DE CREDENCIAL (DISEÑO LIMPIO Y SEGURO) ---
+// --- 3. VISTA DE CREDENCIAL (A PRUEBA DE FALLOS) ---
 export const CredentialPrintView = ({ member, appName }) => {
-  // Protección contra datos vacíos para evitar pantalla blanca
-  if (!member) return <div className="text-center p-10 text-red-500 font-bold">Error: No hay datos de empleado.</div>;
+  // 1. Verificación de Seguridad: Si no hay miembro, mostramos aviso en vez de romper la app
+  if (!member) {
+    return (
+        <div className="flex flex-col items-center justify-center min-h-screen">
+            <div className="bg-red-100 text-red-700 p-6 rounded-xl border border-red-300">
+                <h3 className="font-bold text-lg mb-2">⚠️ Error de Datos</h3>
+                <p>No se pudo cargar la información del empleado.</p>
+                <button onClick={() => window.location.reload()} className="mt-4 bg-red-600 text-white px-4 py-2 rounded-lg text-sm">Recargar Sistema</button>
+            </div>
+        </div>
+    );
+  }
 
+  // 2. Extracción Segura de Datos (Evita "undefined" error)
   const safeName = member.name || "Sin Nombre";
   const safeRole = member.role || "Personal";
   const safePin = member.pin || "****";
-  const safeId = member.id || "---";
+  const safeId = member.id ? member.id.slice(0, 8) : "---";
+  
+  // Inicial segura
+  const initial = safeName && safeName.length > 0 ? safeName.charAt(0).toUpperCase() : "?";
 
   return (
-    <div className="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4 print:bg-white print:p-0">
+    <div className="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4 animate-in zoom-in duration-300 print:bg-white print:p-0 print:block">
       
-      {/* TARJETA DE CREDENCIAL (Lo que se imprime) */}
-      <div className="bg-white border-2 border-black w-[320px] p-6 text-center shadow-2xl rounded-xl print:shadow-none print:border-2 print:w-[300px] print:rounded-none">
+      {/* TARJETA DE CREDENCIAL (DISEÑO VISUAL) */}
+      <div className="bg-white border-2 border-black w-[320px] p-6 text-center shadow-2xl rounded-xl print:shadow-none print:border-2 print:w-[300px] print:rounded-none print:mx-auto print:mt-10">
         
         {/* Cabecera */}
         <div className="border-b-2 border-black pb-4 mb-4">
             <h1 className="font-black text-2xl uppercase tracking-widest">{appName || "EMPRESA"}</h1>
-            <p className="text-xs font-bold uppercase text-gray-500 tracking-wider">Credencial Oficial</p>
+            <p className="text-[10px] font-bold uppercase text-gray-500 tracking-wider">Credencial Oficial</p>
         </div>
 
-        {/* Foto/Icono */}
+        {/* Foto/Icono (Solo CSS, sin imágenes externas que puedan fallar) */}
         <div className="mx-auto w-32 h-32 bg-gray-100 border-4 border-gray-200 rounded-full flex items-center justify-center mb-4 print:border-black">
-            <User size={64} className="text-gray-400 print:text-black" />
+            <span className="text-6xl font-black text-gray-400 print:text-black">{initial}</span>
         </div>
 
         {/* Nombre y Cargo */}
-        <h2 className="text-2xl font-black text-gray-900 uppercase leading-none mb-2">{safeName}</h2>
+        <h2 className="text-2xl font-black text-gray-900 uppercase leading-tight mb-2 break-words">{safeName}</h2>
         <div className="inline-block bg-black text-white px-4 py-1 rounded-full font-bold uppercase text-sm mb-6 print:border print:border-black print:text-black print:bg-transparent">
             {safeRole}
         </div>
 
-        {/* Datos Sensibles (PIN) */}
-        <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg mb-4 print:hidden">
-            <p className="text-[10px] text-yellow-700 font-bold uppercase">Tu Clave de Acceso (PIN)</p>
-            <p className="text-xl font-mono font-bold text-gray-800 tracking-widest">{safePin}</p>
+        {/* Datos Sensibles (PIN) - Se oculta al imprimir por seguridad, o se deja si prefieres */}
+        <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg mb-4 print:block print:border-black print:bg-transparent">
+            <p className="text-[10px] text-yellow-700 font-bold uppercase print:text-black">PIN DE ACCESO</p>
+            <p className="text-xl font-mono font-bold text-gray-800 tracking-widest print:text-black">{safePin}</p>
         </div>
 
         {/* Pie de página (ID) */}
-        <div className="text-[10px] font-mono text-gray-400 border-t pt-2 uppercase">
-            ID Sistema: {safeId.slice(0, 8)}...
+        <div className="text-[10px] font-mono text-gray-400 border-t pt-2 uppercase print:text-black">
+            ID: {safeId}
         </div>
       </div>
 
-      {/* INSTRUCCIONES DE IMPRESIÓN (Solo visible en pantalla) */}
+      {/* INSTRUCCIONES Y BOTÓN (Ocultos al imprimir) */}
       <div className="mt-8 text-center print:hidden">
-          <p className="text-gray-500 text-sm mb-4">Esta es una vista previa. Haz clic abajo para imprimir.</p>
+          <p className="text-gray-500 text-sm mb-4">Verifica los datos antes de imprimir.</p>
           <button 
             onClick={() => window.print()}
             className="flex items-center gap-2 bg-blue-600 text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-blue-700 hover:scale-105 transition-all"
@@ -113,14 +127,14 @@ export const CredentialPrintView = ({ member, appName }) => {
           </button>
       </div>
 
-      {/* Estilos específicos para impresión (Oculta todo lo que no sea la tarjeta) */}
+      {/* ESTILOS DE IMPRESIÓN (La magia que limpia la hoja) */}
       <style>{`
         @media print {
-          body * { visibility: hidden; }
-          #root, .print\\:hidden { display: none !important; }
-          .bg-white, .bg-white * { visibility: visible; }
-          .min-h-screen { height: auto !important; background: white !important; }
-          .fixed, header, footer { display: none !important; }
+          body * { visibility: hidden; } /* Oculta todo */
+          #root { display: block !important; }
+          .bg-white, .bg-white * { visibility: visible; } /* Muestra solo la tarjeta */
+          .min-h-screen { height: auto !important; background: white !important; display: block !important; }
+          .fixed, header, footer, .no-print, button { display: none !important; }
         }
       `}</style>
     </div>
