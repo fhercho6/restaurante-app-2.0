@@ -1,7 +1,6 @@
-// src/components/Views.jsx - VERSIÓN QR OFFLINE
+// src/components/Views.jsx - VERSIÓN FINAL ESTABLE (QuickChart)
 import React, { useState } from 'react';
-import { Lock, Delete, ChefHat, Edit2, Trash2, AlertTriangle } from 'lucide-react';
-import { QRCodeSVG } from 'qrcode.react'; // <--- Esto funcionará gracias al cambio en package.json
+import { Lock, Delete, ChefHat, Edit2, Trash2, AlertTriangle, RefreshCw } from 'lucide-react';
 
 // --- 1. TARJETA DE MENÚ (Cliente) ---
 export const MenuCard = ({ item }) => (
@@ -58,11 +57,14 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
   );
 };
 
-// --- 3. VISTA DE CREDENCIAL QR (GENERACIÓN OFFLINE) ---
+// --- 3. VISTA DE CREDENCIAL QR (SIN LIBRERÍAS EXTERNAS) ---
 export const CredentialPrintView = ({ member, appName }) => {
   if (!member) return <div className="text-center p-10 text-red-500 font-bold">Error: No se seleccionó empleado.</div>;
 
   const safeId = member.id || "ERROR";
+  
+  // Usamos QuickChart (Fiable, Rápido y Seguro)
+  const qrUrl = `https://quickchart.io/qr?text=${encodeURIComponent(safeId)}&size=300&ecLevel=H&margin=1&dark=000000&light=ffffff`;
 
   return (
     <div className="bg-white min-h-screen flex flex-col items-center pt-10 animate-in fade-in">
@@ -73,14 +75,18 @@ export const CredentialPrintView = ({ member, appName }) => {
             <p className="text-[10px] font-bold uppercase text-gray-500">ACCESO PERSONAL</p>
         </div>
         
-        {/* AQUÍ SE GENERA EL QR SIN INTERNET */}
         <div className="mb-4 relative flex items-center justify-center w-48 h-48 border-4 border-black p-2 bg-white overflow-hidden rounded-xl">
-           <QRCodeSVG 
-              value={safeId}
-              size={180}
-              level={"H"}
-              includeMargin={true}
+           <img 
+             src={qrUrl} 
+             alt="Código QR"
+             className="w-full h-full object-contain"
+             // Si falla la carga, muestra el error sin romper la app
+             onError={(e) => { e.target.style.display='none'; e.target.nextSibling.style.display='flex'; }}
            />
+           <div className="hidden absolute inset-0 flex-col items-center justify-center text-red-500 bg-white">
+              <AlertTriangle size={32} />
+              <span className="text-xs font-bold mt-1">Error Red</span>
+           </div>
         </div>
         
         <h2 className="text-2xl font-black uppercase leading-tight mb-2 w-full">{member.name}</h2>
