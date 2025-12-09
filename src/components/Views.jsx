@@ -1,4 +1,4 @@
-// src/components/Views.jsx - VERSIÓN DEFENSIVA (No se rompe si faltan datos)
+// src/components/Views.jsx - VERSIÓN FINAL (Impresión por Ventana Nueva - Infalible)
 import React, { useState } from 'react';
 import { Lock, Delete, ChefHat, Edit2, Trash2, User, Printer, AlertTriangle } from 'lucide-react';
 
@@ -57,69 +57,123 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
   );
 };
 
-// --- 3. VISTA DE CREDENCIAL (SEGURA Y DEFENSIVA) ---
+// --- 3. VISTA DE CREDENCIAL (POPUP REAL) ---
 export const CredentialPrintView = ({ member, appName }) => {
-  // SEGURIDAD: Si no hay miembro, mostramos error visual pero NO pantalla blanca
-  if (!member) return <div className="text-center p-10 text-red-500 font-bold">Error: Datos de empleado no encontrados.</div>;
+  if (!member) return <div className="text-center p-10 text-red-500 font-bold">Error: Sin datos.</div>;
 
-  // SEGURIDAD: Valores por defecto para evitar crash por undefined
-  const safeName = member.name || "Sin Nombre";
-  const safeRole = member.role || "Personal";
-  const safePin = member.pin || "----";
-  const safeId = member.id || "---";
-  
-  // Evitar error charAt en nombre vacío
-  const initial = safeName.length > 0 ? safeName.charAt(0) : "?";
+  // Función que abre una nueva ventana con el diseño listo para imprimir
+  const handlePrintPopup = () => {
+    // Definimos el contenido HTML directamente aquí para no depender del DOM actual
+    const htmlContent = `
+      <html>
+        <head>
+          <title>Credencial - ${member.name}</title>
+          <style>
+            body { 
+              font-family: sans-serif; 
+              display: flex; 
+              justify-content: center; 
+              align-items: center; 
+              height: 100vh; 
+              margin: 0; 
+              background-color: #f0f0f0; 
+            }
+            .card { 
+              width: 300px; 
+              border: 2px solid black; 
+              padding: 20px; 
+              text-align: center; 
+              border-radius: 10px; 
+              background: white; 
+              box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            }
+            .header { border-bottom: 2px solid black; padding-bottom: 10px; margin-bottom: 20px; }
+            .title { font-size: 18px; font-weight: 900; text-transform: uppercase; margin: 0; }
+            .subtitle { font-size: 10px; font-weight: bold; text-transform: uppercase; color: #555; }
+            .role-badge { background: black; color: white; padding: 5px 15px; border-radius: 20px; display: inline-block; font-weight: bold; font-size: 12px; text-transform: uppercase; margin-bottom: 15px; border: 1px solid black; }
+            .name { font-size: 22px; font-weight: 900; text-transform: uppercase; margin-bottom: 10px; line-height: 1.1; }
+            .pin-box { border: 1px dashed black; padding: 5px; font-family: monospace; font-size: 14px; font-weight:bold; margin-bottom: 10px; border-radius: 4px; background: #ffffcc; }
+            .id-text { font-size: 10px; color: #555; font-family: monospace; border-top: 1px solid #ccc; padding-top: 10px; word-break: break-all; }
+            .icon-box { width: 80px; height: 80px; border: 3px solid black; border-radius: 50%; margin: 0 auto 15px auto; display: flex; align-items: center; justify-content: center; font-size: 30px; font-weight: bold; background: #eee; }
+            
+            /* Solo al imprimir, quitamos el fondo gris */
+            @media print {
+              body { background: white; height: auto; display: block; }
+              .card { box-shadow: none; margin: 0 auto; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+             <div class="header">
+                <h1 class="title">${appName || "SISTEMA"}</h1>
+                <div class="subtitle">Acceso Personal</div>
+             </div>
+             
+             <div class="icon-box">
+                ${member.name.charAt(0)}
+             </div>
 
-  // Función de impresión popup simple
-  const handlePrint = () => {
-    const content = document.getElementById('credential-card').innerHTML;
-    const win = window.open('', '', 'width=350,height=500');
-    if (!win) { alert("Habilita Popups"); return; }
+             <div class="name">${member.name}</div>
+             <div class="role-badge">${member.role}</div>
+             
+             <div class="pin-box">PIN: ${member.pin}</div>
+             <div class="id-text">ID: ${member.id}</div>
+          </div>
+          <script>
+             // Esperar un poco y lanzar impresión
+             setTimeout(function() { window.print(); }, 500);
+          </script>
+        </body>
+      </html>
+    `;
+
+    // Abrir ventana
+    const win = window.open('', '_blank', 'width=400,height=600');
+    if (!win) {
+      alert("⚠️ Por favor, permite las ventanas emergentes (Pop-ups) para imprimir.");
+      return;
+    }
     
-    win.document.write(`<html><head><title>Credencial</title></head><body style="display:flex;justify-content:center;font-family:sans-serif;">${content}</body></html>`);
+    // Escribir contenido
+    win.document.open();
+    win.document.write(htmlContent);
     win.document.close();
-    
-    setTimeout(() => {
-        win.print();
-        win.close();
-    }, 500);
   };
 
   return (
     <div className="bg-white min-h-screen flex flex-col items-center pt-10 animate-in fade-in">
       
-      {/* TARJETA VISUAL */}
-      <div id="credential-card" className="w-[300px] border border-gray-300 p-6 bg-white shadow-xl flex flex-col items-center text-center">
+      {/* TARJETA VISUAL EN PANTALLA (Solo para referencia) */}
+      <div className="w-[300px] border border-gray-300 p-6 bg-white shadow-xl flex flex-col items-center text-center">
         <div className="mb-6 border-b-2 border-black w-full pb-2">
             <h1 className="font-black text-xl uppercase tracking-wider">{appName || "SISTEMA"}</h1>
             <p className="text-[10px] font-bold uppercase text-gray-500">ACCESO PERSONAL</p>
         </div>
         
-        {/* Círculo con Inicial */}
-        <div style={{ width: '80px', height: '80px', borderRadius: '50%', border: '4px solid #ddd', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', fontWeight: 'bold', margin: '0 auto 20px auto', background: '#f9f9f9', color: '#555' }}>
-           {initial}
+        <div className="mb-6 flex items-center justify-center w-32 h-32 bg-gray-100 rounded-full border-4 border-white shadow-sm">
+           <User size={64} className="text-gray-400" />
         </div>
         
-        <h2 className="text-2xl font-black uppercase leading-tight mb-2 w-full">{safeName}</h2>
+        <h2 className="text-2xl font-black uppercase leading-tight mb-2 w-full">{member.name}</h2>
         <div className="bg-black text-white px-6 py-2 rounded-full font-bold uppercase text-sm mb-6">
-            {safeRole}
+            {member.role}
         </div>
         
         <div className="bg-yellow-100 text-yellow-800 px-4 py-1 rounded mb-4 text-xs font-mono">
-            PIN: <strong>{safePin}</strong>
+            PIN SECRETO: <strong>{member.pin}</strong>
         </div>
 
-        <div className="text-[10px] font-mono text-gray-500 mt-2 w-full border-t border-gray-200 pt-2 break-all">ID: {safeId}</div>
+        <div className="text-[10px] font-mono text-gray-500 mt-2 w-full border-t border-gray-200 pt-2 break-all">ID: {member.id}</div>
       </div>
       
-      {/* Botón */}
+      {/* BOTÓN QUE ABRE EL POPUP */}
       <div className="mt-8">
           <button 
-            onClick={handlePrint} 
-            className="flex items-center gap-2 bg-blue-600 text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-blue-700 transition-all active:scale-95"
+            onClick={handlePrintPopup} 
+            className="flex items-center gap-2 bg-blue-600 text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-blue-700 transition-all hover:scale-105 active:scale-95"
           >
-            <Printer size={20} /> IMPRIMIR AHORA
+            <Printer size={20} /> ABRIR VENTANA DE IMPRESIÓN
           </button>
       </div>
     </div>
