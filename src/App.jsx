@@ -1,4 +1,4 @@
-// src/App.jsx - VERSIÓN CORREGIDA (Soporte QR/Tarjeta Real)
+// src/App.jsx - VERSIÓN FINAL (Con botón de Reimpresión de Comanda)
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
@@ -47,16 +47,7 @@ export default function App() {
   // Estado de Caja
   const [registerSession, setRegisterSession] = useState(null);
   const [isOpenRegisterModalOpen, setIsOpenRegisterModalOpen] = useState(false);
-  
-  // --- CORRECCIÓN 1: Estado inicial completo para reportes ---
-  const [sessionStats, setSessionStats] = useState({ 
-      cashSales: 0, 
-      qrSales: 0,     // <--- AHORA SÍ EXISTE
-      cardSales: 0,   // <--- AHORA SÍ EXISTE
-      digitalSales: 0,
-      totalExpenses: 0, 
-      expensesList: [] 
-  });
+  const [sessionStats, setSessionStats] = useState({ cashSales: 0, qrSales: 0, cardSales: 0, digitalSales: 0, totalExpenses: 0, expensesList: [] });
 
   // Modales
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -125,7 +116,6 @@ export default function App() {
           };
           const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`;
           const docRef = await addDoc(collection(db, colName), sessionData);
-          
           setRegisterSession({ id: docRef.id, ...sessionData });
           setIsOpenRegisterModalOpen(false);
           toast.success(`Turno Abierto`, { icon: '🔓' });
@@ -160,18 +150,10 @@ export default function App() {
   const handleCloseRegister = () => {
       if (!registerSession) return;
       const cashFinal = registerSession.openingAmount + sessionStats.cashSales - sessionStats.totalExpenses;
-      
       toast((t) => (
         <div className="flex flex-col gap-3 min-w-[200px]">
-          <div className="border-b pb-2">
-             <p className="font-bold text-gray-800">¿Cerrar Caja?</p>
-             <p className="text-xs text-gray-500">Efectivo esperado:</p>
-             <p className="text-xl font-black text-green-600">Bs. {cashFinal.toFixed(2)}</p>
-          </div>
-          <div className="flex gap-2">
-            <button onClick={() => { confirmCloseRegister(cashFinal); toast.dismiss(t.id); }} className="bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm flex-1">SÍ, CERRAR</button>
-            <button onClick={() => toast.dismiss(t.id)} className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg text-xs font-bold flex-1">CANCELAR</button>
-          </div>
+          <div className="border-b pb-2"><p className="font-bold text-gray-800">¿Cerrar Caja?</p><p className="text-xs text-gray-500">Efectivo esperado:</p><p className="text-xl font-black text-green-600">Bs. {cashFinal.toFixed(2)}</p></div>
+          <div className="flex gap-2"><button onClick={() => { confirmCloseRegister(cashFinal); toast.dismiss(t.id); }} className="bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm flex-1">SÍ, CERRAR</button><button onClick={() => toast.dismiss(t.id)} className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg text-xs font-bold flex-1">CANCELAR</button></div>
         </div>
       ), { duration: 8000, icon: <Lock className="text-red-600"/> });
   };
@@ -260,9 +242,7 @@ export default function App() {
         setLastSale(preCheckData);
         toast.success('Pedido enviado a caja', { id: toastId });
         setView('receipt_view'); 
-    } catch (error) {
-        toast.error('Error al enviar pedido', { id: toastId });
-    }
+    } catch (error) { toast.error('Error al enviar pedido', { id: toastId }); }
   };
 
   const handleVoidAndPrint = async (order) => {
@@ -274,6 +254,19 @@ export default function App() {
         toast.success("Pedido anulado");
         setView('receipt_view');
      } catch (error) { toast.error("Error al anular"); }
+  };
+
+  // --- NUEVA FUNCIÓN: REIMPRIMIR COMANDA DESDE CAJA ---
+  const handleReprintOrder = (order) => {
+      const preCheckData = {
+          ...order,
+          type: 'order',
+          businessName: appName,
+          date: new Date().toLocaleString()
+      };
+      setLastSale(preCheckData);
+      setView('receipt_view');
+      toast.success("Reimprimiendo comanda...");
   };
 
   const handleFinalizeSale = async (paymentResult) => {
@@ -387,7 +380,7 @@ export default function App() {
       checkSession();
   }, [db, currentUser]);
 
-  // --- CORRECCIÓN 2: Lógica de suma detallada (Arrays + Minúsculas) ---
+  // CÁLCULO DE CAJA EN VIVO
   useEffect(() => {
       if (!db || !registerSession) return;
       const salesCol = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`;
@@ -399,26 +392,18 @@ export default function App() {
           let cash = 0, qr = 0, card = 0;
           snap.forEach(doc => {
               const sale = doc.data();
-              
-              // SI ES MULTI-PAGO
               if (sale.payments && Array.isArray(sale.payments)) {
                   sale.payments.forEach(p => {
                       const amt = parseFloat(p.amount) || 0;
-                      // Aseguramos minúsculas para comparar
                       const method = (p.method || '').toLowerCase();
-                      
                       if (method.includes('efectivo')) cash += amt;
                       else if (method.includes('qr')) qr += amt;
                       else if (method.includes('tarjeta')) card += amt;
                   });
-                  // Restar cambio
                   if (sale.changeGiven) cash -= parseFloat(sale.changeGiven);
-              } 
-              // SI ES VENTA SIMPLE (RESPALDO)
-              else {
+              } else {
                   const total = parseFloat(sale.total);
                   const method = (sale.paymentMethod || 'efectivo').toLowerCase();
-                  
                   if (method.includes('efectivo')) {
                       const change = parseFloat(sale.changeGiven) || 0;
                       const received = parseFloat(sale.amountReceived) || total;
@@ -428,15 +413,7 @@ export default function App() {
                   else if (method.includes('tarjeta')) card += total;
               }
           });
-          
-          // Actualizamos todas las variables
-          setSessionStats(prev => ({ 
-              ...prev, 
-              cashSales: cash, 
-              qrSales: qr, 
-              cardSales: card, 
-              digitalSales: qr + card 
-          }));
+          setSessionStats(prev => ({ ...prev, cashSales: cash, qrSales: qr, cardSales: card, digitalSales: qr + card }));
       });
 
       const unsubExpenses = onSnapshot(qExpenses, (snap) => {
@@ -553,10 +530,17 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* --- CORRECCIÓN 3: Pasar el handler al reporte --- */}
                 {view === 'report' && <div className="animate-in fade-in"><SalesDashboard onReprintZ={handleReprintZReport} /><div className="hidden print:block mt-8"><PrintableView items={items} /></div></div>}
                 
-                {view === 'cashier' && <CashierView onProcessPayment={handleStartPaymentFromCashier} onVoidOrder={handleVoidAndPrint} />}
+                {/* --- AQUI PASAMOS LA FUNCIÓN DE REIMPRESIÓN NUEVA --- */}
+                {view === 'cashier' && (
+                    <CashierView 
+                        onProcessPayment={handleStartPaymentFromCashier} 
+                        onVoidOrder={handleVoidAndPrint}
+                        onReprintOrder={handleReprintOrder} // <--- ¡AQUÍ ESTÁ!
+                    />
+                )}
+                
                 {view === 'register_control' && <RegisterControlView session={registerSession} onOpen={handleOpenRegister} onClose={handleCloseRegister} staff={staff} stats={sessionStats} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} />}
                 {view === 'staff_admin' && !isCashierOnly && <StaffManagerView staff={staff} roles={roles} onAddStaff={handleAddStaff} onUpdateStaff={handleUpdateStaff} onDeleteStaff={handleDeleteStaff} onManageRoles={() => setIsRoleModalOpen(true)} onPrintCredential={handlePrintCredential} />}
                 {view === 'credential_print' && credentialToPrint && <div className="flex flex-col items-center"><button onClick={() => setView('staff_admin')} className="no-print mb-4 px-4 py-2 bg-gray-200 rounded">Volver</button><CredentialPrintView member={credentialToPrint} appName={appName} /></div>}
