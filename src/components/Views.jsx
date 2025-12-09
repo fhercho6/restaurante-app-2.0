@@ -1,60 +1,24 @@
-// src/components/Views.jsx
+// src/components/Views.jsx - VERSIÓN FINAL (Generador QR Automático)
 import React, { useState } from 'react';
 import { Lock, Delete, ChefHat, Edit2, Trash2, AlertTriangle, RefreshCw } from 'lucide-react';
 
-// --- 1. TARJETA DE MENÚ (Cliente - Diseño "Lista Amigable" Móvil) ---
-export const MenuCard = ({ item }) => {
-  const hasStock = item.stock === undefined || item.stock === '' || parseInt(item.stock) > 0;
-
-  return (
-    // Contenedor principal: Flex horizontal (fila), altura controlada
-    <div className={`bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex h-28 sm:h-32 transition-all ${!hasStock ? 'opacity-70 grayscale' : 'hover:shadow-md'}`}>
-
-      {/* LADO IZQUIERDO: Imagen Cuadrada Pequeña (aprox 112px - 128px) */}
-      <div className="w-28 sm:w-32 h-full relative bg-gray-100 flex-shrink-0">
-        {item.image ? (
-          <img
-            src={item.image}
-            alt={item.name || 'Producto'}
-            className="w-full h-full object-cover"
-            loading="lazy"
-            onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
-          />
-        ) : null}
-         {/* Fallback si falla la imagen o no hay */}
-        <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 absolute inset-0 bg-gray-100" style={{display: item.image ? 'none' : 'flex'}}>
-           <ChefHat size={24} />
-        </div>
-
-        {/* Badge de Stock (esquina inferior de la imagen) */}
-        {item.stock !== undefined && item.stock !== '' && (
-          <div className={`absolute bottom-1 left-1 px-1.5 py-0.5 rounded text-[10px] font-bold shadow-sm ${hasStock ? 'bg-white/80 text-gray-700 backdrop-blur-sm' : 'bg-red-500 text-white'}`}>
-              {hasStock ? `${item.stock} u.` : 'AGOTADO'}
-          </div>
-        )}
-      </div>
-
-      {/* LADO DERECHO: Información del producto */}
-      <div className="p-3 flex flex-col flex-grow justify-between min-w-0">
-        <div>
-           {/* Categoría pequeña */}
-           <div className="text-[10px] font-bold text-orange-500 uppercase tracking-wider leading-none mb-1 truncate">{item.category}</div>
-           {/* Nombre del producto (máximo 2 líneas para no romper el diseño) */}
-           <h3 className="font-bold text-gray-900 text-sm sm:text-base leading-tight line-clamp-2">{item.name}</h3>
-           {/* Descripción corta (oculta en celulares muy pequeños para ahorrar espacio, visible en tablets) */}
-           <p className="text-xs text-gray-500 mt-1 line-clamp-2 hidden sm:block">{item.description}</p>
-        </div>
-
-        {/* Precio grande abajo a la derecha */}
-        <div className="text-right mt-1">
-           <div className="text-base sm:text-lg font-black text-gray-900 leading-none">
-             Bs. {(Number(item.price) || 0).toFixed(2)}
-           </div>
-        </div>
-      </div>
+// --- 1. TARJETA DE MENÚ (Cliente) ---
+export const MenuCard = ({ item }) => (
+  <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 h-full flex flex-col">
+    <div className="h-48 overflow-hidden relative group bg-gray-100 flex items-center justify-center flex-shrink-0">
+      {item.image ? (
+        <img src={item.image} alt={item.name || 'Producto'} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" onError={(e) => { e.target.style.display = 'none'; }} />
+      ) : <div className="text-gray-300 flex flex-col items-center"><ChefHat size={40} /><span className="text-xs mt-2">Sin imagen</span></div>}
+      <div className="absolute top-2 right-2 bg-orange-500 text-white px-3 py-1 rounded-full font-bold shadow-md">Bs. {(Number(item.price) || 0).toFixed(2)}</div>
+      {item.stock !== undefined && item.stock !== '' && <div className={`absolute bottom-2 left-2 px-2 py-1 rounded text-xs font-bold shadow-sm ${Number(item.stock) > 0 ? 'bg-white text-gray-700' : 'bg-red-500 text-white'}`}>{Number(item.stock) > 0 ? `${item.stock} disp.` : 'AGOTADO'}</div>}
     </div>
-  );
-};
+    <div className="p-5 flex flex-col flex-grow">
+      <div className="text-xs font-semibold text-orange-600 uppercase tracking-wide mb-1">{item.category}</div>
+      <h3 className="text-xl font-bold text-gray-800 mb-2">{item.name}</h3>
+      <p className="text-gray-600 text-sm leading-relaxed flex-grow">{item.description}</p>
+    </div>
+  </div>
+);
 
 // --- 2. LOGIN CON PIN ---
 export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
@@ -93,54 +57,39 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
   );
 };
 
-// --- 3. VISTA DE CREDENCIAL QR (VERSIÓN DEFINITIVA GOOGLE) ---
+// --- 3. VISTA DE CREDENCIAL QR ---
 export const CredentialPrintView = ({ member, appName }) => {
-  // Validación de seguridad
-  if (!member) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64 text-red-500 bg-white">
-        <AlertTriangle size={48} />
-        <p className="font-bold mt-2">Error: No se seleccionó empleado.</p>
-        <p className="text-sm">Vuelve atrás e intenta de nuevo.</p>
-      </div>
-    );
-  }
+  if (!member) return <div className="text-center p-10 text-red-500 font-bold">Error: No se seleccionó empleado.</div>;
 
-  // ID seguro para el QR
-  const safeId = member.id || member.name || "error-no-id";
+  // El ID que se guardará en el QR
+  const safeId = member.id || "ERROR";
   
-  // Usamos Google Charts API: Es la más rápida, estable y no requiere instalación
-  const qrUrl = `https://chart.googleapis.com/chart?chs=300x300&cht=qr&chl=${encodeURIComponent(safeId)}&choe=UTF-8`;
+  // --- USAMOS API GRATUITA (Funciona sin claves y es fiable) ---
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(safeId)}`;
 
   return (
     <div className="bg-white min-h-screen flex flex-col items-center pt-10 animate-in fade-in">
       <div className="w-[300px] border border-gray-300 p-6 bg-white shadow-xl print:shadow-none print:border-none flex flex-col items-center text-center">
         
-        {/* Header Credencial */}
         <div className="mb-6 border-b-2 border-black w-full pb-2">
             <h1 className="font-black text-xl uppercase tracking-wider">{appName || "SISTEMA"}</h1>
             <p className="text-[10px] font-bold uppercase text-gray-500">ACCESO PERSONAL</p>
         </div>
         
-        {/* Imagen QR (Google) */}
         <div className="mb-4 relative flex items-center justify-center w-48 h-48 border-4 border-black p-2 bg-white overflow-hidden rounded-xl">
            <img 
              src={qrUrl} 
-             alt={`QR de ${member.name}`} 
+             alt="Código QR"
              className="w-full h-full object-contain"
-             // Key fuerza a React a recargar la imagen si cambias de empleado
-             key={safeId}
-             loading="eager"
+             onError={(e) => { e.target.style.display='none'; }}
            />
         </div>
         
-        {/* Datos del Empleado */}
-        <h2 className="text-2xl font-black uppercase leading-tight mb-2 break-words w-full">{member.name}</h2>
+        <h2 className="text-2xl font-black uppercase leading-tight mb-2 w-full">{member.name}</h2>
         <div className="bg-black text-white px-6 py-2 rounded-full font-bold uppercase text-sm mb-4 print:border print:border-black print:text-black print:bg-transparent">
             {member.role}
         </div>
         
-        {/* PIN */}
         <div className="no-print bg-yellow-100 text-yellow-800 px-4 py-1 rounded mb-4 text-xs font-mono">
             PIN: <strong>{member.pin}</strong>
         </div>
@@ -149,8 +98,10 @@ export const CredentialPrintView = ({ member, appName }) => {
       </div>
       
       <div className="mt-6 text-gray-400 text-sm no-print flex flex-col items-center gap-2">
-          <p>Vista previa de impresión térmica (80mm)</p>
-          <p className="text-xs text-green-600 flex items-center gap-1"><RefreshCw size={10}/> Generado con Google API</p>
+          <p>Vista previa de impresión</p>
+          <button onClick={() => window.print()} className="bg-blue-600 text-white px-6 py-2 rounded-full font-bold shadow hover:bg-blue-700 transition-colors">
+            🖨️ Imprimir Credencial
+          </button>
       </div>
     </div>
   );
