@@ -65,7 +65,7 @@ export const CredentialPrintView = ({ member, appName }) => {
   const safeId = member.id || "ERROR";
   
   // --- USAMOS API GRATUITA (Funciona sin claves y es fiable) ---
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(safeId)}`;
+  const qrUrl = `https://quickchart.io/qr?text=${encodeURIComponent(safeId)}&size=300&ecLevel=H&margin=1`;
 
   return (
     <div className="bg-white min-h-screen flex flex-col items-center pt-10 animate-in fade-in">
