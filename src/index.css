@@ -1,4 +1,4 @@
-/* src/index.css - VERSIÓN LIMPIA Y SEGURA */
+/* src/index.css - VERSIÓN SEGURA PARA TODAS LAS IMPRESIONES */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap');
 
 body {
@@ -9,11 +9,54 @@ body {
   color: #1f2937;
 }
 
-/* Ocultar barras de scroll pero permitir deslizar */
+/* Ocultar barras de scroll estéticamente */
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
 .hide-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* --- REGLAS DE IMPRESIÓN MAESTRAS --- */
+@media print {
+  /* 1. Por defecto, ocultamos TODO */
+  body * {
+    visibility: hidden;
+  }
+
+  /* 2. Ocultamos elementos de interfaz que estorban */
+  header, footer, nav, .sidebar, .modal-overlay, button, .no-print {
+    display: none !important;
+  }
+
+  /* --- ZONA SEGURA: Aquí definimos qué SÍ se puede ver --- */
+
+  /* CASO A: Credencial de Empleado */
+  #printable-area, #printable-area * {
+    visibility: visible;
+  }
+
+  /* CASO B: Ticket de Venta (Por si se imprime sin popup) */
+  #printable-ticket, #printable-ticket * {
+    visibility: visible;
+  }
+
+  /* CASO C: Reportes Grandes */
+  .printable-report, .printable-report * {
+    visibility: visible;
+  }
+
+  /* 3. Posicionamiento: Poner lo visible en la esquina superior */
+  #printable-area, #printable-ticket, .printable-report {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background: white;
+    border: none;
+    box-shadow: none;
+  }
 }
