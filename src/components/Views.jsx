@@ -1,6 +1,6 @@
-// src/components/Views.jsx - VERSIÓN FINAL BLINDADA (Impresión por Popup)
+// src/components/Views.jsx - VERSIÓN FINAL BLINDADA (Impresión Iframe Invisible)
 import React, { useState } from 'react';
-import { Lock, Delete, ChefHat, Edit2, Trash2, User, Printer } from 'lucide-react';
+import { Lock, Delete, ChefHat, Edit2, Trash2, User, Printer, AlertTriangle } from 'lucide-react';
 
 // --- 1. TARJETA DE MENÚ (Cliente) ---
 export const MenuCard = ({ item }) => (
@@ -50,43 +50,47 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
           <button onClick={handleDelete} className="flex items-center justify-center h-16 w-16 mx-auto rounded-full text-red-400 hover:bg-red-50 hover:text-red-600 transition-all active:scale-95"><Delete size={28} /></button>
         </div>
         <div className="p-6 bg-gray-50 border-t">
-          <button onClick={handleLogin} disabled={pin.length <4} className={`w-full py-4 rounded-xl font-bold text-white shadow-lg transition-all text-lg ${pin.length === 4 ? 'bg-blue-600 hover:bg-blue-700 hover:shadow-blue-200' : 'bg-gray-300 cursor-not-allowed'}`}>INGRESAR AL POS</button>
+          <button onClick={handleLogin} disabled={pin.length < 4} className={`w-full py-4 rounded-xl font-bold text-white shadow-lg transition-all text-lg ${pin.length === 4 ? 'bg-blue-600 hover:bg-blue-700 hover:shadow-blue-200' : 'bg-gray-300 cursor-not-allowed'}`}>INGRESAR AL POS</button>
         </div>
       </div>
     </div>
   );
 };
 
-// --- 3. VISTA DE CREDENCIAL (Con función de impresión segura) ---
+// --- 3. VISTA DE CREDENCIAL (IMPRESIÓN INVISIBLE / NO POPUP) ---
 export const CredentialPrintView = ({ member, appName }) => {
   if (!member) return <div className="text-center p-10 text-red-500 font-bold">Error: Sin datos.</div>;
 
-  // Función mágica que imprime en ventana nueva (Evita pantalla blanca)
-  const handleSafePrint = () => {
-    // 1. Tomamos el contenido visual de la tarjeta
-    const content = document.getElementById('credential-card').innerHTML;
-    
-    // 2. Abrimos ventana
-    const win = window.open('', '', 'width=350,height=500');
-    if (!win) { alert("⚠️ Habilita pop-ups"); return; }
+  // Función de impresión invisible (Nunca falla)
+  const handleIframePrint = () => {
+    // 1. Crear un iframe invisible
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
 
-    // 3. Escribimos el documento limpio
-    win.document.write(`
+    // 2. Escribir el contenido
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(`
       <html>
         <head>
           <title>Credencial - ${member.name}</title>
           <style>
             body { font-family: sans-serif; display: flex; justify-content: center; padding: 20px; }
-            .card { width: 300px; border: 2px solid black; padding: 20px; text-align: center; border-radius: 10px; }
+            .card { width: 300px; border: 2px solid black; padding: 20px; text-align: center; border-radius: 10px; page-break-inside: avoid; }
             .header { border-bottom: 2px solid black; padding-bottom: 10px; margin-bottom: 20px; }
             .title { font-size: 18px; font-weight: 900; text-transform: uppercase; margin: 0; }
             .subtitle { font-size: 10px; font-weight: bold; text-transform: uppercase; color: #555; }
-            .role-badge { background: black; color: white; padding: 5px 15px; border-radius: 20px; display: inline-block; font-weight: bold; font-size: 12px; text-transform: uppercase; margin-bottom: 15px; }
+            .role-badge { background: black; color: white; padding: 5px 15px; border-radius: 20px; display: inline-block; font-weight: bold; font-size: 12px; text-transform: uppercase; margin-bottom: 15px; border: 1px solid black; }
             .name { font-size: 22px; font-weight: 900; text-transform: uppercase; margin-bottom: 10px; line-height: 1.1; }
-            .pin-box { background: #fef08a; padding: 5px; font-family: monospace; font-size: 12px; margin-bottom: 10px; border-radius: 4px; }
-            .id-text { font-size: 10px; color: #888; font-family: monospace; border-top: 1px solid #eee; padding-top: 10px; word-break: break-all; }
-            /* Ocultamos iconos complejos, usamos texto o bordes */
-            .icon-placeholder { width: 100px; height: 100px; border: 4px solid black; border-radius: 50%; margin: 0 auto 20px auto; display: flex; align-items: center; justify-content: center; font-size: 40px; font-weight: bold; background: #f0f0f0; }
+            .pin-box { border: 1px dashed black; padding: 5px; font-family: monospace; font-size: 12px; margin-bottom: 10px; border-radius: 4px; }
+            .id-text { font-size: 10px; color: #555; font-family: monospace; border-top: 1px solid #ccc; padding-top: 10px; word-break: break-all; }
+            .icon-box { width: 80px; height: 80px; border: 3px solid black; border-radius: 50%; margin: 0 auto 15px auto; display: flex; align-items: center; justify-content: center; font-size: 30px; font-weight: bold; background: #eee; }
           </style>
         </head>
         <body>
@@ -96,7 +100,7 @@ export const CredentialPrintView = ({ member, appName }) => {
                 <div class="subtitle">Acceso Personal</div>
              </div>
              
-             <div class="icon-placeholder">
+             <div class="icon-box">
                 ${member.name.charAt(0)}
              </div>
 
@@ -106,20 +110,26 @@ export const CredentialPrintView = ({ member, appName }) => {
              <div class="pin-box">PIN: ${member.pin}</div>
              <div class="id-text">ID: ${member.id}</div>
           </div>
-          <script>
-             window.onload = function() { window.print(); window.close(); }
-          </script>
         </body>
       </html>
     `);
-    win.document.close();
+    doc.close();
+
+    // 3. Imprimir y borrar iframe
+    setTimeout(() => {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+        setTimeout(() => {
+            document.body.removeChild(iframe);
+        }, 1000);
+    }, 500);
   };
 
   return (
     <div className="bg-white min-h-screen flex flex-col items-center pt-10 animate-in fade-in">
       
       {/* TARJETA VISUAL EN PANTALLA */}
-      <div id="credential-card" className="w-[300px] border border-gray-300 p-6 bg-white shadow-xl flex flex-col items-center text-center">
+      <div className="w-[300px] border border-gray-300 p-6 bg-white shadow-xl flex flex-col items-center text-center">
         <div className="mb-6 border-b-2 border-black w-full pb-2">
             <h1 className="font-black text-xl uppercase tracking-wider">{appName || "SISTEMA"}</h1>
             <p className="text-[10px] font-bold uppercase text-gray-500">ACCESO PERSONAL</p>
@@ -141,13 +151,13 @@ export const CredentialPrintView = ({ member, appName }) => {
         <div className="text-[10px] font-mono text-gray-500 mt-2 w-full border-t border-gray-200 pt-2 break-all">ID: {member.id}</div>
       </div>
       
-      {/* Botón de Impresión Segura */}
+      {/* BOTÓN SEGURO */}
       <div className="mt-8">
           <button 
-            onClick={handleSafePrint} 
+            onClick={handleIframePrint} 
             className="flex items-center gap-2 bg-blue-600 text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-blue-700 transition-all hover:scale-105 active:scale-95"
           >
-            <Printer size={20} /> IMPRIMIR CREDENCIAL
+            <Printer size={20} /> IMPRIMIR AHORA
           </button>
       </div>
     </div>
