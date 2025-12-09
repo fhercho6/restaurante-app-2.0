@@ -1,8 +1,10 @@
-// src/components/Receipt.jsx - VERSIÓN AUTO-IMPRESIÓN
-import React, { useEffect } from 'react'; // <--- Importamos useEffect
-import { ChefHat, Printer, ArrowLeft, CheckCircle, ClipboardList, XCircle, Lock } from 'lucide-react';
+// src/components/Receipt.jsx - VERSIÓN AUTO-PRINT (Sin botón azul)
+import React, { useEffect, useState } from 'react';
+import { ChefHat, Printer, ArrowLeft, CheckCircle, ClipboardList, XCircle, Lock, RefreshCw } from 'lucide-react';
 
 const Receipt = ({ data, onClose }) => {
+  const [status, setStatus] = useState('Preparando...');
+
   if (!data) return null;
 
   const isPreCheck = data.type === 'order';
@@ -18,21 +20,25 @@ const Receipt = ({ data, onClose }) => {
   if (isVoid) { borderClass = 'border-red-500'; icon = <XCircle size={32} className="text-red-600"/>; title = 'ANULACIÓN'; bgLabel = 'bg-red-600'; }
   if (isZReport) { borderClass = 'border-gray-800'; icon = <Lock size={32} className="text-gray-800"/>; title = 'CIERRE DE CAJA'; bgLabel = 'bg-gray-800'; }
 
-  // --- FUNCIÓN DE IMPRESIÓN (Popup) ---
-  const handlePrintPopup = () => {
+  const handleAutoPrint = () => {
+    setStatus('Imprimiendo...');
+    
+    // 1. Obtener HTML
     const ticketContent = document.getElementById('printable-ticket');
     if (!ticketContent) return;
 
+    // 2. Crear Popup
     const win = window.open('', '', 'width=340,height=600');
     if (!win) {
-        alert("⚠️ Habilita los pop-ups para imprimir automático");
+        setStatus('⚠️ Pop-up bloqueado. Habilítalo.');
         return;
     }
 
+    // 3. Escribir Ticket
     win.document.write(`
       <html>
         <head>
-          <title>Imprimiendo...</title>
+          <title>Imprimir</title>
           <style>
             body { font-family: monospace; margin: 0; padding: 5px; width: 100%; font-size: 12px; }
             .text-center { text-align: center; }
@@ -53,34 +59,42 @@ const Receipt = ({ data, onClose }) => {
     win.document.close();
     win.focus();
     
-    // Disparo automático
+    // 4. Imprimir y CERRAR AUTOMÁTICAMENTE
     setTimeout(() => {
         win.print();
-        // Opcional: Cerrar ventana automáticamente tras imprimir
-        // win.close(); 
-    }, 500);
+        win.close();
+        onClose(); // <--- ESTO CIERRA LA VISTA EN TU APP Y VUELVE AL CAJERO
+    }, 800); // Pequeña espera para asegurar carga
   };
 
-  // --- EFECTO: IMPRIMIR AUTOMÁTICAMENTE AL CARGAR ---
+  // Disparar al cargar
   useEffect(() => {
-      handlePrintPopup();
-  }, []); // Se ejecuta una vez al montar el componente
+      handleAutoPrint();
+  }, []);
 
   return (
     <div className="flex flex-col items-center min-h-screen bg-gray-100 p-4 animate-in zoom-in duration-300">
       
-      <div className="flex gap-4 mb-6 sticky top-4 z-50">
-        <button onClick={onClose} className="flex items-center gap-2 px-6 py-3 bg-gray-600 text-white rounded-full shadow-lg font-bold">
-          <ArrowLeft size={20}/> {isZReport ? 'Finalizar' : 'Volver'}
-        </button>
-        {/* El botón manual sigue existiendo por si falla el automático */}
-        <button onClick={handlePrintPopup} className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-full shadow-lg font-bold">
-          <Printer size={20}/> RE-IMPRIMIR
-        </button>
+      {/* MENSAJE DE ESTADO (Reemplaza al botón azul) */}
+      <div className="flex flex-col items-center gap-4 mb-6 sticky top-4 z-50 bg-white/90 p-4 rounded-xl shadow-lg backdrop-blur-sm border border-gray-200">
+        <div className="flex items-center gap-3 text-gray-800 font-bold animate-pulse">
+           <Printer size={24} className="text-blue-600"/>
+           {status}
+        </div>
+        
+        {/* Botón pequeño por si falla el automático */}
+        <div className="flex gap-2">
+            <button onClick={handleAutoPrint} className="text-xs text-blue-600 underline">Reintentar</button>
+            <span className="text-gray-300">|</span>
+            <button onClick={onClose} className="text-xs text-gray-500 hover:text-gray-800">Cerrar ventana</button>
+        </div>
       </div>
 
-      {/* --- TICKET (Oculto visualmente en el centro, lo importante es el Popup) --- */}
-      <div id="printable-ticket" className={`bg-white p-4 shadow-2xl w-[300px] text-gray-900 font-mono text-sm leading-tight relative border-t-8 ${borderClass}`}>
+      {/* --- TICKET (Visible pero en segundo plano visual) --- */}
+      <div id="printable-ticket" className={`bg-white p-4 shadow-2xl w-[300px] text-gray-900 font-mono text-sm leading-tight relative border-t-8 ${borderClass} opacity-50`}>
+        {/* ... (El contenido del ticket es IDÉNTICO al anterior, no cambia) ... */}
+        {/* ... COPIA EL MISMO CONTENIDO DEL TICKET DE LA RESPUESTA ANTERIOR ... */}
+        {/* Para ahorrar espacio aquí, asumo que mantienes el interior del ticket igual */}
         <div className="text-center border-b pb-4 mb-3">
           <div className="flex justify-center mb-2">{icon}</div>
           <h2 className="text-xl font-black uppercase tracking-widest mb-1">{data.businessName || 'RESTAURANTE'}</h2>
@@ -148,7 +162,6 @@ const Receipt = ({ data, onClose }) => {
             </>
         )}
       </div>
-      <p className="no-print mt-4 text-gray-400 text-xs text-center">Vista previa</p>
     </div>
   );
 };
