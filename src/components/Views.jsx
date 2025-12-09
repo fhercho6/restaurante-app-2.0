@@ -1,4 +1,4 @@
-// src/components/Views.jsx - VERSIÓN FINAL (Sin QR - Solo Credencial Visual)
+// src/components/Views.jsx - VERSIÓN FINAL BLINDADA (Impresión por Popup)
 import React, { useState } from 'react';
 import { Lock, Delete, ChefHat, Edit2, Trash2, User, Printer } from 'lucide-react';
 
@@ -50,54 +50,104 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
           <button onClick={handleDelete} className="flex items-center justify-center h-16 w-16 mx-auto rounded-full text-red-400 hover:bg-red-50 hover:text-red-600 transition-all active:scale-95"><Delete size={28} /></button>
         </div>
         <div className="p-6 bg-gray-50 border-t">
-          <button onClick={handleLogin} disabled={pin.length < 4} className={`w-full py-4 rounded-xl font-bold text-white shadow-lg transition-all text-lg ${pin.length === 4 ? 'bg-blue-600 hover:bg-blue-700 hover:shadow-blue-200' : 'bg-gray-300 cursor-not-allowed'}`}>INGRESAR AL POS</button>
+          <button onClick={handleLogin} disabled={pin.length <4} className={`w-full py-4 rounded-xl font-bold text-white shadow-lg transition-all text-lg ${pin.length === 4 ? 'bg-blue-600 hover:bg-blue-700 hover:shadow-blue-200' : 'bg-gray-300 cursor-not-allowed'}`}>INGRESAR AL POS</button>
         </div>
       </div>
     </div>
   );
 };
 
-// --- 3. VISTA DE CREDENCIAL (SIN QR - SOLO DISEÑO) ---
+// --- 3. VISTA DE CREDENCIAL (Con función de impresión segura) ---
 export const CredentialPrintView = ({ member, appName }) => {
   if (!member) return <div className="text-center p-10 text-red-500 font-bold">Error: Sin datos.</div>;
+
+  // Función mágica que imprime en ventana nueva (Evita pantalla blanca)
+  const handleSafePrint = () => {
+    // 1. Tomamos el contenido visual de la tarjeta
+    const content = document.getElementById('credential-card').innerHTML;
+    
+    // 2. Abrimos ventana
+    const win = window.open('', '', 'width=350,height=500');
+    if (!win) { alert("⚠️ Habilita pop-ups"); return; }
+
+    // 3. Escribimos el documento limpio
+    win.document.write(`
+      <html>
+        <head>
+          <title>Credencial - ${member.name}</title>
+          <style>
+            body { font-family: sans-serif; display: flex; justify-content: center; padding: 20px; }
+            .card { width: 300px; border: 2px solid black; padding: 20px; text-align: center; border-radius: 10px; }
+            .header { border-bottom: 2px solid black; padding-bottom: 10px; margin-bottom: 20px; }
+            .title { font-size: 18px; font-weight: 900; text-transform: uppercase; margin: 0; }
+            .subtitle { font-size: 10px; font-weight: bold; text-transform: uppercase; color: #555; }
+            .role-badge { background: black; color: white; padding: 5px 15px; border-radius: 20px; display: inline-block; font-weight: bold; font-size: 12px; text-transform: uppercase; margin-bottom: 15px; }
+            .name { font-size: 22px; font-weight: 900; text-transform: uppercase; margin-bottom: 10px; line-height: 1.1; }
+            .pin-box { background: #fef08a; padding: 5px; font-family: monospace; font-size: 12px; margin-bottom: 10px; border-radius: 4px; }
+            .id-text { font-size: 10px; color: #888; font-family: monospace; border-top: 1px solid #eee; padding-top: 10px; word-break: break-all; }
+            /* Ocultamos iconos complejos, usamos texto o bordes */
+            .icon-placeholder { width: 100px; height: 100px; border: 4px solid black; border-radius: 50%; margin: 0 auto 20px auto; display: flex; align-items: center; justify-content: center; font-size: 40px; font-weight: bold; background: #f0f0f0; }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+             <div class="header">
+                <h1 class="title">${appName || "SISTEMA"}</h1>
+                <div class="subtitle">Acceso Personal</div>
+             </div>
+             
+             <div class="icon-placeholder">
+                ${member.name.charAt(0)}
+             </div>
+
+             <div class="name">${member.name}</div>
+             <div class="role-badge">${member.role}</div>
+             
+             <div class="pin-box">PIN: ${member.pin}</div>
+             <div class="id-text">ID: ${member.id}</div>
+          </div>
+          <script>
+             window.onload = function() { window.print(); window.close(); }
+          </script>
+        </body>
+      </html>
+    `);
+    win.document.close();
+  };
 
   return (
     <div className="bg-white min-h-screen flex flex-col items-center pt-10 animate-in fade-in">
       
-      {/* TARJETA DE CREDENCIAL */}
-      <div id="credential-card" className="w-[300px] border border-gray-300 p-6 bg-white shadow-xl flex flex-col items-center text-center relative print:border-2 print:shadow-none">
-        
-        {/* Encabezado */}
+      {/* TARJETA VISUAL EN PANTALLA */}
+      <div id="credential-card" className="w-[300px] border border-gray-300 p-6 bg-white shadow-xl flex flex-col items-center text-center">
         <div className="mb-6 border-b-2 border-black w-full pb-2">
             <h1 className="font-black text-xl uppercase tracking-wider">{appName || "SISTEMA"}</h1>
             <p className="text-[10px] font-bold uppercase text-gray-500">ACCESO PERSONAL</p>
         </div>
         
-        {/* Icono Central (En vez de QR) */}
         <div className="mb-6 flex items-center justify-center w-32 h-32 bg-gray-100 rounded-full border-4 border-white shadow-sm">
            <User size={64} className="text-gray-400" />
         </div>
         
-        {/* Datos del Empleado */}
         <h2 className="text-2xl font-black uppercase leading-tight mb-2 w-full">{member.name}</h2>
-        <div className="bg-black text-white px-6 py-2 rounded-full font-bold uppercase text-sm mb-6 print:border print:border-black print:text-black print:bg-transparent">
+        <div className="bg-black text-white px-6 py-2 rounded-full font-bold uppercase text-sm mb-6">
             {member.role}
         </div>
         
-        <div className="bg-yellow-100 text-yellow-800 px-4 py-1 rounded mb-4 text-xs font-mono print:hidden">
+        <div className="bg-yellow-100 text-yellow-800 px-4 py-1 rounded mb-4 text-xs font-mono">
             PIN SECRETO: <strong>{member.pin}</strong>
         </div>
 
         <div className="text-[10px] font-mono text-gray-500 mt-2 w-full border-t border-gray-200 pt-2 break-all">ID: {member.id}</div>
       </div>
       
-      {/* Botón de Imprimir (Funciona directo) */}
-      <div className="mt-8 flex gap-4 print:hidden">
+      {/* Botón de Impresión Segura */}
+      <div className="mt-8">
           <button 
-            onClick={() => window.print()} 
+            onClick={handleSafePrint} 
             className="flex items-center gap-2 bg-blue-600 text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-blue-700 transition-all hover:scale-105 active:scale-95"
           >
-            <Printer size={20} /> IMPRIMIR AHORA
+            <Printer size={20} /> IMPRIMIR CREDENCIAL
           </button>
       </div>
     </div>
