@@ -97,7 +97,7 @@ const Receipt = ({ data, onClose }) => {
         {/* Para ahorrar espacio aquí, asumo que mantienes el interior del ticket igual */}
         <div className="text-center border-b pb-4 mb-3">
           <div className="flex justify-center mb-2">{icon}</div>
-          <h2 className="text-xl font-black uppercase tracking-widest mb-1">{data.businessName || 'RESTAURANTE'}</h2>
+          <h2 className="text-xl font-black uppercase tracking-widest mb-1">{data.businessName || 'LICOBAR'}</h2>
           <div className={`text-xs font-bold text-white px-2 py-1 inline-block rounded uppercase ${bgLabel}`}>{title}</div>
           <p className="text-[10px] text-gray-500 mt-2">{data.date}</p>
         </div>
