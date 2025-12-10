@@ -216,70 +216,65 @@ export const ProductModal = ({ isOpen, onClose, onSave, item, categories }) => {
     }
   };
 
+  // AGREGAR ESTO AL FINAL DE src/components/Modals.jsx
+
+export const ServiceStartModal = ({ isOpen, onClose, services, onStart }) => {
+  const [selectedService, setSelectedService] = useState(null);
+  const [note, setNote] = useState('');
+
   if (!isOpen) return null;
 
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!selectedService) return;
+    onStart(selectedService, note);
+    setNote('');
+    setSelectedService(null);
+  };
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-        <div className="p-6 border-b flex justify-between items-center">
-            <h2 className="text-2xl font-bold">{item ? 'Editar' : 'Nuevo'} Producto</h2>
-            <button onClick={onClose}><X size={24} /></button>
-        </div>
-        
-        <div className="p-6 overflow-y-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <div><label className="block text-sm font-medium mb-1">Nombre</label><input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full p-2 border rounded-lg outline-none focus:ring-2 focus:ring-orange-500"/></div>
-              <div><label className="block text-sm font-medium mb-1">Categoría</label><select name="category" value={formData.category} onChange={handleChange} className="w-full p-2 border rounded-lg outline-none focus:ring-2 focus:ring-orange-500">{categories.map((cat, idx) => (<option key={idx} value={cat}>{cat}</option>))}</select></div>
-              <div><label className="block text-sm font-medium mb-1">Descripción</label><textarea name="description" value={formData.description} onChange={handleChange} rows="3" className="w-full p-2 border rounded-lg outline-none" placeholder="Ingredientes..."></textarea></div>
-            </div>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                    <label className="block text-sm font-medium mb-1">Costo (Bs.)</label>
-                    <input 
-                        type="number" 
-                        name="cost" 
-                        value={formData.cost} 
-                        onChange={handleChange} 
-                        onKeyDown={preventComma} // <--- AQUÍ BLOQUEAMOS LA COMA
-                        className="w-full p-2 border rounded-lg outline-none" 
-                        placeholder="0.00" 
-                        step="0.10"
-                    />
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-in fade-in">
+      <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl">
+        <h2 className="text-xl font-black text-gray-800 mb-4 flex items-center gap-2">
+          ⏱️ Iniciar Servicio
+        </h2>
+        <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Servicio (Precio por Hora)</label>
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {services.map(srv => (
+                <div 
+                  key={srv.id} 
+                  onClick={() => setSelectedService(srv)}
+                  className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${selectedService?.id === srv.id ? 'border-blue-600 bg-blue-50' : 'border-gray-100 hover:border-blue-300'}`}
+                >
+                  <div className="flex justify-between font-bold text-gray-800">
+                    <span>{srv.name}</span>
+                    <span>Bs. {Number(srv.price).toFixed(2)} / hr</span>
+                  </div>
                 </div>
-                <div>
-                    <label className="block text-sm font-medium mb-1">Precio (Bs.)</label>
-                    <input 
-                        type="number" 
-                        name="price" 
-                        value={formData.price} 
-                        onChange={handleChange} 
-                        onKeyDown={preventComma} // <--- AQUÍ TAMBIÉN
-                        className="w-full p-2 border rounded-lg outline-none" 
-                        placeholder="0.00" 
-                        step="0.50"
-                    />
-                </div>
-              </div>
-              <div><label className="block text-sm font-medium mb-1 text-blue-600">Stock (Opcional)</label><input type="number" name="stock" value={formData.stock} onChange={handleChange} className="w-full p-2 border border-blue-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" placeholder="Cantidad disponible..."/></div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Imagen</label>
-                <div onClick={() => !isSaving && fileInputRef.current.click()} className={`h-24 w-full border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer relative overflow-hidden ${isSaving ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}>
-                  {isProcessingImg ? <RefreshCw className="animate-spin text-orange-500"/> : formData.image ? <img src={formData.image} alt="Preview" className="w-full h-full object-cover"/> : <Upload className="text-gray-400"/>}
-                  <input type="file" ref={fileInputRef} onChange={handleImageUpload} className="hidden" accept="image/*" disabled={isSaving}/>
-                </div>
-              </div>
+              ))}
+              {services.length === 0 && <p className="text-sm text-gray-400">No hay servicios configurados. Crea productos en la categoría "Servicios".</p>}
             </div>
           </div>
-        </div>
-        
-        <div className="p-6 border-t bg-gray-50 flex justify-end gap-3">
-            <button onClick={onClose} disabled={isSaving} className="px-6 py-2 rounded-lg text-gray-600 font-medium disabled:opacity-50">Cancelar</button>
-            <button onClick={handleSubmit} disabled={isProcessingImg || isSaving} className="px-6 py-2 rounded-lg bg-orange-600 text-white font-medium shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2">
-                {isSaving ? <><RefreshCw size={18} className="animate-spin"/> Guardando...</> : (isProcessingImg ? 'Procesando img...' : 'Guardar')}
-            </button>
-        </div>
+          
+          <div className="mb-6">
+            <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Referencia (Ej. Mesa 1)</label>
+            <input 
+              type="text" 
+              required 
+              className="w-full p-3 border rounded-xl font-bold text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none"
+              placeholder="Identificador..."
+              value={note}
+              onChange={e => setNote(e.target.value)}
+            />
+          </div>
+
+          <div className="flex gap-3">
+            <button type="button" onClick={onClose} className="flex-1 py-3 bg-gray-100 text-gray-600 font-bold rounded-xl">Cancelar</button>
+            <button type="submit" disabled={!selectedService} className={`flex-1 py-3 text-white font-bold rounded-xl shadow-lg ${selectedService ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-300'}`}>INICIAR</button>
+          </div>
+        </form>
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-// src/App.jsx - VERSIÓN FINAL (Con Seguridad de Sesión Única)
+// src/App.jsx - VERSIÓN FINAL (Con Lógica de Servicios por Hora)
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
@@ -19,12 +19,12 @@ import CashierView from './components/CashierView';
 import OpenRegisterModal from './components/OpenRegisterModal';
 import RegisterControlView from './components/RegisterControlView';
 
-import { AuthModal, BrandingModal, ProductModal, CategoryManager, RoleManager } from './components/Modals';
+import { AuthModal, BrandingModal, ProductModal, CategoryManager, RoleManager, ServiceStartModal } from './components/Modals';
 import { MenuCard, PinLoginView, CredentialPrintView, PrintableView, AdminRow } from './components/Views';
 
 const LOGO_URL_FIJO = ""; 
 
-const INITIAL_CATEGORIES = []; 
+const INITIAL_CATEGORIES = ['Bebidas', 'Comidas', 'Servicios']; 
 const INITIAL_ROLES = ['Garzón', 'Cajero', 'Cocinero', 'Administrador'];
 
 export default function App() {
@@ -55,6 +55,7 @@ export default function App() {
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isBrandingModalOpen, setIsBrandingModalOpen] = useState(false);
+  const [isServiceModalOpen, setIsServiceModalOpen] = useState(false); // <--- NUEVO
   
   // Estados Operativos
   const [currentItem, setCurrentItem] = useState(null);
@@ -68,7 +69,6 @@ export default function App() {
   const [orderToPay, setOrderToPay] = useState(null); 
   const [lastSale, setLastSale] = useState(null);
 
-  // --- HELPER PARA COLECCIONES (Movido arriba para que esté disponible siempre) ---
   const getCollName = (type) => {
     if (type === 'items') return isPersonalProject ? 'menuItems' : `${ROOT_COLLECTION}menuItems`;
     if (type === 'staff') return isPersonalProject ? 'staffMembers' : `${ROOT_COLLECTION}staffMembers`;
@@ -93,22 +93,12 @@ export default function App() {
   
   const handlePrint = () => window.print();
 
-  // --- LOGIN DE PERSONAL CON SEGURIDAD DE SESIÓN ÚNICA ---
   const handleStaffPinLogin = async (member) => { 
-    // 1. Generar un ID de sesión único para este login específico
     const newSessionId = Date.now().toString() + Math.floor(Math.random() * 1000);
-    
     try {
-        // 2. Guardar este ID en la base de datos (Esto invalidará cualquier sesión anterior)
-        await updateDoc(doc(db, getCollName('staff'), member.id), {
-            activeSessionId: newSessionId
-        });
-
-        // 3. Guardar el estado local con este ID
+        await updateDoc(doc(db, getCollName('staff'), member.id), { activeSessionId: newSessionId });
         const memberWithSession = { ...member, activeSessionId: newSessionId };
         setStaffMember(memberWithSession); 
-
-        // 4. Redirigir
         if (member.role === 'Cajero' || member.role === 'Administrador') {
             setView('cashier'); 
             toast.success(`Caja abierta: ${member.name}`);
@@ -116,37 +106,18 @@ export default function App() {
             setView('pos'); 
             toast.success(`Turno iniciado: ${member.name}`); 
         }
-    } catch (error) {
-        console.error("Error al iniciar sesión:", error);
-        toast.error("Error de conexión. Intente de nuevo.");
-    }
+    } catch (error) { toast.error("Error de conexión"); }
   };
 
-  // --- VIGILANTE DE SESIÓN (Kick-out automático) ---
   useEffect(() => {
-    // Si no hay nadie logueado, no hacemos nada
     if (!staffMember || !staff.length) return;
-
-    // Buscamos la versión más reciente de este usuario en la lista "staff" (que se actualiza en tiempo real desde Firebase)
     const remoteMember = staff.find(m => m.id === staffMember.id);
-
-    if (remoteMember) {
-        // Verificamos: ¿El ID de sesión en la nube es distinto al que tengo yo en local?
-        // Si es distinto, significa que alguien más inició sesión con mi usuario en otro lado.
-        if (remoteMember.activeSessionId && remoteMember.activeSessionId !== staffMember.activeSessionId) {
-            
-            // Me auto-expulso
-            setStaffMember(null);
-            setView('pin_login'); // Regresar a la pantalla de PIN
-            
-            // Aviso sonoro/visual
-            toast.error(
-                `⚠️ SESIÓN CERRADA\nSe detectó un acceso en otro dispositivo.`, 
-                { duration: 6000, icon: '🚫' }
-            );
-        }
+    if (remoteMember && remoteMember.activeSessionId && remoteMember.activeSessionId !== staffMember.activeSessionId) {
+        setStaffMember(null);
+        setView('pin_login'); 
+        toast.error(`⚠️ SESIÓN CERRADA\nSe detectó un acceso en otro dispositivo.`, { duration: 6000, icon: '🚫' });
     }
-  }, [staff, staffMember]); // Se ejecuta cada vez que Firebase actualiza la lista de personal
+  }, [staff, staffMember]);
 
   const checkRegisterStatus = (requireOwnership = false) => {
     if (registerSession) {
@@ -182,6 +153,56 @@ export default function App() {
       } catch (error) { toast.error("Error al abrir caja"); }
   };
 
+  // --- LÓGICA DE SERVICIOS POR HORA ---
+  const handleStartService = async (service, note) => {
+      if (!checkRegisterStatus(false)) return;
+      try {
+          const serviceData = {
+              serviceName: service.name,
+              pricePerHour: service.price,
+              startTime: new Date().toISOString(),
+              note: note,
+              staffName: staffMember ? staffMember.name : 'Admin',
+              registerId: registerSession.id
+          };
+          const colName = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`;
+          await addDoc(collection(db, colName), serviceData);
+          setIsServiceModalOpen(false);
+          toast.success("⏱️ Servicio iniciado");
+      } catch (e) { toast.error("Error al iniciar servicio"); }
+  };
+
+  const handleStopService = async (service, cost, timeLabel) => {
+      if (!checkRegisterStatus(true)) return;
+      if (!window.confirm(`¿Detener ${service.serviceName}?\nCosto: Bs. ${cost.toFixed(2)}`)) return;
+      
+      try {
+          // 1. Borrar de servicios activos
+          const srvCol = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`;
+          await deleteDoc(doc(db, srvCol, service.id));
+
+          // 2. Crear comanda pendiente lista para cobrar
+          const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
+          const orderData = {
+              date: new Date().toISOString(),
+              staffId: staffMember ? staffMember.id : 'anon',
+              staffName: service.staffName || 'Sistema',
+              orderId: 'SRV-' + Math.floor(Math.random() * 1000),
+              items: [{
+                  id: 'srv-' + Date.now(),
+                  name: `${service.serviceName} (${timeLabel})`,
+                  price: cost,
+                  qty: 1,
+                  category: 'Servicios'
+              }],
+              total: cost,
+              status: 'pending'
+          };
+          await addDoc(collection(db, ordersCol), orderData);
+          toast.success("Servicio finalizado. Comanda creada.");
+      } catch (e) { toast.error("Error al detener servicio"); }
+  };
+
   const handleAddExpense = async (description, amount) => {
     if (!registerSession) return;
     try {
@@ -210,7 +231,6 @@ export default function App() {
   const handleCloseRegister = () => {
       if (!registerSession) return;
       const cashFinal = registerSession.openingAmount + sessionStats.cashSales - sessionStats.totalExpenses;
-      
       toast((t) => (
         <div className="flex flex-col gap-3 min-w-[240px]">
           <div className="border-b pb-3">
@@ -603,11 +623,13 @@ export default function App() {
 
                 {view === 'report' && <div className="animate-in fade-in"><SalesDashboard onReprintZ={handleReprintZReport} /><div className="hidden print:block mt-8"><PrintableView items={items} /></div></div>}
                 
+                {/* --- VISTA DE CAJA CON CONTROL DE SERVICIOS --- */}
                 {view === 'cashier' && (
                     <CashierView 
                         onProcessPayment={handleStartPaymentFromCashier} 
                         onVoidOrder={handleVoidAndPrint}
                         onReprintOrder={handleReprintOrder}
+                        onStopService={handleStopService} // <--- NUEVO HANDLER
                     />
                 )}
                 
@@ -646,7 +668,20 @@ export default function App() {
             )}
 
             {view === 'pin_login' && <PinLoginView staffMembers={staff} onLoginSuccess={handleStaffPinLogin} onCancel={() => setView('landing')} />}
-            {view === 'pos' && <POSInterface items={items} categories={categories} staffMember={staffMember} onCheckout={handlePOSCheckout} onPrintOrder={handleSendToKitchen} onExit={() => setView('landing')} />}
+            
+            {/* --- POS CON BOTÓN DE SERVICIOS --- */}
+            {view === 'pos' && (
+                <POSInterface 
+                    items={items} 
+                    categories={categories} 
+                    staffMember={staffMember} 
+                    onCheckout={handlePOSCheckout} 
+                    onPrintOrder={handleSendToKitchen} 
+                    onExit={() => setView('landing')}
+                    onOpenServiceModal={() => setIsServiceModalOpen(true)} // <--- NUEVO
+                />
+            )}
+
             {view === 'receipt_view' && <Receipt data={lastSale} onPrint={handlePrint} onClose={handleReceiptClose} />}
             
             {view === 'menu' && (
@@ -700,6 +735,14 @@ export default function App() {
       <RoleManager isOpen={isRoleModalOpen} onClose={() => setIsRoleModalOpen(false)} roles={roles} onAdd={handleAddRole} onRename={handleRenameRole} onDelete={handleDeleteRole} />
       <BrandingModal isOpen={isBrandingModalOpen} onClose={() => setIsBrandingModalOpen(false)} onSave={handleSaveBranding} currentLogo={logo} currentName={appName} />
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onLogin={handleLogin} />
+      
+      {/* MODAL DE SERVICIOS */}
+      <ServiceStartModal 
+        isOpen={isServiceModalOpen} 
+        onClose={() => setIsServiceModalOpen(false)}
+        services={items.filter(i => i.category === 'Servicios')}
+        onStart={handleStartService}
+      />
     </div>
   );
 }
