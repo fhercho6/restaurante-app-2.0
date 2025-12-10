@@ -1,8 +1,8 @@
-// src/components/CashierView.jsx - VERSIÓN FINAL (Con Opción de Desconectar Personal)
+// src/components/CashierView.jsx - VERSIÓN FINAL (Con Desglose de Tarifas y Precio Hora)
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, query, orderBy, updateDoc, doc } from 'firebase/firestore';
 import { db, isPersonalProject, ROOT_COLLECTION } from '../config/firebase';
-import { ChefHat, DollarSign, Trash2, User, TrendingUp, AlertTriangle, Printer, Clock, StopCircle, Power, UserX } from 'lucide-react';
+import { ChefHat, DollarSign, Trash2, User, AlertTriangle, Printer, Clock, StopCircle, UserX, Info } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const CashierView = ({ onProcessPayment, onVoidOrder, onReprintOrder, onStopService }) => {
@@ -33,23 +33,14 @@ const CashierView = ({ onProcessPayment, onVoidOrder, onReprintOrder, onStopServ
     return () => { unsubOrders(); unsubStaff(); unsubServices(); clearInterval(timer); };
   }, []);
 
-  // --- NUEVA FUNCIÓN: DESCONECTAR PERSONAL ---
   const handleKickStaff = async (member) => {
-      if (!member.activeSessionId) return; // Si ya está offline, no hace nada
-      
-      if (!window.confirm(`¿Desconectar a ${member.name}?\nEsto cerrará su sesión en el dispositivo que esté usando.`)) return;
-
+      if (!member.activeSessionId) return;
+      if (!window.confirm(`¿Desconectar a ${member.name}?`)) return;
       try {
           const staffColName = isPersonalProject ? 'staffMembers' : `${ROOT_COLLECTION}staffMembers`;
-          // Borramos el ID de sesión en la base de datos
-          await updateDoc(doc(db, staffColName, member.id), {
-              activeSessionId: null
-          });
+          await updateDoc(doc(db, staffColName, member.id), { activeSessionId: null });
           toast.success(`${member.name} desconectado.`);
-      } catch (error) {
-          console.error(error);
-          toast.error("Error al desconectar.");
-      }
+      } catch (error) { toast.error("Error al desconectar."); }
   };
 
   const calculateServiceCost = (service) => {
@@ -57,11 +48,21 @@ const CashierView = ({ onProcessPayment, onVoidOrder, onReprintOrder, onStopServ
     const now = currentTime;
     const diffMs = now - start;
     const diffHours = diffMs / (1000 * 60 * 60);
-    const cost = diffHours * parseFloat(service.pricePerHour);
+    const pricePerHour = parseFloat(service.pricePerHour);
+    
+    // Cálculo exacto del costo
+    const cost = diffHours * pricePerHour;
+    
     const minutes = Math.floor(diffMs / 60000);
     const hours = Math.floor(minutes / 60);
     const minsLeft = minutes % 60;
-    return { cost, label: `${hours}h ${minsLeft}m` };
+    
+    const startTimeFormatted = new Date(service.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    
+    // Referencia de media hora (ayuda visual)
+    const halfHourPrice = pricePerHour / 2;
+
+    return { cost, label: `${hours}h ${minsLeft}m`, startTimeFormatted, pricePerHour, halfHourPrice };
   };
 
   const handleVoidClick = (order) => {
@@ -76,13 +77,6 @@ const CashierView = ({ onProcessPayment, onVoidOrder, onReprintOrder, onStopServ
     ), { duration: 5000 });
   };
 
-  const getWaiterStats = () => {
-    const stats = {};
-    orders.forEach(o => { const n = o.staffName || 'Sin Asignar'; if (!stats[n]) stats[n] = { count: 0, total: 0 }; stats[n].count++; stats[n].total += Number(o.total); });
-    return Object.entries(stats);
-  };
-  const waiterStats = getWaiterStats();
-
   if (loading) return <div className="p-10 text-center animate-pulse text-gray-400">Cargando caja...</div>;
 
   return (
@@ -90,7 +84,6 @@ const CashierView = ({ onProcessPayment, onVoidOrder, onReprintOrder, onStopServ
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <div><h2 className="text-2xl font-bold text-gray-800">Caja Principal</h2><p className="text-gray-500 text-sm">Control de mesas y servicios</p></div>
         
-        {/* --- MONITOR DE PERSONAL INTERACTIVO --- */}
         <div className="flex gap-2 overflow-x-auto max-w-full pb-2 md:pb-0 hide-scrollbar">
             {staffList.map(member => {
                 const isOnline = member.activeSessionId && member.activeSessionId.length > 5;
@@ -103,19 +96,9 @@ const CashierView = ({ onProcessPayment, onVoidOrder, onReprintOrder, onStopServ
                         title={isOnline ? "Clic para desconectar" : "Desconectado"}
                     >
                         <div className="relative">
-                            {/* Si haces hover, el punto verde se convierte en icono de apagado */}
-                            {isOnline ? (
-                                <>
-                                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse group-hover:hidden"></div>
-                                    <UserX size={12} className="text-red-500 hidden group-hover:block" />
-                                </>
-                            ) : (
-                                <div className="w-2 h-2 rounded-full bg-gray-300"></div>
-                            )}
+                            {isOnline ? (<><div className="w-2 h-2 rounded-full bg-green-500 animate-pulse group-hover:hidden"></div><UserX size={12} className="text-red-500 hidden group-hover:block" /></>) : (<div className="w-2 h-2 rounded-full bg-gray-300"></div>)}
                         </div>
-                        <span className={`text-xs font-bold ${isOnline ? 'text-gray-800 group-hover:text-red-600' : 'text-gray-400'}`}>
-                            {member.name.split(' ')[0]}
-                        </span>
+                        <span className={`text-xs font-bold ${isOnline ? 'text-gray-800 group-hover:text-red-600' : 'text-gray-400'}`}>{member.name.split(' ')[0]}</span>
                     </button>
                 );
             })}
@@ -128,14 +111,38 @@ const CashierView = ({ onProcessPayment, onVoidOrder, onReprintOrder, onStopServ
               <h3 className="font-bold text-gray-700 mb-3 flex items-center gap-2"><Clock className="text-purple-600"/> Servicios en Curso</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {activeServices.map(srv => {
-                      const { cost, label } = calculateServiceCost(srv);
+                      const { cost, label, startTimeFormatted, pricePerHour, halfHourPrice } = calculateServiceCost(srv);
+                      // Si el precio es alto (ej: 100), asumimos que es "Sin Consumo" y lo pintamos diferente
+                      const isHighRate = pricePerHour >= 90; 
+
                       return (
-                          <div key={srv.id} className="bg-white border-l-4 border-purple-500 p-4 rounded-r-xl shadow-sm flex justify-between items-center relative overflow-hidden">
-                              <div className="absolute top-0 right-0 p-1 bg-purple-100 rounded-bl-lg text-[10px] font-bold text-purple-700 uppercase tracking-wider">{srv.serviceName}</div>
+                          <div key={srv.id} className={`bg-white border-l-4 p-4 rounded-r-xl shadow-sm flex justify-between items-center relative overflow-hidden ${isHighRate ? 'border-red-500' : 'border-purple-500'}`}>
+                              <div className={`absolute top-0 right-0 p-1 rounded-bl-lg text-[9px] font-bold uppercase tracking-wider ${isHighRate ? 'bg-red-100 text-red-700' : 'bg-purple-100 text-purple-700'}`}>
+                                {isHighRate ? 'TARIFA ALTA' : 'ESTÁNDAR'}
+                              </div>
+                              
                               <div>
-                                  <div className="font-black text-xl text-gray-800">{srv.note}</div>
-                                  <div className="text-xs text-gray-500 mb-1 flex items-center gap-1"><User size={10}/> {srv.staffName}</div>
-                                  <div className="text-sm font-mono font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded inline-block">{label}</div>
+                                  <div className="font-black text-xl text-gray-800 leading-none mb-1">{srv.note}</div>
+                                  
+                                  {/* HORA DE INICIO */}
+                                  <div className="text-xs text-gray-500 font-medium flex items-center gap-1 mb-2">
+                                     <Clock size={12} className="text-gray-400"/> Inicio: {startTimeFormatted}
+                                  </div>
+
+                                  {/* --- DETALLE DE TARIFA (NUEVO) --- */}
+                                  <div className="text-[10px] text-gray-500 bg-gray-50 p-1 rounded mb-2 border border-gray-100">
+                                      <div className="flex items-center gap-1 font-bold">
+                                          <Info size={10}/> Tarifa: Bs. {pricePerHour}/h
+                                      </div>
+                                      <div className="pl-4 text-gray-400">
+                                          (30 min = Bs. {halfHourPrice})
+                                      </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-2">
+                                      <div className="text-xs text-gray-400 flex items-center gap-1 bg-gray-50 px-2 py-0.5 rounded"><User size={10}/> {srv.staffName}</div>
+                                      <div className={`text-sm font-mono font-bold px-2 py-0.5 rounded ${isHighRate ? 'text-red-600 bg-red-50' : 'text-purple-600 bg-purple-50'}`}>{label}</div>
+                                  </div>
                               </div>
                               <div className="text-right">
                                   <div className="text-xl font-black text-gray-900 mb-2">Bs. {cost.toFixed(2)}</div>
