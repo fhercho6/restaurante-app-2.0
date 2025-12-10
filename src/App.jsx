@@ -1,4 +1,4 @@
-// src/App.jsx - VERSIÓN FINAL CORREGIDA (Sin error de sintaxis)
+// src/App.jsx - VERSIÓN FINAL (Con Seguridad de Sesión Única)
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
@@ -68,6 +68,13 @@ export default function App() {
   const [orderToPay, setOrderToPay] = useState(null); 
   const [lastSale, setLastSale] = useState(null);
 
+  // --- HELPER PARA COLECCIONES (Movido arriba para que esté disponible siempre) ---
+  const getCollName = (type) => {
+    if (type === 'items') return isPersonalProject ? 'menuItems' : `${ROOT_COLLECTION}menuItems`;
+    if (type === 'staff') return isPersonalProject ? 'staffMembers' : `${ROOT_COLLECTION}staffMembers`;
+    return isPersonalProject ? 'settings' : `${ROOT_COLLECTION}settings`;
+  };
+
   // --- HANDLERS ---
   const handleLogin = (userApp) => { setIsAuthModalOpen(false); setView('admin'); toast.success(`Bienvenido`); };
   const handleLogout = async () => { await signOut(auth); setView('landing'); toast('Sesión cerrada', { icon: '👋' }); };
@@ -86,16 +93,60 @@ export default function App() {
   
   const handlePrint = () => window.print();
 
-  const handleStaffPinLogin = (member) => { 
-    setStaffMember(member); 
-    if (member.role === 'Cajero' || member.role === 'Administrador') {
-        setView('cashier'); 
-        toast.success(`Caja abierta: ${member.name}`);
-    } else {
-        setView('pos'); 
-        toast.success(`Turno iniciado: ${member.name}`); 
+  // --- LOGIN DE PERSONAL CON SEGURIDAD DE SESIÓN ÚNICA ---
+  const handleStaffPinLogin = async (member) => { 
+    // 1. Generar un ID de sesión único para este login específico
+    const newSessionId = Date.now().toString() + Math.floor(Math.random() * 1000);
+    
+    try {
+        // 2. Guardar este ID en la base de datos (Esto invalidará cualquier sesión anterior)
+        await updateDoc(doc(db, getCollName('staff'), member.id), {
+            activeSessionId: newSessionId
+        });
+
+        // 3. Guardar el estado local con este ID
+        const memberWithSession = { ...member, activeSessionId: newSessionId };
+        setStaffMember(memberWithSession); 
+
+        // 4. Redirigir
+        if (member.role === 'Cajero' || member.role === 'Administrador') {
+            setView('cashier'); 
+            toast.success(`Caja abierta: ${member.name}`);
+        } else {
+            setView('pos'); 
+            toast.success(`Turno iniciado: ${member.name}`); 
+        }
+    } catch (error) {
+        console.error("Error al iniciar sesión:", error);
+        toast.error("Error de conexión. Intente de nuevo.");
     }
   };
+
+  // --- VIGILANTE DE SESIÓN (Kick-out automático) ---
+  useEffect(() => {
+    // Si no hay nadie logueado, no hacemos nada
+    if (!staffMember || !staff.length) return;
+
+    // Buscamos la versión más reciente de este usuario en la lista "staff" (que se actualiza en tiempo real desde Firebase)
+    const remoteMember = staff.find(m => m.id === staffMember.id);
+
+    if (remoteMember) {
+        // Verificamos: ¿El ID de sesión en la nube es distinto al que tengo yo en local?
+        // Si es distinto, significa que alguien más inició sesión con mi usuario en otro lado.
+        if (remoteMember.activeSessionId && remoteMember.activeSessionId !== staffMember.activeSessionId) {
+            
+            // Me auto-expulso
+            setStaffMember(null);
+            setView('pin_login'); // Regresar a la pantalla de PIN
+            
+            // Aviso sonoro/visual
+            toast.error(
+                `⚠️ SESIÓN CERRADA\nSe detectó un acceso en otro dispositivo.`, 
+                { duration: 6000, icon: '🚫' }
+            );
+        }
+    }
+  }, [staff, staffMember]); // Se ejecuta cada vez que Firebase actualiza la lista de personal
 
   const checkRegisterStatus = (requireOwnership = false) => {
     if (registerSession) {
@@ -478,13 +529,6 @@ export default function App() {
     return () => { itemsUnsub(); staffUnsub(); settingsUnsub(); };
   }, [currentUser]);
 
-  const getCollName = (type) => {
-    const base = isPersonalProject ? '' : ROOT_COLLECTION;
-    if (type === 'items') return isPersonalProject ? 'menuItems' : `${ROOT_COLLECTION}menuItems`;
-    if (type === 'staff') return isPersonalProject ? 'staffMembers' : `${ROOT_COLLECTION}staffMembers`;
-    return isPersonalProject ? 'settings' : `${ROOT_COLLECTION}settings`;
-  }
-
   const handleSave = async (d) => { try { if(currentItem) await setDoc(doc(db, getCollName('items'), currentItem.id), d); else await addDoc(collection(db, getCollName('items')), d); toast.success('Guardado'); setIsModalOpen(false); } catch { toast.error('Error'); }};
   const handleDelete = async (id) => { try { await deleteDoc(doc(db, getCollName('items'), id)); toast.success('Eliminado'); } catch { toast.error('Error'); }};
   const handleAddStaff = async (d) => { await addDoc(collection(db, getCollName('staff')), d); toast.success('Personal creado'); };
@@ -569,10 +613,8 @@ export default function App() {
                 
                 {view === 'register_control' && <RegisterControlView session={registerSession} onOpen={handleOpenRegister} onClose={handleCloseRegister} staff={staff} stats={sessionStats} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} />}
                 
-                {/* VISTA DE PERSONAL */}
                 {view === 'staff_admin' && !isCashierOnly && <StaffManagerView staff={staff} roles={roles} onAddStaff={handleAddStaff} onUpdateStaff={handleUpdateStaff} onDeleteStaff={handleDeleteStaff} onManageRoles={() => setIsRoleModalOpen(true)} onPrintCredential={handlePrintCredential} />}
                 
-                {/* VISTA DE CREDENCIALES */}
                 {view === 'credential_print' && credentialToPrint && (
                     <div className="flex flex-col items-center w-full min-h-screen bg-gray-100">
                         <div className="w-full max-w-md p-4 flex justify-start no-print">
