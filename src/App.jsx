@@ -1,4 +1,4 @@
-// src/App.jsx - VERSIÓN FINAL (Conexión Credenciales Arreglada)
+// src/App.jsx - VERSIÓN FINAL (Desglose de Cierre QR/Tarjeta + Impresión Segura)
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
@@ -59,7 +59,7 @@ export default function App() {
   // Estados Operativos
   const [currentItem, setCurrentItem] = useState(null);
   const [filter, setFilter] = useState('Todos');
-  const [credentialToPrint, setCredentialToPrint] = useState(null); // <--- ESTADO CLAVE
+  const [credentialToPrint, setCredentialToPrint] = useState(null);
   const [staffMember, setStaffMember] = useState(null);
   
   // Pagos
@@ -75,16 +75,15 @@ export default function App() {
   const handleEnterStaff = () => setView('pin_login');
   const handleEnterAdmin = () => { if (currentUser && !currentUser.isAnonymous) setView('admin'); else setIsAuthModalOpen(true); };
   
-  // --- FUNCIÓN DE IMPRESIÓN DE CREDENCIAL ARREGLADA ---
   const handlePrintCredential = (member) => { 
     if (!member) {
-        toast.error("Error: Datos inválidos");
+        toast.error("Error: Empleado no válido");
         return;
     }
-    setCredentialToPrint(member); // 1. Guardamos el dato
-    setView('credential_print');  // 2. Cambiamos la vista
+    setCredentialToPrint(member); 
+    setView('credential_print'); 
   };
-
+  
   const handlePrint = () => window.print();
 
   const handleStaffPinLogin = (member) => { 
@@ -157,15 +156,39 @@ export default function App() {
       } catch (e) { toast.error("Error"); }
   };
 
+  // --- FUNCIÓN DE CIERRE MEJORADA (MUESTRA QR Y TARJETA SEPARADOS) ---
   const handleCloseRegister = () => {
       if (!registerSession) return;
       const cashFinal = registerSession.openingAmount + sessionStats.cashSales - sessionStats.totalExpenses;
+      
       toast((t) => (
-        <div className="flex flex-col gap-3 min-w-[200px]">
-          <div className="border-b pb-2"><p className="font-bold text-gray-800">¿Cerrar Caja?</p><p className="text-xs text-gray-500">Efectivo esperado:</p><p className="text-xl font-black text-green-600">Bs. {cashFinal.toFixed(2)}</p></div>
-          <div className="flex gap-2"><button onClick={() => { confirmCloseRegister(cashFinal); toast.dismiss(t.id); }} className="bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm flex-1">SÍ, CERRAR</button><button onClick={() => toast.dismiss(t.id)} className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg text-xs font-bold flex-1">CANCELAR</button></div>
+        <div className="flex flex-col gap-3 min-w-[240px]">
+          <div className="border-b pb-3">
+             <p className="font-bold text-gray-800 text-lg mb-2">Resumen de Cierre</p>
+             
+             {/* --- AQUÍ ESTÁ EL DESGLOSE --- */}
+             <div className="bg-gray-50 p-2 rounded mb-3 grid grid-cols-2 gap-2 text-xs">
+                 <div className="bg-white p-2 rounded border border-gray-100">
+                    <span className="text-gray-500 block uppercase text-[10px]">Total QR</span>
+                    <span className="font-bold text-blue-600 text-sm">Bs. {sessionStats.qrSales.toFixed(2)}</span>
+                 </div>
+                 <div className="bg-white p-2 rounded border border-gray-100">
+                    <span className="text-gray-500 block uppercase text-[10px]">Total Tarjeta</span>
+                    <span className="font-bold text-purple-600 text-sm">Bs. {sessionStats.cardSales.toFixed(2)}</span>
+                 </div>
+             </div>
+
+             <div className="px-2">
+                <p className="text-xs text-gray-500 uppercase font-bold">Efectivo en Caja:</p>
+                <p className="text-2xl font-black text-green-600">Bs. {cashFinal.toFixed(2)}</p>
+             </div>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => { confirmCloseRegister(cashFinal); toast.dismiss(t.id); }} className="bg-red-600 text-white px-4 py-3 rounded-lg text-xs font-bold shadow-sm flex-1 hover:bg-red-700 transition-colors">CERRAR TURNO</button>
+            <button onClick={() => toast.dismiss(t.id)} className="bg-gray-200 text-gray-800 px-4 py-3 rounded-lg text-xs font-bold flex-1 hover:bg-gray-300 transition-colors">CANCELAR</button>
+          </div>
         </div>
-      ), { duration: 8000, icon: <Lock className="text-red-600"/> });
+      ), { duration: 10000, position: 'top-center', icon: null });
   };
 
   const confirmCloseRegister = async (finalCash) => {
@@ -444,7 +467,7 @@ export default function App() {
       const rawItems = s.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       const uniqueItems = Array.from(new Map(rawItems.map(item => [item.id, item])).values());
       setItems(uniqueItems);
-    }, (e) => { if (e.code === 'permission-denied') { setDbStatus('error'); setDbErrorMsg(currentUser ? 'Sin permisos.' : 'Inicia sesión.'); } });
+    }, (e) => { if (e.code === 'permission-denied') { setDbStatus('error'); setDbErrorMsg(currentUser ? 'Sin permisos.'); } });
     const staffUnsub = onSnapshot(collection(db, getCollName('staff')), (s) => setStaff(s.docs.map(d => ({id: d.id, ...d.data()}))));
     const settingsUnsub = onSnapshot(collection(db, getCollName('settings')), (s) => {
         let brandingLoaded = false;
@@ -550,23 +573,17 @@ export default function App() {
                 
                 {view === 'register_control' && <RegisterControlView session={registerSession} onOpen={handleOpenRegister} onClose={handleCloseRegister} staff={staff} stats={sessionStats} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} />}
                 
-                {/* VISTA DE PERSONAL (Aquí está el botón que presionas) */}
+                {/* VISTA DE PERSONAL */}
                 {view === 'staff_admin' && !isCashierOnly && <StaffManagerView staff={staff} roles={roles} onAddStaff={handleAddStaff} onUpdateStaff={handleUpdateStaff} onDeleteStaff={handleDeleteStaff} onManageRoles={() => setIsRoleModalOpen(true)} onPrintCredential={handlePrintCredential} />}
                 
-                {/* --- VISTA DE CREDENCIALES (Esta es la que se mostraba en blanco porque faltaba "credentialToPrint" en la condición) --- */}
+                {/* VISTA DE CREDENCIALES (Con botón "Volver") */}
                 {view === 'credential_print' && credentialToPrint && (
                     <div className="flex flex-col items-center w-full min-h-screen bg-gray-100">
-                        {/* Botón flotante para volver */}
                         <div className="w-full max-w-md p-4 flex justify-start no-print">
-                            <button 
-                                onClick={() => setView('staff_admin')} 
-                                className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-lg shadow hover:bg-gray-50 font-bold"
-                            >
+                            <button onClick={() => setView('staff_admin')} className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-lg shadow hover:bg-gray-50 font-bold">
                                 <ArrowLeft size={20} /> Volver a la Lista
                             </button>
                         </div>
-
-                        {/* El componente visual */}
                         <CredentialPrintView member={credentialToPrint} appName={appName} />
                     </div>
                 )}
