@@ -1,4 +1,4 @@
-// src/App.jsx - VERSIÓN FINAL (Desglose de Cierre QR/Tarjeta + Impresión Segura)
+// src/App.jsx - VERSIÓN FINAL CORREGIDA (Sin error de sintaxis)
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
@@ -156,7 +156,6 @@ export default function App() {
       } catch (e) { toast.error("Error"); }
   };
 
-  // --- FUNCIÓN DE CIERRE MEJORADA (MUESTRA QR Y TARJETA SEPARADOS) ---
   const handleCloseRegister = () => {
       if (!registerSession) return;
       const cashFinal = registerSession.openingAmount + sessionStats.cashSales - sessionStats.totalExpenses;
@@ -165,8 +164,6 @@ export default function App() {
         <div className="flex flex-col gap-3 min-w-[240px]">
           <div className="border-b pb-3">
              <p className="font-bold text-gray-800 text-lg mb-2">Resumen de Cierre</p>
-             
-             {/* --- AQUÍ ESTÁ EL DESGLOSE --- */}
              <div className="bg-gray-50 p-2 rounded mb-3 grid grid-cols-2 gap-2 text-xs">
                  <div className="bg-white p-2 rounded border border-gray-100">
                     <span className="text-gray-500 block uppercase text-[10px]">Total QR</span>
@@ -177,7 +174,6 @@ export default function App() {
                     <span className="font-bold text-purple-600 text-sm">Bs. {sessionStats.cardSales.toFixed(2)}</span>
                  </div>
              </div>
-
              <div className="px-2">
                 <p className="text-xs text-gray-500 uppercase font-bold">Efectivo en Caja:</p>
                 <p className="text-2xl font-black text-green-600">Bs. {cashFinal.toFixed(2)}</p>
@@ -467,7 +463,7 @@ export default function App() {
       const rawItems = s.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       const uniqueItems = Array.from(new Map(rawItems.map(item => [item.id, item])).values());
       setItems(uniqueItems);
-    }, (e) => { if (e.code === 'permission-denied') { setDbStatus('error'); setDbErrorMsg(currentUser ? 'Sin permisos.'); } });
+    }, (e) => { if (e.code === 'permission-denied') { setDbStatus('error'); setDbErrorMsg(currentUser ? 'Sin permisos.' : 'Inicia sesión.'); } });
     const staffUnsub = onSnapshot(collection(db, getCollName('staff')), (s) => setStaff(s.docs.map(d => ({id: d.id, ...d.data()}))));
     const settingsUnsub = onSnapshot(collection(db, getCollName('settings')), (s) => {
         let brandingLoaded = false;
@@ -576,7 +572,7 @@ export default function App() {
                 {/* VISTA DE PERSONAL */}
                 {view === 'staff_admin' && !isCashierOnly && <StaffManagerView staff={staff} roles={roles} onAddStaff={handleAddStaff} onUpdateStaff={handleUpdateStaff} onDeleteStaff={handleDeleteStaff} onManageRoles={() => setIsRoleModalOpen(true)} onPrintCredential={handlePrintCredential} />}
                 
-                {/* VISTA DE CREDENCIALES (Con botón "Volver") */}
+                {/* VISTA DE CREDENCIALES */}
                 {view === 'credential_print' && credentialToPrint && (
                     <div className="flex flex-col items-center w-full min-h-screen bg-gray-100">
                         <div className="w-full max-w-md p-4 flex justify-start no-print">
