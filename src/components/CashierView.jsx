@@ -1,25 +1,35 @@
-// src/components/CashierView.jsx - CORREGIDO PARA IMPRIMIR ANULACIÓN
+// src/components/CashierView.jsx - VERSIÓN FINAL (Con Monitor de Personal Online)
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, deleteDoc, doc } from 'firebase/firestore';
 import { db, isPersonalProject, ROOT_COLLECTION } from '../config/firebase';
-import { Clock, ChefHat, DollarSign, Trash2, User, TrendingUp, AlertTriangle, Printer } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { ChefHat, DollarSign, Trash2, User, TrendingUp, AlertTriangle, Printer, Wifi, WifiOff } from 'lucide-react';
+import toast, { Toaster } from 'react-hot-toast';
 
 const CashierView = ({ onProcessPayment, onVoidOrder, onReprintOrder }) => {
   const [orders, setOrders] = useState([]);
+  const [staffList, setStaffList] = useState([]); // <--- NUEVO ESTADO PARA PERSONAL
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // 1. ESCUCHAR PEDIDOS (Lógica original)
     const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
-    const q = query(collection(db, ordersCol), orderBy('date', 'asc'));
+    const qOrders = query(collection(db, ordersCol), orderBy('date', 'asc'));
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubOrders = onSnapshot(qOrders, (snapshot) => {
       const pendingData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setOrders(pendingData);
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    // 2. ESCUCHAR PERSONAL (Nueva lógica para ver quién está online)
+    const staffCol = isPersonalProject ? 'staffMembers' : `${ROOT_COLLECTION}staffMembers`;
+    const unsubStaff = onSnapshot(collection(db, staffCol), (snapshot) => {
+        const staffData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // Filtramos para mostrar solo Garzones y Cajeros (ocultamos Cocineros si quieres)
+        setStaffList(staffData.filter(m => m.role === 'Garzón' || m.role === 'Cajero'));
+    });
+
+    return () => { unsubOrders(); unsubStaff(); };
   }, []);
 
   // --- BOTÓN DE ANULAR CON CONFIRMACIÓN ---
@@ -32,7 +42,7 @@ const CashierView = ({ onProcessPayment, onVoidOrder, onReprintOrder }) => {
           <button 
             onClick={() => {
               toast.dismiss(t.id);
-              onVoidOrder(order); // <--- ESTA ES LA CLAVE: Llama a App.jsx para borrar e imprimir
+              onVoidOrder(order); 
             }}
             className="bg-red-600 text-white px-3 py-2 rounded-lg text-xs font-bold shadow-sm flex-1"
           >
@@ -46,7 +56,7 @@ const CashierView = ({ onProcessPayment, onVoidOrder, onReprintOrder }) => {
     ), { duration: 5000, icon: <AlertTriangle className="text-red-500"/> });
   };
 
-  // Estadísticas
+  // Estadísticas rápidas
   const getWaiterStats = () => {
     const stats = {};
     orders.forEach(order => {
@@ -64,14 +74,40 @@ const CashierView = ({ onProcessPayment, onVoidOrder, onReprintOrder }) => {
   return (
     <div className="animate-in fade-in pb-20">
       
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <div>
             <h2 className="text-2xl font-bold text-gray-800">Caja Principal</h2>
             <p className="text-gray-500 text-sm">Control de mesas activas</p>
         </div>
-        {orders.length > 0 && <span className="bg-red-100 text-red-600 px-3 py-1 rounded-full text-xs font-bold animate-pulse">{orders.length} pendientes</span>}
+        
+        {/* --- MONITOR DE PERSONAL (NUEVO) --- */}
+        <div className="flex gap-2 overflow-x-auto max-w-full pb-2 md:pb-0 hide-scrollbar">
+            {staffList.map(member => {
+                // Es "Online" si tiene un activeSessionId
+                const isOnline = member.activeSessionId && member.activeSessionId.length > 5;
+                return (
+                    <div key={member.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${isOnline ? 'bg-white border-green-200 shadow-sm' : 'bg-gray-50 border-transparent opacity-60 grayscale'}`}>
+                        <div className="relative">
+                            <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-gray-300'}`}></div>
+                        </div>
+                        <span className={`text-xs font-bold ${isOnline ? 'text-gray-800' : 'text-gray-400'}`}>{member.name.split(' ')[0]}</span>
+                    </div>
+                );
+            })}
+        </div>
       </div>
 
+      {/* Alerta de Pedidos */}
+      {orders.length > 0 && (
+          <div className="mb-4 flex items-center gap-2">
+             <span className="bg-red-100 text-red-600 px-3 py-1 rounded-full text-xs font-bold animate-pulse flex items-center gap-1">
+                <AlertTriangle size={12}/> {orders.length} pendientes
+             </span>
+             <span className="text-xs text-gray-400">Total en mesa: <strong>Bs. {orders.reduce((acc, o) => acc + Number(o.total), 0).toFixed(2)}</strong></span>
+          </div>
+      )}
+
+      {/* Estadísticas de Meseros Activos (Con pedidos) */}
       {waiterStats.length > 0 && (
         <div className="mb-6 overflow-x-auto pb-2 hide-scrollbar">
             <div className="flex gap-3 min-w-max">
@@ -89,6 +125,7 @@ const CashierView = ({ onProcessPayment, onVoidOrder, onReprintOrder }) => {
         </div>
       )}
 
+      {/* Lista de Comandas */}
       {orders.length === 0 ? (
         <div className="text-center py-16 bg-white rounded-2xl border-2 border-dashed border-gray-200">
             <ChefHat size={48} className="mx-auto text-gray-300 mb-4 opacity-50"/>
