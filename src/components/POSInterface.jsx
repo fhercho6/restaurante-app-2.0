@@ -1,14 +1,16 @@
-// src/components/POSInterface.jsx - VERSIÓN FINAL (Categorías Visibles + Permisos de Cobro)
+// src/components/POSInterface.jsx - VERSIÓN FINAL (Anti-Doble Clic)
 import React, { useState } from 'react';
-import { Search, ShoppingCart, Trash2, ChevronLeft, Send, Clock, ChefHat } from 'lucide-react';
+import { Search, ShoppingCart, Trash2, ChevronLeft, Send, Clock, ChefHat, Loader } from 'lucide-react';
 import { MenuCard } from './Views';
 
 export default function POSInterface({ items, categories, staffMember, onCheckout, onPrintOrder, onExit, onOpenServiceModal }) {
   const [cart, setCart] = useState([]);
   const [categoryFilter, setCategoryFilter] = useState('Todos');
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // --- ESTADO DE CARGA PARA BLOQUEAR BOTONES ---
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  // Lógica para saber si tiene permiso de cobrar (Solo Cajeros y Admins)
   const canCharge = staffMember?.role === 'Cajero' || staffMember?.role === 'Administrador';
 
   const addToCart = (item) => {
@@ -28,6 +30,27 @@ export default function POSInterface({ items, categories, staffMember, onCheckou
 
   const removeFromCart = (id) => setCart(prev => prev.filter(i => i.id !== id));
   
+  // --- WRAPPERS SEGUROS (Evitan doble clic) ---
+  const handleSendOrderSafe = async () => {
+      if (isProcessing) return; // Si ya está enviando, ignorar clics
+      setIsProcessing(true);
+      try {
+          await onPrintOrder(cart, setCart);
+      } finally {
+          setIsProcessing(false);
+      }
+  };
+
+  const handleCheckoutSafe = async () => {
+      if (isProcessing) return;
+      setIsProcessing(true);
+      try {
+          await onCheckout(cart, setCart);
+      } finally {
+          setIsProcessing(false);
+      }
+  };
+
   const filteredItems = items.filter(i => {
     const matchesCat = categoryFilter === 'Todos' ? true : i.category === categoryFilter;
     const matchesSearch = i.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -39,7 +62,7 @@ export default function POSInterface({ items, categories, staffMember, onCheckou
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden animate-in fade-in">
-      {/* IZQUIERDA: MENÚ DE PRODUCTOS */}
+      {/* IZQUIERDA */}
       <div className="flex-1 flex flex-col min-w-0">
         <div className="bg-white p-4 shadow-sm z-10">
           <div className="flex justify-between items-center mb-4">
@@ -51,7 +74,6 @@ export default function POSInterface({ items, categories, staffMember, onCheckou
                </div>
             </div>
             
-            {/* Botón de Servicio (Solo visible si hay servicios configurados o si quieres que todos lo vean) */}
             <button 
               onClick={onOpenServiceModal}
               className="bg-purple-600 text-white px-4 py-2 rounded-full font-bold shadow-md hover:bg-purple-700 transition-all flex items-center gap-2"
@@ -60,7 +82,6 @@ export default function POSInterface({ items, categories, staffMember, onCheckou
             </button>
           </div>
 
-          {/* --- CORRECCIÓN 1: CATEGORÍAS EN VARIAS FILAS (flex-wrap) --- */}
           <div className="flex flex-wrap gap-2 pb-2 max-h-32 overflow-y-auto">
             <button onClick={() => setCategoryFilter('Todos')} className={`px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition-colors border ${categoryFilter === 'Todos' ? 'bg-black text-white border-black' : 'bg-white text-gray-600 border-gray-200'}`}>Todos</button>
             {categories.filter(c => c !== 'Servicios').map(cat => (
@@ -83,11 +104,11 @@ export default function POSInterface({ items, categories, staffMember, onCheckou
         </div>
       </div>
 
-      {/* DERECHA: CARRITO DE COMPRAS */}
+      {/* DERECHA */}
       <div className="w-96 bg-white shadow-2xl flex flex-col border-l border-gray-200 z-20">
         <div className="p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
           <h3 className="font-bold text-gray-700 flex items-center gap-2"><ShoppingCart size={20}/> Comanda</h3>
-          <button onClick={() => setCart([])} className="text-xs text-red-500 hover:underline font-bold">Limpiar</button>
+          <button onClick={() => setCart([])} className="text-xs text-red-500 hover:underline font-bold" disabled={isProcessing}>Limpiar</button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -104,11 +125,11 @@ export default function POSInterface({ items, categories, staffMember, onCheckou
                   <div className="text-xs text-gray-500">Bs. {item.price}</div>
                 </div>
                 <div className="flex items-center gap-3 bg-gray-50 rounded-lg px-2 py-1">
-                  <button onClick={(e) => {e.stopPropagation(); updateQty(item.id, -1)}} className="w-6 h-6 flex items-center justify-center bg-white rounded shadow text-gray-600 font-bold hover:bg-gray-100">-</button>
+                  <button onClick={(e) => {e.stopPropagation(); updateQty(item.id, -1)}} disabled={isProcessing} className="w-6 h-6 flex items-center justify-center bg-white rounded shadow text-gray-600 font-bold hover:bg-gray-100">-</button>
                   <span className="font-bold w-4 text-center">{item.qty}</span>
-                  <button onClick={(e) => {e.stopPropagation(); updateQty(item.id, 1)}} className="w-6 h-6 flex items-center justify-center bg-blue-600 rounded shadow text-white font-bold hover:bg-blue-700">+</button>
+                  <button onClick={(e) => {e.stopPropagation(); updateQty(item.id, 1)}} disabled={isProcessing} className="w-6 h-6 flex items-center justify-center bg-blue-600 rounded shadow text-white font-bold hover:bg-blue-700">+</button>
                 </div>
-                <button onClick={(e) => {e.stopPropagation(); removeFromCart(item.id)}} className="ml-3 text-red-400 hover:text-red-600"><Trash2 size={18}/></button>
+                <button onClick={(e) => {e.stopPropagation(); removeFromCart(item.id)}} disabled={isProcessing} className="ml-3 text-red-400 hover:text-red-600"><Trash2 size={18}/></button>
               </div>
             ))
           )}
@@ -120,26 +141,25 @@ export default function POSInterface({ items, categories, staffMember, onCheckou
             <span className="text-3xl font-black text-gray-900">Bs. {cartTotal.toFixed(2)}</span>
           </div>
           
-          {/* --- CORRECCIÓN 2: BOTONES CONDICIONALES --- */}
           <div className={`grid ${canCharge ? 'grid-cols-2' : 'grid-cols-1'} gap-3`}>
-             
-             {/* BOTÓN ENVIAR A CAJA (Siempre visible para todos) */}
+             {/* BOTÓN ENVIAR A CAJA (BLOQUEABLE) */}
              <button 
-                onClick={() => onPrintOrder(cart, setCart)} 
-                disabled={cart.length === 0} 
-                className="bg-gray-800 hover:bg-gray-900 text-white py-4 rounded-xl font-bold shadow-lg flex flex-col items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                onClick={handleSendOrderSafe} 
+                disabled={cart.length === 0 || isProcessing} 
+                className={`text-white py-4 rounded-xl font-bold shadow-lg flex flex-col items-center justify-center gap-1 transition-all ${isProcessing ? 'bg-gray-400 cursor-wait' : 'bg-gray-800 hover:bg-gray-900'} disabled:opacity-50 disabled:cursor-not-allowed`}
              >
-                <Send size={20} /> <span className="text-xs uppercase">Enviar a Caja</span>
+                {isProcessing ? <Loader className="animate-spin" size={20}/> : <Send size={20} />} 
+                <span className="text-xs uppercase">{isProcessing ? 'Enviando...' : 'Enviar a Caja'}</span>
              </button>
 
-             {/* BOTÓN COBRAR (Solo Cajeros/Admin) */}
              {canCharge && (
                <button 
-                  onClick={() => onCheckout(cart, setCart)} 
-                  disabled={cart.length === 0} 
-                  className="bg-green-600 hover:bg-green-700 text-white py-4 rounded-xl font-bold shadow-lg flex flex-col items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  onClick={handleCheckoutSafe} 
+                  disabled={cart.length === 0 || isProcessing} 
+                  className={`text-white py-4 rounded-xl font-bold shadow-lg flex flex-col items-center justify-center gap-1 transition-all ${isProcessing ? 'bg-gray-400 cursor-wait' : 'bg-green-600 hover:bg-green-700'} disabled:opacity-50 disabled:cursor-not-allowed`}
                >
-                  <div className="font-bold">COBRAR</div> <span className="text-[10px] opacity-80 uppercase">Directo</span>
+                  {isProcessing ? <Loader className="animate-spin" size={20}/> : <div className="font-bold">COBRAR</div>}
+                  {!isProcessing && <span className="text-[10px] opacity-80 uppercase">Directo</span>}
                </button>
              )}
           </div>
