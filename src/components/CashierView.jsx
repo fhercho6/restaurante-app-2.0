@@ -1,16 +1,16 @@
-// src/components/CashierView.jsx - VERSIÓN FINAL (Con Control de Servicios)
+// src/components/CashierView.jsx - VERSIÓN FINAL (Con Opción de Desconectar Personal)
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, updateDoc, doc } from 'firebase/firestore';
 import { db, isPersonalProject, ROOT_COLLECTION } from '../config/firebase';
-import { ChefHat, DollarSign, Trash2, User, TrendingUp, AlertTriangle, Printer, Clock, StopCircle } from 'lucide-react';
+import { ChefHat, DollarSign, Trash2, User, TrendingUp, AlertTriangle, Printer, Clock, StopCircle, Power, UserX } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const CashierView = ({ onProcessPayment, onVoidOrder, onReprintOrder, onStopService }) => {
   const [orders, setOrders] = useState([]);
   const [staffList, setStaffList] = useState([]);
-  const [activeServices, setActiveServices] = useState([]); // <--- ESTADO PARA SERVICIOS
+  const [activeServices, setActiveServices] = useState([]); 
   const [loading, setLoading] = useState(true);
-  const [currentTime, setCurrentTime] = useState(Date.now()); // Para actualizar reloj cada minuto
+  const [currentTime, setCurrentTime] = useState(Date.now());
 
   useEffect(() => {
     const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
@@ -23,19 +23,35 @@ const CashierView = ({ onProcessPayment, onVoidOrder, onReprintOrder, onStopServ
     const staffCol = isPersonalProject ? 'staffMembers' : `${ROOT_COLLECTION}staffMembers`;
     const unsubStaff = onSnapshot(collection(db, staffCol), (s) => setStaffList(s.docs.map(d => ({ id: d.id, ...d.data() })).filter(m => m.role === 'Garzón' || m.role === 'Cajero')));
 
-    // --- ESCUCHAR SERVICIOS ACTIVOS ---
     const servicesCol = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`;
     const unsubServices = onSnapshot(collection(db, servicesCol), (s) => {
         setActiveServices(s.docs.map(d => ({ id: d.id, ...d.data() })));
     });
 
-    // Reloj interno para actualizar los minutos en pantalla
     const timer = setInterval(() => setCurrentTime(Date.now()), 60000);
 
     return () => { unsubOrders(); unsubStaff(); unsubServices(); clearInterval(timer); };
   }, []);
 
-  // Función para calcular costo actual del servicio
+  // --- NUEVA FUNCIÓN: DESCONECTAR PERSONAL ---
+  const handleKickStaff = async (member) => {
+      if (!member.activeSessionId) return; // Si ya está offline, no hace nada
+      
+      if (!window.confirm(`¿Desconectar a ${member.name}?\nEsto cerrará su sesión en el dispositivo que esté usando.`)) return;
+
+      try {
+          const staffColName = isPersonalProject ? 'staffMembers' : `${ROOT_COLLECTION}staffMembers`;
+          // Borramos el ID de sesión en la base de datos
+          await updateDoc(doc(db, staffColName, member.id), {
+              activeSessionId: null
+          });
+          toast.success(`${member.name} desconectado.`);
+      } catch (error) {
+          console.error(error);
+          toast.error("Error al desconectar.");
+      }
+  };
+
   const calculateServiceCost = (service) => {
     const start = new Date(service.startTime).getTime();
     const now = currentTime;
@@ -73,10 +89,40 @@ const CashierView = ({ onProcessPayment, onVoidOrder, onReprintOrder, onStopServ
     <div className="animate-in fade-in pb-20">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <div><h2 className="text-2xl font-bold text-gray-800">Caja Principal</h2><p className="text-gray-500 text-sm">Control de mesas y servicios</p></div>
-        <div className="flex gap-2 overflow-x-auto max-w-full pb-2 md:pb-0 hide-scrollbar">{staffList.map(m => (<div key={m.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${m.activeSessionId ? 'bg-white border-green-200 shadow-sm' : 'bg-gray-50 border-transparent opacity-60 grayscale'}`}><div className={`w-2 h-2 rounded-full ${m.activeSessionId ? 'bg-green-500 animate-pulse' : 'bg-gray-300'}`}></div><span className={`text-xs font-bold ${m.activeSessionId ? 'text-gray-800' : 'text-gray-400'}`}>{m.name.split(' ')[0]}</span></div>))}</div>
+        
+        {/* --- MONITOR DE PERSONAL INTERACTIVO --- */}
+        <div className="flex gap-2 overflow-x-auto max-w-full pb-2 md:pb-0 hide-scrollbar">
+            {staffList.map(member => {
+                const isOnline = member.activeSessionId && member.activeSessionId.length > 5;
+                return (
+                    <button 
+                        key={member.id} 
+                        onClick={() => handleKickStaff(member)}
+                        disabled={!isOnline}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all group relative ${isOnline ? 'bg-white border-green-200 shadow-sm hover:border-red-300 hover:bg-red-50 cursor-pointer' : 'bg-gray-50 border-transparent opacity-60 grayscale cursor-default'}`}
+                        title={isOnline ? "Clic para desconectar" : "Desconectado"}
+                    >
+                        <div className="relative">
+                            {/* Si haces hover, el punto verde se convierte en icono de apagado */}
+                            {isOnline ? (
+                                <>
+                                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse group-hover:hidden"></div>
+                                    <UserX size={12} className="text-red-500 hidden group-hover:block" />
+                                </>
+                            ) : (
+                                <div className="w-2 h-2 rounded-full bg-gray-300"></div>
+                            )}
+                        </div>
+                        <span className={`text-xs font-bold ${isOnline ? 'text-gray-800 group-hover:text-red-600' : 'text-gray-400'}`}>
+                            {member.name.split(' ')[0]}
+                        </span>
+                    </button>
+                );
+            })}
+        </div>
       </div>
 
-      {/* --- SECCIÓN NUEVA: SERVICIOS ACTIVOS --- */}
+      {/* --- SECCIÓN SERVICIOS ACTIVOS --- */}
       {activeServices.length > 0 && (
           <div className="mb-8">
               <h3 className="font-bold text-gray-700 mb-3 flex items-center gap-2"><Clock className="text-purple-600"/> Servicios en Curso</h3>
@@ -93,12 +139,7 @@ const CashierView = ({ onProcessPayment, onVoidOrder, onReprintOrder, onStopServ
                               </div>
                               <div className="text-right">
                                   <div className="text-xl font-black text-gray-900 mb-2">Bs. {cost.toFixed(2)}</div>
-                                  <button 
-                                    onClick={() => onStopService(srv, cost, label)}
-                                    className="bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-bold shadow hover:bg-red-700 flex items-center gap-1"
-                                  >
-                                    <StopCircle size={14}/> COBRAR
-                                  </button>
+                                  <button onClick={() => onStopService(srv, cost, label)} className="bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-bold shadow hover:bg-red-700 flex items-center gap-1"><StopCircle size={14}/> COBRAR</button>
                               </div>
                           </div>
                       )
