@@ -1,9 +1,8 @@
-// src/components/Views.jsx - VERSIÓN FINAL CORREGIDA (Agregado Loader que faltaba)
+// src/components/Views.jsx - VERSIÓN FINAL (Ticket Estilo Foto + Fix Pantalla Blanca)
 import React, { useState } from 'react';
-// IMPORTANTE: Agregamos 'Loader' y 'CheckCircle' que faltaban
 import { Lock, ArrowLeft, ChefHat, Edit2, Trash2, User, Printer, CheckCircle, Loader } from 'lucide-react';
 
-// --- 1. TARJETA DE MENÚ ---
+// --- 1. MENU CARD ---
 export const MenuCard = ({ item }) => (
   <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 h-full flex flex-col">
     <div className="h-48 overflow-hidden relative group bg-gray-100 flex items-center justify-center flex-shrink-0">
@@ -35,7 +34,7 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
     setIsLoggingIn(true);
     setTimeout(() => {
         const member = staffMembers.find(m => String(m.pin) === String(pin));
-        if (member) { onLoginSuccess(member); } // Aquí no reseteamos loading para evitar parpadeo
+        if (member) { onLoginSuccess(member); } 
         else { setError('PIN incorrecto'); setPin(''); setIsLoggingIn(false); }
     }, 500);
   };
@@ -57,11 +56,7 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
           <button onClick={handleDelete} disabled={isLoggingIn} className="flex items-center justify-center h-16 w-16 mx-auto rounded-full text-red-400 hover:bg-red-50 disabled:opacity-50 active:scale-95 transition-all"><ArrowLeft size={28} /></button>
         </div>
         <div className="p-6 bg-gray-50 border-t">
-            <button 
-                onClick={handleLogin} 
-                disabled={pin.length < 4 || isLoggingIn} 
-                className={`w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 shadow-lg transition-all ${pin.length === 4 && !isLoggingIn ? 'bg-blue-600 hover:bg-blue-700 hover:scale-105' : 'bg-gray-300 cursor-not-allowed'}`}
-            >
+            <button onClick={handleLogin} disabled={pin.length < 4 || isLoggingIn} className={`w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 shadow-lg transition-all ${pin.length === 4 && !isLoggingIn ? 'bg-blue-600 hover:bg-blue-700 hover:scale-105' : 'bg-gray-300 cursor-not-allowed'}`}>
                 {isLoggingIn ? <><Loader className="animate-spin" size={20}/> VERIFICANDO...</> : "INGRESAR"}
             </button>
         </div>
@@ -70,34 +65,51 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
   );
 };
 
-// --- 3. NUEVO: TICKET DE ASISTENCIA (Replica de la foto) ---
+// --- 3. TICKET DE ASISTENCIA (ESTILO FOTO) ---
 export const AttendancePrintView = ({ data, onContinue }) => {
-  // Conversión segura de ID a String para evitar errores si es número
-  const safeId = data && data.id ? String(data.id) : '000';
-  
+  // data: { name, id, time, date, appName }
+  const safeId = data && data.id ? String(data.id).slice(0, 3).toUpperCase() : '000';
+  const safeName = data?.name || '---';
+  const safeTime = data?.time || '--:--';
+  const safeDate = data?.date || '--/--/----';
+  const safeApp = data?.appName || 'SISTEMA';
+
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
-      {/* TARJETA DEL TICKET (Lo que se imprime) */}
-      <div id="attendance-card" className="bg-white p-6 w-[300px] shadow-xl text-center font-mono border border-gray-300" style={{ fontFamily: "'Courier New', Courier, monospace" }}>
+      {/* TICKET VISUAL (CSS para parecer papel térmico) */}
+      <div id="attendance-card" className="bg-white p-4 w-[300px] shadow-xl text-center border border-gray-300 relative" style={{ fontFamily: "'Courier New', Courier, monospace", color: '#000' }}>
         
+        {/* Header */}
         <h2 className="font-bold text-lg uppercase mb-1" style={{ letterSpacing: '1px' }}>CONTROL DE ASISTENCIA</h2>
-        <p className="text-sm mb-4">Jornada: {data.date}</p>
+        <p className="text-sm mb-4 border-b border-dashed border-black pb-2">Jornada: {safeDate}</p>
         
-        <h1 className="text-4xl font-black mb-2">{safeId.slice(0, 3).toUpperCase()}</h1>
+        {/* ID Grande */}
+        <h1 className="text-5xl font-black mb-4 tracking-tighter">{safeId}</h1>
         
-        <div className="text-left border-b border-dashed border-black pb-4 mb-4">
-            <p className="uppercase text-sm">Nombre: <span className="font-bold">{data.name}</span></p>
+        {/* Nombre */}
+        <div className="text-left mb-6">
+            <p className="uppercase text-sm">Nombre:<br/><span className="font-bold text-lg">{safeName}</span></p>
         </div>
 
-        <div className="text-5xl font-black mb-1 tracking-widest">{data.time}</div>
-        <p className="text-sm mb-6">{data.date}</p>
+        {/* Separador */}
+        <div className="border-t-2 border-black mb-4"></div>
 
-        <p className="text-[10px] uppercase text-left mb-12">{data.appName || 'SISTEMA'}</p>
+        {/* HORA GIGANTE (Como en la foto) */}
+        <div className="text-6xl font-black mb-2 tracking-widest leading-none">
+            {safeTime}
+        </div>
+        <p className="text-sm mb-8 italic">{safeDate}</p>
 
-        <div className="border-t border-black pt-2 mx-4"><p className="text-sm uppercase">FIRMA</p></div>
+        {/* Footer App */}
+        <p className="text-[10px] uppercase text-left mb-12 font-bold border-b border-black pb-1">{safeApp}</p>
+
+        {/* Firma */}
+        <div className="border-t border-black pt-2 mx-8">
+            <p className="text-sm uppercase">FIRMA</p>
+        </div>
       </div>
 
-      {/* Botones de Acción (No se imprimen) */}
+      {/* Controles (No se imprimen) */}
       <div className="mt-8 flex flex-col gap-3 w-full max-w-[300px] no-print">
           <button onClick={() => window.print()} className="w-full bg-black text-white py-4 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:scale-105 transition-transform"><Printer size={20}/> IMPRIMIR TICKET</button>
           <button onClick={onContinue} className="w-full bg-green-600 text-white py-4 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:bg-green-700 transition-colors"><CheckCircle size={20}/> CONTINUAR AL SISTEMA</button>

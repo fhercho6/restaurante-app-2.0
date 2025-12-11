@@ -1,4 +1,4 @@
-// src/App.jsx - VERSIÓN FINAL (Con Ticket de Asistencia Intermedio)
+// src/App.jsx - VERSIÓN FINAL (Sin duplicados de asistencia + Login inteligente)
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
@@ -95,44 +95,66 @@ export default function App() {
   
   const handlePrint = () => window.print();
 
-  // --- LÓGICA DE LOGIN + REGISTRO DE ASISTENCIA + TICKET ---
+  // --- LÓGICA DE LOGIN INTELIGENTE (EVITA DUPLICADOS) ---
   const handleStaffPinLogin = async (member) => { 
     const newSessionId = Date.now().toString() + Math.floor(Math.random() * 1000);
     const now = new Date();
+    
     try {
+        // 1. Activar sesión en perfil (siempre se hace para que el punto verde se active)
         await updateDoc(doc(db, getCollName('staff'), member.id), { activeSessionId: newSessionId });
         
+        // 2. VERIFICAR SI YA TIENE UN TURNO ABIERTO
         const shiftsCol = isPersonalProject ? 'work_shifts' : `${ROOT_COLLECTION}work_shifts`;
-        await addDoc(collection(db, shiftsCol), {
-            staffId: member.id,
-            staffName: member.name,
-            contractType: member.contractType || 'Fijo',
-            hourlyRate: member.hourlyRate || 0,
-            startTime: now.toISOString(),
-            endTime: null,
-            sessionId: newSessionId 
-        });
+        const qActiveShift = query(
+            collection(db, shiftsCol), 
+            where('staffId', '==', member.id),
+            where('endTime', '==', null) // Solo buscamos los que NO tienen hora de salida
+        );
+        const snapshot = await getDocs(qActiveShift);
 
         const memberWithSession = { ...member, activeSessionId: newSessionId };
         setStaffMember(memberWithSession); 
-        
-        // PREPARAMOS EL TICKET DE ASISTENCIA PARA IMPRIMIR
-        setLastAttendance({
-            name: member.name,
-            id: member.id, // O el ID corto si prefieres
-            date: now.toLocaleDateString(),
-            time: now.toLocaleTimeString(),
-            appName: appName || "LicoBar"
-        });
 
-        // EN LUGAR DE IR DIRECTO, VAMOS A LA VISTA DE IMPRESIÓN
-        setView('attendance_print'); 
-        toast.success(`Entrada registrada: ${member.name}`);
+        if (!snapshot.empty) {
+            // --- CASO A: YA ESTÁ TRABAJANDO (RE-INGRESO) ---
+            toast('Reingreso detectado. Turno continua.', { icon: '🔄' });
+            
+            // Entrar directo al sistema sin imprimir ticket
+            if (member.role === 'Cajero' || member.role === 'Administrador') { setView('cashier'); } 
+            else { setView('pos'); }
+            
+        } else {
+            // --- CASO B: NUEVO TURNO (PRIMER INGRESO) ---
+            await addDoc(collection(db, shiftsCol), {
+                staffId: member.id,
+                staffName: member.name,
+                contractType: member.contractType || 'Fijo',
+                hourlyRate: member.hourlyRate || 0,
+                startTime: now.toISOString(),
+                endTime: null,
+                sessionId: newSessionId 
+            });
 
-    } catch (error) { toast.error("Error de conexión"); }
+            // Preparar ticket e ir a pantalla de impresión
+            setLastAttendance({
+                name: member.name,
+                id: member.id, 
+                date: now.toLocaleDateString(),
+                time: now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}),
+                appName: appName || "LicoBar"
+            });
+            
+            setView('attendance_print'); 
+            toast.success(`Entrada registrada: ${member.name}`);
+        }
+
+    } catch (error) { 
+        console.error(error);
+        toast.error("Error de conexión"); 
+    }
   };
 
-  // --- NUEVA FUNCIÓN: CONTINUAR DESDE EL TICKET DE ASISTENCIA ---
   const handleContinueFromAttendance = () => {
       if (!staffMember) return;
       if (staffMember.role === 'Cajero' || staffMember.role === 'Administrador') { 
@@ -153,13 +175,7 @@ export default function App() {
         }
     };
     initAuth();
-    return onAuthStateChanged(auth, (u) => { 
-        setCurrentUser(u); 
-        if (u) { 
-            setDbStatus('connected'); 
-            setDbErrorMsg(''); 
-        } 
-    });
+    return onAuthStateChanged(auth, (u) => { setCurrentUser(u); if (u) { setDbStatus('connected'); setDbErrorMsg(''); } });
   }, []);
 
   useEffect(() => { if (!db || !currentUser) return; const checkSession = async () => { const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`; const q = query(collection(db, colName), where('status', '==', 'open'), limit(1)); const snap = await getDocs(q); if (!snap.empty) { const data = snap.docs[0].data(); setRegisterSession({ id: snap.docs[0].id, ...data }); } }; checkSession(); }, [db, currentUser]);
@@ -244,14 +260,18 @@ export default function App() {
                   </div>
                 </div>
                 {view === 'report' && <div className="animate-in fade-in"><SalesDashboard onReprintZ={handleReprintZReport} /><div className="hidden print:block mt-8"><PrintableView items={items} /></div></div>}
+                
+                {/* --- RENDERIZADO ASISTENCIA --- */}
                 {view === 'attendance' && <AttendanceView />}
-                {/* AQUÍ ESTÁ EL CAMBIO IMPORTANTE: VISTA DE IMPRESIÓN DE ASISTENCIA */}
+                
+                {/* --- VISTA DE IMPRESIÓN DEL TICKET (NUEVO) --- */}
                 {view === 'attendance_print' && lastAttendance && (
                     <AttendancePrintView 
                         data={lastAttendance} 
                         onContinue={handleContinueFromAttendance} 
                     />
                 )}
+
                 {view === 'cashier' && (<CashierView onProcessPayment={handleStartPaymentFromCashier} onVoidOrder={handleVoidAndPrint} onReprintOrder={handleReprintOrder} onStopService={handleStopService} />)}
                 {view === 'register_control' && <RegisterControlView session={registerSession} onOpen={handleOpenRegister} onClose={handleCloseRegister} staff={staff} stats={sessionStats} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} />}
                 {view === 'staff_admin' && !isCashierOnly && <StaffManagerView staff={staff} roles={roles} onAddStaff={handleAddStaff} onUpdateStaff={handleUpdateStaff} onDeleteStaff={handleDeleteStaff} onManageRoles={() => setIsRoleModalOpen(true)} onPrintCredential={handlePrintCredential} />}
