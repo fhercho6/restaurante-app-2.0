@@ -1,4 +1,4 @@
-// src/App.jsx - VERSIÓN FINAL (Sin errores de Accesibilidad F12)
+// src/App.jsx - VERSIÓN FINAL (Ticket Seguro y Estable)
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
@@ -78,7 +78,6 @@ export default function App() {
     return isPersonalProject ? 'settings' : `${ROOT_COLLECTION}settings`;
   };
 
-  // --- HANDLERS ---
   const handleLogin = (userApp) => { setIsAuthModalOpen(false); setView('admin'); toast.success(`Bienvenido`); };
   const handleLogout = async () => { await signOut(auth); window.location.reload(); };
   const handleEnterMenu = () => { setFilter('Todos'); setView('menu'); };
@@ -93,11 +92,12 @@ export default function App() {
   
   const handlePrint = () => window.print();
 
-  // --- LÓGICA DE LOGIN + ASISTENCIA ---
+  // --- LÓGICA LOGIN: Ticket Inmediato (Sin esperas) ---
   const handleStaffPinLogin = async (member) => { 
     const newSessionId = Date.now().toString() + Math.floor(Math.random() * 1000);
     const now = new Date();
     
+    // PREPARAMOS TICKET DE INMEDIATO (Para que no llegue null a la vista)
     const ticketData = {
         name: member.name,
         id: member.id, 
@@ -106,6 +106,8 @@ export default function App() {
         appName: appName || "LicoBar"
     };
 
+    setLastAttendance(ticketData); // 1. Guardamos datos
+    
     try {
         await updateDoc(doc(db, getCollName('staff'), member.id), { activeSessionId: newSessionId });
         
@@ -126,12 +128,12 @@ export default function App() {
                 endTime: null,
                 sessionId: newSessionId 
             });
-            toast.success(`Entrada registrada: ${member.name}`);
+            toast.success(`Entrada registrada`);
         } else {
             toast('Turno activo continuado.', { icon: '🔄' });
         }
-
-        setLastAttendance(ticketData);
+        
+        // 2. CAMBIAMOS VISTA AL FINAL (Ya tenemos los datos cargados)
         setView('attendance_print'); 
 
     } catch (error) { toast.error("Error de conexión"); }

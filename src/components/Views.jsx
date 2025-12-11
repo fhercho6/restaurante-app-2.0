@@ -1,9 +1,9 @@
-// src/components/Views.jsx - VERSIÓN A PRUEBA DE FALLOS (Sin íconos problemáticos)
+// src/components/Views.jsx - VERSIÓN BLINDADA (Sin conflictos de constructor)
 import React, { useState } from 'react';
-// Usamos solo íconos estándar para evitar conflictos de sistema
+// Solo importamos lo estrictamente necesario.
 import { Lock, ArrowLeft, ChefHat, Edit2, Trash2, User, Printer, CheckCircle } from 'lucide-react';
 
-// --- 1. TARJETA DE MENÚ (Asegúrate de que esto esté al principio) ---
+// --- 1. TARJETA DE MENÚ ---
 export const MenuCard = ({ item }) => (
   <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 h-full flex flex-col">
     <div className="h-48 overflow-hidden relative group bg-gray-100 flex items-center justify-center flex-shrink-0">
@@ -21,7 +21,7 @@ export const MenuCard = ({ item }) => (
   </div>
 );
 
-// --- 2. LOGIN CON PIN (Sin Loader para evitar crash) ---
+// --- 2. PIN LOGIN ---
 export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
@@ -33,7 +33,7 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
   const handleLogin = async () => {
     if (isLoggingIn) return; 
     setIsLoggingIn(true);
-    // Usamos setTimeout para dar estabilidad visual antes de cambiar de pantalla
+    // Timeout para dar feedback visual sin bloquear el hilo principal
     setTimeout(() => {
         const member = staffMembers.find(m => String(m.pin) === String(pin));
         if (member) { 
@@ -43,7 +43,7 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
             setPin(''); 
             setIsLoggingIn(false); 
         }
-    }, 200);
+    }, 100);
   };
 
   return (
@@ -72,38 +72,29 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
   );
 };
 
-// --- 3. TICKET DE ASISTENCIA (Diseño Térmico) ---
+// --- 3. TICKET DE ASISTENCIA (ULTRA SEGURO) ---
 export const AttendancePrintView = ({ data, onContinue }) => {
-  if (!data) return <div className="p-10 text-center text-gray-500">Cargando ticket...</div>;
+  // Si no hay datos, mostramos un loader de texto simple para no romper la app
+  if (!data) return <div className="min-h-screen flex items-center justify-center font-bold text-gray-400">Generando Ticket...</div>;
 
-  const safeName = data.name || '---';
-  const safeDate = data.date || '---';
-  const safeTime = data.time || '--:--';
+  // Valores por defecto para evitar 'undefined'
+  const safeName = data.name || 'Personal';
+  const safeDate = data.date || new Date().toLocaleDateString();
+  const safeTime = data.time || new Date().toLocaleTimeString();
   const safeId = data.id ? String(data.id).slice(-3).toUpperCase() : '001';
-  const safeApp = data.appName || 'SISTEMA';
+  const safeApp = data.appName || 'Sistema';
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
-      {/* TICKET PAPEL */}
       <div id="attendance-card" className="bg-white p-4 w-[300px] shadow-xl text-center border border-gray-300 relative" style={{ fontFamily: "'Courier New', Courier, monospace", color: '#000' }}>
         <h2 className="font-bold text-base uppercase mb-1">CONTROL DE ASISTENCIA</h2>
         <p className="text-sm mb-2 border-b border-dashed border-black pb-2">Jornada: {safeDate}</p>
-        
-        <h1 className="text-4xl font-black my-2">{safeId}</h1>
-        
-        <div className="text-left w-full mb-4 px-2">
-            <p className="uppercase text-xs">Nombre:<br/><span className="font-bold text-base block">{safeName}</span></p>
-        </div>
-
+        <h1 className="text-5xl font-black my-4 tracking-tighter">{safeId}</h1>
+        <div className="text-left w-full mb-4 px-2"><p className="uppercase text-xs">Nombre:<br/><span className="font-bold text-base block">{safeName}</span></p></div>
         <div className="border-t-2 border-black w-full mb-4"></div>
-
-        <div className="text-5xl font-black mb-2 tracking-widest leading-none whitespace-nowrap overflow-hidden">
-            {safeTime}
-        </div>
+        <div className="text-5xl font-black mb-2 tracking-widest leading-none whitespace-nowrap overflow-hidden">{safeTime}</div>
         <p className="text-xs italic mb-8">{safeDate}</p>
-
         <p className="text-[10px] uppercase text-left mb-10 font-bold border-b border-black pb-1">{safeApp}</p>
-
         <div className="border-t border-black pt-1 mx-6"><p className="text-xs uppercase">FIRMA</p></div>
       </div>
 
