@@ -1,4 +1,4 @@
-// src/App.jsx - VERSIÓN FINAL (Ticket de Inicio "Fantasma" - No ensucia la base de datos)
+// src/App.jsx - VERSIÓN FINAL BLINDADA (Espera al Login para evitar error de permisos)
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
@@ -102,14 +102,130 @@ export default function App() {
     } catch (error) { toast.error("Error de conexión"); }
   };
 
+  // --- 1. EFECTO DE AUTENTICACIÓN (ESTE ES EL PRIMERO QUE CORRE) ---
   useEffect(() => {
-    if (!staffMember || !staff.length) return;
-    const remoteMember = staff.find(m => m.id === staffMember.id);
-    if (remoteMember && remoteMember.activeSessionId && remoteMember.activeSessionId !== staffMember.activeSessionId) {
-        setStaffMember(null); setView('pin_login'); 
-        toast.error(`⚠️ SESIÓN CERRADA\nSe detectó un acceso en otro dispositivo.`, { duration: 6000, icon: '🚫' });
-    }
-  }, [staff, staffMember]);
+    const initAuth = async () => {
+        if (!auth.currentUser) {
+             if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token && !isPersonalProject) {
+                await signInWithCustomToken(auth, __initial_auth_token);
+             } else {
+                await signInAnonymously(auth).catch(() => setDbStatus('warning'));
+             }
+        }
+    };
+    initAuth();
+    return onAuthStateChanged(auth, (u) => { 
+        setCurrentUser(u); 
+        if (u) { 
+            setDbStatus('connected'); 
+            setDbErrorMsg(''); 
+        } 
+    });
+  }, []);
+
+  // --- 2. EFECTO DE SESIÓN DE CAJA (SOLO CORRE SI HAY USUARIO) ---
+  useEffect(() => {
+      if (!db || !currentUser) return; // <--- AQUÍ ESTÁ EL FRENO DE SEGURIDAD 1
+      
+      const checkSession = async () => {
+          const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`;
+          const q = query(collection(db, colName), where('status', '==', 'open'), limit(1));
+          const snap = await getDocs(q);
+          if (!snap.empty) {
+              const data = snap.docs[0].data();
+              setRegisterSession({ id: snap.docs[0].id, ...data });
+          }
+      };
+      checkSession();
+  }, [db, currentUser]);
+
+  // --- 3. EFECTO DE DATOS GENERALES (SOLO CORRE SI HAY USUARIO) ---
+  useEffect(() => { 
+    if (!db || !currentUser) return; // <--- AQUÍ ESTÁ EL FRENO DE SEGURIDAD 2 (EL MÁS IMPORTANTE)
+
+    // Cargar Items
+    const itemsUnsub = onSnapshot(collection(db, getCollName('items')), (s) => { 
+        const rawItems = s.docs.map(doc => ({ id: doc.id, ...doc.data() })); 
+        const uniqueItems = Array.from(new Map(rawItems.map(item => [item.id, item])).values()); 
+        setItems(uniqueItems); 
+    }, (e) => { 
+        // Si aún así falla, lo capturamos silenciosamente
+        console.warn("Esperando permisos..."); 
+    }); 
+    
+    // Cargar Personal
+    const staffUnsub = onSnapshot(collection(db, getCollName('staff')), (s) => setStaff(s.docs.map(d => ({id: d.id, ...d.data()})))); 
+    
+    // Cargar Configuración
+    const settingsUnsub = onSnapshot(collection(db, getCollName('settings')), (s) => { 
+        let brandingLoaded = false; 
+        s.docs.forEach(d => { 
+            const data = d.data(); 
+            if (d.id === 'categories') setCategories(data.list || []); 
+            if (d.id === 'roles') setRoles(data.list || INITIAL_ROLES); 
+            if (d.id === 'branding') { setLogo(data.logo); if(data.appName) setAppName(data.appName); brandingLoaded = true; } 
+        }); 
+        setIsLoadingApp(false); 
+    }); 
+    
+    // Cargar Servicios Activos
+    const activeSrvCol = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`; 
+    const srvUnsub = onSnapshot(collection(db, activeSrvCol), (s) => { 
+        setActiveServices(s.docs.map(d => ({ id: d.id, ...d.data() }))); 
+    }); 
+    
+    return () => { itemsUnsub(); staffUnsub(); settingsUnsub(); srvUnsub(); }; 
+  }, [currentUser]); // Solo se ejecuta cuando 'currentUser' cambia de null a objeto real
+
+  // --- 4. EFECTO DE VENTAS EN VIVO (SOLO CORRE SI HAY SESIÓN DE CAJA) ---
+  useEffect(() => {
+      if (!db || !registerSession) return;
+      const salesCol = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`;
+      const qSales = query(collection(db, salesCol), where('registerId', '==', registerSession.id));
+      const expensesCol = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`;
+      const qExpenses = query(collection(db, expensesCol), where('registerId', '==', registerSession.id));
+
+      const unsubSales = onSnapshot(qSales, (snap) => {
+          let cash = 0, qr = 0, card = 0;
+          snap.forEach(doc => {
+              const sale = doc.data();
+              if (sale.payments && Array.isArray(sale.payments)) {
+                  sale.payments.forEach(p => {
+                      const amt = parseFloat(p.amount) || 0;
+                      const method = (p.method || '').toLowerCase();
+                      if (method.includes('efectivo')) cash += amt;
+                      else if (method.includes('qr')) qr += amt;
+                      else if (method.includes('tarjeta')) card += amt;
+                  });
+                  if (sale.changeGiven) cash -= parseFloat(sale.changeGiven);
+              } else {
+                  const total = parseFloat(sale.total);
+                  const method = (sale.paymentMethod || 'efectivo').toLowerCase();
+                  if (method.includes('efectivo')) {
+                      const change = parseFloat(sale.changeGiven) || 0;
+                      const received = parseFloat(sale.amountReceived) || total;
+                      if(sale.amountReceived) cash += (received - change); else cash += total;
+                  }
+                  else if (method.includes('qr')) qr += total;
+                  else if (method.includes('tarjeta')) card += total;
+              }
+          });
+          setSessionStats(prev => ({ ...prev, cashSales: cash, qrSales: qr, cardSales: card, digitalSales: qr + card }));
+      });
+
+      const unsubExpenses = onSnapshot(qExpenses, (snap) => {
+          let totalExp = 0;
+          const list = [];
+          snap.forEach(doc => {
+              const exp = doc.data();
+              totalExp += parseFloat(exp.amount);
+              list.push({ id: doc.id, ...exp });
+          });
+          setSessionStats(prev => ({ ...prev, totalExpenses: totalExp, expensesList: list }));
+      });
+
+      return () => { unsubSales(); unsubExpenses(); };
+  }, [registerSession]);
 
   const checkRegisterStatus = (requireOwnership = false) => {
     if (registerSession) {
@@ -141,11 +257,9 @@ export default function App() {
       } catch (error) { toast.error("Error al abrir caja"); }
   };
 
-  // --- 1. START SERVICE (MODIFICADO: No guarda en base de datos) ---
   const handleStartService = async (service, note) => {
       if (!checkRegisterStatus(false)) return;
       try {
-          // A. Guardar solo el Reloj Activo (Esto sí va a la DB)
           const serviceData = {
               serviceName: service.name, pricePerHour: service.price, startTime: new Date().toISOString(),
               note: note, staffName: staffMember ? staffMember.name : 'Admin', registerId: registerSession.id
@@ -153,43 +267,31 @@ export default function App() {
           const colName = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`;
           await addDoc(collection(db, colName), serviceData);
 
-          // B. Generar datos del ticket SOLO EN MEMORIA (Para imprimir)
-          // NO usamos addDoc aquí. El ticket es "Fantasma".
-          const ghostTicketData = {
-              date: new Date().toLocaleString(),
-              businessName: appName,
-              type: 'order', // Para que el componente Receipt sepa qué renderizar
-              staffName: staffMember ? staffMember.name : 'Mesero',
-              orderId: 'INI-TIEMPO', // ID Ficticio
-              items: [{ 
-                  id: 'start-' + Date.now(), 
-                  name: `⏱️ INICIO: ${service.name} (${note})`, 
-                  price: 0, 
-                  qty: 1, 
-                  category: 'Servicios' 
-              }],
-              total: 0
+          const orderData = {
+              date: new Date().toISOString(), staffId: staffMember ? staffMember.id : 'anon', staffName: staffMember ? staffMember.name : 'Mesero',
+              orderId: 'INI-' + Math.floor(Math.random() * 1000),
+              items: [{ id: 'start-' + Date.now(), name: `⏱️ INICIO: ${service.name} (${note})`, price: 0, qty: 1, category: 'Servicios' }],
+              total: 0, status: 'pending'
           };
+          const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
+          await addDoc(collection(db, ordersCol), orderData);
 
           setIsServiceModalOpen(false);
-          setLastSale(ghostTicketData); // Cargamos el ticket fantasma
-          setView('receipt_view');      // Vamos a imprimir
           
-          toast.success("Servicio iniciado.");
+          const ticketData = { ...orderData, type: 'order', businessName: appName, date: new Date().toLocaleString() };
+          setLastSale(ticketData); setView('receipt_view'); 
+          toast.success("Servicio iniciado. Imprimiendo ticket...");
       } catch (e) { toast.error("Error al iniciar servicio"); }
   };
 
-  // --- 2. STOP SERVICE (MODIFICADO: Ya no necesita borrar nada) ---
   const handleStopService = async (service, cost, timeLabel) => {
       if (!checkRegisterStatus(true)) return;
       if (!window.confirm(`¿Detener ${service.serviceName}?\nCosto: Bs. ${cost.toFixed(2)}`)) return;
       
       try {
-          // A. Borrar el reloj activo
           const srvCol = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`;
           await deleteDoc(doc(db, srvCol, service.id));
 
-          // B. Crear el ticket FINAL de cobro (Esto sí se guarda para que se pueda cobrar)
           const orderData = {
               date: new Date().toISOString(),
               staffId: staffMember ? staffMember.id : 'anon',
@@ -207,7 +309,7 @@ export default function App() {
           };
           const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
           await addDoc(collection(db, ordersCol), orderData);
-          toast.success("Servicio finalizado. Listo para cobrar.");
+          toast.success("Servicio detenido. Ticket de inicio borrado.");
       } catch (e) { console.error(e); toast.error("Error al detener servicio"); }
   };
 
@@ -335,11 +437,6 @@ export default function App() {
   const filteredItems = filter === 'Todos' ? items : items.filter(i => i.category === filter);
   const isAdminMode = view === 'admin' || view === 'report' || view === 'staff_admin' || view === 'cashier' || view === 'register_control';
   const isCashierOnly = staffMember && staffMember.role === 'Cajero';
-
-  useEffect(() => { const initAuth = async () => { if (!auth.currentUser) { if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token && !isPersonalProject) { await signInWithCustomToken(auth, __initial_auth_token); } else { await signInAnonymously(auth).catch(() => setDbStatus('warning')); } } }; initAuth(); return onAuthStateChanged(auth, (u) => { setCurrentUser(u); if (u) { setDbStatus('connected'); setDbErrorMsg(''); } }); }, []);
-  useEffect(() => { if (!db) return; const checkSession = async () => { const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`; const q = query(collection(db, colName), where('status', '==', 'open'), limit(1)); const snap = await getDocs(q); if (!snap.empty) { const data = snap.docs[0].data(); setRegisterSession({ id: snap.docs[0].id, ...data }); } }; checkSession(); }, [db, currentUser]);
-  useEffect(() => { if (!db || !registerSession) return; const salesCol = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`; const qSales = query(collection(db, salesCol), where('registerId', '==', registerSession.id)); const expensesCol = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`; const qExpenses = query(collection(db, expensesCol), where('registerId', '==', registerSession.id)); const unsubSales = onSnapshot(qSales, (snap) => { let cash = 0, qr = 0, card = 0; snap.forEach(doc => { const sale = doc.data(); if (sale.payments && Array.isArray(sale.payments)) { sale.payments.forEach(p => { const amt = parseFloat(p.amount) || 0; const method = (p.method || '').toLowerCase(); if (method.includes('efectivo')) cash += amt; else if (method.includes('qr')) qr += amt; else if (method.includes('tarjeta')) card += amt; }); if (sale.changeGiven) cash -= parseFloat(sale.changeGiven); } else { const total = parseFloat(sale.total); const method = (sale.paymentMethod || 'efectivo').toLowerCase(); if (method.includes('efectivo')) { const change = parseFloat(sale.changeGiven) || 0; const received = parseFloat(sale.amountReceived) || total; if(sale.amountReceived) cash += (received - change); else cash += total; } else if (method.includes('qr')) qr += total; else if (method.includes('tarjeta')) card += total; } }); setSessionStats(prev => ({ ...prev, cashSales: cash, qrSales: qr, cardSales: card, digitalSales: qr + card })); }); const unsubExpenses = onSnapshot(qExpenses, (snap) => { let totalExp = 0; const list = []; snap.forEach(doc => { const exp = doc.data(); totalExp += parseFloat(exp.amount); list.push({ id: doc.id, ...exp }); }); setSessionStats(prev => ({ ...prev, totalExpenses: totalExp, expensesList: list })); }); return () => { unsubSales(); unsubExpenses(); }; }, [registerSession]);
-  useEffect(() => { if (!db) return; if (!currentUser) return; const itemsUnsub = onSnapshot(collection(db, getCollName('items')), (s) => { const rawItems = s.docs.map(doc => ({ id: doc.id, ...doc.data() })); const uniqueItems = Array.from(new Map(rawItems.map(item => [item.id, item])).values()); setItems(uniqueItems); }, (e) => { if (e.code === 'permission-denied') { setDbStatus('error'); setDbErrorMsg(currentUser ? 'Sin permisos.' : 'Inicia sesión.'); } }); const staffUnsub = onSnapshot(collection(db, getCollName('staff')), (s) => setStaff(s.docs.map(d => ({id: d.id, ...d.data()})))); const settingsUnsub = onSnapshot(collection(db, getCollName('settings')), (s) => { let brandingLoaded = false; s.docs.forEach(d => { const data = d.data(); if (d.id === 'categories') setCategories(data.list || []); if (d.id === 'roles') setRoles(data.list || INITIAL_ROLES); if (d.id === 'branding') { setLogo(data.logo); if(data.appName) setAppName(data.appName); brandingLoaded = true; } }); setIsLoadingApp(false); }); const activeSrvCol = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`; const srvUnsub = onSnapshot(collection(db, activeSrvCol), (s) => { setActiveServices(s.docs.map(d => ({ id: d.id, ...d.data() }))); }); return () => { itemsUnsub(); staffUnsub(); settingsUnsub(); srvUnsub(); }; }, [currentUser]);
 
   if (isLoadingApp) return <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 animate-in fade-in"><div className="bg-white p-8 rounded-3xl shadow-xl flex flex-col items-center"><div className="relative mb-4"><div className="absolute inset-0 bg-orange-200 rounded-full animate-ping opacity-75"></div><div className="relative bg-white p-4 rounded-full border-4 border-orange-500 overflow-hidden w-24 h-24 flex items-center justify-center">{LOGO_URL_FIJO ? (<img src={LOGO_URL_FIJO} alt="Cargando" className="w-full h-full object-contain animate-pulse" />) : (<ChefHat size={48} className="text-orange-500" />)}</div></div><h2 className="text-xl font-bold text-gray-800">Cargando sistema...</h2><p className="text-sm text-gray-400 mt-2">Conectando con la nube</p></div></div>;
 
