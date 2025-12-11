@@ -1,9 +1,9 @@
-// src/components/Views.jsx - VERSIÓN FINAL SEGURA (Sin Iconos en Ticket)
+// src/components/Views.jsx - VERSIÓN MODO SEGURO (Cero conflictos)
 import React, { useState } from 'react';
-// Importamos SOLO lo básico. Si esto falla, es brujería.
-import { Lock, ArrowLeft, ChefHat, Edit2, Trash2, User } from 'lucide-react';
+// Solo usamos íconos para el menú interno, no para el login ni tickets
+import { ChefHat, Edit2, Trash2 } from 'lucide-react';
 
-// --- 1. TARJETA DE MENÚ ---
+// --- 1. TARJETA DE MENÚ (Para el POS) ---
 export const MenuCard = ({ item }) => (
   <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 h-full flex flex-col">
     <div className="h-48 overflow-hidden relative group bg-gray-100 flex items-center justify-center flex-shrink-0">
@@ -21,11 +21,14 @@ export const MenuCard = ({ item }) => (
   </div>
 );
 
-// --- 2. PIN LOGIN (Texto simple para cargar) ---
+// --- 2. LOGIN CON PIN (SIN ICONOS, PURO TEXTO) ---
 export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  // Verificamos si los datos ya cargaron
+  const isDataLoaded = staffMembers && staffMembers.length > 0;
 
   const handleNumClick = (num) => { if (pin.length < 4 && !isLoggingIn) { setPin(pin + num); setError(''); } };
   const handleDelete = () => { if(!isLoggingIn) { setPin(prev => prev.slice(0, -1)); setError(''); } };
@@ -33,6 +36,7 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
   const handleLogin = async () => {
     if (isLoggingIn) return; 
     setIsLoggingIn(true);
+    
     setTimeout(() => {
         const member = staffMembers.find(m => String(m.pin) === String(pin));
         if (member) { 
@@ -49,20 +53,44 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4 animate-in zoom-in duration-300">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden">
         <div className="p-8 pb-4 text-center">
-          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4"><Lock size={32} className="text-blue-600" /></div>
+          {/* Logo candado con Emoji para evitar crash */}
+          <div className="text-4xl mb-4">🔒</div>
           <h2 className="text-2xl font-black text-gray-800 mb-2">Ingreso Personal</h2>
-          <p className="text-gray-500 text-sm">Introduce tu código</p>
+          
+          {!isDataLoaded ? (
+             <p className="text-orange-500 font-bold text-sm animate-pulse">Conectando con sistema...</p>
+          ) : (
+             <p className="text-gray-500 text-sm">Introduce tu código</p>
+          )}
         </div>
-        <div className="flex justify-center gap-4 mb-8">{[0, 1, 2, 3].map(i => (<div key={i} className={`w-4 h-4 rounded-full border-2 transition-all ${i < pin.length ? 'bg-blue-600 border-blue-600 scale-110' : 'border-gray-300'}`} />))}</div>
+
+        {/* Puntos PIN */}
+        <div className="flex justify-center gap-4 mb-8">
+            {[0, 1, 2, 3].map(i => (<div key={i} className={`w-4 h-4 rounded-full border-2 transition-all ${i < pin.length ? 'bg-blue-600 border-blue-600 scale-110' : 'border-gray-300'}`} />))}
+        </div>
+        
         {error && <div className="text-red-500 text-center font-bold text-xs mb-4 animate-pulse bg-red-50 py-2 mx-8 rounded">{error}</div>}
+        
+        {/* Teclado */}
         <div className="grid grid-cols-3 gap-4 px-8 pb-8">
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (<button key={num} onClick={() => handleNumClick(num.toString())} disabled={isLoggingIn} className="h-16 w-16 mx-auto rounded-full bg-gray-50 text-2xl font-bold text-gray-700 hover:bg-blue-100 disabled:opacity-50 active:scale-95 transition-all">{num}</button>))}
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
+            <button key={num} onClick={() => handleNumClick(num.toString())} disabled={isLoggingIn || !isDataLoaded} className="h-16 w-16 mx-auto rounded-full bg-gray-50 text-2xl font-bold text-gray-700 hover:bg-blue-100 disabled:opacity-50 active:scale-95 transition-all">{num}</button>
+          ))}
           <div className="flex items-center justify-center"><button onClick={onCancel} disabled={isLoggingIn} className="text-sm font-medium text-gray-500 hover:text-gray-800 disabled:opacity-50">Cancelar</button></div>
-          <button onClick={() => handleNumClick('0')} disabled={isLoggingIn} className="h-16 w-16 mx-auto rounded-full bg-gray-50 text-2xl font-bold text-gray-700 hover:bg-blue-100 disabled:opacity-50 active:scale-95 transition-all">0</button>
-          <button onClick={handleDelete} disabled={isLoggingIn} className="flex items-center justify-center h-16 w-16 mx-auto rounded-full text-red-400 hover:bg-red-50 disabled:opacity-50 active:scale-95 transition-all"><ArrowLeft size={28} /></button>
+          <button onClick={() => handleNumClick('0')} disabled={isLoggingIn || !isDataLoaded} className="h-16 w-16 mx-auto rounded-full bg-gray-50 text-2xl font-bold text-gray-700 hover:bg-blue-100 disabled:opacity-50 active:scale-95 transition-all">0</button>
+          
+          {/* Botón Borrar con Texto/Flecha simple */}
+          <button onClick={handleDelete} disabled={isLoggingIn} className="flex items-center justify-center h-16 w-16 mx-auto rounded-full text-red-400 hover:bg-red-50 disabled:opacity-50 active:scale-95 transition-all font-bold text-xl">
+             ←
+          </button>
         </div>
+
         <div className="p-6 bg-gray-50 border-t">
-            <button onClick={handleLogin} disabled={pin.length < 4 || isLoggingIn} className={`w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 shadow-lg transition-all ${pin.length === 4 && !isLoggingIn ? 'bg-blue-600 hover:bg-blue-700 hover:scale-105' : 'bg-gray-300 cursor-not-allowed'}`}>
+            <button 
+                onClick={handleLogin} 
+                disabled={pin.length < 4 || isLoggingIn || !isDataLoaded} 
+                className={`w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 shadow-lg transition-all ${pin.length === 4 && !isLoggingIn ? 'bg-blue-600 hover:bg-blue-700 hover:scale-105' : 'bg-gray-300 cursor-not-allowed'}`}
+            >
                 {isLoggingIn ? "VERIFICANDO..." : "INGRESAR"}
             </button>
         </div>
@@ -71,23 +99,15 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
   );
 };
 
-// --- 3. TICKET DE ASISTENCIA (SIN ICONOS PARA EVITAR ERROR) ---
+// --- 3. TICKET DE ASISTENCIA (SIN ICONOS) ---
 export const AttendancePrintView = ({ data, onContinue }) => {
-  // Protección contra datos nulos
-  if (!data) return <div className="p-10 text-center font-bold">Cargando ticket...</div>;
+  if (!data) return <div className="p-10 text-center text-gray-400 font-bold">Generando ticket...</div>;
 
   const safeName = data.name || '---';
   const safeDate = data.date || '---';
   const safeTime = data.time || '--:--';
+  const safeId = data.id ? String(data.id).slice(-3).toUpperCase() : '001';
   const safeApp = data.appName || 'LicoBar';
-  
-  // Lógica de ID simplificada
-  let safeId = '001';
-  if (data.id) {
-      safeId = String(data.id);
-      if (safeId.length > 3) safeId = safeId.slice(-3);
-      safeId = safeId.toUpperCase();
-  }
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
@@ -115,15 +135,14 @@ export const AttendancePrintView = ({ data, onContinue }) => {
         <div className="border-t border-black pt-1 mx-6"><p className="text-xs uppercase">FIRMA</p></div>
       </div>
 
-      {/* BOTONES (Solo texto, sin íconos para evitar conflictos) */}
       <div className="mt-8 flex flex-col gap-3 w-full max-w-[300px] no-print">
-          <button onClick={() => window.print()} className="w-full bg-black text-white py-4 rounded-xl font-bold shadow-lg hover:scale-105 transition-transform">
+          <button onClick={() => window.print()} className="w-full bg-black text-white py-4 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:scale-105 transition-transform">
              🖨️ IMPRIMIR TICKET
           </button>
           
           {onContinue && (
-            <button onClick={onContinue} className="w-full bg-green-600 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-green-700 transition-colors">
-               ✅ CONTINUAR
+            <button onClick={onContinue} className="w-full bg-green-600 text-white py-4 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:bg-green-700 transition-colors">
+               ✅ CONTINUAR AL SISTEMA
             </button>
           )}
       </div>
@@ -131,7 +150,7 @@ export const AttendancePrintView = ({ data, onContinue }) => {
   );
 };
 
-// --- 4. CREDENCIALES (Sin Iconos extraños) ---
+// --- 4. CREDENCIALES (SIN ICONOS) ---
 export const CredentialPrintView = ({ member, appName }) => {
   if (!member) return <div className="text-center p-10 text-red-500 font-bold">Error: Sin datos.</div>;
   const safeName = member.name || "Sin Nombre";
@@ -149,7 +168,7 @@ export const CredentialPrintView = ({ member, appName }) => {
         <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg mb-4"><p className="text-[10px] text-yellow-700 font-bold uppercase">PIN DE ACCESO</p><p className="text-xl font-mono font-bold text-gray-800 tracking-widest">{safePin}</p></div>
         <div className="text-[10px] font-mono text-gray-400 border-t pt-2 uppercase text-black">ID: {safeId.slice(0, 8)}</div>
       </div>
-      <div className="mt-8 text-center no-print"><p className="text-gray-500 text-sm mb-4">Listo para imprimir.</p><button onClick={() => window.print()} className="flex items-center justify-center gap-2 bg-blue-600 text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-blue-700 hover:scale-105 transition-all">🖨️ IMPRIMIR AHORA</button></div>
+      <div className="mt-8 text-center no-print"><p className="text-gray-500 text-sm mb-4">Listo para imprimir.</p><button onClick={() => window.print()} className="flex items-center gap-2 justify-center bg-blue-600 text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-blue-700 hover:scale-105 transition-all">🖨️ IMPRIMIR AHORA</button></div>
     </div>
   );
 };
@@ -177,7 +196,7 @@ export const PrintableView = ({ items }) => {
   );
 };
 
-// --- 6. ADMIN ROW ---
+// --- 6. FILA DE ADMIN ---
 export const AdminRow = ({ item, onEdit, onDelete }) => {
   const price = Number(item.price) || 0; const cost = Number(item.cost) || 0; const margin = price - cost; const marginPercent = price > 0 ? ((margin / price) * 100).toFixed(1) : 0;
   let marginColor = "text-red-500"; if (marginPercent > 30) marginColor = "text-yellow-600"; if (marginPercent > 50) marginColor = "text-green-600";
