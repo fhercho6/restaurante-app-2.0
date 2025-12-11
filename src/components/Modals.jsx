@@ -1,8 +1,8 @@
-// src/components/Modals.jsx - VERSIÓN FINAL (Selección Estricta de Mesa)
+// src/components/Modals.jsx - VERSIÓN FINAL (Con Bloqueo de Mesas)
 import React, { useState, useEffect } from 'react';
 import { X, Upload, Save, Plus, Trash2, Edit2, Check, Shield, Clock, MapPin } from 'lucide-react';
 
-// --- LISTA DE MESAS (EDITA ESTO SEGÚN TU LOCAL) ---
+// --- LISTA DE MESAS ---
 const COMMON_LOCATIONS = [
   "PRIVADO 104", "PRIVADO 105", "PRIVADO 106", "PRIVADO 107", "PRIVADO 108"
 ];
@@ -192,10 +192,10 @@ export const BrandingModal = ({ isOpen, onClose, onSave, currentLogo, currentNam
   );
 };
 
-// --- 6. MODAL DE INICIO DE SERVICIO (LISTA CERRADA) ---
-export const ServiceStartModal = ({ isOpen, onClose, services, onStart }) => {
+// --- 6. MODAL DE INICIO DE SERVICIO (BLOQUEO DE MESAS) ---
+export const ServiceStartModal = ({ isOpen, onClose, services, onStart, occupiedLocations = [] }) => {
   const [selectedService, setSelectedService] = useState(null);
-  const [note, setNote] = useState(''); // Aquí irá la mesa seleccionada
+  const [note, setNote] = useState(''); 
 
   if (!isOpen) return null;
 
@@ -215,7 +215,6 @@ export const ServiceStartModal = ({ isOpen, onClose, services, onStart }) => {
         </h2>
         <form onSubmit={handleSubmit}>
           
-          {/* SELECCIÓN DE SERVICIO */}
           <div className="mb-4">
             <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Tipo de Servicio</label>
             <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
@@ -235,11 +234,10 @@ export const ServiceStartModal = ({ isOpen, onClose, services, onStart }) => {
             </div>
           </div>
           
-          {/* SELECCIÓN DE REFERENCIA (DESPLEGABLE ESTRICTO) */}
           <div className="mb-6">
             <label className="block text-xs font-bold text-gray-500 uppercase mb-2 flex items-center gap-1"><MapPin size={12}/> Ubicación / Mesa</label>
             
-            {/* AQUÍ EL CAMBIO: Select en vez de Input */}
+            {/* SELECT CON OPCIONES DESHABILITADAS SI ESTÁN OCUPADAS */}
             <select
               required
               className="w-full p-3 border rounded-xl font-bold text-gray-800 focus:ring-2 focus:ring-purple-500 outline-none bg-white"
@@ -247,16 +245,19 @@ export const ServiceStartModal = ({ isOpen, onClose, services, onStart }) => {
               onChange={e => setNote(e.target.value)}
             >
               <option value="">-- Seleccionar Mesa --</option>
-              {COMMON_LOCATIONS.map(loc => (
-                <option key={loc} value={loc}>{loc}</option>
-              ))}
+              {COMMON_LOCATIONS.map(loc => {
+                const isOccupied = occupiedLocations.includes(loc); // ¿Está en la lista negra?
+                return (
+                  <option key={loc} value={loc} disabled={isOccupied} className={isOccupied ? 'text-gray-300 bg-gray-100' : 'text-gray-800'}>
+                    {loc} {isOccupied ? '(Ocupado)' : ''}
+                  </option>
+                );
+              })}
             </select>
           </div>
 
           <div className="flex gap-3">
             <button type="button" onClick={onClose} className="flex-1 py-3 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-colors">Cancelar</button>
-            
-            {/* El botón se deshabilita si no hay servicio O si no hay mesa seleccionada */}
             <button 
               type="submit" 
               disabled={!selectedService || !note} 

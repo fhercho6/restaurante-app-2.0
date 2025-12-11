@@ -1,4 +1,4 @@
-// src/App.jsx - VERSIÓN FINAL (Con Lógica de Servicios por Hora)
+// src/App.jsx - VERSIÓN FINAL (Con Bloqueo de Mesas Ocupadas)
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
@@ -38,6 +38,9 @@ export default function App() {
   const [categories, setCategories] = useState(INITIAL_CATEGORIES);
   const [roles, setRoles] = useState(INITIAL_ROLES);
   
+  // --- NUEVO: Estado para saber qué mesas están ocupadas ---
+  const [activeServices, setActiveServices] = useState([]); 
+
   // Config
   const [dbStatus, setDbStatus] = useState('connecting');
   const [dbErrorMsg, setDbErrorMsg] = useState('');
@@ -55,7 +58,7 @@ export default function App() {
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isBrandingModalOpen, setIsBrandingModalOpen] = useState(false);
-  const [isServiceModalOpen, setIsServiceModalOpen] = useState(false); // <--- NUEVO
+  const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
   
   // Estados Operativos
   const [currentItem, setCurrentItem] = useState(null);
@@ -153,77 +156,68 @@ export default function App() {
       } catch (error) { toast.error("Error al abrir caja"); }
   };
 
-  // --- LÓGICA DE SERVICIOS POR HORA ---
-  // En src/App.jsx
-
-  // En src/App.jsx
-
   // --- LÓGICA DE SERVICIOS POR HORA (CON IMPRESIÓN AUTOMÁTICA) ---
   const handleStartService = async (service, note) => {
-    if (!checkRegisterStatus(false)) return;
-    try {
-        // 1. INICIAR CRONÓMETRO EN BASE DE DATOS
-        const serviceData = {
-            serviceName: service.name,
-            pricePerHour: service.price,
-            startTime: new Date().toISOString(),
-            note: note,
-            staffName: staffMember ? staffMember.name : 'Admin',
-            registerId: registerSession.id
-        };
-        const colName = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`;
-        await addDoc(collection(db, colName), serviceData);
+      if (!checkRegisterStatus(false)) return;
+      try {
+          // 1. INICIAR CRONÓMETRO EN BASE DE DATOS
+          const serviceData = {
+              serviceName: service.name,
+              pricePerHour: service.price,
+              startTime: new Date().toISOString(),
+              note: note,
+              staffName: staffMember ? staffMember.name : 'Admin',
+              registerId: registerSession.id
+          };
+          const colName = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`;
+          await addDoc(collection(db, colName), serviceData);
 
-        // 2. CREAR COMANDA EN EL SISTEMA
-        const orderData = {
-            date: new Date().toISOString(),
-            staffId: staffMember ? staffMember.id : 'anon',
-            staffName: staffMember ? staffMember.name : 'Mesero',
-            orderId: 'INI-' + Math.floor(Math.random() * 1000),
-            items: [{
-                id: 'start-' + Date.now(),
-                name: `⏱️ INICIO: ${service.name} (${note})`, 
-                price: 0,
-                qty: 1,
-                category: 'Servicios'
-            }],
-            total: 0,
-            status: 'pending'
-        };
-        const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
-        await addDoc(collection(db, ordersCol), orderData);
+          // 2. CREAR COMANDA EN EL SISTEMA
+          const orderData = {
+              date: new Date().toISOString(),
+              staffId: staffMember ? staffMember.id : 'anon',
+              staffName: staffMember ? staffMember.name : 'Mesero',
+              orderId: 'INI-' + Math.floor(Math.random() * 1000),
+              items: [{
+                  id: 'start-' + Date.now(),
+                  name: `⏱️ INICIO: ${service.name} (${note})`, 
+                  price: 0,
+                  qty: 1,
+                  category: 'Servicios'
+              }],
+              total: 0,
+              status: 'pending'
+          };
+          const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
+          await addDoc(collection(db, ordersCol), orderData);
 
-        setIsServiceModalOpen(false);
+          setIsServiceModalOpen(false);
 
-        // 3. ¡MOSTRAR TICKET PARA IMPRIMIR! (NUEVO)
-        // Preparamos los datos visuales para el recibo
-        const ticketData = {
-            ...orderData,
-            type: 'order', // Esto le dice al recibo que es una comanda
-            businessName: appName,
-            date: new Date().toLocaleString()
-        };
-        
-        setLastSale(ticketData); // Cargamos el ticket
-        setView('receipt_view'); // Cambiamos la pantalla para imprimir
-        
-        toast.success("Servicio iniciado. Imprimiendo ticket...");
+          // 3. MOSTRAR TICKET
+          const ticketData = {
+              ...orderData,
+              type: 'order', 
+              businessName: appName,
+              date: new Date().toLocaleString()
+          };
+          setLastSale(ticketData); 
+          setView('receipt_view'); 
+          toast.success("Servicio iniciado. Imprimiendo ticket...");
 
-    } catch (e) { 
-        console.error(e);
-        toast.error("Error al iniciar servicio"); 
-    }
+      } catch (e) { 
+          console.error(e);
+          toast.error("Error al iniciar servicio"); 
+      }
   };
+
   const handleStopService = async (service, cost, timeLabel) => {
       if (!checkRegisterStatus(true)) return;
       if (!window.confirm(`¿Detener ${service.serviceName}?\nCosto: Bs. ${cost.toFixed(2)}`)) return;
       
       try {
-          // 1. Borrar de servicios activos
           const srvCol = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`;
           await deleteDoc(doc(db, srvCol, service.id));
 
-          // 2. Crear comanda pendiente lista para cobrar
           const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
           const orderData = {
               date: new Date().toISOString(),
@@ -588,7 +582,15 @@ export default function App() {
         });
         setIsLoadingApp(false);
     });
-    return () => { itemsUnsub(); staffUnsub(); settingsUnsub(); };
+
+    // --- NUEVO LISTENER: ESCUCHAR MESAS OCUPADAS ---
+    const activeSrvCol = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`;
+    const srvUnsub = onSnapshot(collection(db, activeSrvCol), (s) => {
+        // Guardamos la lista completa de servicios activos en el estado
+        setActiveServices(s.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    return () => { itemsUnsub(); staffUnsub(); settingsUnsub(); srvUnsub(); };
   }, [currentUser]);
 
   const handleSave = async (d) => { try { if(currentItem) await setDoc(doc(db, getCollName('items'), currentItem.id), d); else await addDoc(collection(db, getCollName('items')), d); toast.success('Guardado'); setIsModalOpen(false); } catch { toast.error('Error'); }};
@@ -665,13 +667,12 @@ export default function App() {
 
                 {view === 'report' && <div className="animate-in fade-in"><SalesDashboard onReprintZ={handleReprintZReport} /><div className="hidden print:block mt-8"><PrintableView items={items} /></div></div>}
                 
-                {/* --- VISTA DE CAJA CON CONTROL DE SERVICIOS --- */}
                 {view === 'cashier' && (
                     <CashierView 
                         onProcessPayment={handleStartPaymentFromCashier} 
                         onVoidOrder={handleVoidAndPrint}
                         onReprintOrder={handleReprintOrder}
-                        onStopService={handleStopService} // <--- NUEVO HANDLER
+                        onStopService={handleStopService} 
                     />
                 )}
                 
@@ -711,7 +712,6 @@ export default function App() {
 
             {view === 'pin_login' && <PinLoginView staffMembers={staff} onLoginSuccess={handleStaffPinLogin} onCancel={() => setView('landing')} />}
             
-            {/* --- POS CON BOTÓN DE SERVICIOS --- */}
             {view === 'pos' && (
                 <POSInterface 
                     items={items} 
@@ -720,7 +720,7 @@ export default function App() {
                     onCheckout={handlePOSCheckout} 
                     onPrintOrder={handleSendToKitchen} 
                     onExit={() => setView('landing')}
-                    onOpenServiceModal={() => setIsServiceModalOpen(true)} // <--- NUEVO
+                    onOpenServiceModal={() => setIsServiceModalOpen(true)}
                 />
             )}
 
@@ -778,12 +778,13 @@ export default function App() {
       <BrandingModal isOpen={isBrandingModalOpen} onClose={() => setIsBrandingModalOpen(false)} onSave={handleSaveBranding} currentLogo={logo} currentName={appName} />
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onLogin={handleLogin} />
       
-      {/* MODAL DE SERVICIOS */}
+      {/* MODAL DE SERVICIOS (Ahora le pasamos la "Lista Negra" de mesas ocupadas) */}
       <ServiceStartModal 
         isOpen={isServiceModalOpen} 
         onClose={() => setIsServiceModalOpen(false)}
         services={items.filter(i => i.category === 'Servicios')}
         onStart={handleStartService}
+        occupiedLocations={activeServices.map(s => s.note)} // <--- ESTO ES LO NUEVO
       />
     </div>
   );
