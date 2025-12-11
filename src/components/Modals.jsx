@@ -1,13 +1,15 @@
-// src/components/Modals.jsx - VERSIÓN FINAL (Con Bloqueo de Mesas)
+// src/components/Modals.jsx - FINAL STABLE VERSION
 import React, { useState, useEffect } from 'react';
+// Only standard icons
 import { X, Upload, Save, Plus, Trash2, Edit2, Check, Shield, Clock, MapPin } from 'lucide-react';
 
-// --- LISTA DE MESAS ---
+// --- TABLE LIST ---
 const COMMON_LOCATIONS = [
-  "PRIVADO 104", "PRIVADO 105", "PRIVADO 106", "PRIVADO 107", "PRIVADO 108"
+  "PRIVADO 104", "PRIVADO 105", "PRIVADO 106", "PRIVADO 107", "PRIVADO 108",
+  "Mesa 1", "Mesa 2", "Mesa 3", "Mesa 4", "Mesa 5", "Barra"
 ];
 
-// --- 1. MODAL DE AUTENTICACIÓN ---
+// --- 1. AUTH MODAL ---
 export const AuthModal = ({ isOpen, onClose, onLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -37,7 +39,7 @@ export const AuthModal = ({ isOpen, onClose, onLogin }) => {
   );
 };
 
-// --- 2. MODAL DE PRODUCTO ---
+// --- 2. PRODUCT MODAL ---
 export const ProductModal = ({ isOpen, onClose, onSave, item, categories }) => {
   const [formData, setFormData] = useState({ name: '', price: '', category: 'Bebidas', stock: '', image: '', cost: '' });
 
@@ -103,7 +105,7 @@ export const ProductModal = ({ isOpen, onClose, onSave, item, categories }) => {
   );
 };
 
-// --- 3. GESTOR DE CATEGORÍAS ---
+// --- 3. CATEGORY MANAGER ---
 export const CategoryManager = ({ isOpen, onClose, categories, onAdd, onRename, onDelete }) => {
   const [newCat, setNewCat] = useState('');
   const [editingIndex, setEditingIndex] = useState(null);
@@ -132,7 +134,7 @@ export const CategoryManager = ({ isOpen, onClose, categories, onAdd, onRename, 
   );
 };
 
-// --- 4. GESTOR DE ROLES ---
+// --- 4. ROLE MANAGER ---
 export const RoleManager = ({ isOpen, onClose, roles, onAdd, onRename, onDelete }) => {
   const [newRole, setNewRole] = useState('');
   const [editingIndex, setEditingIndex] = useState(null);
@@ -161,7 +163,7 @@ export const RoleManager = ({ isOpen, onClose, roles, onAdd, onRename, onDelete 
   );
 };
 
-// --- 5. MODAL DE MARCA (LOGO/NOMBRE) ---
+// --- 5. BRANDING MODAL ---
 export const BrandingModal = ({ isOpen, onClose, onSave, currentLogo, currentName }) => {
   const [logo, setLogo] = useState(null);
   const [appName, setAppName] = useState('');
@@ -192,7 +194,7 @@ export const BrandingModal = ({ isOpen, onClose, onSave, currentLogo, currentNam
   );
 };
 
-// --- 6. MODAL DE INICIO DE SERVICIO (BLOQUEO DE MESAS) ---
+// --- 6. SERVICE START MODAL ---
 export const ServiceStartModal = ({ isOpen, onClose, services, onStart, occupiedLocations = [] }) => {
   const [selectedService, setSelectedService] = useState(null);
   const [note, setNote] = useState(''); 
@@ -230,14 +232,13 @@ export const ServiceStartModal = ({ isOpen, onClose, services, onStart, occupied
                   </div>
                 </div>
               ))}
-              {services.length === 0 && <p className="text-sm text-gray-400 italic p-2 text-center bg-gray-50 rounded-lg">No hay servicios creados. Crea productos en la categoría "Servicios".</p>}
+              {services.length === 0 && <p className="text-sm text-gray-400 italic p-2 text-center bg-gray-50 rounded-lg">No hay servicios creados.</p>}
             </div>
           </div>
           
           <div className="mb-6">
             <label className="block text-xs font-bold text-gray-500 uppercase mb-2 flex items-center gap-1"><MapPin size={12}/> Ubicación / Mesa</label>
             
-            {/* SELECT CON OPCIONES DESHABILITADAS SI ESTÁN OCUPADAS */}
             <select
               required
               className="w-full p-3 border rounded-xl font-bold text-gray-800 focus:ring-2 focus:ring-purple-500 outline-none bg-white"
@@ -246,7 +247,7 @@ export const ServiceStartModal = ({ isOpen, onClose, services, onStart, occupied
             >
               <option value="">-- Seleccionar Mesa --</option>
               {COMMON_LOCATIONS.map(loc => {
-                const isOccupied = occupiedLocations.includes(loc); // ¿Está en la lista negra?
+                const isOccupied = occupiedLocations.includes(loc);
                 return (
                   <option key={loc} value={loc} disabled={isOccupied} className={isOccupied ? 'text-gray-300 bg-gray-100' : 'text-gray-800'}>
                     {loc} {isOccupied ? '(Ocupado)' : ''}
