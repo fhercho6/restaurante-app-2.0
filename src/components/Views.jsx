@@ -1,8 +1,9 @@
-// src/components/Views.jsx - FINAL STABLE VERSION (No Crash, Thermal Ticket Design)
+// src/components/Views.jsx - VERSIÓN A PRUEBA DE FALLOS (Sin íconos problemáticos)
 import React, { useState } from 'react';
+// Usamos solo íconos estándar para evitar conflictos de sistema
 import { Lock, ArrowLeft, ChefHat, Edit2, Trash2, User, Printer, CheckCircle } from 'lucide-react';
 
-// --- 1. MENU CARD ---
+// --- 1. TARJETA DE MENÚ (Asegúrate de que esto esté al principio) ---
 export const MenuCard = ({ item }) => (
   <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 h-full flex flex-col">
     <div className="h-48 overflow-hidden relative group bg-gray-100 flex items-center justify-center flex-shrink-0">
@@ -20,7 +21,7 @@ export const MenuCard = ({ item }) => (
   </div>
 );
 
-// --- 2. PIN LOGIN (SAFE MODE - NO LOADER ICON) ---
+// --- 2. LOGIN CON PIN (Sin Loader para evitar crash) ---
 export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
@@ -32,13 +33,11 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
   const handleLogin = async () => {
     if (isLoggingIn) return; 
     setIsLoggingIn(true);
-    
-    // Safety delay to prevent double clicks and simulate processing
+    // Usamos setTimeout para dar estabilidad visual antes de cambiar de pantalla
     setTimeout(() => {
         const member = staffMembers.find(m => String(m.pin) === String(pin));
         if (member) { 
             onLoginSuccess(member); 
-            // Note: We don't set isLoggingIn to false here to prevent UI flicker before view change
         } else { 
             setError('PIN incorrecto'); 
             setPin(''); 
@@ -73,27 +72,24 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
   );
 };
 
-// --- 3. ATTENDANCE TICKET (MATCHING YOUR PHOTO) ---
+// --- 3. TICKET DE ASISTENCIA (Diseño Térmico) ---
 export const AttendancePrintView = ({ data, onContinue }) => {
-  // Safety check to prevent crash if data is missing
-  if (!data) return <div className="p-10 text-center font-bold text-gray-400">Cargando ticket...</div>;
+  if (!data) return <div className="p-10 text-center text-gray-500">Cargando ticket...</div>;
 
   const safeName = data.name || '---';
   const safeDate = data.date || '---';
   const safeTime = data.time || '--:--';
   const safeId = data.id ? String(data.id).slice(-3).toUpperCase() : '001';
-  const safeApp = data.appName || 'LicoBar';
+  const safeApp = data.appName || 'SISTEMA';
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
-      {/* THERMAL TICKET DESIGN (300px width) */}
+      {/* TICKET PAPEL */}
       <div id="attendance-card" className="bg-white p-4 w-[300px] shadow-xl text-center border border-gray-300 relative" style={{ fontFamily: "'Courier New', Courier, monospace", color: '#000' }}>
-        
-        <h2 className="font-bold text-base uppercase mb-1" style={{ letterSpacing: '1px' }}>CONTROL DE ASISTENCIA</h2>
+        <h2 className="font-bold text-base uppercase mb-1">CONTROL DE ASISTENCIA</h2>
         <p className="text-sm mb-2 border-b border-dashed border-black pb-2">Jornada: {safeDate}</p>
         
-        {/* BIG ID */}
-        <h1 className="text-5xl font-black my-4 tracking-tighter">{safeId}</h1>
+        <h1 className="text-4xl font-black my-2">{safeId}</h1>
         
         <div className="text-left w-full mb-4 px-2">
             <p className="uppercase text-xs">Nombre:<br/><span className="font-bold text-base block">{safeName}</span></p>
@@ -101,22 +97,16 @@ export const AttendancePrintView = ({ data, onContinue }) => {
 
         <div className="border-t-2 border-black w-full mb-4"></div>
 
-        {/* GIANT TIME */}
         <div className="text-5xl font-black mb-2 tracking-widest leading-none whitespace-nowrap overflow-hidden">
             {safeTime}
         </div>
         <p className="text-xs italic mb-8">{safeDate}</p>
 
-        {/* Footer */}
         <p className="text-[10px] uppercase text-left mb-10 font-bold border-b border-black pb-1">{safeApp}</p>
 
-        {/* Signature Area */}
-        <div className="border-t border-black pt-1 mx-6">
-            <p className="text-xs uppercase">FIRMA</p>
-        </div>
+        <div className="border-t border-black pt-1 mx-6"><p className="text-xs uppercase">FIRMA</p></div>
       </div>
 
-      {/* Buttons (Hidden on Print) */}
       <div className="mt-8 flex flex-col gap-3 w-full max-w-[300px] no-print">
           <button onClick={() => window.print()} className="w-full bg-black text-white py-4 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:scale-105 transition-transform"><Printer size={20}/> IMPRIMIR TICKET</button>
           {onContinue && (
@@ -127,7 +117,7 @@ export const AttendancePrintView = ({ data, onContinue }) => {
   );
 };
 
-// --- 4. CREDENTIAL PRINT VIEW ---
+// --- 4. CREDENCIALES ---
 export const CredentialPrintView = ({ member, appName }) => {
   if (!member) return <div className="text-center p-10 text-red-500 font-bold">Error: Sin datos.</div>;
   const safeName = member.name || "Sin Nombre";
@@ -150,7 +140,7 @@ export const CredentialPrintView = ({ member, appName }) => {
   );
 };
 
-// --- 5. PRINTABLE REPORT ---
+// --- 5. REPORTE IMPRIMIBLE ---
 export const PrintableView = ({ items }) => {
   const totalCost = items.reduce((acc, curr) => acc + (Number(curr.cost) || 0), 0);
   const totalPrice = items.reduce((acc, curr) => acc + (Number(curr.price) || 0), 0);

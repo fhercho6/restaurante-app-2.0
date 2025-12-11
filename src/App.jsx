@@ -1,4 +1,4 @@
-// src/App.jsx - VERSIÓN FINAL (Impresión Obligatoria al Entrar + Fix Pantalla Blanca)
+// src/App.jsx - VERSIÓN FINAL (Impresión Siempre + Sin Duplicados)
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
@@ -64,7 +64,7 @@ export default function App() {
   const [filter, setFilter] = useState('Todos');
   const [credentialToPrint, setCredentialToPrint] = useState(null);
   const [staffMember, setStaffMember] = useState(null);
-  const [lastAttendance, setLastAttendance] = useState(null); 
+  const [lastAttendance, setLastAttendance] = useState(null); // Ticket Asistencia
   
   // Pagos
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -78,6 +78,7 @@ export default function App() {
     return isPersonalProject ? 'settings' : `${ROOT_COLLECTION}settings`;
   };
 
+  // --- HANDLERS ---
   const handleLogin = (userApp) => { setIsAuthModalOpen(false); setView('admin'); toast.success(`Bienvenido`); };
   const handleLogout = async () => { await signOut(auth); window.location.reload(); };
   const handleEnterMenu = () => { setFilter('Todos'); setView('menu'); };
@@ -92,15 +93,15 @@ export default function App() {
   
   const handlePrint = () => window.print();
 
-  // --- FUNCIÓN CORREGIDA: SIEMPRE IMPRIME EL TICKET ---
+  // --- LÓGICA DE LOGIN + ASISTENCIA ---
   const handleStaffPinLogin = async (member) => { 
     const newSessionId = Date.now().toString() + Math.floor(Math.random() * 1000);
     const now = new Date();
     
-    // Preparar datos del ticket antes de cualquier operación para evitar pantalla blanca
+    // PREPARAMOS DATOS DEL TICKET (SIEMPRE SE MOSTRARÁ)
     const ticketData = {
-        name: member.name || "Personal",
-        id: member.id || "000", 
+        name: member.name,
+        id: member.id, 
         date: now.toLocaleDateString(),
         time: now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}),
         appName: appName || "LicoBar"
@@ -109,17 +110,17 @@ export default function App() {
     try {
         await updateDoc(doc(db, getCollName('staff'), member.id), { activeSessionId: newSessionId });
         
+        // REVISAR SI YA EXISTE TURNO ABIERTO (Para no duplicar en BD)
         const shiftsCol = isPersonalProject ? 'work_shifts' : `${ROOT_COLLECTION}work_shifts`;
-        // Verificamos si ya tiene turno
         const qActiveShift = query(collection(db, shiftsCol), where('staffId', '==', member.id), where('endTime', '==', null));
         const snapshot = await getDocs(qActiveShift);
 
-        // Guardamos la sesión en el estado local
+        // Guardamos sesión local
         const memberWithSession = { ...member, activeSessionId: newSessionId };
         setStaffMember(memberWithSession); 
 
         if (snapshot.empty) {
-            // SOLO SI NO TIENE TURNO, CREAMOS UNO NUEVO EN LA BD
+            // SI NO TIENE TURNO -> CREAMOS UNO NUEVO
             await addDoc(collection(db, shiftsCol), {
                 staffId: member.id,
                 staffName: member.name,
@@ -131,18 +132,16 @@ export default function App() {
             });
             toast.success(`Entrada registrada: ${member.name}`);
         } else {
-            toast('Turno continuado.', { icon: '🔄' });
+            // SI YA TIENE TURNO -> SOLO AVISAMOS (NO CREAMOS OTRO)
+            toast('Turno activo continuado.', { icon: '🔄' });
         }
 
-        // --- CAMBIO CLAVE: SIEMPRE VAMOS A LA PANTALLA DE IMPRESIÓN ---
-        // Ya sea turno nuevo o reingreso, mostramos el ticket
+        // --- CLAVE: SIEMPRE VAMOS A LA PANTALLA DE IMPRESIÓN ---
+        // (Aunque sea reingreso, le dejamos imprimir su ticket si quiere)
         setLastAttendance(ticketData);
         setView('attendance_print'); 
 
-    } catch (error) { 
-        console.error(error);
-        toast.error("Error de conexión"); 
-    }
+    } catch (error) { toast.error("Error de conexión"); }
   };
 
   const handleReprintAttendance = (shift) => {
@@ -158,11 +157,7 @@ export default function App() {
   };
 
   const handleContinueFromAttendance = () => {
-      if (!staffMember) {
-          // Si por alguna razón se perdió el estado, volvemos al login
-          setView('pin_login');
-          return;
-      }
+      if (!staffMember) return;
       if (staffMember.role === 'Cajero' || staffMember.role === 'Administrador') setView('cashier');
       else setView('pos');
   };
