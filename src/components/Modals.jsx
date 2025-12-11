@@ -4,10 +4,7 @@ import { X, Upload, Save, Plus, Trash2, Edit2, Check, Shield, Clock, MapPin } fr
 
 // --- LISTA DE MESAS (EDITA ESTO SEGÚN TU LOCAL) ---
 const COMMON_LOCATIONS = [
-  "Mesa 1", "Mesa 2", "Mesa 3", "Mesa 4", "Mesa 5", 
-  "Mesa 6", "Mesa 7", "Mesa 8", "Mesa 9", "Mesa 10",
-  "Mesa 11", "Mesa 12", "Mesa 13", "Mesa 14", "Mesa 15",
-  "Sala VIP 1", "Sala VIP 2", "Barra", "Terraza"
+  "PRIVADO 104", "PRIVADO 105", "PRIVADO 106", "PRIVADO 107", "PRIVADO 108"
 ];
 
 // --- 1. MODAL DE AUTENTICACIÓN ---
