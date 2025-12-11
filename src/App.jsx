@@ -1,4 +1,4 @@
-// src/App.jsx - VERSIÓN FINAL BLINDADA (Espera al Login para evitar error de permisos)
+// src/App.jsx - VERSIÓN FINAL (Refresco Automático al Salir)
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
@@ -78,7 +78,13 @@ export default function App() {
 
   // --- HANDLERS ---
   const handleLogin = (userApp) => { setIsAuthModalOpen(false); setView('admin'); toast.success(`Bienvenido`); };
-  const handleLogout = async () => { await signOut(auth); setView('landing'); toast('Sesión cerrada', { icon: '👋' }); };
+  
+  // --- RECARGA AUTOMÁTICA AL SALIR ---
+  const handleLogout = async () => { 
+      await signOut(auth); 
+      window.location.reload(); // <--- ESTO FUERZA LA ACTUALIZACIÓN
+  };
+  
   const handleEnterMenu = () => { setFilter('Todos'); setView('menu'); };
   const handleEnterStaff = () => setView('pin_login');
   const handleEnterAdmin = () => { if (currentUser && !currentUser.isAnonymous) setView('admin'); else setIsAuthModalOpen(true); };
@@ -102,7 +108,6 @@ export default function App() {
     } catch (error) { toast.error("Error de conexión"); }
   };
 
-  // --- 1. EFECTO DE AUTENTICACIÓN (ESTE ES EL PRIMERO QUE CORRE) ---
   useEffect(() => {
     const initAuth = async () => {
         if (!auth.currentUser) {
@@ -123,9 +128,8 @@ export default function App() {
     });
   }, []);
 
-  // --- 2. EFECTO DE SESIÓN DE CAJA (SOLO CORRE SI HAY USUARIO) ---
   useEffect(() => {
-      if (!db || !currentUser) return; // <--- AQUÍ ESTÁ EL FRENO DE SEGURIDAD 1
+      if (!db || !currentUser) return; 
       
       const checkSession = async () => {
           const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`;
@@ -139,24 +143,19 @@ export default function App() {
       checkSession();
   }, [db, currentUser]);
 
-  // --- 3. EFECTO DE DATOS GENERALES (SOLO CORRE SI HAY USUARIO) ---
   useEffect(() => { 
-    if (!db || !currentUser) return; // <--- AQUÍ ESTÁ EL FRENO DE SEGURIDAD 2 (EL MÁS IMPORTANTE)
+    if (!db || !currentUser) return; 
 
-    // Cargar Items
     const itemsUnsub = onSnapshot(collection(db, getCollName('items')), (s) => { 
         const rawItems = s.docs.map(doc => ({ id: doc.id, ...doc.data() })); 
         const uniqueItems = Array.from(new Map(rawItems.map(item => [item.id, item])).values()); 
         setItems(uniqueItems); 
     }, (e) => { 
-        // Si aún así falla, lo capturamos silenciosamente
         console.warn("Esperando permisos..."); 
     }); 
     
-    // Cargar Personal
     const staffUnsub = onSnapshot(collection(db, getCollName('staff')), (s) => setStaff(s.docs.map(d => ({id: d.id, ...d.data()})))); 
     
-    // Cargar Configuración
     const settingsUnsub = onSnapshot(collection(db, getCollName('settings')), (s) => { 
         let brandingLoaded = false; 
         s.docs.forEach(d => { 
@@ -168,16 +167,14 @@ export default function App() {
         setIsLoadingApp(false); 
     }); 
     
-    // Cargar Servicios Activos
     const activeSrvCol = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`; 
     const srvUnsub = onSnapshot(collection(db, activeSrvCol), (s) => { 
         setActiveServices(s.docs.map(d => ({ id: d.id, ...d.data() }))); 
     }); 
     
     return () => { itemsUnsub(); staffUnsub(); settingsUnsub(); srvUnsub(); }; 
-  }, [currentUser]); // Solo se ejecuta cuando 'currentUser' cambia de null a objeto real
+  }, [currentUser]);
 
-  // --- 4. EFECTO DE VENTAS EN VIVO (SOLO CORRE SI HAY SESIÓN DE CAJA) ---
   useEffect(() => {
       if (!db || !registerSession) return;
       const salesCol = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`;
@@ -599,7 +596,10 @@ export default function App() {
       
       <OpenRegisterModal isOpen={isOpenRegisterModalOpen} onClose={() => {}} onOpenRegister={handleOpenRegister} />
       <PaymentModal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} total={orderToPay ? orderToPay.total : (pendingSale ? pendingSale.cart.reduce((acc, i) => acc + (i.price * i.qty), 0) : 0)} onConfirm={handleFinalizeSale} />
+      
+      {/* AQUÍ SE PASA handleSave */}
       <ProductModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSave} item={currentItem} categories={categories} />
+      
       <CategoryManager isOpen={isCategoryModalOpen} onClose={() => setIsCategoryModalOpen(false)} categories={categories} onAdd={handleAddCategory} onRename={handleRenameCategory} onDelete={handleDeleteCategory} />
       <RoleManager isOpen={isRoleModalOpen} onClose={() => setIsRoleModalOpen(false)} roles={roles} onAdd={handleAddRole} onRename={handleRenameRole} onDelete={handleDeleteRole} />
       <BrandingModal isOpen={isBrandingModalOpen} onClose={() => setIsBrandingModalOpen(false)} onSave={handleSaveBranding} currentLogo={logo} currentName={appName} />

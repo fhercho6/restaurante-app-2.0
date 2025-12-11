@@ -1,7 +1,7 @@
-// src/components/Views.jsx - VERSIÓN FINAL (Solución Definitiva Error Constructor)
+// src/components/Views.jsx - VERSIÓN FINAL (Login Anti-Doble Clic + Iconos Corregidos)
 import React, { useState } from 'react';
-// CAMBIO CLAVE: Eliminamos 'Delete' y usamos 'ArrowLeft' para evitar conflictos del sistema
-import { Lock, ArrowLeft, ChefHat, Edit2, Trash2, User, Printer } from 'lucide-react';
+// Usamos ArrowLeft para evitar el error de 'Delete'
+import { Lock, ArrowLeft, ChefHat, Edit2, Trash2, User, Printer, Loader } from 'lucide-react';
 
 // --- 1. TARJETA DE MENÚ ---
 export const MenuCard = ({ item }) => (
@@ -21,17 +21,35 @@ export const MenuCard = ({ item }) => (
   </div>
 );
 
-// --- 2. LOGIN CON PIN ---
+// --- 2. LOGIN CON PIN (PROTEGIDO) ---
 export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
-  const handleNumClick = (num) => { if (pin.length < 4) { setPin(pin + num); setError(''); } };
-  const handleDelete = () => { setPin(prev => prev.slice(0, -1)); setError(''); };
-  const handleLogin = () => {
-    const member = staffMembers.find(m => String(m.pin) === String(pin));
-    if (member) onLoginSuccess(member);
-    else { setError('PIN incorrecto'); setPin(''); }
+  
+  // ESTADO DE CARGA PARA EVITAR DOBLE CLIC
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  const handleNumClick = (num) => { if (pin.length < 4 && !isLoggingIn) { setPin(pin + num); setError(''); } };
+  const handleDelete = () => { if(!isLoggingIn) { setPin(prev => prev.slice(0, -1)); setError(''); } };
+  
+  const handleLogin = async () => {
+    if (isLoggingIn) return; // Bloqueo si ya está cargando
+    setIsLoggingIn(true); // Activar bloqueo
+
+    // Simulamos un pequeño retardo para que se note el bloqueo y evitar rebotes
+    setTimeout(() => {
+        const member = staffMembers.find(m => String(m.pin) === String(pin));
+        if (member) {
+            onLoginSuccess(member);
+            // No reseteamos isLoggingIn aquí porque el componente se desmontará
+        } else {
+            setError('PIN incorrecto'); 
+            setPin(''); 
+            setIsLoggingIn(false); // Desbloqueamos si hubo error
+        }
+    }, 500);
   };
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4 animate-in zoom-in duration-300">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden">
@@ -40,20 +58,39 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
           <h2 className="text-2xl font-black text-gray-800 mb-2">Ingreso Personal</h2>
           <p className="text-gray-500 text-sm">Introduce tu código</p>
         </div>
+        
+        {/* Puntos del PIN */}
         <div className="flex justify-center gap-4 mb-8">
-          {[0, 1, 2, 3].map(i => (<div key={i} className={`w-4 h-4 rounded-full border-2 ${i < pin.length ? 'bg-blue-600 border-blue-600' : 'border-gray-300'}`} />))}
+          {[0, 1, 2, 3].map(i => (<div key={i} className={`w-4 h-4 rounded-full border-2 transition-all ${i < pin.length ? 'bg-blue-600 border-blue-600 scale-110' : 'border-gray-300'}`} />))}
         </div>
-        {error && <div className="text-red-500 text-center font-bold text-xs mb-4">{error}</div>}
+        
+        {error && <div className="text-red-500 text-center font-bold text-xs mb-4 animate-pulse bg-red-50 py-2 mx-8 rounded">{error}</div>}
+        
+        {/* Teclado Numérico */}
         <div className="grid grid-cols-3 gap-4 px-8 pb-8">
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (<button key={num} onClick={() => handleNumClick(num.toString())} className="h-16 w-16 mx-auto rounded-full bg-gray-50 text-2xl font-bold text-gray-700 hover:bg-blue-100">{num}</button>))}
-          <div className="flex items-center justify-center"><button onClick={onCancel} className="text-sm font-medium text-gray-500 hover:text-gray-800">Cancelar</button></div>
-          <button onClick={() => handleNumClick('0')} className="h-16 w-16 mx-auto rounded-full bg-gray-50 text-2xl font-bold text-gray-700 hover:bg-blue-100">0</button>
-          
-          {/* USAMOS ArrowLeft (Flecha) PARA BORRAR EN LUGAR DE Delete */}
-          <button onClick={handleDelete} className="flex items-center justify-center h-16 w-16 mx-auto rounded-full text-red-400 hover:bg-red-50"><ArrowLeft size={28} /></button>
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
+            <button key={num} onClick={() => handleNumClick(num.toString())} disabled={isLoggingIn} className="h-16 w-16 mx-auto rounded-full bg-gray-50 text-2xl font-bold text-gray-700 hover:bg-blue-100 disabled:opacity-50 active:scale-95 transition-all">{num}</button>
+          ))}
+          <div className="flex items-center justify-center"><button onClick={onCancel} disabled={isLoggingIn} className="text-sm font-medium text-gray-500 hover:text-gray-800 disabled:opacity-50">Cancelar</button></div>
+          <button onClick={() => handleNumClick('0')} disabled={isLoggingIn} className="h-16 w-16 mx-auto rounded-full bg-gray-50 text-2xl font-bold text-gray-700 hover:bg-blue-100 disabled:opacity-50 active:scale-95 transition-all">0</button>
+          <button onClick={handleDelete} disabled={isLoggingIn} className="flex items-center justify-center h-16 w-16 mx-auto rounded-full text-red-400 hover:bg-red-50 disabled:opacity-50 active:scale-95 transition-all"><ArrowLeft size={28} /></button>
         </div>
+        
+        {/* Botón Ingresar */}
         <div className="p-6 bg-gray-50 border-t">
-          <button onClick={handleLogin} disabled={pin.length < 4} className={`w-full py-4 rounded-xl font-bold text-white ${pin.length === 4 ? 'bg-blue-600' : 'bg-gray-300'}`}>INGRESAR</button>
+          <button 
+            onClick={handleLogin} 
+            disabled={pin.length < 4 || isLoggingIn} 
+            className={`w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 shadow-lg transition-all ${pin.length === 4 && !isLoggingIn ? 'bg-blue-600 hover:bg-blue-700 hover:scale-105' : 'bg-gray-300 cursor-not-allowed'}`}
+          >
+            {isLoggingIn ? (
+                <>
+                    <Loader className="animate-spin" size={20}/> VERIFICANDO...
+                </>
+            ) : (
+                "INGRESAR"
+            )}
+          </button>
         </div>
       </div>
     </div>
