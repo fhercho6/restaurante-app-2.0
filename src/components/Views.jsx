@@ -1,7 +1,7 @@
-// src/components/Views.jsx - VERSIÓN BLINDADA (Sin conflictos de constructor)
+// src/components/Views.jsx - VERSIÓN FINAL SEGURA (Sin Iconos en Ticket)
 import React, { useState } from 'react';
-// Solo importamos lo estrictamente necesario.
-import { Lock, ArrowLeft, ChefHat, Edit2, Trash2, User, Printer, CheckCircle } from 'lucide-react';
+// Importamos SOLO lo básico. Si esto falla, es brujería.
+import { Lock, ArrowLeft, ChefHat, Edit2, Trash2, User } from 'lucide-react';
 
 // --- 1. TARJETA DE MENÚ ---
 export const MenuCard = ({ item }) => (
@@ -21,7 +21,7 @@ export const MenuCard = ({ item }) => (
   </div>
 );
 
-// --- 2. PIN LOGIN ---
+// --- 2. PIN LOGIN (Texto simple para cargar) ---
 export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
@@ -33,7 +33,6 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
   const handleLogin = async () => {
     if (isLoggingIn) return; 
     setIsLoggingIn(true);
-    // Timeout para dar feedback visual sin bloquear el hilo principal
     setTimeout(() => {
         const member = staffMembers.find(m => String(m.pin) === String(pin));
         if (member) { 
@@ -43,7 +42,7 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
             setPin(''); 
             setIsLoggingIn(false); 
         }
-    }, 100);
+    }, 200);
   };
 
   return (
@@ -72,43 +71,67 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
   );
 };
 
-// --- 3. TICKET DE ASISTENCIA (ULTRA SEGURO) ---
+// --- 3. TICKET DE ASISTENCIA (SIN ICONOS PARA EVITAR ERROR) ---
 export const AttendancePrintView = ({ data, onContinue }) => {
-  // Si no hay datos, mostramos un loader de texto simple para no romper la app
-  if (!data) return <div className="min-h-screen flex items-center justify-center font-bold text-gray-400">Generando Ticket...</div>;
+  // Protección contra datos nulos
+  if (!data) return <div className="p-10 text-center font-bold">Cargando ticket...</div>;
 
-  // Valores por defecto para evitar 'undefined'
-  const safeName = data.name || 'Personal';
-  const safeDate = data.date || new Date().toLocaleDateString();
-  const safeTime = data.time || new Date().toLocaleTimeString();
-  const safeId = data.id ? String(data.id).slice(-3).toUpperCase() : '001';
-  const safeApp = data.appName || 'Sistema';
+  const safeName = data.name || '---';
+  const safeDate = data.date || '---';
+  const safeTime = data.time || '--:--';
+  const safeApp = data.appName || 'LicoBar';
+  
+  // Lógica de ID simplificada
+  let safeId = '001';
+  if (data.id) {
+      safeId = String(data.id);
+      if (safeId.length > 3) safeId = safeId.slice(-3);
+      safeId = safeId.toUpperCase();
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
+      {/* TICKET PAPEL */}
       <div id="attendance-card" className="bg-white p-4 w-[300px] shadow-xl text-center border border-gray-300 relative" style={{ fontFamily: "'Courier New', Courier, monospace", color: '#000' }}>
+        
         <h2 className="font-bold text-base uppercase mb-1">CONTROL DE ASISTENCIA</h2>
         <p className="text-sm mb-2 border-b border-dashed border-black pb-2">Jornada: {safeDate}</p>
+        
         <h1 className="text-5xl font-black my-4 tracking-tighter">{safeId}</h1>
-        <div className="text-left w-full mb-4 px-2"><p className="uppercase text-xs">Nombre:<br/><span className="font-bold text-base block">{safeName}</span></p></div>
+        
+        <div className="text-left w-full mb-4 px-2">
+            <p className="uppercase text-xs">Nombre:<br/><span className="font-bold text-base block">{safeName}</span></p>
+        </div>
+
         <div className="border-t-2 border-black w-full mb-4"></div>
-        <div className="text-5xl font-black mb-2 tracking-widest leading-none whitespace-nowrap overflow-hidden">{safeTime}</div>
+
+        <div className="text-5xl font-black mb-2 tracking-widest leading-none whitespace-nowrap overflow-hidden">
+            {safeTime}
+        </div>
         <p className="text-xs italic mb-8">{safeDate}</p>
+
         <p className="text-[10px] uppercase text-left mb-10 font-bold border-b border-black pb-1">{safeApp}</p>
+
         <div className="border-t border-black pt-1 mx-6"><p className="text-xs uppercase">FIRMA</p></div>
       </div>
 
+      {/* BOTONES (Solo texto, sin íconos para evitar conflictos) */}
       <div className="mt-8 flex flex-col gap-3 w-full max-w-[300px] no-print">
-          <button onClick={() => window.print()} className="w-full bg-black text-white py-4 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:scale-105 transition-transform"><Printer size={20}/> IMPRIMIR TICKET</button>
+          <button onClick={() => window.print()} className="w-full bg-black text-white py-4 rounded-xl font-bold shadow-lg hover:scale-105 transition-transform">
+             🖨️ IMPRIMIR TICKET
+          </button>
+          
           {onContinue && (
-            <button onClick={onContinue} className="w-full bg-green-600 text-white py-4 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:bg-green-700 transition-colors"><CheckCircle size={20}/> CONTINUAR</button>
+            <button onClick={onContinue} className="w-full bg-green-600 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-green-700 transition-colors">
+               ✅ CONTINUAR
+            </button>
           )}
       </div>
     </div>
   );
 };
 
-// --- 4. CREDENCIALES ---
+// --- 4. CREDENCIALES (Sin Iconos extraños) ---
 export const CredentialPrintView = ({ member, appName }) => {
   if (!member) return <div className="text-center p-10 text-red-500 font-bold">Error: Sin datos.</div>;
   const safeName = member.name || "Sin Nombre";
@@ -126,7 +149,7 @@ export const CredentialPrintView = ({ member, appName }) => {
         <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg mb-4"><p className="text-[10px] text-yellow-700 font-bold uppercase">PIN DE ACCESO</p><p className="text-xl font-mono font-bold text-gray-800 tracking-widest">{safePin}</p></div>
         <div className="text-[10px] font-mono text-gray-400 border-t pt-2 uppercase text-black">ID: {safeId.slice(0, 8)}</div>
       </div>
-      <div className="mt-8 text-center no-print"><p className="text-gray-500 text-sm mb-4">Listo para imprimir.</p><button onClick={() => window.print()} className="flex items-center gap-2 bg-blue-600 text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-blue-700 hover:scale-105 transition-all"><Printer size={20} /> IMPRIMIR AHORA</button></div>
+      <div className="mt-8 text-center no-print"><p className="text-gray-500 text-sm mb-4">Listo para imprimir.</p><button onClick={() => window.print()} className="flex items-center justify-center gap-2 bg-blue-600 text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-blue-700 hover:scale-105 transition-all">🖨️ IMPRIMIR AHORA</button></div>
     </div>
   );
 };

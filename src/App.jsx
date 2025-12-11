@@ -1,4 +1,4 @@
-// src/App.jsx - VERSIÓN FINAL (Ticket Seguro y Estable)
+// src/App.jsx - VERSIÓN FINAL BLINDADA (Sin Errores de Renderizado)
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
@@ -92,22 +92,25 @@ export default function App() {
   
   const handlePrint = () => window.print();
 
-  // --- LÓGICA LOGIN: Ticket Inmediato (Sin esperas) ---
+  // --- LÓGICA DE LOGIN + ASISTENCIA ---
   const handleStaffPinLogin = async (member) => { 
     const newSessionId = Date.now().toString() + Math.floor(Math.random() * 1000);
     const now = new Date();
     
-    // PREPARAMOS TICKET DE INMEDIATO (Para que no llegue null a la vista)
+    // FORMATO DE FECHA SEGURO (Evita errores de locale)
+    const timeString = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0') + ':' + now.getSeconds().toString().padStart(2, '0');
+    
     const ticketData = {
-        name: member.name,
-        id: member.id, 
+        name: member.name || 'Personal',
+        id: member.id || '001', 
         date: now.toLocaleDateString(),
-        time: now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}),
+        time: timeString,
         appName: appName || "LicoBar"
     };
 
-    setLastAttendance(ticketData); // 1. Guardamos datos
-    
+    // 1. ESTABLECER DATOS DEL TICKET ANTES DE NADA
+    setLastAttendance(ticketData); 
+
     try {
         await updateDoc(doc(db, getCollName('staff'), member.id), { activeSessionId: newSessionId });
         
@@ -132,20 +135,27 @@ export default function App() {
         } else {
             toast('Turno activo continuado.', { icon: '🔄' });
         }
-        
-        // 2. CAMBIAMOS VISTA AL FINAL (Ya tenemos los datos cargados)
+
+        // 2. CAMBIAR VISTA DESPUÉS DE QUE TODO ESTÉ LISTO
         setView('attendance_print'); 
 
-    } catch (error) { toast.error("Error de conexión"); }
+    } catch (error) { 
+        console.error(error);
+        // Si hay error de red, igual dejamos entrar para no bloquear el trabajo
+        setView('attendance_print'); 
+        toast.error("Conexión inestable, ticket generado localmente"); 
+    }
   };
 
   const handleReprintAttendance = (shift) => {
       const dateObj = new Date(shift.startTime);
+      const timeString = dateObj.getHours().toString().padStart(2, '0') + ':' + dateObj.getMinutes().toString().padStart(2, '0') + ':' + dateObj.getSeconds().toString().padStart(2, '0');
+      
       setLastAttendance({
           name: shift.staffName,
           id: shift.staffId,
           date: dateObj.toLocaleDateString(),
-          time: dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}),
+          time: timeString,
           appName: appName || "LicoBar"
       });
       setView('attendance_print_admin'); 
