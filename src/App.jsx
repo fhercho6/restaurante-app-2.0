@@ -1,4 +1,4 @@
-// src/App.jsx - VERSIÓN FINAL (Borrado Automático de Ticket Inicial)
+// src/App.jsx - VERSIÓN FINAL (Con Borrado Automático de Ticket Inicial)
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
@@ -144,6 +144,7 @@ export default function App() {
   const handleStartService = async (service, note) => {
       if (!checkRegisterStatus(false)) return;
       try {
+          // 1. INICIAR CRONÓMETRO
           const serviceData = {
               serviceName: service.name, pricePerHour: service.price, startTime: new Date().toISOString(),
               note: note, staffName: staffMember ? staffMember.name : 'Admin', registerId: registerSession.id
@@ -151,6 +152,7 @@ export default function App() {
           const colName = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`;
           await addDoc(collection(db, colName), serviceData);
 
+          // 2. CREAR TICKET DE INICIO (El que vale 0 Bs)
           const orderData = {
               date: new Date().toISOString(), staffId: staffMember ? staffMember.id : 'anon', staffName: staffMember ? staffMember.name : 'Mesero',
               orderId: 'INI-' + Math.floor(Math.random() * 1000),
@@ -161,13 +163,15 @@ export default function App() {
           await addDoc(collection(db, ordersCol), orderData);
 
           setIsServiceModalOpen(false);
+          
+          // Mostrar ticket para imprimir
           const ticketData = { ...orderData, type: 'order', businessName: appName, date: new Date().toLocaleString() };
           setLastSale(ticketData); setView('receipt_view'); 
           toast.success("Servicio iniciado. Imprimiendo ticket...");
       } catch (e) { toast.error("Error al iniciar servicio"); }
   };
 
-  // --- AQUÍ ESTÁ LA MEJORA: BORRADO AUTOMÁTICO DEL TICKET VIEJO ---
+  // --- AQUÍ LA MEJORA CLAVE: EL BORRADO AUTOMÁTICO ---
   const handleStopService = async (service, cost, timeLabel) => {
       if (!checkRegisterStatus(true)) return;
       if (!window.confirm(`¿Detener ${service.serviceName}?\nCosto: Bs. ${cost.toFixed(2)}`)) return;
@@ -178,22 +182,23 @@ export default function App() {
           await deleteDoc(doc(db, srvCol, service.id));
 
           // 2. BUSCAR Y BORRAR EL TICKET DE "INICIO" (El de 0 Bs)
+          // Buscamos tickets pendientes que tengan "INICIO" y la misma nota (Ej: "Mesa 1")
           const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
-          // Buscamos tickets pendientes que tengan la misma referencia en el nombre del item
           const qStartTicket = query(collection(db, ordersCol), where('status', '==', 'pending')); 
           const snapshot = await getDocs(qStartTicket);
           
           const deletePromises = [];
           snapshot.forEach(docOrder => {
               const data = docOrder.data();
-              // Si el ticket contiene "INICIO" y la misma nota (Ej: Mesa 1), lo borramos
-              if (data.items.some(i => i.name.includes(`(${service.note})`) && i.name.includes('INICIO'))) {
+              // Verificamos si este pedido es el ticket de inicio de esta mesa
+              // Usamos la nota (Ej: "Mesa 1") para identificarlo
+              if (data.items.some(i => i.name.includes(service.note) && i.name.includes('INICIO'))) {
                   deletePromises.push(deleteDoc(doc(db, ordersCol, docOrder.id)));
               }
           });
-          await Promise.all(deletePromises); // Ejecutamos los borrados
+          await Promise.all(deletePromises); // Ejecutamos el borrado
 
-          // 3. Crear la comanda final para cobrar
+          // 3. Crear el ticket FINAL de cobro
           const orderData = {
               date: new Date().toISOString(),
               staffId: staffMember ? staffMember.id : 'anon',
@@ -210,8 +215,8 @@ export default function App() {
               status: 'pending'
           };
           await addDoc(collection(db, ordersCol), orderData);
-          toast.success("Servicio finalizado. Ticket de inicio eliminado.");
-      } catch (e) { toast.error("Error al detener servicio"); }
+          toast.success("Servicio detenido. Ticket de inicio borrado.");
+      } catch (e) { console.error(e); toast.error("Error al detener servicio"); }
   };
 
   const handleAddExpense = async (description, amount) => {

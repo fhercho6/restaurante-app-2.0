@@ -1,8 +1,8 @@
-// src/components/CashierView.jsx - VERSIÓN FINAL (Protección contra borrado accidental)
+// src/components/CashierView.jsx - VERSIÓN FINAL (Bloqueo Visual y Colores)
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, query, orderBy, updateDoc, doc } from 'firebase/firestore';
 import { db, isPersonalProject, ROOT_COLLECTION } from '../config/firebase';
-import { ChefHat, DollarSign, Trash2, User, AlertTriangle, Printer, Clock, StopCircle, UserX, Info, Hourglass, Lock } from 'lucide-react';
+import { ChefHat, DollarSign, Trash2, User, AlertTriangle, Printer, Clock, StopCircle, UserX, Info, Hourglass } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const CashierView = ({ onProcessPayment, onVoidOrder, onReprintOrder, onStopService }) => {
@@ -59,11 +59,13 @@ const CashierView = ({ onProcessPayment, onVoidOrder, onReprintOrder, onStopServ
   };
 
   const handleVoidClick = (order) => {
+    const isServiceStart = order.items.some(i => i.name.includes('⏱️ INICIO'));
+    const message = isServiceStart ? "¿Borrar ticket de inicio? (El reloj seguirá corriendo)" : "¿Anular Pedido?";
     toast((t) => (
       <div className="flex flex-col gap-2">
-        <span className="font-bold text-gray-800 text-sm">¿Anular Pedido?</span>
+        <span className="font-bold text-gray-800 text-sm">{message}</span>
         <div className="flex gap-2 mt-1">
-          <button onClick={() => { toast.dismiss(t.id); onVoidOrder(order); }} className="bg-red-600 text-white px-3 py-2 rounded-lg text-xs font-bold flex-1">SÍ, ANULAR</button>
+          <button onClick={() => { toast.dismiss(t.id); onVoidOrder(order); }} className="bg-red-600 text-white px-3 py-2 rounded-lg text-xs font-bold flex-1">SÍ, BORRAR</button>
           <button onClick={() => toast.dismiss(t.id)} className="bg-gray-200 text-gray-800 px-3 py-2 rounded-lg text-xs font-bold flex-1">CANCELAR</button>
         </div>
       </div>
@@ -137,13 +139,14 @@ const CashierView = ({ onProcessPayment, onVoidOrder, onReprintOrder, onStopServ
                         <div className="p-3 border-t bg-white grid grid-cols-5 gap-2">
                             <div className="col-span-2 flex items-center"><span className="text-lg font-black text-gray-900">Bs. {Number(order.total).toFixed(2)}</span></div>
                             
-                            {/* BOTÓN BASURERO (Bloqueado si es servicio activo) */}
+                            {/* BOTÓN BASURERO */}
                             {isServiceStart ? (
                                 <button disabled className="col-span-1 bg-gray-100 text-gray-300 rounded-lg flex items-center justify-center cursor-not-allowed border border-gray-200" title="Detén el servicio para borrar"><Lock size={18}/></button>
                             ) : (
                                 <button onClick={() => handleVoidClick(order)} className="col-span-1 bg-red-50 text-red-500 hover:bg-red-100 rounded-lg flex items-center justify-center border border-red-200"><Trash2 size={18}/></button>
                             )}
 
+                            {/* REIMPRIMIR */}
                             <button onClick={() => onReprintOrder && onReprintOrder(order)} className="col-span-1 bg-yellow-100 text-yellow-700 hover:bg-yellow-200 rounded-lg flex items-center justify-center border border-yellow-200"><Printer size={18}/></button>
                             
                             {/* BOTÓN COBRAR (Bloqueado si es servicio activo) */}
