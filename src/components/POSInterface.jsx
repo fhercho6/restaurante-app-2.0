@@ -1,6 +1,7 @@
-// src/components/POSInterface.jsx - VERSIÓN FINAL (Anti-Doble Clic)
+// src/components/POSInterface.jsx - VERSIÓN MODO SEGURO (Sin Loader)
 import React, { useState } from 'react';
-import { Search, ShoppingCart, Trash2, ChevronLeft, Send, Clock, ChefHat, Loader } from 'lucide-react';
+// Quitamos 'Loader' para evitar conflictos. Usamos solo lo básico.
+import { Search, ShoppingCart, Trash2, ChevronLeft, Send, Clock } from 'lucide-react';
 import { MenuCard } from './Views';
 
 export default function POSInterface({ items, categories, staffMember, onCheckout, onPrintOrder, onExit, onOpenServiceModal }) {
@@ -8,7 +9,7 @@ export default function POSInterface({ items, categories, staffMember, onCheckou
   const [categoryFilter, setCategoryFilter] = useState('Todos');
   const [searchTerm, setSearchTerm] = useState('');
   
-  // --- ESTADO DE CARGA PARA BLOQUEAR BOTONES ---
+  // --- ESTADO DE CARGA ---
   const [isProcessing, setIsProcessing] = useState(false);
 
   const canCharge = staffMember?.role === 'Cajero' || staffMember?.role === 'Administrador';
@@ -30,9 +31,8 @@ export default function POSInterface({ items, categories, staffMember, onCheckou
 
   const removeFromCart = (id) => setCart(prev => prev.filter(i => i.id !== id));
   
-  // --- WRAPPERS SEGUROS (Evitan doble clic) ---
   const handleSendOrderSafe = async () => {
-      if (isProcessing) return; // Si ya está enviando, ignorar clics
+      if (isProcessing) return; 
       setIsProcessing(true);
       try {
           await onPrintOrder(cart, setCart);
@@ -142,14 +142,20 @@ export default function POSInterface({ items, categories, staffMember, onCheckou
           </div>
           
           <div className={`grid ${canCharge ? 'grid-cols-2' : 'grid-cols-1'} gap-3`}>
-             {/* BOTÓN ENVIAR A CAJA (BLOQUEABLE) */}
+             {/* BOTÓN ENVIAR A CAJA */}
              <button 
                 onClick={handleSendOrderSafe} 
                 disabled={cart.length === 0 || isProcessing} 
                 className={`text-white py-4 rounded-xl font-bold shadow-lg flex flex-col items-center justify-center gap-1 transition-all ${isProcessing ? 'bg-gray-400 cursor-wait' : 'bg-gray-800 hover:bg-gray-900'} disabled:opacity-50 disabled:cursor-not-allowed`}
              >
-                {isProcessing ? <Loader className="animate-spin" size={20}/> : <Send size={20} />} 
-                <span className="text-xs uppercase">{isProcessing ? 'Enviando...' : 'Enviar a Caja'}</span>
+                {isProcessing ? (
+                    <span className="text-xs uppercase animate-pulse">Enviando...</span>
+                ) : (
+                    <>
+                        <Send size={20} />
+                        <span className="text-xs uppercase">Enviar a Caja</span>
+                    </>
+                )}
              </button>
 
              {canCharge && (
@@ -158,8 +164,14 @@ export default function POSInterface({ items, categories, staffMember, onCheckou
                   disabled={cart.length === 0 || isProcessing} 
                   className={`text-white py-4 rounded-xl font-bold shadow-lg flex flex-col items-center justify-center gap-1 transition-all ${isProcessing ? 'bg-gray-400 cursor-wait' : 'bg-green-600 hover:bg-green-700'} disabled:opacity-50 disabled:cursor-not-allowed`}
                >
-                  {isProcessing ? <Loader className="animate-spin" size={20}/> : <div className="font-bold">COBRAR</div>}
-                  {!isProcessing && <span className="text-[10px] opacity-80 uppercase">Directo</span>}
+                  {isProcessing ? (
+                      <span className="text-xs font-bold animate-pulse">COBRANDO...</span>
+                  ) : (
+                      <>
+                        <div className="font-bold">COBRAR</div>
+                        <span className="text-[10px] opacity-80 uppercase">Directo</span>
+                      </>
+                  )}
                </button>
              )}
           </div>
