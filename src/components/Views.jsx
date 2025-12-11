@@ -1,6 +1,7 @@
-// src/components/Views.jsx - VERSIÓN FINAL (Con Ticket de Asistencia Estilo Foto)
-import React, { useState, useEffect } from 'react';
-import { Lock, ArrowLeft, ChefHat, Edit2, Trash2, User, Printer, CheckCircle } from 'lucide-react';
+// src/components/Views.jsx - VERSIÓN FINAL CORREGIDA (Agregado Loader que faltaba)
+import React, { useState } from 'react';
+// IMPORTANTE: Agregamos 'Loader' y 'CheckCircle' que faltaban
+import { Lock, ArrowLeft, ChefHat, Edit2, Trash2, User, Printer, CheckCircle, Loader } from 'lucide-react';
 
 // --- 1. TARJETA DE MENÚ ---
 export const MenuCard = ({ item }) => (
@@ -34,7 +35,7 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
     setIsLoggingIn(true);
     setTimeout(() => {
         const member = staffMembers.find(m => String(m.pin) === String(pin));
-        if (member) { onLoginSuccess(member); } 
+        if (member) { onLoginSuccess(member); } // Aquí no reseteamos loading para evitar parpadeo
         else { setError('PIN incorrecto'); setPin(''); setIsLoggingIn(false); }
     }, 500);
   };
@@ -55,7 +56,15 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
           <button onClick={() => handleNumClick('0')} disabled={isLoggingIn} className="h-16 w-16 mx-auto rounded-full bg-gray-50 text-2xl font-bold text-gray-700 hover:bg-blue-100 disabled:opacity-50 active:scale-95 transition-all">0</button>
           <button onClick={handleDelete} disabled={isLoggingIn} className="flex items-center justify-center h-16 w-16 mx-auto rounded-full text-red-400 hover:bg-red-50 disabled:opacity-50 active:scale-95 transition-all"><ArrowLeft size={28} /></button>
         </div>
-        <div className="p-6 bg-gray-50 border-t"><button onClick={handleLogin} disabled={pin.length < 4 || isLoggingIn} className={`w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 shadow-lg transition-all ${pin.length === 4 && !isLoggingIn ? 'bg-blue-600 hover:bg-blue-700 hover:scale-105' : 'bg-gray-300 cursor-not-allowed'}`}>{isLoggingIn ? "VERIFICANDO..." : "INGRESAR"}</button></div>
+        <div className="p-6 bg-gray-50 border-t">
+            <button 
+                onClick={handleLogin} 
+                disabled={pin.length < 4 || isLoggingIn} 
+                className={`w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 shadow-lg transition-all ${pin.length === 4 && !isLoggingIn ? 'bg-blue-600 hover:bg-blue-700 hover:scale-105' : 'bg-gray-300 cursor-not-allowed'}`}
+            >
+                {isLoggingIn ? <><Loader className="animate-spin" size={20}/> VERIFICANDO...</> : "INGRESAR"}
+            </button>
+        </div>
       </div>
     </div>
   );
@@ -63,55 +72,35 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
 
 // --- 3. NUEVO: TICKET DE ASISTENCIA (Replica de la foto) ---
 export const AttendancePrintView = ({ data, onContinue }) => {
-  // data trae: name, id, time, date, appName
+  // Conversión segura de ID a String para evitar errores si es número
+  const safeId = data && data.id ? String(data.id) : '000';
   
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
       {/* TARJETA DEL TICKET (Lo que se imprime) */}
       <div id="attendance-card" className="bg-white p-6 w-[300px] shadow-xl text-center font-mono border border-gray-300" style={{ fontFamily: "'Courier New', Courier, monospace" }}>
         
-        {/* Encabezado */}
         <h2 className="font-bold text-lg uppercase mb-1" style={{ letterSpacing: '1px' }}>CONTROL DE ASISTENCIA</h2>
         <p className="text-sm mb-4">Jornada: {data.date}</p>
         
-        {/* ID Grande */}
-        <h1 className="text-4xl font-black mb-2">{data.id ? data.id.slice(0, 3).toUpperCase() : '000'}</h1>
+        <h1 className="text-4xl font-black mb-2">{safeId.slice(0, 3).toUpperCase()}</h1>
         
-        {/* Nombre */}
         <div className="text-left border-b border-dashed border-black pb-4 mb-4">
             <p className="uppercase text-sm">Nombre: <span className="font-bold">{data.name}</span></p>
         </div>
 
-        {/* Hora Gigante */}
-        <div className="text-5xl font-black mb-1 tracking-widest">
-            {data.time}
-        </div>
+        <div className="text-5xl font-black mb-1 tracking-widest">{data.time}</div>
         <p className="text-sm mb-6">{data.date}</p>
 
-        {/* Footer */}
         <p className="text-[10px] uppercase text-left mb-12">{data.appName || 'SISTEMA'}</p>
 
-        {/* Firma */}
-        <div className="border-t border-black pt-2 mx-4">
-            <p className="text-sm uppercase">FIRMA</p>
-        </div>
+        <div className="border-t border-black pt-2 mx-4"><p className="text-sm uppercase">FIRMA</p></div>
       </div>
 
       {/* Botones de Acción (No se imprimen) */}
       <div className="mt-8 flex flex-col gap-3 w-full max-w-[300px] no-print">
-          <button 
-            onClick={() => window.print()} 
-            className="w-full bg-black text-white py-4 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:scale-105 transition-transform"
-          >
-            <Printer size={20}/> IMPRIMIR TICKET
-          </button>
-          
-          <button 
-            onClick={onContinue} 
-            className="w-full bg-green-600 text-white py-4 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:bg-green-700 transition-colors"
-          >
-            <CheckCircle size={20}/> CONTINUAR AL SISTEMA
-          </button>
+          <button onClick={() => window.print()} className="w-full bg-black text-white py-4 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:scale-105 transition-transform"><Printer size={20}/> IMPRIMIR TICKET</button>
+          <button onClick={onContinue} className="w-full bg-green-600 text-white py-4 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:bg-green-700 transition-colors"><CheckCircle size={20}/> CONTINUAR AL SISTEMA</button>
       </div>
     </div>
   );
