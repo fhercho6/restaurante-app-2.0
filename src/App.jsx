@@ -92,7 +92,7 @@ export default function App() {
   
   const handlePrint = () => window.print();
 
-  // --- LOGIN + ASISTENCIA (ANTI-DUPLICADOS) ---
+  // --- LÓGICA DE LOGIN + ASISTENCIA (ANTI-DUPLICADOS) ---
   const handleStaffPinLogin = async (member) => { 
     const newSessionId = Date.now().toString() + Math.floor(Math.random() * 1000);
     const now = new Date();
@@ -149,7 +149,7 @@ export default function App() {
           time: dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}),
           appName: appName || "LicoBar"
       });
-      // Importante: No pasamos 'onContinue' porque estamos en modo admin, solo queremos imprimir y volver
+      // Importante: No pasamos 'onContinue' porque estamos en modo admin
       setView('attendance_print_admin'); 
   };
 
@@ -242,10 +242,9 @@ export default function App() {
                   </div>
                 </div>
                 {view === 'report' && <div className="animate-in fade-in"><SalesDashboard onReprintZ={handleReprintZReport} /><div className="hidden print:block mt-8"><PrintableView items={items} /></div></div>}
-                
                 {view === 'attendance' && <AttendanceView onReprint={handleReprintAttendance} />}
                 
-                {/* --- MODO IMPRESIÓN ASISTENCIA (Login) --- */}
+                {/* --- IMPRESIÓN ASISTENCIA (LOGIN) --- */}
                 {view === 'attendance_print' && lastAttendance && (
                     <AttendancePrintView 
                         data={lastAttendance} 
@@ -253,11 +252,10 @@ export default function App() {
                     />
                 )}
 
-                {/* --- MODO IMPRESIÓN ADMIN (Reimpresión) --- */}
+                {/* --- IMPRESIÓN ASISTENCIA (ADMIN) --- */}
                 {view === 'attendance_print_admin' && lastAttendance && (
                     <AttendancePrintView 
                         data={lastAttendance} 
-                        // En modo admin, el botón "Continuar" solo vuelve a la lista
                         onContinue={() => setView('attendance')} 
                     />
                 )}
