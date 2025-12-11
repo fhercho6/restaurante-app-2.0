@@ -1,164 +1,164 @@
-// src/components/StaffManagerView.jsx - VERSIÓN FINAL (Con Tipos de Contrato)
+// src/components/Views.jsx - VERSIÓN FINAL CORREGIDA (Con MenuCard exportado y sin error de constructor)
 import React, { useState } from 'react';
-import { User, Plus, Printer, Edit2, Trash2, Shield, Loader, DollarSign, Clock } from 'lucide-react';
+// Usamos ArrowLeft para evitar el conflicto de nombre con 'Delete'
+import { Lock, ArrowLeft, ChefHat, Edit2, Trash2, User, Printer } from 'lucide-react';
 
-export default function StaffManagerView({ staff, roles, onAddStaff, onUpdateStaff, onDeleteStaff, onManageRoles, onPrintCredential }) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [currentMember, setCurrentMember] = useState(null);
+// --- 1. TARJETA DE MENÚ (ESTA ES LA QUE FALTABA) ---
+export const MenuCard = ({ item }) => (
+  <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 h-full flex flex-col">
+    <div className="h-48 overflow-hidden relative group bg-gray-100 flex items-center justify-center flex-shrink-0">
+      {item.image ? (
+        <img src={item.image} alt={item.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
+      ) : <div className="text-gray-300 flex flex-col items-center"><ChefHat size={40} /><span className="text-xs mt-2">Sin imagen</span></div>}
+      <div className="absolute top-2 right-2 bg-orange-500 text-white px-3 py-1 rounded-full font-bold shadow-md">Bs. {(Number(item.price) || 0).toFixed(2)}</div>
+      {item.stock !== undefined && item.stock !== '' && <div className={`absolute bottom-2 left-2 px-2 py-1 rounded text-xs font-bold shadow-sm ${Number(item.stock) > 0 ? 'bg-white text-gray-700' : 'bg-red-500 text-white'}`}>{Number(item.stock) > 0 ? `${item.stock} disp.` : 'AGOTADO'}</div>}
+    </div>
+    <div className="p-5 flex flex-col flex-grow">
+      <div className="text-xs font-semibold text-orange-600 uppercase tracking-wide mb-1">{item.category}</div>
+      <h3 className="text-xl font-bold text-gray-800 mb-2">{item.name}</h3>
+      <p className="text-gray-600 text-sm leading-relaxed flex-grow">{item.description}</p>
+    </div>
+  </div>
+);
+
+// --- 2. LOGIN CON PIN ---
+export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
+  const [pin, setPin] = useState('');
+  const [error, setError] = useState('');
   
-  // NUEVOS CAMPOS: contractType y hourlyRate
-  const [formData, setFormData] = useState({ 
-      name: '', 
-      role: 'Garzón', 
-      pin: '', 
-      contractType: 'Fijo', // 'Fijo' o 'Por Hora'
-      hourlyRate: ''        // Solo si es Por Hora
-  });
+  // ESTADO DE CARGA PARA EVITAR DOBLE CLIC
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  const handleNumClick = (num) => { if (pin.length < 4 && !isLoggingIn) { setPin(pin + num); setError(''); } };
+  const handleDelete = () => { if(!isLoggingIn) { setPin(prev => prev.slice(0, -1)); setError(''); } };
   
-  const [isSaving, setIsSaving] = useState(false);
+  const handleLogin = async () => {
+    if (isLoggingIn) return; 
+    setIsLoggingIn(true);
 
-  const handleSubmitSafe = async (e) => {
-    e.preventDefault();
-    if (!formData.name || !formData.pin || isSaving) return;
-    
-    setIsSaving(true);
-    try {
-        // Limpiamos la tarifa si es fijo
-        const cleanData = {
-            ...formData,
-            hourlyRate: formData.contractType === 'Por Hora' ? Number(formData.hourlyRate) : 0
-        };
-
-        if (isEditing && currentMember) {
-          await onUpdateStaff(currentMember.id, cleanData);
+    setTimeout(() => {
+        const member = staffMembers.find(m => String(m.pin) === String(pin));
+        if (member) {
+            onLoginSuccess(member);
         } else {
-          await onAddStaff(cleanData);
+            setError('PIN incorrecto'); 
+            setPin(''); 
+            setIsLoggingIn(false); 
         }
-        resetForm();
-    } finally {
-        setIsSaving(false);
-    }
-  };
-
-  const resetForm = () => {
-    setFormData({ name: '', role: 'Garzón', pin: '', contractType: 'Fijo', hourlyRate: '' });
-    setIsEditing(false);
-    setCurrentMember(null);
-  };
-
-  const handleEditClick = (member) => {
-    setFormData({ 
-        name: member.name, 
-        role: member.role, 
-        pin: member.pin,
-        contractType: member.contractType || 'Fijo',
-        hourlyRate: member.hourlyRate || ''
-    });
-    setCurrentMember(member);
-    setIsEditing(true);
+    }, 500);
   };
 
   return (
-    <div className="animate-in fade-in">
-      <div className="flex justify-between items-center mb-6 no-print">
-        <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><User /> Gestión de Personal</h2>
-      </div>
-
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-8 no-print">
-        <h3 className="font-bold text-gray-700 mb-4 flex items-center gap-2">{isEditing ? <Edit2 size={18}/> : <Plus size={18}/>} {isEditing ? 'Editar Personal' : 'Registrar Nuevo Personal'}</h3>
-        <form onSubmit={handleSubmitSafe} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 items-end">
-          
-          <div className="lg:col-span-2">
-            <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Nombre Completo</label>
-            <input type="text" placeholder="Ej. Juan Pérez" className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required disabled={isSaving} />
-          </div>
-          
-          <div className="lg:col-span-1">
-            <label className="text-xs font-bold text-gray-500 uppercase mb-1 block flex justify-between">Cargo <button type="button" onClick={onManageRoles} className="text-blue-600 hover:underline text-[10px] flex items-center gap-1"><Shield size={10}/> Edit</button></label>
-            <select className="w-full p-2 border rounded-lg bg-white" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} disabled={isSaving}>
-                {roles.map(r => <option key={r} value={r}>{r}</option>)}
-            </select>
-          </div>
-
-          {/* --- NUEVO: TIPO DE CONTRATO --- */}
-          <div className="lg:col-span-1">
-            <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Tipo Pago</label>
-            <select className="w-full p-2 border rounded-lg bg-white" value={formData.contractType} onChange={e => setFormData({...formData, contractType: e.target.value})} disabled={isSaving}>
-                <option value="Fijo">Sueldo Fijo</option>
-                <option value="Por Hora">Por Hora</option>
-            </select>
-          </div>
-
-          {/* --- NUEVO: TARIFA (SOLO SI ES POR HORA) --- */}
-          <div className="lg:col-span-1">
-             <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Tarifa/Hora</label>
-             <div className="relative">
-                <span className="absolute left-2 top-2 text-gray-400 text-xs">Bs</span>
-                <input 
-                    type="number" 
-                    placeholder="0" 
-                    className={`w-full pl-6 p-2 border rounded-lg outline-none ${formData.contractType !== 'Por Hora' ? 'bg-gray-100 text-gray-400' : 'bg-white font-bold'}`}
-                    value={formData.hourlyRate} 
-                    onChange={e => setFormData({...formData, hourlyRate: e.target.value})} 
-                    disabled={isSaving || formData.contractType !== 'Por Hora'} 
-                />
-             </div>
-          </div>
-
-          <div className="lg:col-span-1">
-            <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">PIN</label>
-            <input type="text" maxLength="4" placeholder="1234" className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-mono text-center" value={formData.pin} onChange={e => setFormData({...formData, pin: e.target.value.replace(/\D/g,'')})} required disabled={isSaving} />
-          </div>
-
-          <div className="lg:col-span-6 flex gap-2">
-             <button type="submit" disabled={isSaving} className={`w-full py-3 rounded-lg font-bold text-white shadow-md transition-all flex items-center justify-center gap-2 ${isSaving ? 'bg-gray-400 cursor-wait' : 'bg-blue-600 hover:bg-blue-700'}`}>
-                {isSaving ? <Loader className="animate-spin" size={16}/> : (isEditing ? 'Actualizar Datos' : 'Registrar Empleado')}
-             </button>
-             {isEditing && <button type="button" onClick={resetForm} disabled={isSaving} className="px-6 py-3 rounded-lg font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-all">Cancelar</button>}
-          </div>
-        </form>
-      </div>
-
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-gray-50 text-xs uppercase text-gray-500 font-bold">
-            <tr>
-              <th className="p-4">Nombre</th>
-              <th className="p-4">Cargo</th>
-              <th className="p-4">Contrato</th>
-              <th className="p-4">PIN</th>
-              <th className="p-4 text-right">Acciones</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {staff.map(member => (
-              <tr key={member.id} className="hover:bg-gray-50 transition-colors group">
-                <td className="p-4 font-bold text-gray-800 flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold">{member.name.charAt(0)}</div>
-                    {member.name}
-                </td>
-                <td className="p-4 text-sm text-gray-600">{member.role}</td>
-                <td className="p-4 text-sm">
-                    {member.contractType === 'Por Hora' ? (
-                        <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded text-xs font-bold flex items-center gap-1 w-fit"><Clock size={12}/> Por Hora (Bs. {member.hourlyRate})</span>
-                    ) : (
-                        <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold flex items-center gap-1 w-fit"><DollarSign size={12}/> Fijo / Mensual</span>
-                    )}
-                </td>
-                <td className="p-4 font-mono text-sm text-gray-400">****</td>
-                <td className="p-4 text-right">
-                  <div className="flex justify-end gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => onPrintCredential(member)} className="p-2 text-gray-400 hover:text-black hover:bg-gray-200 rounded-lg" title="Imprimir Credencial"><Printer size={16} /></button>
-                    <button onClick={() => handleEditClick(member)} className="p-2 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="Editar"><Edit2 size={16} /></button>
-                    <button onClick={() => onDeleteStaff(member.id)} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg" title="Eliminar"><Trash2 size={16} /></button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {staff.length === 0 && <tr><td colSpan="5" className="p-8 text-center text-gray-400">No hay personal registrado.</td></tr>}
-          </tbody>
-        </table>
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4 animate-in zoom-in duration-300">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden">
+        <div className="p-8 pb-4 text-center">
+          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4"><Lock size={32} className="text-blue-600" /></div>
+          <h2 className="text-2xl font-black text-gray-800 mb-2">Ingreso Personal</h2>
+          <p className="text-gray-500 text-sm">Introduce tu código</p>
+        </div>
+        <div className="flex justify-center gap-4 mb-8">
+          {[0, 1, 2, 3].map(i => (<div key={i} className={`w-4 h-4 rounded-full border-2 transition-all ${i < pin.length ? 'bg-blue-600 border-blue-600 scale-110' : 'border-gray-300'}`} />))}
+        </div>
+        {error && <div className="text-red-500 text-center font-bold text-xs mb-4 animate-pulse bg-red-50 py-2 mx-8 rounded">{error}</div>}
+        <div className="grid grid-cols-3 gap-4 px-8 pb-8">
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
+            <button key={num} onClick={() => handleNumClick(num.toString())} disabled={isLoggingIn} className="h-16 w-16 mx-auto rounded-full bg-gray-50 text-2xl font-bold text-gray-700 hover:bg-blue-100 disabled:opacity-50 active:scale-95 transition-all">{num}</button>
+          ))}
+          <div className="flex items-center justify-center"><button onClick={onCancel} disabled={isLoggingIn} className="text-sm font-medium text-gray-500 hover:text-gray-800 disabled:opacity-50">Cancelar</button></div>
+          <button onClick={() => handleNumClick('0')} disabled={isLoggingIn} className="h-16 w-16 mx-auto rounded-full bg-gray-50 text-2xl font-bold text-gray-700 hover:bg-blue-100 disabled:opacity-50 active:scale-95 transition-all">0</button>
+          <button onClick={handleDelete} disabled={isLoggingIn} className="flex items-center justify-center h-16 w-16 mx-auto rounded-full text-red-400 hover:bg-red-50 disabled:opacity-50 active:scale-95 transition-all"><ArrowLeft size={28} /></button>
+        </div>
+        <div className="p-6 bg-gray-50 border-t">
+          <button onClick={handleLogin} disabled={pin.length < 4 || isLoggingIn} className={`w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 shadow-lg transition-all ${pin.length === 4 && !isLoggingIn ? 'bg-blue-600 hover:bg-blue-700 hover:scale-105' : 'bg-gray-300 cursor-not-allowed'}`}>
+            {isLoggingIn ? "VERIFICANDO..." : "INGRESAR"}
+          </button>
+        </div>
       </div>
     </div>
   );
-}
+};
+
+// --- 3. VISTA DE CREDENCIAL ---
+export const CredentialPrintView = ({ member, appName }) => {
+  if (!member) return <div className="text-center p-10 text-red-500 font-bold">Error: Sin datos.</div>;
+
+  const safeName = member.name || "Sin Nombre";
+  const safeRole = member.role || "Personal";
+  const safePin = member.pin || "****";
+  const safeId = member.id || "---";
+  const initial = safeName.charAt(0).toUpperCase();
+
+  return (
+    <div className="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4">
+      <div id="credential-card" className="bg-white border-2 border-black w-[300px] p-6 text-center shadow-2xl rounded-xl">
+        <div className="border-b-2 border-black pb-4 mb-4">
+            <h1 className="font-black text-2xl uppercase tracking-widest">{appName || "EMPRESA"}</h1>
+            <p className="text-[10px] font-bold uppercase text-gray-500 tracking-wider">Credencial Oficial</p>
+        </div>
+        <div className="mx-auto w-32 h-32 bg-gray-100 border-4 border-gray-200 rounded-full flex items-center justify-center mb-4 border-black">
+            <span className="text-6xl font-black text-gray-800">{initial}</span>
+        </div>
+        <h2 className="text-2xl font-black text-gray-900 uppercase leading-tight mb-2 break-words">{safeName}</h2>
+        <div className="inline-block bg-black text-white px-4 py-1 rounded-full font-bold uppercase text-sm mb-6 border border-black">
+            {safeRole}
+        </div>
+        <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg mb-4">
+            <p className="text-[10px] text-yellow-700 font-bold uppercase">PIN DE ACCESO</p>
+            <p className="text-xl font-mono font-bold text-gray-800 tracking-widest">{safePin}</p>
+        </div>
+        <div className="text-[10px] font-mono text-gray-400 border-t pt-2 uppercase text-black">
+            ID: {safeId.slice(0, 8)}
+        </div>
+      </div>
+      <div className="mt-8 text-center no-print">
+          <p className="text-gray-500 text-sm mb-4">Listo para imprimir.</p>
+          <button onClick={() => window.print()} className="flex items-center gap-2 bg-blue-600 text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-blue-700 hover:scale-105 transition-all">
+            <Printer size={20} /> IMPRIMIR AHORA
+          </button>
+      </div>
+    </div>
+  );
+};
+
+// --- 4. REPORTE IMPRIMIBLE ---
+export const PrintableView = ({ items }) => {
+  const totalCost = items.reduce((acc, curr) => acc + (Number(curr.cost) || 0), 0);
+  const totalPrice = items.reduce((acc, curr) => acc + (Number(curr.price) || 0), 0);
+  const globalMarginPercent = totalPrice > 0 ? (((totalPrice - totalCost) / totalPrice) * 100).toFixed(1) : 0;
+  return (
+    <div className="bg-white p-8 md:p-12 shadow-2xl mx-auto max-w-4xl min-h-[1100px] relative">
+      <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-orange-400 to-orange-600 rounded-t-lg no-print"></div>
+      <div className="flex justify-between items-end mb-8 border-b-2 border-gray-800 pb-4">
+        <div><h1 className="text-4xl font-black text-gray-900 tracking-tight uppercase">Reporte de Menú</h1></div>
+        <div className="text-right"><div className="text-sm font-bold text-gray-900">FECHA</div><div className="text-gray-600">{new Date().toLocaleDateString()}</div></div>
+      </div>
+      <div className="grid grid-cols-4 gap-4 mb-8">
+        <div className="p-4 border border-gray-200 rounded"><div className="text-xs text-gray-500 uppercase font-bold">Items</div><div className="text-2xl font-bold text-gray-900">{items.length}</div></div>
+        <div className="p-4 border border-gray-200 rounded"><div className="text-xs text-gray-500 uppercase font-bold">Costo Total</div><div className="text-2xl font-bold text-gray-900">Bs. {totalCost.toFixed(2)}</div></div>
+        <div className="p-4 border border-gray-200 rounded"><div className="text-xs text-gray-500 uppercase font-bold">Valor Venta</div><div className="text-2xl font-bold text-gray-900">Bs. {totalPrice.toFixed(2)}</div></div>
+        <div className="p-4 border border-gray-200 rounded bg-gray-900 text-white"><div className="text-xs opacity-70 uppercase font-bold">Margen Global</div><div className="text-2xl font-bold">{globalMarginPercent}%</div></div>
+      </div>
+      <table className="w-full text-left border-collapse text-sm">
+        <thead><tr className="border-b-2 border-gray-800 text-xs uppercase tracking-wider"><th className="py-3 font-bold text-gray-900">Producto</th><th className="py-3 font-bold text-center text-gray-900">Stock</th><th className="py-3 font-bold text-right text-gray-900">Costo</th><th className="py-3 font-bold text-right text-gray-900">Precio</th><th className="py-3 font-bold text-right text-gray-900">Margen</th></tr></thead>
+        <tbody>{items.map((item) => { const price = Number(item.price) || 0; const cost = Number(item.cost) || 0; const margin = price - cost; const marginPercent = price > 0 ? ((margin / price) * 100).toFixed(1) : 0; return (<tr key={item.id} className="border-b border-gray-200"><td className="py-3 pr-4"><div className="font-bold text-gray-800">{item.name}</div><div className="text-xs text-gray-500">{item.category}</div></td><td className="py-3 text-center text-gray-600">{item.stock || '-'}</td><td className="py-3 text-right text-gray-600">Bs. {cost.toFixed(2)}</td><td className="py-3 text-right text-gray-800 font-medium">Bs. {price.toFixed(2)}</td><td className="py-3 text-right font-bold text-gray-900">{marginPercent}%</td></tr>); })}</tbody>
+      </table>
+    </div>
+  );
+};
+
+// --- 5. FILA DE ADMIN ---
+export const AdminRow = ({ item, onEdit, onDelete }) => {
+  const price = Number(item.price) || 0; const cost = Number(item.cost) || 0; const margin = price - cost; const marginPercent = price > 0 ? ((margin / price) * 100).toFixed(1) : 0;
+  let marginColor = "text-red-500"; if (marginPercent > 30) marginColor = "text-yellow-600"; if (marginPercent > 50) marginColor = "text-green-600";
+  const stock = item.stock !== undefined && item.stock !== '' ? String(item.stock) : '-';
+  return (
+    <tr className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+      <td className="p-4"><div className="flex items-center gap-3"><div className="w-12 h-12 rounded-lg bg-gray-200 overflow-hidden flex-shrink-0">{item.image ? <img src={item.image} alt={item.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }}/> : <div className="w-full h-full flex items-center justify-center text-gray-400"><ChefHat size={20}/></div>}</div><div><div className="font-bold text-gray-800">{item.name}</div><div className="text-xs text-gray-500">{item.category}</div></div></div></td>
+      <td className="p-4 text-center font-medium text-gray-600">{stock}</td>
+      <td className="p-4 text-right font-medium text-gray-600">Bs. {cost.toFixed(2)}</td>
+      <td className="p-4 text-right font-bold text-gray-800">Bs. {price.toFixed(2)}</td>
+      <td className={`p-4 text-right font-bold ${marginColor}`}><div className="flex flex-col items-end"><span>{marginPercent}%</span><span className="text-xs opacity-75">(Bs. {margin.toFixed(2)})</span></div></td>
+      <td className="p-4 text-right no-print"><div className="flex justify-end gap-2"><button onClick={() => onEdit(item)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Edit2 size={18} /></button><button onClick={() => { if (window.confirm('¿Eliminar?')) onDelete(item.id); }} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18} /></button></div></td>
+    </tr>
+  );
+};
