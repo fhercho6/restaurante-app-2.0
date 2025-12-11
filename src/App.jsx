@@ -1,4 +1,4 @@
-// src/App.jsx - VERSIÓN FINAL DEFINITIVA (Sin errores de referencia)
+// src/App.jsx - VERSIÓN FINAL (Corrección Error Permisos al Iniciar)
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
@@ -144,6 +144,7 @@ export default function App() {
   const handleStartService = async (service, note) => {
       if (!checkRegisterStatus(false)) return;
       try {
+          // 1. INICIAR CRONÓMETRO
           const serviceData = {
               serviceName: service.name, pricePerHour: service.price, startTime: new Date().toISOString(),
               note: note, staffName: staffMember ? staffMember.name : 'Admin', registerId: registerSession.id
@@ -151,6 +152,7 @@ export default function App() {
           const colName = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`;
           await addDoc(collection(db, colName), serviceData);
 
+          // 2. CREAR TICKET DE INICIO (El que vale 0 Bs)
           const orderData = {
               date: new Date().toISOString(), staffId: staffMember ? staffMember.id : 'anon', staffName: staffMember ? staffMember.name : 'Mesero',
               orderId: 'INI-' + Math.floor(Math.random() * 1000),
@@ -161,6 +163,8 @@ export default function App() {
           await addDoc(collection(db, ordersCol), orderData);
 
           setIsServiceModalOpen(false);
+          
+          // Mostrar ticket para imprimir
           const ticketData = { ...orderData, type: 'order', businessName: appName, date: new Date().toLocaleString() };
           setLastSale(ticketData); setView('receipt_view'); 
           toast.success("Servicio iniciado. Imprimiendo ticket...");
@@ -172,9 +176,11 @@ export default function App() {
       if (!window.confirm(`¿Detener ${service.serviceName}?\nCosto: Bs. ${cost.toFixed(2)}`)) return;
       
       try {
+          // 1. Borrar el reloj activo
           const srvCol = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`;
           await deleteDoc(doc(db, srvCol, service.id));
 
+          // 2. BUSCAR Y BORRAR EL TICKET DE "INICIO" (El de 0 Bs)
           const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
           const qStartTicket = query(collection(db, ordersCol), where('status', '==', 'pending')); 
           const snapshot = await getDocs(qStartTicket);
@@ -188,6 +194,7 @@ export default function App() {
           });
           await Promise.all(deletePromises);
 
+          // 3. Crear el ticket FINAL de cobro
           const orderData = {
               date: new Date().toISOString(),
               staffId: staffMember ? staffMember.id : 'anon',
@@ -308,7 +315,6 @@ export default function App() {
 
   const handleReceiptClose = () => { if (lastSale && lastSale.type === 'z-report') { setView('landing'); return; } const isCashier = (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador')) || (currentUser && !currentUser.isAnonymous); if (isCashier) setView('cashier'); else setView('pos'); };
 
-  // --- FUNCIÓN CLAVE (AHORA SÍ ESTÁ PRESENTE Y DEFINIDA) ---
   const handleSave = async (d) => { 
     try { 
         if(currentItem) await setDoc(doc(db, getCollName('items'), currentItem.id), d); 
@@ -337,7 +343,23 @@ export default function App() {
   useEffect(() => { const initAuth = async () => { if (!auth.currentUser) { if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token && !isPersonalProject) { await signInWithCustomToken(auth, __initial_auth_token); } else { await signInAnonymously(auth).catch(() => setDbStatus('warning')); } } }; initAuth(); return onAuthStateChanged(auth, (u) => { setCurrentUser(u); if (u) { setDbStatus('connected'); setDbErrorMsg(''); } }); }, []);
   useEffect(() => { if (!db) return; const checkSession = async () => { const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`; const q = query(collection(db, colName), where('status', '==', 'open'), limit(1)); const snap = await getDocs(q); if (!snap.empty) { const data = snap.docs[0].data(); setRegisterSession({ id: snap.docs[0].id, ...data }); } }; checkSession(); }, [db, currentUser]);
   useEffect(() => { if (!db || !registerSession) return; const salesCol = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`; const qSales = query(collection(db, salesCol), where('registerId', '==', registerSession.id)); const expensesCol = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`; const qExpenses = query(collection(db, expensesCol), where('registerId', '==', registerSession.id)); const unsubSales = onSnapshot(qSales, (snap) => { let cash = 0, qr = 0, card = 0; snap.forEach(doc => { const sale = doc.data(); if (sale.payments && Array.isArray(sale.payments)) { sale.payments.forEach(p => { const amt = parseFloat(p.amount) || 0; const method = (p.method || '').toLowerCase(); if (method.includes('efectivo')) cash += amt; else if (method.includes('qr')) qr += amt; else if (method.includes('tarjeta')) card += amt; }); if (sale.changeGiven) cash -= parseFloat(sale.changeGiven); } else { const total = parseFloat(sale.total); const method = (sale.paymentMethod || 'efectivo').toLowerCase(); if (method.includes('efectivo')) { const change = parseFloat(sale.changeGiven) || 0; const received = parseFloat(sale.amountReceived) || total; if(sale.amountReceived) cash += (received - change); else cash += total; } else if (method.includes('qr')) qr += total; else if (method.includes('tarjeta')) card += total; } }); setSessionStats(prev => ({ ...prev, cashSales: cash, qrSales: qr, cardSales: card, digitalSales: qr + card })); }); const unsubExpenses = onSnapshot(qExpenses, (snap) => { let totalExp = 0; const list = []; snap.forEach(doc => { const exp = doc.data(); totalExp += parseFloat(exp.amount); list.push({ id: doc.id, ...exp }); }); setSessionStats(prev => ({ ...prev, totalExpenses: totalExp, expensesList: list })); }); return () => { unsubSales(); unsubExpenses(); }; }, [registerSession]);
-  useEffect(() => { if (!db) return; const itemsUnsub = onSnapshot(collection(db, getCollName('items')), (s) => { const rawItems = s.docs.map(doc => ({ id: doc.id, ...doc.data() })); const uniqueItems = Array.from(new Map(rawItems.map(item => [item.id, item])).values()); setItems(uniqueItems); }, (e) => { if (e.code === 'permission-denied') { setDbStatus('error'); setDbErrorMsg(currentUser ? 'Sin permisos.' : 'Inicia sesión.'); } }); const staffUnsub = onSnapshot(collection(db, getCollName('staff')), (s) => setStaff(s.docs.map(d => ({id: d.id, ...d.data()})))); const settingsUnsub = onSnapshot(collection(db, getCollName('settings')), (s) => { let brandingLoaded = false; s.docs.forEach(d => { const data = d.data(); if (d.id === 'categories') setCategories(data.list || []); if (d.id === 'roles') setRoles(data.list || INITIAL_ROLES); if (d.id === 'branding') { setLogo(data.logo); if(data.appName) setAppName(data.appName); brandingLoaded = true; } }); setIsLoadingApp(false); }); const activeSrvCol = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`; const srvUnsub = onSnapshot(collection(db, activeSrvCol), (s) => { setActiveServices(s.docs.map(d => ({ id: d.id, ...d.data() }))); }); return () => { itemsUnsub(); staffUnsub(); settingsUnsub(); srvUnsub(); }; }, [currentUser]);
+  
+  useEffect(() => { 
+    if (!db) return; 
+    
+    // --- SOLUCIÓN ERROR PERMISOS: ESPERAR LOGIN ---
+    if (!currentUser) return; 
+
+    const itemsUnsub = onSnapshot(collection(db, getCollName('items')), (s) => { const rawItems = s.docs.map(doc => ({ id: doc.id, ...doc.data() })); const uniqueItems = Array.from(new Map(rawItems.map(item => [item.id, item])).values()); setItems(uniqueItems); }, (e) => { if (e.code === 'permission-denied') { setDbStatus('error'); setDbErrorMsg(currentUser ? 'Sin permisos.' : 'Inicia sesión.'); } }); 
+    const staffUnsub = onSnapshot(collection(db, getCollName('staff')), (s) => setStaff(s.docs.map(d => ({id: d.id, ...d.data()})))); 
+    const settingsUnsub = onSnapshot(collection(db, getCollName('settings')), (s) => { let brandingLoaded = false; s.docs.forEach(d => { const data = d.data(); if (d.id === 'categories') setCategories(data.list || []); if (d.id === 'roles') setRoles(data.list || INITIAL_ROLES); if (d.id === 'branding') { setLogo(data.logo); if(data.appName) setAppName(data.appName); brandingLoaded = true; } }); setIsLoadingApp(false); }); 
+    
+    // Lista de servicios activos
+    const activeSrvCol = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`; 
+    const srvUnsub = onSnapshot(collection(db, activeSrvCol), (s) => { setActiveServices(s.docs.map(d => ({ id: d.id, ...d.data() }))); }); 
+    
+    return () => { itemsUnsub(); staffUnsub(); settingsUnsub(); srvUnsub(); }; 
+  }, [currentUser]);
 
   if (isLoadingApp) return <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 animate-in fade-in"><div className="bg-white p-8 rounded-3xl shadow-xl flex flex-col items-center"><div className="relative mb-4"><div className="absolute inset-0 bg-orange-200 rounded-full animate-ping opacity-75"></div><div className="relative bg-white p-4 rounded-full border-4 border-orange-500 overflow-hidden w-24 h-24 flex items-center justify-center">{LOGO_URL_FIJO ? (<img src={LOGO_URL_FIJO} alt="Cargando" className="w-full h-full object-contain animate-pulse" />) : (<ChefHat size={48} className="text-orange-500" />)}</div></div><h2 className="text-xl font-bold text-gray-800">Cargando sistema...</h2><p className="text-sm text-gray-400 mt-2">Conectando con la nube</p></div></div>;
 
@@ -501,7 +523,7 @@ export default function App() {
       <OpenRegisterModal isOpen={isOpenRegisterModalOpen} onClose={() => {}} onOpenRegister={handleOpenRegister} />
       <PaymentModal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} total={orderToPay ? orderToPay.total : (pendingSale ? pendingSale.cart.reduce((acc, i) => acc + (i.price * i.qty), 0) : 0)} onConfirm={handleFinalizeSale} />
       
-      {/* AQUÍ SE PASA handleSave */}
+      {/* AQUÍ ESTÁ EL MODAL CON LA FUNCIÓN PASADA CORRECTAMENTE */}
       <ProductModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSave} item={currentItem} categories={categories} />
       
       <CategoryManager isOpen={isCategoryModalOpen} onClose={() => setIsCategoryModalOpen(false)} categories={categories} onAdd={handleAddCategory} onRename={handleRenameCategory} onDelete={handleDeleteCategory} />
