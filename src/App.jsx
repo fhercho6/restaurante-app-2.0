@@ -1,4 +1,4 @@
-// src/App.jsx - VERSIÓN FINAL (Impresión Siempre + Sin Duplicados)
+// src/App.jsx - VERSIÓN FINAL (Sin errores de Accesibilidad F12)
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
@@ -64,7 +64,7 @@ export default function App() {
   const [filter, setFilter] = useState('Todos');
   const [credentialToPrint, setCredentialToPrint] = useState(null);
   const [staffMember, setStaffMember] = useState(null);
-  const [lastAttendance, setLastAttendance] = useState(null); // Ticket Asistencia
+  const [lastAttendance, setLastAttendance] = useState(null); 
   
   // Pagos
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -98,7 +98,6 @@ export default function App() {
     const newSessionId = Date.now().toString() + Math.floor(Math.random() * 1000);
     const now = new Date();
     
-    // PREPARAMOS DATOS DEL TICKET (SIEMPRE SE MOSTRARÁ)
     const ticketData = {
         name: member.name,
         id: member.id, 
@@ -110,17 +109,14 @@ export default function App() {
     try {
         await updateDoc(doc(db, getCollName('staff'), member.id), { activeSessionId: newSessionId });
         
-        // REVISAR SI YA EXISTE TURNO ABIERTO (Para no duplicar en BD)
         const shiftsCol = isPersonalProject ? 'work_shifts' : `${ROOT_COLLECTION}work_shifts`;
         const qActiveShift = query(collection(db, shiftsCol), where('staffId', '==', member.id), where('endTime', '==', null));
         const snapshot = await getDocs(qActiveShift);
 
-        // Guardamos sesión local
         const memberWithSession = { ...member, activeSessionId: newSessionId };
         setStaffMember(memberWithSession); 
 
         if (snapshot.empty) {
-            // SI NO TIENE TURNO -> CREAMOS UNO NUEVO
             await addDoc(collection(db, shiftsCol), {
                 staffId: member.id,
                 staffName: member.name,
@@ -132,12 +128,9 @@ export default function App() {
             });
             toast.success(`Entrada registrada: ${member.name}`);
         } else {
-            // SI YA TIENE TURNO -> SOLO AVISAMOS (NO CREAMOS OTRO)
             toast('Turno activo continuado.', { icon: '🔄' });
         }
 
-        // --- CLAVE: SIEMPRE VAMOS A LA PANTALLA DE IMPRESIÓN ---
-        // (Aunque sea reingreso, le dejamos imprimir su ticket si quiere)
         setLastAttendance(ticketData);
         setView('attendance_print'); 
 
@@ -218,12 +211,12 @@ export default function App() {
           <header className="bg-white shadow-sm border-b border-gray-100 no-print">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
               <div className="flex items-center gap-3" onClick={() => isAdminMode && !isCashierOnly && setIsBrandingModalOpen(true)}>
-                <div className={`rounded-lg overflow-hidden flex items-center justify-center ${logo ? 'bg-white' : 'bg-orange-500 p-2 text-white'}`} style={{ width: '40px', height: '40px' }}>{logo ? <img src={logo} className="w-full h-full object-contain"/> : <ChefHat size={24} />}</div>
+                <div className={`rounded-lg overflow-hidden flex items-center justify-center ${logo ? 'bg-white' : 'bg-orange-500 p-2 text-white'}`} style={{ width: '40px', height: '40px' }}>{logo ? <img src={logo} alt="Logo del negocio" className="w-full h-full object-contain"/> : <ChefHat size={24} />}</div>
                 <div><h1 className="text-lg font-bold text-gray-800 leading-none">{appName}</h1><span className="text-[10px] text-gray-500 font-medium uppercase">Cloud Menu</span></div>
               </div>
               <div className="flex items-center gap-2 header-buttons">
-                {!isAdminMode && <button onClick={() => setView('landing')} className="p-2 rounded-full hover:bg-gray-100 text-gray-500"><Home size={20}/></button>}
-                {isAdminMode && <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2 rounded-full text-sm bg-red-50 text-red-600"><LogOut size={16}/>Salir</button>}
+                {!isAdminMode && <button aria-label="Ir al inicio" onClick={() => setView('landing')} className="p-2 rounded-full hover:bg-gray-100 text-gray-500"><Home size={20}/></button>}
+                {isAdminMode && <button aria-label="Cerrar sesión" onClick={handleLogout} className="flex items-center gap-2 px-4 py-2 rounded-full text-sm bg-red-50 text-red-600"><LogOut size={16}/>Salir</button>}
               </div>
             </div>
           </header>
@@ -247,7 +240,7 @@ export default function App() {
                 {view === 'report' && <div className="animate-in fade-in"><SalesDashboard onReprintZ={handleReprintZReport} /><div className="hidden print:block mt-8"><PrintableView items={items} /></div></div>}
                 {view === 'attendance' && <AttendanceView onReprint={handleReprintAttendance} />}
                 
-                {/* --- IMPRESIÓN ASISTENCIA (LOGIN) --- */}
+                {/* --- RENDERIZADO ASISTENCIA (LOGIN) --- */}
                 {view === 'attendance_print' && lastAttendance && (
                     <AttendancePrintView 
                         data={lastAttendance} 
@@ -255,7 +248,7 @@ export default function App() {
                     />
                 )}
 
-                {/* --- IMPRESIÓN ASISTENCIA (ADMIN) --- */}
+                {/* --- RENDERIZADO ASISTENCIA (ADMIN) --- */}
                 {view === 'attendance_print_admin' && lastAttendance && (
                     <AttendancePrintView 
                         data={lastAttendance} 
@@ -267,13 +260,13 @@ export default function App() {
                 {view === 'register_control' && <RegisterControlView session={registerSession} onOpen={handleOpenRegister} onClose={handleCloseRegister} staff={staff} stats={sessionStats} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} />}
                 {view === 'staff_admin' && !isCashierOnly && <StaffManagerView staff={staff} roles={roles} onAddStaff={handleAddStaff} onUpdateStaff={handleUpdateStaff} onDeleteStaff={handleDeleteStaff} onManageRoles={() => setIsRoleModalOpen(true)} onPrintCredential={handlePrintCredential} />}
                 {view === 'credential_print' && credentialToPrint && (<div className="flex flex-col items-center w-full min-h-screen bg-gray-100"><div className="w-full max-w-md p-4 flex justify-start no-print"><button onClick={() => setView('staff_admin')} className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-lg shadow hover:bg-gray-50 font-bold"><ArrowLeft size={20} /> Volver a la Lista</button></div><CredentialPrintView member={credentialToPrint} appName={appName} /></div>)}
-                {view === 'admin' && !isCashierOnly && (<div className="space-y-6"><div className="flex justify-between items-center mb-4"><div className="flex gap-2"><button onClick={() => setIsCategoryModalOpen(true)} className="p-2 bg-gray-100 rounded-full"><Settings size={20}/></button><div className="flex flex-wrap gap-2">{filterCategories.map(cat => (<button key={cat} onClick={() => setFilter(cat)} className={`px-3 py-1 rounded-full text-sm whitespace-nowrap ${filter === cat ? 'bg-orange-500 text-white' : 'bg-white border'}`}>{cat}</button>))}</div></div><button onClick={() => { setCurrentItem(null); setIsModalOpen(true); }} className="px-4 py-2 bg-green-600 text-white rounded-full flex gap-2 shadow"><Plus size={20}/> Nuevo</button></div><div className="bg-white rounded-xl shadow border overflow-hidden"><table className="w-full text-left"><thead><tr className="bg-gray-50 text-xs uppercase text-gray-500"><th className="p-4">Producto</th><th className="p-4 text-center">Stock</th><th className="p-4 text-right">Precio</th><th className="p-4 text-right">Acciones</th></tr></thead><tbody className="divide-y">{filteredItems.map(item => (<AdminRow key={item.id} item={item} onEdit={(i) => { setCurrentItem(i); setIsModalOpen(true); }} onDelete={handleDelete} />))}</tbody></table></div></div>)}
+                {view === 'admin' && !isCashierOnly && (<div className="space-y-6"><div className="flex justify-between items-center mb-4"><div className="flex gap-2"><button aria-label="Configuración" onClick={() => setIsCategoryModalOpen(true)} className="p-2 bg-gray-100 rounded-full"><Settings size={20}/></button><div className="flex flex-wrap gap-2">{filterCategories.map(cat => (<button key={cat} onClick={() => setFilter(cat)} className={`px-3 py-1 rounded-full text-sm whitespace-nowrap ${filter === cat ? 'bg-orange-500 text-white' : 'bg-white border'}`}>{cat}</button>))}</div></div><button aria-label="Nuevo Producto" onClick={() => { setCurrentItem(null); setIsModalOpen(true); }} className="px-4 py-2 bg-green-600 text-white rounded-full flex gap-2 shadow"><Plus size={20}/> Nuevo</button></div><div className="bg-white rounded-xl shadow border overflow-hidden"><table className="w-full text-left"><thead><tr className="bg-gray-50 text-xs uppercase text-gray-500"><th className="p-4">Producto</th><th className="p-4 text-center">Stock</th><th className="p-4 text-right">Precio</th><th className="p-4 text-right">Acciones</th></tr></thead><tbody className="divide-y">{filteredItems.map(item => (<AdminRow key={item.id} item={item} onEdit={(i) => { setCurrentItem(i); setIsModalOpen(true); }} onDelete={handleDelete} />))}</tbody></table></div></div>)}
               </>
             )}
             {view === 'pin_login' && <PinLoginView staffMembers={staff} onLoginSuccess={handleStaffPinLogin} onCancel={() => setView('landing')} />}
             {view === 'pos' && (<POSInterface items={items} categories={categories} staffMember={staffMember} onCheckout={handlePOSCheckout} onPrintOrder={handleSendToKitchen} onExit={() => setView('landing')} onOpenServiceModal={() => setIsServiceModalOpen(true)} />)}
             {view === 'receipt_view' && <Receipt data={lastSale} onPrint={handlePrint} onClose={handleReceiptClose} />}
-            {view === 'menu' && (<>{filter === 'Todos' ? (<div className="animate-in fade-in pb-20"><div className="text-center mb-8 mt-6"><div className="inline-block p-3 rounded-full bg-black mb-3 shadow-lg shadow-purple-500/20">{logo ? <img src={logo} className="w-12 h-12 object-contain" alt="Logo"/> : <ChefHat className="text-white" size={32}/>}</div><h2 className="text-3xl font-black text-gray-900 tracking-tight">NUESTRO MENÚ</h2><p className="text-gray-500 font-medium">Selecciona una categoría</p></div><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 px-2">{categories.map((cat, index) => { const gradients = ['from-orange-500 to-purple-600', 'from-pink-500 to-blue-500', 'from-purple-500 to-pink-500', 'from-yellow-400 to-green-500', 'from-green-400 to-blue-600', 'from-orange-400 to-yellow-500']; const currentGradient = gradients[index % gradients.length]; return (<button key={cat} onClick={() => setFilter(cat)} className={`relative h-40 rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl active:scale-95 transition-all group bg-gradient-to-br ${currentGradient}`}>{logo && (<div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden"><img src={logo} alt="" className="w-[80%] h-[80%] object-contain opacity-20 mix-blend-overlay rotate-12 scale-125 transition-transform duration-700 group-hover:scale-110 group-hover:rotate-6" /></div>)}<div className="absolute inset-0 flex items-center justify-center z-10"><span className="text-white font-black text-3xl uppercase tracking-wide drop-shadow-md text-center px-4">{cat}</span></div></button>)})}</div></div>) : (<div className="animate-in slide-in-from-right duration-300"><div className="sticky top-20 z-20 bg-gray-50/95 backdrop-blur py-2 mb-4 border-b border-gray-200"><div className="flex items-center gap-3"><button onClick={() => setFilter('Todos')} className="p-2 bg-black text-white rounded-full hover:bg-gray-800 shadow-lg transition-transform active:scale-90"><ArrowLeft size={24} /></button><h2 className="text-2xl font-black text-gray-800 uppercase tracking-wide">{filter}</h2></div></div><div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 pb-20 px-2">{filteredItems.length > 0 ? (filteredItems.map(item => (<MenuCard key={item.id} item={item} />))) : (<div className="col-span-full text-center py-20 text-gray-400 flex flex-col items-center"><Search size={48} className="mb-2 opacity-20"/><p>No hay productos en esta categoría.</p></div>)}</div></div>)}</>)}
+            {view === 'menu' && (<>{filter === 'Todos' ? (<div className="animate-in fade-in pb-20"><div className="text-center mb-8 mt-6"><div className="inline-block p-3 rounded-full bg-black mb-3 shadow-lg shadow-purple-500/20">{logo ? <img src={logo} alt="Logo del Negocio" className="w-12 h-12 object-contain" alt="Logo"/> : <ChefHat className="text-white" size={32}/>}</div><h2 className="text-3xl font-black text-gray-900 tracking-tight">NUESTRO MENÚ</h2><p className="text-gray-500 font-medium">Selecciona una categoría</p></div><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 px-2">{categories.map((cat, index) => { const gradients = ['from-orange-500 to-purple-600', 'from-pink-500 to-blue-500', 'from-purple-500 to-pink-500', 'from-yellow-400 to-green-500', 'from-green-400 to-blue-600', 'from-orange-400 to-yellow-500']; const currentGradient = gradients[index % gradients.length]; return (<button aria-label={`Categoría ${cat}`} key={cat} onClick={() => setFilter(cat)} className={`relative h-40 rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl active:scale-95 transition-all group bg-gradient-to-br ${currentGradient}`}>{logo && (<div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden"><img src={logo} alt="" className="w-[80%] h-[80%] object-contain opacity-20 mix-blend-overlay rotate-12 scale-125 transition-transform duration-700 group-hover:scale-110 group-hover:rotate-6" /></div>)}<div className="absolute inset-0 flex items-center justify-center z-10"><span className="text-white font-black text-3xl uppercase tracking-wide drop-shadow-md text-center px-4">{cat}</span></div></button>)})}</div></div>) : (<div className="animate-in slide-in-from-right duration-300"><div className="sticky top-20 z-20 bg-gray-50/95 backdrop-blur py-2 mb-4 border-b border-gray-200"><div className="flex items-center gap-3"><button aria-label="Volver al menú" onClick={() => setFilter('Todos')} className="p-2 bg-black text-white rounded-full hover:bg-gray-800 shadow-lg transition-transform active:scale-90"><ArrowLeft size={24} /></button><h2 className="text-2xl font-black text-gray-800 uppercase tracking-wide">{filter}</h2></div></div><div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 pb-20 px-2">{filteredItems.length > 0 ? (filteredItems.map(item => (<MenuCard key={item.id} item={item} />))) : (<div className="col-span-full text-center py-20 text-gray-400 flex flex-col items-center"><Search size={48} className="mb-2 opacity-20"/><p>No hay productos en esta categoría.</p></div>)}</div></div>)}</>)}
           </main>
           <div className={`fixed bottom-0 w-full p-1 text-[10px] text-center text-white ${dbStatus === 'connected' ? 'bg-green-600' : 'bg-red-600'}`}> {dbStatus === 'connected' ? 'Sistema Online' : 'Desconectado'} </div>
         </>
