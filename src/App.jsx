@@ -156,11 +156,13 @@ export default function App() {
   // --- LÓGICA DE SERVICIOS POR HORA ---
   // En src/App.jsx
 
-  // --- LÓGICA DE SERVICIOS POR HORA (MEJORADA) ---
+  // En src/App.jsx
+
+  // --- LÓGICA DE SERVICIOS POR HORA (CON IMPRESIÓN AUTOMÁTICA) ---
   const handleStartService = async (service, note) => {
     if (!checkRegisterStatus(false)) return;
     try {
-        // 1. INICIAR CRONÓMETRO (Para control digital)
+        // 1. INICIAR CRONÓMETRO EN BASE DE DATOS
         const serviceData = {
             serviceName: service.name,
             pricePerHour: service.price,
@@ -172,23 +174,12 @@ export default function App() {
         const colName = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`;
         await addDoc(collection(db, colName), serviceData);
 
-        // 2. GENERAR COMANDA DE INICIO (Para impresión física)
+        // 2. CREAR COMANDA EN EL SISTEMA
         const orderData = {
             date: new Date().toISOString(),
             staffId: staffMember ? staffMember.id : 'anon',
             staffName: staffMember ? staffMember.name : 'Mesero',
             orderId: 'INI-' + Math.floor(Math.random() * 1000),
-            items: [{
-                id: 'start-' + Date.now(),
-                name: `>>> INICIO: ${service.name} <<<`, // Nombre destacado
-                price: 0, // Precio 0 (es solo informativo)
-                qty: 1,
-                category: 'Servicios'
-            }],
-            // Agregamos la nota (Mesa) al total o como item extra si prefieres, 
-            // pero aquí la ponemos visible en el nombre del item si es necesario, 
-            // o el cajero la verá por el "staffName" o referencia.
-            // Mejor aún: agregamos la nota al nombre del producto para que salga en el ticket.
             items: [{
                 id: 'start-' + Date.now(),
                 name: `⏱️ INICIO: ${service.name} (${note})`, 
@@ -203,7 +194,21 @@ export default function App() {
         await addDoc(collection(db, ordersCol), orderData);
 
         setIsServiceModalOpen(false);
-        toast.success("⏱️ Servicio iniciado y comanda enviada");
+
+        // 3. ¡MOSTRAR TICKET PARA IMPRIMIR! (NUEVO)
+        // Preparamos los datos visuales para el recibo
+        const ticketData = {
+            ...orderData,
+            type: 'order', // Esto le dice al recibo que es una comanda
+            businessName: appName,
+            date: new Date().toLocaleString()
+        };
+        
+        setLastSale(ticketData); // Cargamos el ticket
+        setView('receipt_view'); // Cambiamos la pantalla para imprimir
+        
+        toast.success("Servicio iniciado. Imprimiendo ticket...");
+
     } catch (e) { 
         console.error(e);
         toast.error("Error al iniciar servicio"); 
