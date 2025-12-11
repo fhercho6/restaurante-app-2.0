@@ -1,4 +1,4 @@
-// src/App.jsx - VERSIÓN FINAL (Anti-Duplicados + Reimpresión)
+// src/App.jsx - FINAL VERSION (Smart Login & Attendance)
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
@@ -33,7 +33,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [isLoadingApp, setIsLoadingApp] = useState(true);
 
-  // Datos
+  // Data
   const [items, setItems] = useState([]);
   const [staff, setStaff] = useState([]);
   const [categories, setCategories] = useState(INITIAL_CATEGORIES);
@@ -46,12 +46,12 @@ export default function App() {
   const [logo, setLogo] = useState(null);
   const [appName, setAppName] = useState(""); 
 
-  // Estado de Caja
+  // Register State
   const [registerSession, setRegisterSession] = useState(null);
   const [isOpenRegisterModalOpen, setIsOpenRegisterModalOpen] = useState(false);
   const [sessionStats, setSessionStats] = useState({ cashSales: 0, qrSales: 0, cardSales: 0, digitalSales: 0, totalExpenses: 0, expensesList: [] });
 
-  // Modales
+  // Modals
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
@@ -59,14 +59,14 @@ export default function App() {
   const [isBrandingModalOpen, setIsBrandingModalOpen] = useState(false);
   const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
   
-  // Estados Operativos
+  // Operational State
   const [currentItem, setCurrentItem] = useState(null);
   const [filter, setFilter] = useState('Todos');
   const [credentialToPrint, setCredentialToPrint] = useState(null);
   const [staffMember, setStaffMember] = useState(null);
-  const [lastAttendance, setLastAttendance] = useState(null); // Ticket Asistencia
+  const [lastAttendance, setLastAttendance] = useState(null); // Attendance Ticket Data
   
-  // Pagos
+  // Payments
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [pendingSale, setPendingSale] = useState(null);
   const [orderToPay, setOrderToPay] = useState(null); 
@@ -93,7 +93,7 @@ export default function App() {
   
   const handlePrint = () => window.print();
 
-  // --- LÓGICA DE LOGIN + ASISTENCIA (ANTI-DUPLICADOS) ---
+  // --- LOGIN LOGIC + ATTENDANCE (ANTI-DUPLICATE) ---
   const handleStaffPinLogin = async (member) => { 
     const newSessionId = Date.now().toString() + Math.floor(Math.random() * 1000);
     const now = new Date();
@@ -101,9 +101,8 @@ export default function App() {
     try {
         await updateDoc(doc(db, getCollName('staff'), member.id), { activeSessionId: newSessionId });
         
-        // --- AQUÍ ESTÁ EL FILTRO ANTI-DUPLICADOS ---
+        // Anti-duplicate check: Do they already have an open shift?
         const shiftsCol = isPersonalProject ? 'work_shifts' : `${ROOT_COLLECTION}work_shifts`;
-        // Buscamos si ya tiene un turno abierto (endTime == null)
         const qActiveShift = query(collection(db, shiftsCol), where('staffId', '==', member.id), where('endTime', '==', null));
         const snapshot = await getDocs(qActiveShift);
 
@@ -111,12 +110,12 @@ export default function App() {
         setStaffMember(memberWithSession); 
 
         if (!snapshot.empty) {
-            // YA TIENE TURNO -> NO CREAR OTRO -> ENTRAR DIRECTO
-            toast('Re-ingreso exitoso. Turno continua.', { icon: '🔄' });
+            // CASE A: RE-ENTRY (Shift already open) - No ticket print, go to system
+            toast('Re-ingreso exitoso.', { icon: '🔄' });
             if (member.role === 'Cajero' || member.role === 'Administrador') setView('cashier');
             else setView('pos');
         } else {
-            // NO TIENE TURNO -> CREAR NUEVO -> MOSTRAR TICKET
+            // CASE B: NEW SHIFT - Create entry & Show Ticket
             await addDoc(collection(db, shiftsCol), {
                 staffId: member.id,
                 staffName: member.name,
@@ -127,6 +126,7 @@ export default function App() {
                 sessionId: newSessionId 
             });
 
+            // Prepare ticket data
             setLastAttendance({
                 name: member.name,
                 id: member.id, 
@@ -134,13 +134,17 @@ export default function App() {
                 time: now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}),
                 appName: appName || "LicoBar"
             });
+            
+            // Navigate to print view
             setView('attendance_print'); 
             toast.success(`Entrada registrada: ${member.name}`);
         }
-    } catch (error) { toast.error("Error de conexión"); }
+    } catch (error) { 
+        console.error(error);
+        toast.error("Error de conexión"); 
+    }
   };
 
-  // --- REIMPRIMIR TICKET DESDE EL PANEL ---
   const handleReprintAttendance = (shift) => {
       const dateObj = new Date(shift.startTime);
       setLastAttendance({
@@ -150,7 +154,6 @@ export default function App() {
           time: dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}),
           appName: appName || "LicoBar"
       });
-      // Importante: No pasamos 'onContinue' porque estamos en modo admin
       setView('attendance_print_admin'); 
   };
 
@@ -245,7 +248,7 @@ export default function App() {
                 {view === 'report' && <div className="animate-in fade-in"><SalesDashboard onReprintZ={handleReprintZReport} /><div className="hidden print:block mt-8"><PrintableView items={items} /></div></div>}
                 {view === 'attendance' && <AttendanceView onReprint={handleReprintAttendance} />}
                 
-                {/* --- IMPRESIÓN ASISTENCIA (LOGIN) --- */}
+                {/* --- RENDERIZADO ASISTENCIA (LOGIN) --- */}
                 {view === 'attendance_print' && lastAttendance && (
                     <AttendancePrintView 
                         data={lastAttendance} 
@@ -253,7 +256,7 @@ export default function App() {
                     />
                 )}
 
-                {/* --- IMPRESIÓN ASISTENCIA (ADMIN) --- */}
+                {/* --- RENDERIZADO ASISTENCIA (ADMIN) --- */}
                 {view === 'attendance_print_admin' && lastAttendance && (
                     <AttendancePrintView 
                         data={lastAttendance} 
