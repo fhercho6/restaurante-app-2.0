@@ -1,8 +1,9 @@
-// src/components/CashierView.jsx - VERSIÓN FINAL (Bloqueo Visual y Colores)
+// src/components/CashierView.jsx - VERSIÓN CORREGIDA (Agregado 'Lock' al import)
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, query, orderBy, updateDoc, doc } from 'firebase/firestore';
 import { db, isPersonalProject, ROOT_COLLECTION } from '../config/firebase';
-import { ChefHat, DollarSign, Trash2, User, AlertTriangle, Printer, Clock, StopCircle, UserX, Info, Hourglass } from 'lucide-react';
+// --- AQUÍ FALTABA 'Lock' EN LA LISTA ---
+import { ChefHat, DollarSign, Trash2, User, AlertTriangle, Printer, Clock, StopCircle, UserX, Info, Hourglass, Lock } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const CashierView = ({ onProcessPayment, onVoidOrder, onReprintOrder, onStopService }) => {
@@ -71,6 +72,13 @@ const CashierView = ({ onProcessPayment, onVoidOrder, onReprintOrder, onStopServ
       </div>
     ), { duration: 5000 });
   };
+
+  const getWaiterStats = () => {
+    const stats = {};
+    orders.forEach(o => { const n = o.staffName || 'Sin Asignar'; if (!stats[n]) stats[n] = { count: 0, total: 0 }; stats[n].count++; stats[n].total += Number(o.total); });
+    return Object.entries(stats);
+  };
+  const waiterStats = getWaiterStats();
 
   if (loading) return <div className="p-10 text-center animate-pulse text-gray-400">Cargando caja...</div>;
 
@@ -146,10 +154,9 @@ const CashierView = ({ onProcessPayment, onVoidOrder, onReprintOrder, onStopServ
                                 <button onClick={() => handleVoidClick(order)} className="col-span-1 bg-red-50 text-red-500 hover:bg-red-100 rounded-lg flex items-center justify-center border border-red-200"><Trash2 size={18}/></button>
                             )}
 
-                            {/* REIMPRIMIR */}
                             <button onClick={() => onReprintOrder && onReprintOrder(order)} className="col-span-1 bg-yellow-100 text-yellow-700 hover:bg-yellow-200 rounded-lg flex items-center justify-center border border-yellow-200"><Printer size={18}/></button>
                             
-                            {/* BOTÓN COBRAR (Bloqueado si es servicio activo) */}
+                            {/* BOTÓN COBRAR */}
                             {isServiceStart ? (
                                 <button disabled className="col-span-1 bg-gray-100 text-gray-400 rounded-lg flex flex-col items-center justify-center cursor-not-allowed border border-gray-200"><Hourglass size={14}/><span className="text-[8px] font-bold uppercase leading-none mt-0.5">En Curso</span></button>
                             ) : (
