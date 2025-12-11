@@ -1,6 +1,6 @@
-// src/components/POSInterface.jsx - VERSIÓN MODO SEGURO (Sin Loader)
+// src/components/POSInterface.jsx - FINAL SAFE VERSION (No Loader Icon)
 import React, { useState } from 'react';
-// Quitamos 'Loader' para evitar conflictos. Usamos solo lo básico.
+// Removing 'Loader' to prevent conflicts. Only essential icons.
 import { Search, ShoppingCart, Trash2, ChevronLeft, Send, Clock } from 'lucide-react';
 import { MenuCard } from './Views';
 
@@ -9,7 +9,7 @@ export default function POSInterface({ items, categories, staffMember, onCheckou
   const [categoryFilter, setCategoryFilter] = useState('Todos');
   const [searchTerm, setSearchTerm] = useState('');
   
-  // --- ESTADO DE CARGA ---
+  // --- LOADING STATE ---
   const [isProcessing, setIsProcessing] = useState(false);
 
   const canCharge = staffMember?.role === 'Cajero' || staffMember?.role === 'Administrador';
@@ -62,7 +62,7 @@ export default function POSInterface({ items, categories, staffMember, onCheckou
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden animate-in fade-in">
-      {/* IZQUIERDA */}
+      {/* LEFT SIDE - MENU */}
       <div className="flex-1 flex flex-col min-w-0">
         <div className="bg-white p-4 shadow-sm z-10">
           <div className="flex justify-between items-center mb-4">
@@ -104,7 +104,7 @@ export default function POSInterface({ items, categories, staffMember, onCheckou
         </div>
       </div>
 
-      {/* DERECHA */}
+      {/* RIGHT SIDE - CART */}
       <div className="w-96 bg-white shadow-2xl flex flex-col border-l border-gray-200 z-20">
         <div className="p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
           <h3 className="font-bold text-gray-700 flex items-center gap-2"><ShoppingCart size={20}/> Comanda</h3>
@@ -142,7 +142,7 @@ export default function POSInterface({ items, categories, staffMember, onCheckou
           </div>
           
           <div className={`grid ${canCharge ? 'grid-cols-2' : 'grid-cols-1'} gap-3`}>
-             {/* BOTÓN ENVIAR A CAJA */}
+             {/* SEND TO CASHIER BUTTON */}
              <button 
                 onClick={handleSendOrderSafe} 
                 disabled={cart.length === 0 || isProcessing} 
