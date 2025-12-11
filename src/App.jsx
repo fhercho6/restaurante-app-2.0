@@ -78,6 +78,7 @@ export default function App() {
     return isPersonalProject ? 'settings' : `${ROOT_COLLECTION}settings`;
   };
 
+  // --- HANDLERS ---
   const handleLogin = (userApp) => { setIsAuthModalOpen(false); setView('admin'); toast.success(`Bienvenido`); };
   const handleLogout = async () => { await signOut(auth); window.location.reload(); };
   const handleEnterMenu = () => { setFilter('Todos'); setView('menu'); };
