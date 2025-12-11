@@ -1,4 +1,4 @@
-// src/App.jsx - VERSIÓN FINAL CORREGIDA (Solución handleSave is not defined)
+// src/App.jsx - VERSIÓN FINAL DEFINITIVA (Sin errores de referencia)
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
@@ -144,7 +144,6 @@ export default function App() {
   const handleStartService = async (service, note) => {
       if (!checkRegisterStatus(false)) return;
       try {
-          // 1. INICIAR CRONÓMETRO
           const serviceData = {
               serviceName: service.name, pricePerHour: service.price, startTime: new Date().toISOString(),
               note: note, staffName: staffMember ? staffMember.name : 'Admin', registerId: registerSession.id
@@ -152,7 +151,6 @@ export default function App() {
           const colName = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`;
           await addDoc(collection(db, colName), serviceData);
 
-          // 2. CREAR TICKET DE INICIO (El que vale 0 Bs)
           const orderData = {
               date: new Date().toISOString(), staffId: staffMember ? staffMember.id : 'anon', staffName: staffMember ? staffMember.name : 'Mesero',
               orderId: 'INI-' + Math.floor(Math.random() * 1000),
@@ -163,8 +161,6 @@ export default function App() {
           await addDoc(collection(db, ordersCol), orderData);
 
           setIsServiceModalOpen(false);
-          
-          // Mostrar ticket para imprimir
           const ticketData = { ...orderData, type: 'order', businessName: appName, date: new Date().toLocaleString() };
           setLastSale(ticketData); setView('receipt_view'); 
           toast.success("Servicio iniciado. Imprimiendo ticket...");
@@ -176,11 +172,9 @@ export default function App() {
       if (!window.confirm(`¿Detener ${service.serviceName}?\nCosto: Bs. ${cost.toFixed(2)}`)) return;
       
       try {
-          // 1. Borrar el reloj activo
           const srvCol = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`;
           await deleteDoc(doc(db, srvCol, service.id));
 
-          // 2. BUSCAR Y BORRAR EL TICKET DE "INICIO" (El de 0 Bs)
           const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
           const qStartTicket = query(collection(db, ordersCol), where('status', '==', 'pending')); 
           const snapshot = await getDocs(qStartTicket);
@@ -194,7 +188,6 @@ export default function App() {
           });
           await Promise.all(deletePromises);
 
-          // 3. Crear el ticket FINAL de cobro
           const orderData = {
               date: new Date().toISOString(),
               staffId: staffMember ? staffMember.id : 'anon',
@@ -315,7 +308,7 @@ export default function App() {
 
   const handleReceiptClose = () => { if (lastSale && lastSale.type === 'z-report') { setView('landing'); return; } const isCashier = (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador')) || (currentUser && !currentUser.isAnonymous); if (isCashier) setView('cashier'); else setView('pos'); };
 
-  // --- FUNCIÓN QUE FALTABA Y CAUSABA EL ERROR: handleSave ---
+  // --- FUNCIÓN CLAVE (AHORA SÍ ESTÁ PRESENTE Y DEFINIDA) ---
   const handleSave = async (d) => { 
     try { 
         if(currentItem) await setDoc(doc(db, getCollName('items'), currentItem.id), d); 
@@ -324,7 +317,6 @@ export default function App() {
     } catch { toast.error('Error'); }
   };
 
-  // Resto de handlers simples
   const handleDelete = async (id) => { try { await deleteDoc(doc(db, getCollName('items'), id)); toast.success('Eliminado'); } catch { toast.error('Error'); }};
   const handleAddStaff = async (d) => { await addDoc(collection(db, getCollName('staff')), d); toast.success('Personal creado'); };
   const handleUpdateStaff = async (id, d) => { await updateDoc(doc(db, getCollName('staff'), id), d); toast.success('Personal actualizado'); };
@@ -508,7 +500,10 @@ export default function App() {
       
       <OpenRegisterModal isOpen={isOpenRegisterModalOpen} onClose={() => {}} onOpenRegister={handleOpenRegister} />
       <PaymentModal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} total={orderToPay ? orderToPay.total : (pendingSale ? pendingSale.cart.reduce((acc, i) => acc + (i.price * i.qty), 0) : 0)} onConfirm={handleFinalizeSale} />
+      
+      {/* AQUÍ SE PASA handleSave */}
       <ProductModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSave} item={currentItem} categories={categories} />
+      
       <CategoryManager isOpen={isCategoryModalOpen} onClose={() => setIsCategoryModalOpen(false)} categories={categories} onAdd={handleAddCategory} onRename={handleRenameCategory} onDelete={handleDeleteCategory} />
       <RoleManager isOpen={isRoleModalOpen} onClose={() => setIsRoleModalOpen(false)} roles={roles} onAdd={handleAddRole} onRename={handleRenameRole} onDelete={handleDeleteRole} />
       <BrandingModal isOpen={isBrandingModalOpen} onClose={() => setIsBrandingModalOpen(false)} onSave={handleSaveBranding} currentLogo={logo} currentName={appName} />
