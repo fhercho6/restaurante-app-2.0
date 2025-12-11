@@ -1,4 +1,4 @@
-// src/App.jsx - FINAL VERSION (Smart Login & Attendance)
+// src/App.jsx - VERSIÓN FINAL (Impresión Obligatoria al Entrar + Fix Pantalla Blanca)
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
@@ -33,7 +33,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [isLoadingApp, setIsLoadingApp] = useState(true);
 
-  // Data
+  // Datos
   const [items, setItems] = useState([]);
   const [staff, setStaff] = useState([]);
   const [categories, setCategories] = useState(INITIAL_CATEGORIES);
@@ -46,12 +46,12 @@ export default function App() {
   const [logo, setLogo] = useState(null);
   const [appName, setAppName] = useState(""); 
 
-  // Register State
+  // Estado de Caja
   const [registerSession, setRegisterSession] = useState(null);
   const [isOpenRegisterModalOpen, setIsOpenRegisterModalOpen] = useState(false);
   const [sessionStats, setSessionStats] = useState({ cashSales: 0, qrSales: 0, cardSales: 0, digitalSales: 0, totalExpenses: 0, expensesList: [] });
 
-  // Modals
+  // Modales
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
@@ -59,14 +59,14 @@ export default function App() {
   const [isBrandingModalOpen, setIsBrandingModalOpen] = useState(false);
   const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
   
-  // Operational State
+  // Estados Operativos
   const [currentItem, setCurrentItem] = useState(null);
   const [filter, setFilter] = useState('Todos');
   const [credentialToPrint, setCredentialToPrint] = useState(null);
   const [staffMember, setStaffMember] = useState(null);
-  const [lastAttendance, setLastAttendance] = useState(null); // Attendance Ticket Data
+  const [lastAttendance, setLastAttendance] = useState(null); 
   
-  // Payments
+  // Pagos
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [pendingSale, setPendingSale] = useState(null);
   const [orderToPay, setOrderToPay] = useState(null); 
@@ -78,7 +78,6 @@ export default function App() {
     return isPersonalProject ? 'settings' : `${ROOT_COLLECTION}settings`;
   };
 
-  // --- HANDLERS ---
   const handleLogin = (userApp) => { setIsAuthModalOpen(false); setView('admin'); toast.success(`Bienvenido`); };
   const handleLogout = async () => { await signOut(auth); window.location.reload(); };
   const handleEnterMenu = () => { setFilter('Todos'); setView('menu'); };
@@ -93,29 +92,34 @@ export default function App() {
   
   const handlePrint = () => window.print();
 
-  // --- LOGIN LOGIC + ATTENDANCE (ANTI-DUPLICATE) ---
+  // --- FUNCIÓN CORREGIDA: SIEMPRE IMPRIME EL TICKET ---
   const handleStaffPinLogin = async (member) => { 
     const newSessionId = Date.now().toString() + Math.floor(Math.random() * 1000);
     const now = new Date();
     
+    // Preparar datos del ticket antes de cualquier operación para evitar pantalla blanca
+    const ticketData = {
+        name: member.name || "Personal",
+        id: member.id || "000", 
+        date: now.toLocaleDateString(),
+        time: now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}),
+        appName: appName || "LicoBar"
+    };
+
     try {
         await updateDoc(doc(db, getCollName('staff'), member.id), { activeSessionId: newSessionId });
         
-        // Anti-duplicate check: Do they already have an open shift?
         const shiftsCol = isPersonalProject ? 'work_shifts' : `${ROOT_COLLECTION}work_shifts`;
+        // Verificamos si ya tiene turno
         const qActiveShift = query(collection(db, shiftsCol), where('staffId', '==', member.id), where('endTime', '==', null));
         const snapshot = await getDocs(qActiveShift);
 
+        // Guardamos la sesión en el estado local
         const memberWithSession = { ...member, activeSessionId: newSessionId };
         setStaffMember(memberWithSession); 
 
-        if (!snapshot.empty) {
-            // CASE A: RE-ENTRY (Shift already open) - No ticket print, go to system
-            toast('Re-ingreso exitoso.', { icon: '🔄' });
-            if (member.role === 'Cajero' || member.role === 'Administrador') setView('cashier');
-            else setView('pos');
-        } else {
-            // CASE B: NEW SHIFT - Create entry & Show Ticket
+        if (snapshot.empty) {
+            // SOLO SI NO TIENE TURNO, CREAMOS UNO NUEVO EN LA BD
             await addDoc(collection(db, shiftsCol), {
                 staffId: member.id,
                 staffName: member.name,
@@ -125,20 +129,16 @@ export default function App() {
                 endTime: null,
                 sessionId: newSessionId 
             });
-
-            // Prepare ticket data
-            setLastAttendance({
-                name: member.name,
-                id: member.id, 
-                date: now.toLocaleDateString(),
-                time: now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}),
-                appName: appName || "LicoBar"
-            });
-            
-            // Navigate to print view
-            setView('attendance_print'); 
             toast.success(`Entrada registrada: ${member.name}`);
+        } else {
+            toast('Turno continuado.', { icon: '🔄' });
         }
+
+        // --- CAMBIO CLAVE: SIEMPRE VAMOS A LA PANTALLA DE IMPRESIÓN ---
+        // Ya sea turno nuevo o reingreso, mostramos el ticket
+        setLastAttendance(ticketData);
+        setView('attendance_print'); 
+
     } catch (error) { 
         console.error(error);
         toast.error("Error de conexión"); 
@@ -158,7 +158,11 @@ export default function App() {
   };
 
   const handleContinueFromAttendance = () => {
-      if (!staffMember) return;
+      if (!staffMember) {
+          // Si por alguna razón se perdió el estado, volvemos al login
+          setView('pin_login');
+          return;
+      }
       if (staffMember.role === 'Cajero' || staffMember.role === 'Administrador') setView('cashier');
       else setView('pos');
   };
@@ -248,7 +252,7 @@ export default function App() {
                 {view === 'report' && <div className="animate-in fade-in"><SalesDashboard onReprintZ={handleReprintZReport} /><div className="hidden print:block mt-8"><PrintableView items={items} /></div></div>}
                 {view === 'attendance' && <AttendanceView onReprint={handleReprintAttendance} />}
                 
-                {/* --- RENDERIZADO ASISTENCIA (LOGIN) --- */}
+                {/* --- IMPRESIÓN ASISTENCIA (LOGIN) --- */}
                 {view === 'attendance_print' && lastAttendance && (
                     <AttendancePrintView 
                         data={lastAttendance} 
@@ -256,7 +260,7 @@ export default function App() {
                     />
                 )}
 
-                {/* --- RENDERIZADO ASISTENCIA (ADMIN) --- */}
+                {/* --- IMPRESIÓN ASISTENCIA (ADMIN) --- */}
                 {view === 'attendance_print_admin' && lastAttendance && (
                     <AttendancePrintView 
                         data={lastAttendance} 
