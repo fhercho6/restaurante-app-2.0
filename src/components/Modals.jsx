@@ -1,6 +1,14 @@
-// src/components/Modals.jsx - VERSIÓN FINAL COMPLETA
+// src/components/Modals.jsx - VERSIÓN FINAL (Selección Estricta de Mesa)
 import React, { useState, useEffect } from 'react';
-import { X, Upload, Save, Plus, Trash2, Edit2, Check, Shield, Clock } from 'lucide-react';
+import { X, Upload, Save, Plus, Trash2, Edit2, Check, Shield, Clock, MapPin } from 'lucide-react';
+
+// --- LISTA DE MESAS (EDITA ESTO SEGÚN TU LOCAL) ---
+const COMMON_LOCATIONS = [
+  "Mesa 1", "Mesa 2", "Mesa 3", "Mesa 4", "Mesa 5", 
+  "Mesa 6", "Mesa 7", "Mesa 8", "Mesa 9", "Mesa 10",
+  "Mesa 11", "Mesa 12", "Mesa 13", "Mesa 14", "Mesa 15",
+  "Sala VIP 1", "Sala VIP 2", "Barra", "Terraza"
+];
 
 // --- 1. MODAL DE AUTENTICACIÓN ---
 export const AuthModal = ({ isOpen, onClose, onLogin }) => {
@@ -187,16 +195,16 @@ export const BrandingModal = ({ isOpen, onClose, onSave, currentLogo, currentNam
   );
 };
 
-// --- 6. MODAL DE INICIO DE SERVICIO (POR HORA) ---
+// --- 6. MODAL DE INICIO DE SERVICIO (LISTA CERRADA) ---
 export const ServiceStartModal = ({ isOpen, onClose, services, onStart }) => {
   const [selectedService, setSelectedService] = useState(null);
-  const [note, setNote] = useState('');
+  const [note, setNote] = useState(''); // Aquí irá la mesa seleccionada
 
   if (!isOpen) return null;
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!selectedService) return;
+    if (!selectedService || !note) return;
     onStart(selectedService, note);
     setNote('');
     setSelectedService(null);
@@ -209,8 +217,10 @@ export const ServiceStartModal = ({ isOpen, onClose, services, onStart }) => {
           <Clock size={24} className="text-purple-600"/> Iniciar Servicio
         </h2>
         <form onSubmit={handleSubmit}>
+          
+          {/* SELECCIÓN DE SERVICIO */}
           <div className="mb-4">
-            <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Servicio (Precio por Hora)</label>
+            <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Tipo de Servicio</label>
             <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
               {services.map(srv => (
                 <div 
@@ -228,21 +238,35 @@ export const ServiceStartModal = ({ isOpen, onClose, services, onStart }) => {
             </div>
           </div>
           
+          {/* SELECCIÓN DE REFERENCIA (DESPLEGABLE ESTRICTO) */}
           <div className="mb-6">
-            <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Referencia (Ej. Mesa 1, Sala VIP)</label>
-            <input 
-              type="text" 
-              required 
-              className="w-full p-3 border rounded-xl font-bold text-gray-800 focus:ring-2 focus:ring-purple-500 outline-none"
-              placeholder="Escribe aquí..."
+            <label className="block text-xs font-bold text-gray-500 uppercase mb-2 flex items-center gap-1"><MapPin size={12}/> Ubicación / Mesa</label>
+            
+            {/* AQUÍ EL CAMBIO: Select en vez de Input */}
+            <select
+              required
+              className="w-full p-3 border rounded-xl font-bold text-gray-800 focus:ring-2 focus:ring-purple-500 outline-none bg-white"
               value={note}
               onChange={e => setNote(e.target.value)}
-            />
+            >
+              <option value="">-- Seleccionar Mesa --</option>
+              {COMMON_LOCATIONS.map(loc => (
+                <option key={loc} value={loc}>{loc}</option>
+              ))}
+            </select>
           </div>
 
           <div className="flex gap-3">
             <button type="button" onClick={onClose} className="flex-1 py-3 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-colors">Cancelar</button>
-            <button type="submit" disabled={!selectedService} className={`flex-1 py-3 text-white font-bold rounded-xl shadow-lg transition-all ${selectedService ? 'bg-purple-600 hover:bg-purple-700' : 'bg-gray-300 cursor-not-allowed'}`}>INICIAR</button>
+            
+            {/* El botón se deshabilita si no hay servicio O si no hay mesa seleccionada */}
+            <button 
+              type="submit" 
+              disabled={!selectedService || !note} 
+              className={`flex-1 py-3 text-white font-bold rounded-xl shadow-lg transition-all ${(!selectedService || !note) ? 'bg-gray-300 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700'}`}
+            >
+              INICIAR
+            </button>
           </div>
         </form>
       </div>
