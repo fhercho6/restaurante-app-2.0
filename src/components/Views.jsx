@@ -1,8 +1,8 @@
-// src/components/Views.jsx - VERSIÓN FINAL (Ticket Estilo Foto + Fix Pantalla Blanca)
+// src/components/Views.jsx - VERSIÓN FINAL (Ticket Blindado y Diseño Térmico)
 import React, { useState } from 'react';
 import { Lock, ArrowLeft, ChefHat, Edit2, Trash2, User, Printer, CheckCircle, Loader } from 'lucide-react';
 
-// --- 1. MENU CARD ---
+// --- 1. TARJETA DE MENÚ ---
 export const MenuCard = ({ item }) => (
   <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 h-full flex flex-col">
     <div className="h-48 overflow-hidden relative group bg-gray-100 flex items-center justify-center flex-shrink-0">
@@ -32,10 +32,17 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
   const handleLogin = async () => {
     if (isLoggingIn) return; 
     setIsLoggingIn(true);
+    // Pequeño retardo para dar feedback visual
     setTimeout(() => {
         const member = staffMembers.find(m => String(m.pin) === String(pin));
-        if (member) { onLoginSuccess(member); } 
-        else { setError('PIN incorrecto'); setPin(''); setIsLoggingIn(false); }
+        if (member) { 
+            onLoginSuccess(member); 
+            // No quitamos isLoggingIn aquí para evitar parpadeos mientras cambia la vista
+        } else { 
+            setError('PIN incorrecto'); 
+            setPin(''); 
+            setIsLoggingIn(false); 
+        }
     }, 500);
   };
 
@@ -65,54 +72,55 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
   );
 };
 
-// --- 3. TICKET DE ASISTENCIA (ESTILO FOTO) ---
+// --- 3. TICKET DE ASISTENCIA (Replica exacta de la foto) ---
 export const AttendancePrintView = ({ data, onContinue }) => {
-  // data: { name, id, time, date, appName }
-  const safeId = data && data.id ? String(data.id).slice(0, 3).toUpperCase() : '000';
-  const safeName = data?.name || '---';
-  const safeTime = data?.time || '--:--';
-  const safeDate = data?.date || '--/--/----';
-  const safeApp = data?.appName || 'SISTEMA';
+  // Protección contra datos nulos para evitar pantalla blanca
+  if (!data) return <div className="p-10 text-center">Cargando ticket...</div>;
+
+  const safeName = data.name || '---';
+  const safeDate = data.date || '---';
+  const safeTime = data.time || '--:--';
+  const safeId = data.id ? String(data.id).slice(0, 3).toUpperCase() : '000';
+  const safeApp = data.appName || 'SISTEMA';
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
-      {/* TICKET VISUAL (CSS para parecer papel térmico) */}
-      <div id="attendance-card" className="bg-white p-4 w-[300px] shadow-xl text-center border border-gray-300 relative" style={{ fontFamily: "'Courier New', Courier, monospace", color: '#000' }}>
+      {/* TICKET PARA IMPRIMIR (Papel Térmico Estrecho) */}
+      <div id="attendance-card" className="bg-white p-4 w-[300px] shadow-xl text-center border border-gray-300" style={{ fontFamily: "'Courier New', Courier, monospace", color: '#000' }}>
         
-        {/* Header */}
-        <h2 className="font-bold text-lg uppercase mb-1" style={{ letterSpacing: '1px' }}>CONTROL DE ASISTENCIA</h2>
-        <p className="text-sm mb-4 border-b border-dashed border-black pb-2">Jornada: {safeDate}</p>
+        {/* Encabezado */}
+        <h2 className="font-bold text-base uppercase mb-1" style={{ letterSpacing: '1px' }}>CONTROL DE ASISTENCIA</h2>
+        <div className="border-b border-dashed border-black w-full my-2"></div>
         
-        {/* ID Grande */}
-        <h1 className="text-5xl font-black mb-4 tracking-tighter">{safeId}</h1>
+        <p className="text-sm">Jornada: {safeDate}</p>
+        <h1 className="text-6xl font-black my-2">{safeId}</h1>
         
-        {/* Nombre */}
-        <div className="text-left mb-6">
-            <p className="uppercase text-sm">Nombre:<br/><span className="font-bold text-lg">{safeName}</span></p>
+        <div className="text-left w-full mb-4">
+            <p className="uppercase text-xs">Nombre:<br/><span className="font-bold text-lg">{safeName}</span></p>
         </div>
 
-        {/* Separador */}
-        <div className="border-t-2 border-black mb-4"></div>
+        <div className="border-t-2 border-black w-full mb-2"></div>
 
-        {/* HORA GIGANTE (Como en la foto) */}
-        <div className="text-6xl font-black mb-2 tracking-widest leading-none">
+        {/* HORA GIGANTE */}
+        <div className="text-6xl font-black tracking-widest leading-none my-4">
             {safeTime}
         </div>
-        <p className="text-sm mb-8 italic">{safeDate}</p>
+        <p className="text-xs italic mb-8">{safeDate}</p>
 
-        {/* Footer App */}
-        <p className="text-[10px] uppercase text-left mb-12 font-bold border-b border-black pb-1">{safeApp}</p>
+        <p className="text-[10px] uppercase text-left mb-16 font-bold">{safeApp}</p>
 
         {/* Firma */}
-        <div className="border-t border-black pt-2 mx-8">
-            <p className="text-sm uppercase">FIRMA</p>
+        <div className="border-t border-black pt-1 mx-4">
+            <p className="text-xs uppercase">FIRMA</p>
         </div>
       </div>
 
-      {/* Controles (No se imprimen) */}
+      {/* Botones de control (No salen en la impresión) */}
       <div className="mt-8 flex flex-col gap-3 w-full max-w-[300px] no-print">
           <button onClick={() => window.print()} className="w-full bg-black text-white py-4 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:scale-105 transition-transform"><Printer size={20}/> IMPRIMIR TICKET</button>
-          <button onClick={onContinue} className="w-full bg-green-600 text-white py-4 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:bg-green-700 transition-colors"><CheckCircle size={20}/> CONTINUAR AL SISTEMA</button>
+          {onContinue && (
+            <button onClick={onContinue} className="w-full bg-green-600 text-white py-4 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:bg-green-700 transition-colors"><CheckCircle size={20}/> CONTINUAR</button>
+          )}
       </div>
     </div>
   );

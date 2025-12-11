@@ -1,35 +1,31 @@
-// src/components/AttendanceView.jsx
+// src/components/AttendanceView.jsx - VERSIÓN FINAL (Con Botón Reimprimir)
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, orderBy, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { db, isPersonalProject, ROOT_COLLECTION } from '../config/firebase';
-import { Calendar, Clock, DollarSign, User, Trash2, AlertCircle } from 'lucide-react';
+import { Calendar, Trash2, Printer } from 'lucide-react';
 
-export default function AttendanceView() {
+export default function AttendanceView({ onReprint }) { // <--- RECIBE PROP onReprint
   const [shifts, setShifts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filterType, setFilterType] = useState('Todos'); // 'Todos', 'Por Hora', 'Fijo'
+  const [filterType, setFilterType] = useState('Todos');
 
   useEffect(() => {
     const fetchShifts = async () => {
       setLoading(true);
       try {
         const shiftsCol = isPersonalProject ? 'work_shifts' : `${ROOT_COLLECTION}work_shifts`;
-        // Traemos los últimos 100 turnos ordenados por fecha
         const q = query(collection(db, shiftsCol), orderBy('startTime', 'desc'));
         const snap = await getDocs(q);
         const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setShifts(data);
-      } catch (error) {
-        console.error("Error cargando asistencias:", error);
-      } finally {
-        setLoading(false);
-      }
+      } catch (error) { console.error(error); } 
+      finally { setLoading(false); }
     };
     fetchShifts();
   }, []);
 
   const handleDeleteShift = async (id) => {
-      if(!window.confirm("¿Borrar este registro de asistencia?")) return;
+      if(!window.confirm("¿Borrar este registro?")) return;
       try {
           const shiftsCol = isPersonalProject ? 'work_shifts' : `${ROOT_COLLECTION}work_shifts`;
           await deleteDoc(doc(db, shiftsCol, id));
@@ -80,7 +76,7 @@ export default function AttendanceView() {
                   <th className="p-4">Salida</th>
                   <th className="p-4">Duración</th>
                   <th className="p-4 text-right">Pago Est.</th>
-                  <th className="p-4"></th>
+                  <th className="p-4 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -105,16 +101,15 @@ export default function AttendanceView() {
                     <td className="p-4 text-right font-bold text-gray-800">
                         {shift.contractType === 'Por Hora' && shift.endTime ? (
                             <span className="text-green-600">Bs. {calculatePay(shift.startTime, shift.endTime, shift.hourlyRate)}</span>
-                        ) : (
-                            <span className="text-gray-300">-</span>
-                        )}
+                        ) : ( <span className="text-gray-300">-</span> )}
                     </td>
-                    <td className="p-4 text-right">
-                        <button onClick={() => handleDeleteShift(shift.id)} className="text-gray-400 hover:text-red-500"><Trash2 size={16}/></button>
+                    <td className="p-4 text-right flex justify-end gap-2">
+                        {/* BOTÓN REIMPRIMIR */}
+                        <button onClick={() => onReprint(shift)} className="text-blue-400 hover:text-blue-600 bg-blue-50 p-2 rounded hover:bg-blue-100" title="Reimprimir Ticket"><Printer size={16}/></button>
+                        <button onClick={() => handleDeleteShift(shift.id)} className="text-gray-400 hover:text-red-500 p-2"><Trash2 size={16}/></button>
                     </td>
                   </tr>
                 ))}
-                {filteredShifts.length === 0 && <tr><td colSpan="7" className="p-8 text-center text-gray-400">No hay registros recientes.</td></tr>}
               </tbody>
             </table>
           </div>

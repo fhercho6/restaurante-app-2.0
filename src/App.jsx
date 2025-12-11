@@ -1,4 +1,4 @@
-// src/App.jsx - VERSIÓN FINAL (Sin duplicados de asistencia + Login inteligente)
+// src/App.jsx - VERSIÓN FINAL (Anti-Duplicados + Reimpresión)
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
@@ -64,9 +64,7 @@ export default function App() {
   const [filter, setFilter] = useState('Todos');
   const [credentialToPrint, setCredentialToPrint] = useState(null);
   const [staffMember, setStaffMember] = useState(null);
-  
-  // ESTADO PARA EL TICKET DE ASISTENCIA
-  const [lastAttendance, setLastAttendance] = useState(null);
+  const [lastAttendance, setLastAttendance] = useState(null); // Ticket Asistencia
   
   // Pagos
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -80,7 +78,6 @@ export default function App() {
     return isPersonalProject ? 'settings' : `${ROOT_COLLECTION}settings`;
   };
 
-  // --- HANDLERS ---
   const handleLogin = (userApp) => { setIsAuthModalOpen(false); setView('admin'); toast.success(`Bienvenido`); };
   const handleLogout = async () => { await signOut(auth); window.location.reload(); };
   const handleEnterMenu = () => { setFilter('Todos'); setView('menu'); };
@@ -95,37 +92,30 @@ export default function App() {
   
   const handlePrint = () => window.print();
 
-  // --- LÓGICA DE LOGIN INTELIGENTE (EVITA DUPLICADOS) ---
+  // --- LOGIN + ASISTENCIA (ANTI-DUPLICADOS) ---
   const handleStaffPinLogin = async (member) => { 
     const newSessionId = Date.now().toString() + Math.floor(Math.random() * 1000);
     const now = new Date();
     
     try {
-        // 1. Activar sesión en perfil (siempre se hace para que el punto verde se active)
         await updateDoc(doc(db, getCollName('staff'), member.id), { activeSessionId: newSessionId });
         
-        // 2. VERIFICAR SI YA TIENE UN TURNO ABIERTO
+        // --- AQUÍ ESTÁ EL FILTRO ANTI-DUPLICADOS ---
         const shiftsCol = isPersonalProject ? 'work_shifts' : `${ROOT_COLLECTION}work_shifts`;
-        const qActiveShift = query(
-            collection(db, shiftsCol), 
-            where('staffId', '==', member.id),
-            where('endTime', '==', null) // Solo buscamos los que NO tienen hora de salida
-        );
+        // Buscamos si ya tiene un turno abierto (endTime == null)
+        const qActiveShift = query(collection(db, shiftsCol), where('staffId', '==', member.id), where('endTime', '==', null));
         const snapshot = await getDocs(qActiveShift);
 
         const memberWithSession = { ...member, activeSessionId: newSessionId };
         setStaffMember(memberWithSession); 
 
         if (!snapshot.empty) {
-            // --- CASO A: YA ESTÁ TRABAJANDO (RE-INGRESO) ---
-            toast('Reingreso detectado. Turno continua.', { icon: '🔄' });
-            
-            // Entrar directo al sistema sin imprimir ticket
-            if (member.role === 'Cajero' || member.role === 'Administrador') { setView('cashier'); } 
-            else { setView('pos'); }
-            
+            // YA TIENE TURNO -> NO CREAR OTRO -> ENTRAR DIRECTO
+            toast('Re-ingreso exitoso. Turno continua.', { icon: '🔄' });
+            if (member.role === 'Cajero' || member.role === 'Administrador') setView('cashier');
+            else setView('pos');
         } else {
-            // --- CASO B: NUEVO TURNO (PRIMER INGRESO) ---
+            // NO TIENE TURNO -> CREAR NUEVO -> MOSTRAR TICKET
             await addDoc(collection(db, shiftsCol), {
                 staffId: member.id,
                 staffName: member.name,
@@ -136,7 +126,6 @@ export default function App() {
                 sessionId: newSessionId 
             });
 
-            // Preparar ticket e ir a pantalla de impresión
             setLastAttendance({
                 name: member.name,
                 id: member.id, 
@@ -144,40 +133,33 @@ export default function App() {
                 time: now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}),
                 appName: appName || "LicoBar"
             });
-            
             setView('attendance_print'); 
             toast.success(`Entrada registrada: ${member.name}`);
         }
+    } catch (error) { toast.error("Error de conexión"); }
+  };
 
-    } catch (error) { 
-        console.error(error);
-        toast.error("Error de conexión"); 
-    }
+  // --- REIMPRIMIR TICKET DESDE EL PANEL ---
+  const handleReprintAttendance = (shift) => {
+      const dateObj = new Date(shift.startTime);
+      setLastAttendance({
+          name: shift.staffName,
+          id: shift.staffId,
+          date: dateObj.toLocaleDateString(),
+          time: dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}),
+          appName: appName || "LicoBar"
+      });
+      // Importante: No pasamos 'onContinue' porque estamos en modo admin, solo queremos imprimir y volver
+      setView('attendance_print_admin'); 
   };
 
   const handleContinueFromAttendance = () => {
       if (!staffMember) return;
-      if (staffMember.role === 'Cajero' || staffMember.role === 'Administrador') { 
-          setView('cashier'); 
-      } else { 
-          setView('pos'); 
-      }
+      if (staffMember.role === 'Cajero' || staffMember.role === 'Administrador') setView('cashier');
+      else setView('pos');
   };
 
-  useEffect(() => {
-    const initAuth = async () => {
-        if (!auth.currentUser) {
-             if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token && !isPersonalProject) {
-                await signInWithCustomToken(auth, __initial_auth_token);
-             } else {
-                await signInAnonymously(auth).catch(() => setDbStatus('warning'));
-             }
-        }
-    };
-    initAuth();
-    return onAuthStateChanged(auth, (u) => { setCurrentUser(u); if (u) { setDbStatus('connected'); setDbErrorMsg(''); } });
-  }, []);
-
+  useEffect(() => { const initAuth = async () => { if (!auth.currentUser) { if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token && !isPersonalProject) { await signInWithCustomToken(auth, __initial_auth_token); } else { await signInAnonymously(auth).catch(() => setDbStatus('warning')); } } }; initAuth(); return onAuthStateChanged(auth, (u) => { setCurrentUser(u); if (u) { setDbStatus('connected'); setDbErrorMsg(''); } }); }, []);
   useEffect(() => { if (!db || !currentUser) return; const checkSession = async () => { const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`; const q = query(collection(db, colName), where('status', '==', 'open'), limit(1)); const snap = await getDocs(q); if (!snap.empty) { const data = snap.docs[0].data(); setRegisterSession({ id: snap.docs[0].id, ...data }); } }; checkSession(); }, [db, currentUser]);
   useEffect(() => { if (!db || !currentUser) return; const itemsUnsub = onSnapshot(collection(db, getCollName('items')), (s) => { const rawItems = s.docs.map(doc => ({ id: doc.id, ...doc.data() })); const uniqueItems = Array.from(new Map(rawItems.map(item => [item.id, item])).values()); setItems(uniqueItems); }, (e) => { console.warn("Esperando permisos..."); }); const staffUnsub = onSnapshot(collection(db, getCollName('staff')), (s) => setStaff(s.docs.map(d => ({id: d.id, ...d.data()})))); const settingsUnsub = onSnapshot(collection(db, getCollName('settings')), (s) => { let brandingLoaded = false; s.docs.forEach(d => { const data = d.data(); if (d.id === 'categories') setCategories(data.list || []); if (d.id === 'roles') setRoles(data.list || INITIAL_ROLES); if (d.id === 'branding') { setLogo(data.logo); if(data.appName) setAppName(data.appName); brandingLoaded = true; } }); setIsLoadingApp(false); }); const activeSrvCol = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`; const srvUnsub = onSnapshot(collection(db, activeSrvCol), (s) => { setActiveServices(s.docs.map(d => ({ id: d.id, ...d.data() }))); }); return () => { itemsUnsub(); staffUnsub(); settingsUnsub(); srvUnsub(); }; }, [currentUser]);
   useEffect(() => { if (!db || !registerSession) return; const salesCol = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`; const qSales = query(collection(db, salesCol), where('registerId', '==', registerSession.id)); const expensesCol = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`; const qExpenses = query(collection(db, expensesCol), where('registerId', '==', registerSession.id)); const unsubSales = onSnapshot(qSales, (snap) => { let cash = 0, qr = 0, card = 0; snap.forEach(doc => { const sale = doc.data(); if (sale.payments && Array.isArray(sale.payments)) { sale.payments.forEach(p => { const amt = parseFloat(p.amount) || 0; const method = (p.method || '').toLowerCase(); if (method.includes('efectivo')) cash += amt; else if (method.includes('qr')) qr += amt; else if (method.includes('tarjeta')) card += amt; }); if (sale.changeGiven) cash -= parseFloat(sale.changeGiven); } else { const total = parseFloat(sale.total); const method = (sale.paymentMethod || 'efectivo').toLowerCase(); if (method.includes('efectivo')) { const change = parseFloat(sale.changeGiven) || 0; const received = parseFloat(sale.amountReceived) || total; if(sale.amountReceived) cash += (received - change); else cash += total; } else if (method.includes('qr')) qr += total; else if (method.includes('tarjeta')) card += total; } }); setSessionStats(prev => ({ ...prev, cashSales: cash, qrSales: qr, cardSales: card, digitalSales: qr + card })); }); const unsubExpenses = onSnapshot(qExpenses, (snap) => { let totalExp = 0; const list = []; snap.forEach(doc => { const exp = doc.data(); totalExp += parseFloat(exp.amount); list.push({ id: doc.id, ...exp }); }); setSessionStats(prev => ({ ...prev, totalExpenses: totalExp, expensesList: list })); }); return () => { unsubSales(); unsubExpenses(); }; }, [registerSession]);
@@ -213,7 +195,7 @@ export default function App() {
 
   const filterCategories = ['Todos', ...categories];
   const filteredItems = filter === 'Todos' ? items : items.filter(i => i.category === filter);
-  const isAdminMode = view === 'admin' || view === 'report' || view === 'staff_admin' || view === 'cashier' || view === 'register_control' || view === 'attendance';
+  const isAdminMode = view === 'admin' || view === 'report' || view === 'staff_admin' || view === 'cashier' || view === 'register_control' || view === 'attendance' || view === 'attendance_print_admin';
   const isCashierOnly = staffMember && staffMember.role === 'Cajero';
 
   if (isLoadingApp) return <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 animate-in fade-in"><div className="bg-white p-8 rounded-3xl shadow-xl flex flex-col items-center"><div className="relative mb-4"><div className="absolute inset-0 bg-orange-200 rounded-full animate-ping opacity-75"></div><div className="relative bg-white p-4 rounded-full border-4 border-orange-500 overflow-hidden w-24 h-24 flex items-center justify-center">{LOGO_URL_FIJO ? (<img src={LOGO_URL_FIJO} alt="Cargando" className="w-full h-full object-contain animate-pulse" />) : (<ChefHat size={48} className="text-orange-500" />)}</div></div><h2 className="text-xl font-bold text-gray-800">Cargando sistema...</h2><p className="text-sm text-gray-400 mt-2">Conectando con la nube</p></div></div>;
@@ -261,14 +243,22 @@ export default function App() {
                 </div>
                 {view === 'report' && <div className="animate-in fade-in"><SalesDashboard onReprintZ={handleReprintZReport} /><div className="hidden print:block mt-8"><PrintableView items={items} /></div></div>}
                 
-                {/* --- RENDERIZADO ASISTENCIA --- */}
-                {view === 'attendance' && <AttendanceView />}
+                {view === 'attendance' && <AttendanceView onReprint={handleReprintAttendance} />}
                 
-                {/* --- VISTA DE IMPRESIÓN DEL TICKET (NUEVO) --- */}
+                {/* --- MODO IMPRESIÓN ASISTENCIA (Login) --- */}
                 {view === 'attendance_print' && lastAttendance && (
                     <AttendancePrintView 
                         data={lastAttendance} 
                         onContinue={handleContinueFromAttendance} 
+                    />
+                )}
+
+                {/* --- MODO IMPRESIÓN ADMIN (Reimpresión) --- */}
+                {view === 'attendance_print_admin' && lastAttendance && (
+                    <AttendancePrintView 
+                        data={lastAttendance} 
+                        // En modo admin, el botón "Continuar" solo vuelve a la lista
+                        onContinue={() => setView('attendance')} 
                     />
                 )}
 
