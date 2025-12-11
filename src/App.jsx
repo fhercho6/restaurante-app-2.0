@@ -154,24 +154,61 @@ export default function App() {
   };
 
   // --- LÓGICA DE SERVICIOS POR HORA ---
-  const handleStartService = async (service, note) => {
-      if (!checkRegisterStatus(false)) return;
-      try {
-          const serviceData = {
-              serviceName: service.name,
-              pricePerHour: service.price,
-              startTime: new Date().toISOString(),
-              note: note,
-              staffName: staffMember ? staffMember.name : 'Admin',
-              registerId: registerSession.id
-          };
-          const colName = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`;
-          await addDoc(collection(db, colName), serviceData);
-          setIsServiceModalOpen(false);
-          toast.success("⏱️ Servicio iniciado");
-      } catch (e) { toast.error("Error al iniciar servicio"); }
-  };
+  // En src/App.jsx
 
+  // --- LÓGICA DE SERVICIOS POR HORA (MEJORADA) ---
+  const handleStartService = async (service, note) => {
+    if (!checkRegisterStatus(false)) return;
+    try {
+        // 1. INICIAR CRONÓMETRO (Para control digital)
+        const serviceData = {
+            serviceName: service.name,
+            pricePerHour: service.price,
+            startTime: new Date().toISOString(),
+            note: note,
+            staffName: staffMember ? staffMember.name : 'Admin',
+            registerId: registerSession.id
+        };
+        const colName = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`;
+        await addDoc(collection(db, colName), serviceData);
+
+        // 2. GENERAR COMANDA DE INICIO (Para impresión física)
+        const orderData = {
+            date: new Date().toISOString(),
+            staffId: staffMember ? staffMember.id : 'anon',
+            staffName: staffMember ? staffMember.name : 'Mesero',
+            orderId: 'INI-' + Math.floor(Math.random() * 1000),
+            items: [{
+                id: 'start-' + Date.now(),
+                name: `>>> INICIO: ${service.name} <<<`, // Nombre destacado
+                price: 0, // Precio 0 (es solo informativo)
+                qty: 1,
+                category: 'Servicios'
+            }],
+            // Agregamos la nota (Mesa) al total o como item extra si prefieres, 
+            // pero aquí la ponemos visible en el nombre del item si es necesario, 
+            // o el cajero la verá por el "staffName" o referencia.
+            // Mejor aún: agregamos la nota al nombre del producto para que salga en el ticket.
+            items: [{
+                id: 'start-' + Date.now(),
+                name: `⏱️ INICIO: ${service.name} (${note})`, 
+                price: 0,
+                qty: 1,
+                category: 'Servicios'
+            }],
+            total: 0,
+            status: 'pending'
+        };
+        const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
+        await addDoc(collection(db, ordersCol), orderData);
+
+        setIsServiceModalOpen(false);
+        toast.success("⏱️ Servicio iniciado y comanda enviada");
+    } catch (e) { 
+        console.error(e);
+        toast.error("Error al iniciar servicio"); 
+    }
+  };
   const handleStopService = async (service, cost, timeLabel) => {
       if (!checkRegisterStatus(true)) return;
       if (!window.confirm(`¿Detener ${service.serviceName}?\nCosto: Bs. ${cost.toFixed(2)}`)) return;
