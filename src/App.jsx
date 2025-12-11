@@ -1,4 +1,4 @@
-// src/App.jsx - VERSIÓN FINAL BLINDADA (Sin Errores de Renderizado)
+// src/App.jsx - FINAL VERSION (No White Screen)
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
@@ -33,7 +33,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [isLoadingApp, setIsLoadingApp] = useState(true);
 
-  // Datos
+  // Data
   const [items, setItems] = useState([]);
   const [staff, setStaff] = useState([]);
   const [categories, setCategories] = useState(INITIAL_CATEGORIES);
@@ -46,7 +46,7 @@ export default function App() {
   const [logo, setLogo] = useState(null);
   const [appName, setAppName] = useState(""); 
 
-  // Estado de Caja
+  // Register State
   const [registerSession, setRegisterSession] = useState(null);
   const [isOpenRegisterModalOpen, setIsOpenRegisterModalOpen] = useState(false);
   const [sessionStats, setSessionStats] = useState({ cashSales: 0, qrSales: 0, cardSales: 0, digitalSales: 0, totalExpenses: 0, expensesList: [] });
@@ -59,14 +59,14 @@ export default function App() {
   const [isBrandingModalOpen, setIsBrandingModalOpen] = useState(false);
   const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
   
-  // Estados Operativos
+  // Operational State
   const [currentItem, setCurrentItem] = useState(null);
   const [filter, setFilter] = useState('Todos');
   const [credentialToPrint, setCredentialToPrint] = useState(null);
   const [staffMember, setStaffMember] = useState(null);
   const [lastAttendance, setLastAttendance] = useState(null); 
   
-  // Pagos
+  // Payments
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [pendingSale, setPendingSale] = useState(null);
   const [orderToPay, setOrderToPay] = useState(null); 
@@ -92,23 +92,20 @@ export default function App() {
   
   const handlePrint = () => window.print();
 
-  // --- LÓGICA DE LOGIN + ASISTENCIA ---
+  // --- LÓGICA LOGIN: TICKET INMEDIATO Y SEGURO ---
   const handleStaffPinLogin = async (member) => { 
     const newSessionId = Date.now().toString() + Math.floor(Math.random() * 1000);
     const now = new Date();
     
-    // FORMATO DE FECHA SEGURO (Evita errores de locale)
-    const timeString = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0') + ':' + now.getSeconds().toString().padStart(2, '0');
-    
+    // 1. PREPARAR DATOS DEL TICKET PRIMERO (Para evitar que llegue vacío)
     const ticketData = {
         name: member.name || 'Personal',
         id: member.id || '001', 
         date: now.toLocaleDateString(),
-        time: timeString,
+        time: now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}),
         appName: appName || "LicoBar"
     };
-
-    // 1. ESTABLECER DATOS DEL TICKET ANTES DE NADA
+    
     setLastAttendance(ticketData); 
 
     try {
@@ -135,27 +132,25 @@ export default function App() {
         } else {
             toast('Turno activo continuado.', { icon: '🔄' });
         }
-
-        // 2. CAMBIAR VISTA DESPUÉS DE QUE TODO ESTÉ LISTO
+        
+        // 2. CAMBIAR VISTA DESPUÉS DE CARGAR TODO
         setView('attendance_print'); 
 
     } catch (error) { 
         console.error(error);
-        // Si hay error de red, igual dejamos entrar para no bloquear el trabajo
-        setView('attendance_print'); 
-        toast.error("Conexión inestable, ticket generado localmente"); 
+        // Fallback: Si hay error de red, mostrar ticket igual para no bloquear
+        setView('attendance_print');
+        toast.error("Conexión inestable"); 
     }
   };
 
   const handleReprintAttendance = (shift) => {
       const dateObj = new Date(shift.startTime);
-      const timeString = dateObj.getHours().toString().padStart(2, '0') + ':' + dateObj.getMinutes().toString().padStart(2, '0') + ':' + dateObj.getSeconds().toString().padStart(2, '0');
-      
       setLastAttendance({
           name: shift.staffName,
           id: shift.staffId,
           date: dateObj.toLocaleDateString(),
-          time: timeString,
+          time: dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}),
           appName: appName || "LicoBar"
       });
       setView('attendance_print_admin'); 
