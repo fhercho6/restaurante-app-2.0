@@ -1,8 +1,9 @@
-// src/components/Views.jsx - VERSIÓN FINAL
+// src/components/Views.jsx - VERSIÓN FINAL (Corrección del error 'Illegal constructor')
 import React, { useState } from 'react';
-import { Lock, Delete, ChefHat, Edit2, Trash2, User, Printer } from 'lucide-react';
+// IMPORTANTE: Cambiamos el nombre de 'Delete' a 'DeleteIcon' para evitar conflictos
+import { Lock, Delete as DeleteIcon, ChefHat, Edit2, Trash2, User, Printer } from 'lucide-react';
 
-// --- 1. TARJETA DE MENÚ ---
+// --- 1. TARJETA DE MENÚ (Cliente) ---
 export const MenuCard = ({ item }) => (
   <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 h-full flex flex-col">
     <div className="h-48 overflow-hidden relative group bg-gray-100 flex items-center justify-center flex-shrink-0">
@@ -35,6 +36,7 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4 animate-in zoom-in duration-300">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden">
         <div className="p-8 pb-4 text-center">
+          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4"><Lock size={32} className="text-blue-600" /></div>
           <h2 className="text-2xl font-black text-gray-800 mb-2">Ingreso Personal</h2>
           <p className="text-gray-500 text-sm">Introduce tu código</p>
         </div>
@@ -44,9 +46,11 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
         {error && <div className="text-red-500 text-center font-bold text-xs mb-4">{error}</div>}
         <div className="grid grid-cols-3 gap-4 px-8 pb-8">
           {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (<button key={num} onClick={() => handleNumClick(num.toString())} className="h-16 w-16 mx-auto rounded-full bg-gray-50 text-2xl font-bold text-gray-700 hover:bg-blue-100">{num}</button>))}
-          <div className="flex items-center justify-center"><button onClick={onCancel} className="text-sm font-medium text-gray-500">Cancelar</button></div>
+          <div className="flex items-center justify-center"><button onClick={onCancel} className="text-sm font-medium text-gray-500 hover:text-gray-800">Cancelar</button></div>
           <button onClick={() => handleNumClick('0')} className="h-16 w-16 mx-auto rounded-full bg-gray-50 text-2xl font-bold text-gray-700 hover:bg-blue-100">0</button>
-          <button onClick={handleDelete} className="flex items-center justify-center h-16 w-16 mx-auto rounded-full text-red-400 hover:bg-red-50"><Delete size={28} /></button>
+          
+          {/* AQUÍ USAMOS EL ÍCONO CON EL NUEVO NOMBRE */}
+          <button onClick={handleDelete} className="flex items-center justify-center h-16 w-16 mx-auto rounded-full text-red-400 hover:bg-red-50"><DeleteIcon size={28} /></button>
         </div>
         <div className="p-6 bg-gray-50 border-t">
           <button onClick={handleLogin} disabled={pin.length < 4} className={`w-full py-4 rounded-xl font-bold text-white ${pin.length === 4 ? 'bg-blue-600' : 'bg-gray-300'}`}>INGRESAR</button>
@@ -68,8 +72,6 @@ export const CredentialPrintView = ({ member, appName }) => {
 
   return (
     <div className="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4">
-      
-      {/* EL ID 'credential-card' ES LA CLAVE PARA EL CSS */}
       <div id="credential-card" className="bg-white border-2 border-black w-[300px] p-6 text-center shadow-2xl rounded-xl">
         <div className="border-b-2 border-black pb-4 mb-4">
             <h1 className="font-black text-2xl uppercase tracking-widest">{appName || "EMPRESA"}</h1>
@@ -90,7 +92,6 @@ export const CredentialPrintView = ({ member, appName }) => {
             ID: {safeId.slice(0, 8)}
         </div>
       </div>
-
       <div className="mt-8 text-center no-print">
           <p className="text-gray-500 text-sm mb-4">Listo para imprimir.</p>
           <button onClick={() => window.print()} className="flex items-center gap-2 bg-blue-600 text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-blue-700 hover:scale-105 transition-all">
