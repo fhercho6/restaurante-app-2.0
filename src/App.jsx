@@ -1,4 +1,4 @@
-// src/App.jsx - VERSIÓN FINAL (Con Bloqueo de Mesas Ocupadas)
+// src/App.jsx - VERSIÓN FINAL (Borrado Automático de Ticket Inicial)
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
@@ -37,8 +37,6 @@ export default function App() {
   const [staff, setStaff] = useState([]);
   const [categories, setCategories] = useState(INITIAL_CATEGORIES);
   const [roles, setRoles] = useState(INITIAL_ROLES);
-  
-  // --- NUEVO: Estado para saber qué mesas están ocupadas ---
   const [activeServices, setActiveServices] = useState([]); 
 
   // Config
@@ -86,10 +84,7 @@ export default function App() {
   const handleEnterAdmin = () => { if (currentUser && !currentUser.isAnonymous) setView('admin'); else setIsAuthModalOpen(true); };
   
   const handlePrintCredential = (member) => { 
-    if (!member) {
-        toast.error("Error: Empleado no válido");
-        return;
-    }
+    if (!member) { toast.error("Error: Empleado no válido"); return; }
     setCredentialToPrint(member); 
     setView('credential_print'); 
   };
@@ -102,13 +97,8 @@ export default function App() {
         await updateDoc(doc(db, getCollName('staff'), member.id), { activeSessionId: newSessionId });
         const memberWithSession = { ...member, activeSessionId: newSessionId };
         setStaffMember(memberWithSession); 
-        if (member.role === 'Cajero' || member.role === 'Administrador') {
-            setView('cashier'); 
-            toast.success(`Caja abierta: ${member.name}`);
-        } else {
-            setView('pos'); 
-            toast.success(`Turno iniciado: ${member.name}`); 
-        }
+        if (member.role === 'Cajero' || member.role === 'Administrador') { setView('cashier'); toast.success(`Caja abierta: ${member.name}`); } 
+        else { setView('pos'); toast.success(`Turno iniciado: ${member.name}`); }
     } catch (error) { toast.error("Error de conexión"); }
   };
 
@@ -116,8 +106,7 @@ export default function App() {
     if (!staffMember || !staff.length) return;
     const remoteMember = staff.find(m => m.id === staffMember.id);
     if (remoteMember && remoteMember.activeSessionId && remoteMember.activeSessionId !== staffMember.activeSessionId) {
-        setStaffMember(null);
-        setView('pin_login'); 
+        setStaffMember(null); setView('pin_login'); 
         toast.error(`⚠️ SESIÓN CERRADA\nSe detectó un acceso en otro dispositivo.`, { duration: 6000, icon: '🚫' });
     }
   }, [staff, staffMember]);
@@ -126,15 +115,11 @@ export default function App() {
     if (registerSession) {
         const isAdmin = currentUser && !currentUser.isAnonymous;
         const isOwner = staffMember && registerSession.openedBy === staffMember.name;
-        if (requireOwnership && !isAdmin && !isOwner) {
-            toast.error(`⛔ ACCESO DENEGADO\nTurno de: ${registerSession.openedBy}`, { duration: 5000 });
-            return false;
-        }
+        if (requireOwnership && !isAdmin && !isOwner) { toast.error(`⛔ ACCESO DENEGADO\nTurno de: ${registerSession.openedBy}`, { duration: 5000 }); return false; }
         return true;
     }
     const canOpenRegister = (currentUser && !currentUser.isAnonymous) || (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador'));
-    if (canOpenRegister) setIsOpenRegisterModalOpen(true);
-    else toast.error("⚠️ LA CAJA ESTÁ CERRADA.", { icon: '🔒' });
+    if (canOpenRegister) setIsOpenRegisterModalOpen(true); else toast.error("⚠️ LA CAJA ESTÁ CERRADA.", { icon: '🔒' });
     return false;
   };
 
@@ -156,69 +141,59 @@ export default function App() {
       } catch (error) { toast.error("Error al abrir caja"); }
   };
 
-  // --- LÓGICA DE SERVICIOS POR HORA (CON IMPRESIÓN AUTOMÁTICA) ---
   const handleStartService = async (service, note) => {
       if (!checkRegisterStatus(false)) return;
       try {
-          // 1. INICIAR CRONÓMETRO EN BASE DE DATOS
           const serviceData = {
-              serviceName: service.name,
-              pricePerHour: service.price,
-              startTime: new Date().toISOString(),
-              note: note,
-              staffName: staffMember ? staffMember.name : 'Admin',
-              registerId: registerSession.id
+              serviceName: service.name, pricePerHour: service.price, startTime: new Date().toISOString(),
+              note: note, staffName: staffMember ? staffMember.name : 'Admin', registerId: registerSession.id
           };
           const colName = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`;
           await addDoc(collection(db, colName), serviceData);
 
-          // 2. CREAR COMANDA EN EL SISTEMA
           const orderData = {
-              date: new Date().toISOString(),
-              staffId: staffMember ? staffMember.id : 'anon',
-              staffName: staffMember ? staffMember.name : 'Mesero',
+              date: new Date().toISOString(), staffId: staffMember ? staffMember.id : 'anon', staffName: staffMember ? staffMember.name : 'Mesero',
               orderId: 'INI-' + Math.floor(Math.random() * 1000),
-              items: [{
-                  id: 'start-' + Date.now(),
-                  name: `⏱️ INICIO: ${service.name} (${note})`, 
-                  price: 0,
-                  qty: 1,
-                  category: 'Servicios'
-              }],
-              total: 0,
-              status: 'pending'
+              items: [{ id: 'start-' + Date.now(), name: `⏱️ INICIO: ${service.name} (${note})`, price: 0, qty: 1, category: 'Servicios' }],
+              total: 0, status: 'pending'
           };
           const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
           await addDoc(collection(db, ordersCol), orderData);
 
           setIsServiceModalOpen(false);
-
-          // 3. MOSTRAR TICKET
-          const ticketData = {
-              ...orderData,
-              type: 'order', 
-              businessName: appName,
-              date: new Date().toLocaleString()
-          };
-          setLastSale(ticketData); 
-          setView('receipt_view'); 
+          const ticketData = { ...orderData, type: 'order', businessName: appName, date: new Date().toLocaleString() };
+          setLastSale(ticketData); setView('receipt_view'); 
           toast.success("Servicio iniciado. Imprimiendo ticket...");
-
-      } catch (e) { 
-          console.error(e);
-          toast.error("Error al iniciar servicio"); 
-      }
+      } catch (e) { toast.error("Error al iniciar servicio"); }
   };
 
+  // --- AQUÍ ESTÁ LA MEJORA: BORRADO AUTOMÁTICO DEL TICKET VIEJO ---
   const handleStopService = async (service, cost, timeLabel) => {
       if (!checkRegisterStatus(true)) return;
       if (!window.confirm(`¿Detener ${service.serviceName}?\nCosto: Bs. ${cost.toFixed(2)}`)) return;
       
       try {
+          // 1. Borrar el reloj activo
           const srvCol = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`;
           await deleteDoc(doc(db, srvCol, service.id));
 
+          // 2. BUSCAR Y BORRAR EL TICKET DE "INICIO" (El de 0 Bs)
           const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
+          // Buscamos tickets pendientes que tengan la misma referencia en el nombre del item
+          const qStartTicket = query(collection(db, ordersCol), where('status', '==', 'pending')); 
+          const snapshot = await getDocs(qStartTicket);
+          
+          const deletePromises = [];
+          snapshot.forEach(docOrder => {
+              const data = docOrder.data();
+              // Si el ticket contiene "INICIO" y la misma nota (Ej: Mesa 1), lo borramos
+              if (data.items.some(i => i.name.includes(`(${service.note})`) && i.name.includes('INICIO'))) {
+                  deletePromises.push(deleteDoc(doc(db, ordersCol, docOrder.id)));
+              }
+          });
+          await Promise.all(deletePromises); // Ejecutamos los borrados
+
+          // 3. Crear la comanda final para cobrar
           const orderData = {
               date: new Date().toISOString(),
               staffId: staffMember ? staffMember.id : 'anon',
@@ -235,7 +210,7 @@ export default function App() {
               status: 'pending'
           };
           await addDoc(collection(db, ordersCol), orderData);
-          toast.success("Servicio finalizado. Comanda creada.");
+          toast.success("Servicio finalizado. Ticket de inicio eliminado.");
       } catch (e) { toast.error("Error al detener servicio"); }
   };
 
@@ -243,11 +218,7 @@ export default function App() {
     if (!registerSession) return;
     try {
         const expenseData = {
-            registerId: registerSession.id,
-            description,
-            amount,
-            date: new Date().toISOString(),
-            createdBy: staffMember ? staffMember.name : 'Admin'
+            registerId: registerSession.id, description, amount, date: new Date().toISOString(), createdBy: staffMember ? staffMember.name : 'Admin'
         };
         const colName = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`;
         await addDoc(collection(db, colName), expenseData);
@@ -272,24 +243,12 @@ export default function App() {
           <div className="border-b pb-3">
              <p className="font-bold text-gray-800 text-lg mb-2">Resumen de Cierre</p>
              <div className="bg-gray-50 p-2 rounded mb-3 grid grid-cols-2 gap-2 text-xs">
-                 <div className="bg-white p-2 rounded border border-gray-100">
-                    <span className="text-gray-500 block uppercase text-[10px]">Total QR</span>
-                    <span className="font-bold text-blue-600 text-sm">Bs. {sessionStats.qrSales.toFixed(2)}</span>
-                 </div>
-                 <div className="bg-white p-2 rounded border border-gray-100">
-                    <span className="text-gray-500 block uppercase text-[10px]">Total Tarjeta</span>
-                    <span className="font-bold text-purple-600 text-sm">Bs. {sessionStats.cardSales.toFixed(2)}</span>
-                 </div>
+                 <div className="bg-white p-2 rounded border border-gray-100"><span className="text-gray-500 block uppercase text-[10px]">Total QR</span><span className="font-bold text-blue-600 text-sm">Bs. {sessionStats.qrSales.toFixed(2)}</span></div>
+                 <div className="bg-white p-2 rounded border border-gray-100"><span className="text-gray-500 block uppercase text-[10px]">Total Tarjeta</span><span className="font-bold text-purple-600 text-sm">Bs. {sessionStats.cardSales.toFixed(2)}</span></div>
              </div>
-             <div className="px-2">
-                <p className="text-xs text-gray-500 uppercase font-bold">Efectivo en Caja:</p>
-                <p className="text-2xl font-black text-green-600">Bs. {cashFinal.toFixed(2)}</p>
-             </div>
+             <div className="px-2"><p className="text-xs text-gray-500 uppercase font-bold">Efectivo en Caja:</p><p className="text-2xl font-black text-green-600">Bs. {cashFinal.toFixed(2)}</p></div>
           </div>
-          <div className="flex gap-2">
-            <button onClick={() => { confirmCloseRegister(cashFinal); toast.dismiss(t.id); }} className="bg-red-600 text-white px-4 py-3 rounded-lg text-xs font-bold shadow-sm flex-1 hover:bg-red-700 transition-colors">CERRAR TURNO</button>
-            <button onClick={() => toast.dismiss(t.id)} className="bg-gray-200 text-gray-800 px-4 py-3 rounded-lg text-xs font-bold flex-1 hover:bg-gray-300 transition-colors">CANCELAR</button>
-          </div>
+          <div className="flex gap-2"><button onClick={() => { confirmCloseRegister(cashFinal); toast.dismiss(t.id); }} className="bg-red-600 text-white px-4 py-3 rounded-lg text-xs font-bold shadow-sm flex-1 hover:bg-red-700 transition-colors">CERRAR TURNO</button><button onClick={() => toast.dismiss(t.id)} className="bg-gray-200 text-gray-800 px-4 py-3 rounded-lg text-xs font-bold flex-1 hover:bg-gray-300 transition-colors">CANCELAR</button></div>
         </div>
       ), { duration: 10000, position: 'top-center', icon: null });
   };
@@ -297,321 +256,68 @@ export default function App() {
   const confirmCloseRegister = async (finalCash) => {
       try {
           const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`;
-          await updateDoc(doc(db, colName, registerSession.id), {
-              status: 'closed',
-              closedAt: new Date().toISOString(),
-              closedBy: staffMember ? staffMember.name : 'Admin',
-              finalCashCalculated: finalCash,
-              finalSalesStats: sessionStats
-          });
-          const zReportData = {
-             type: 'z-report',
-             businessName: appName,
-             date: new Date().toLocaleString(),
-             staffName: staffMember ? staffMember.name : 'Admin',
-             registerId: registerSession.id,
-             openedAt: registerSession.openedAt,
-             openingAmount: registerSession.openingAmount,
-             finalCash: finalCash,
-             stats: sessionStats,
-             expensesList: sessionStats.expensesList
-          };
-          setRegisterSession(null);
-          setSessionStats({ cashSales: 0, qrSales: 0, cardSales: 0, digitalSales: 0, totalExpenses: 0, expensesList: [] });
-          setLastSale(zReportData);
-          setView('receipt_view');
-          toast.success("Cierre exitoso", { icon: '🖨️' });
+          await updateDoc(doc(db, colName, registerSession.id), { status: 'closed', closedAt: new Date().toISOString(), closedBy: staffMember ? staffMember.name : 'Admin', finalCashCalculated: finalCash, finalSalesStats: sessionStats });
+          const zReportData = { type: 'z-report', businessName: appName, date: new Date().toLocaleString(), staffName: staffMember ? staffMember.name : 'Admin', registerId: registerSession.id, openedAt: registerSession.openedAt, openingAmount: registerSession.openingAmount, finalCash: finalCash, stats: sessionStats, expensesList: sessionStats.expensesList };
+          setRegisterSession(null); setSessionStats({ cashSales: 0, qrSales: 0, cardSales: 0, digitalSales: 0, totalExpenses: 0, expensesList: [] }); setLastSale(zReportData); setView('receipt_view'); toast.success("Cierre exitoso", { icon: '🖨️' });
       } catch (error) { toast.error("Error cerrando"); }
   };
 
   const handleReprintZReport = (shiftData) => {
-      const zReportData = {
-          type: 'z-report',
-          businessName: appName,
-          date: new Date(shiftData.closedAt).toLocaleString(),
-          staffName: shiftData.closedBy || 'Admin',
-          registerId: shiftData.id,
-          openedAt: shiftData.openedAt,
-          openingAmount: shiftData.openingAmount,
-          finalCash: shiftData.finalCashCalculated,
-          stats: shiftData.finalSalesStats || { cashSales:0, qrSales: 0, cardSales: 0, totalExpenses:0 },
-          expensesList: shiftData.finalSalesStats?.expensesList || []
-      };
-      setLastSale(zReportData);
-      setView('receipt_view');
-      toast.success("Cargando copia del reporte...");
+      const zReportData = { type: 'z-report', businessName: appName, date: new Date(shiftData.closedAt).toLocaleString(), staffName: shiftData.closedBy || 'Admin', registerId: shiftData.id, openedAt: shiftData.openedAt, openingAmount: shiftData.openingAmount, finalCash: shiftData.finalCashCalculated, stats: shiftData.finalSalesStats || { cashSales:0, qrSales: 0, cardSales: 0, totalExpenses:0 }, expensesList: shiftData.finalSalesStats?.expensesList || [] };
+      setLastSale(zReportData); setView('receipt_view'); toast.success("Cargando copia del reporte...");
   };
 
-  const handleStartPaymentFromCashier = (order) => {
-      if (!checkRegisterStatus(true)) return;
-      setOrderToPay(order); 
-      setPendingSale({ cart: order.items, clearCart: () => {} });
-      setIsPaymentModalOpen(true);
-  };
-
-  const handlePOSCheckout = (cart, clearCart) => {
-    if (!checkRegisterStatus(true)) return;
-    setOrderToPay(null);
-    setPendingSale({ cart, clearCart });
-    setIsPaymentModalOpen(true);
-  };
-
+  const handleStartPaymentFromCashier = (order) => { if (!checkRegisterStatus(true)) return; setOrderToPay(order); setPendingSale({ cart: order.items, clearCart: () => {} }); setIsPaymentModalOpen(true); };
+  const handlePOSCheckout = (cart, clearCart) => { if (!checkRegisterStatus(true)) return; setOrderToPay(null); setPendingSale({ cart, clearCart }); setIsPaymentModalOpen(true); };
   const handleSendToKitchen = async (cart, clearCart) => {
-    if (!checkRegisterStatus(false)) return; 
-    if (cart.length === 0) return;
+    if (!checkRegisterStatus(false)) return; if (cart.length === 0) return;
     const toastId = toast.loading('Procesando comanda...');
     try {
         const totalOrder = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
-        const orderData = {
-            date: new Date().toISOString(),
-            staffId: staffMember ? staffMember.id : 'anon',
-            staffName: staffMember ? staffMember.name : 'Mesero',
-            orderId: 'ORD-' + Math.floor(Math.random() * 10000), 
-            items: cart,
-            total: totalOrder,
-            status: 'pending'
-        };
+        const orderData = { date: new Date().toISOString(), staffId: staffMember ? staffMember.id : 'anon', staffName: staffMember ? staffMember.name : 'Mesero', orderId: 'ORD-' + Math.floor(Math.random() * 10000), items: cart, total: totalOrder, status: 'pending' };
         const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
         await addDoc(collection(db, ordersCol), orderData);
         const preCheckData = { ...orderData, type: 'order', date: new Date().toLocaleString() };
-        clearCart([]);
-        setLastSale(preCheckData);
-        toast.success('Pedido enviado a caja', { id: toastId });
-        setView('receipt_view'); 
+        clearCart([]); setLastSale(preCheckData); toast.success('Pedido enviado a caja', { id: toastId }); setView('receipt_view'); 
     } catch (error) { toast.error('Error al enviar pedido', { id: toastId }); }
   };
 
   const handleVoidAndPrint = async (order) => {
-     try {
-        const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
-        await deleteDoc(doc(db, ordersCol, order.id));
-        const voidData = { ...order, type: 'void', businessName: appName, date: new Date().toLocaleString() };
-        setLastSale(voidData);
-        toast.success("Pedido anulado");
-        setView('receipt_view');
-     } catch (error) { toast.error("Error al anular"); }
+     try { const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`; await deleteDoc(doc(db, ordersCol, order.id)); const voidData = { ...order, type: 'void', businessName: appName, date: new Date().toLocaleString() }; setLastSale(voidData); toast.success("Pedido anulado"); setView('receipt_view'); } catch (error) { toast.error("Error al anular"); }
   };
 
-  const handleReprintOrder = (order) => {
-      const preCheckData = {
-          ...order,
-          type: 'order',
-          businessName: appName,
-          date: new Date().toLocaleString()
-      };
-      setLastSale(preCheckData);
-      setView('receipt_view');
-      toast.success("Reimprimiendo comanda...");
-  };
+  const handleReprintOrder = (order) => { const preCheckData = { ...order, type: 'order', businessName: appName, date: new Date().toLocaleString() }; setLastSale(preCheckData); setView('receipt_view'); toast.success("Reimprimiendo comanda..."); };
 
   const handleFinalizeSale = async (paymentResult) => {
     if (!db) return;
-    if (staffMember && staffMember.role !== 'Cajero' && staffMember.role !== 'Administrador') {
-        toast.error("⛔ ACCESO DENEGADO: Solo Cajeros pueden cobrar."); setIsPaymentModalOpen(false); return;
-    }
+    if (staffMember && staffMember.role !== 'Cajero' && staffMember.role !== 'Administrador') { toast.error("⛔ ACCESO DENEGADO: Solo Cajeros pueden cobrar."); setIsPaymentModalOpen(false); return; }
     if (!registerSession) { toast.error("¡La caja está cerrada!"); return; }
-
-    const toastId = toast.loading('Procesando pago...');
-    setIsPaymentModalOpen(false);
-    
+    const toastId = toast.loading('Procesando pago...'); setIsPaymentModalOpen(false);
     const itemsToProcess = orderToPay ? orderToPay.items : pendingSale.cart;
     const { paymentsList, totalPaid, change } = paymentResult;
     const totalToProcess = totalPaid - change;
-
     try {
-      const batchPromises = [];
-      const timestamp = new Date();
-
-      let cashierName = 'Caja General';
-      if (staffMember) cashierName = staffMember.name;
-      else if (currentUser) cashierName = 'Administrador';
-      
+      const batchPromises = []; const timestamp = new Date();
+      let cashierName = 'Caja General'; if (staffMember) cashierName = staffMember.name; else if (currentUser) cashierName = 'Administrador';
       const waiterName = orderToPay ? orderToPay.staffName : (staffMember ? staffMember.name : 'Barra');
       const waiterId = orderToPay ? orderToPay.staffId : (staffMember ? staffMember.id : 'anon');
-
-      const saleData = {
-        date: timestamp.toISOString(),
-        total: totalToProcess,
-        items: itemsToProcess,
-        staffId: waiterId,
-        staffName: waiterName,
-        cashier: cashierName,
-        registerId: registerSession.id,
-        payments: paymentsList,
-        totalPaid: totalPaid,
-        changeGiven: change
-      };
-      
+      const saleData = { date: timestamp.toISOString(), total: totalToProcess, items: itemsToProcess, staffId: waiterId, staffName: waiterName, cashier: cashierName, registerId: registerSession.id, payments: paymentsList, totalPaid: totalPaid, changeGiven: change };
       const salesCollection = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`;
       const docRef = await addDoc(collection(db, salesCollection), saleData);
-
-      itemsToProcess.forEach(item => {
-        if (item.stock !== undefined && item.stock !== '') {
-          const newStock = parseInt(item.stock) - item.qty;
-          batchPromises.push(updateDoc(doc(db, getCollName('items'), item.id), { stock: newStock }));
-        }
-      });
-
-      if (orderToPay) {
-          const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
-          batchPromises.push(deleteDoc(doc(db, ordersCol, orderToPay.id)));
-      }
+      itemsToProcess.forEach(item => { if (item.stock !== undefined && item.stock !== '') { const newStock = parseInt(item.stock) - item.qty; batchPromises.push(updateDoc(doc(db, getCollName('items'), item.id), { stock: newStock })); } });
+      if (orderToPay) { const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`; batchPromises.push(deleteDoc(doc(db, ordersCol, orderToPay.id))); }
       await Promise.all(batchPromises);
-
-      const receiptData = {
-        businessName: appName,
-        date: timestamp.toLocaleString(),
-        staffName: waiterName,
-        cashierName: cashierName,
-        orderId: docRef.id,
-        items: itemsToProcess,
-        total: totalToProcess,
-        payments: paymentsList,
-        change: change
-      };
-
-      setLastSale(receiptData);
-      if (pendingSale && pendingSale.clearCart) pendingSale.clearCart([]);
-      setPendingSale(null);
-      setOrderToPay(null);
-      toast.success('¡Cobro exitoso!', { id: toastId });
-      
-      setView('receipt_view');
-
+      const receiptData = { businessName: appName, date: timestamp.toLocaleString(), staffName: waiterName, cashierName: cashierName, orderId: docRef.id, items: itemsToProcess, total: totalToProcess, payments: paymentsList, change: change };
+      setLastSale(receiptData); if (pendingSale && pendingSale.clearCart) pendingSale.clearCart([]); setPendingSale(null); setOrderToPay(null); toast.success('¡Cobro exitoso!', { id: toastId }); setView('receipt_view');
     } catch (e) { console.error(e); toast.error('Error al cobrar', { id: toastId }); }
   };
 
-  const handleReceiptClose = () => {
-      if (lastSale && lastSale.type === 'z-report') { setView('landing'); return; }
-      const isCashier = (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador')) || (currentUser && !currentUser.isAnonymous);
-      if (isCashier) setView('cashier'); else setView('pos');
-  };
+  const handleReceiptClose = () => { if (lastSale && lastSale.type === 'z-report') { setView('landing'); return; } const isCashier = (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador')) || (currentUser && !currentUser.isAnonymous); if (isCashier) setView('cashier'); else setView('pos'); };
 
-  useEffect(() => {
-    const initAuth = async () => {
-        if (!auth.currentUser) {
-             if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token && !isPersonalProject) {
-                await signInWithCustomToken(auth, __initial_auth_token);
-             } else {
-                await signInAnonymously(auth).catch(() => setDbStatus('warning'));
-             }
-        }
-    };
-    initAuth();
-    return onAuthStateChanged(auth, (u) => { setCurrentUser(u); if (u) { setDbStatus('connected'); setDbErrorMsg(''); } });
-  }, []);
-
-  useEffect(() => {
-      if (!db) return;
-      const checkSession = async () => {
-          const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`;
-          const q = query(collection(db, colName), where('status', '==', 'open'), limit(1));
-          const snap = await getDocs(q);
-          if (!snap.empty) {
-              const data = snap.docs[0].data();
-              setRegisterSession({ id: snap.docs[0].id, ...data });
-          }
-      };
-      checkSession();
-  }, [db, currentUser]);
-
-  useEffect(() => {
-      if (!db || !registerSession) return;
-      const salesCol = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`;
-      const qSales = query(collection(db, salesCol), where('registerId', '==', registerSession.id));
-      const expensesCol = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`;
-      const qExpenses = query(collection(db, expensesCol), where('registerId', '==', registerSession.id));
-
-      const unsubSales = onSnapshot(qSales, (snap) => {
-          let cash = 0, qr = 0, card = 0;
-          snap.forEach(doc => {
-              const sale = doc.data();
-              if (sale.payments && Array.isArray(sale.payments)) {
-                  sale.payments.forEach(p => {
-                      const amt = parseFloat(p.amount) || 0;
-                      const method = (p.method || '').toLowerCase();
-                      if (method.includes('efectivo')) cash += amt;
-                      else if (method.includes('qr')) qr += amt;
-                      else if (method.includes('tarjeta')) card += amt;
-                  });
-                  if (sale.changeGiven) cash -= parseFloat(sale.changeGiven);
-              } else {
-                  const total = parseFloat(sale.total);
-                  const method = (sale.paymentMethod || 'efectivo').toLowerCase();
-                  if (method.includes('efectivo')) {
-                      const change = parseFloat(sale.changeGiven) || 0;
-                      const received = parseFloat(sale.amountReceived) || total;
-                      if(sale.amountReceived) cash += (received - change); else cash += total;
-                  }
-                  else if (method.includes('qr')) qr += total;
-                  else if (method.includes('tarjeta')) card += total;
-              }
-          });
-          setSessionStats(prev => ({ ...prev, cashSales: cash, qrSales: qr, cardSales: card, digitalSales: qr + card }));
-      });
-
-      const unsubExpenses = onSnapshot(qExpenses, (snap) => {
-          let totalExp = 0;
-          const list = [];
-          snap.forEach(doc => {
-              const exp = doc.data();
-              totalExp += parseFloat(exp.amount);
-              list.push({ id: doc.id, ...exp });
-          });
-          setSessionStats(prev => ({ ...prev, totalExpenses: totalExp, expensesList: list }));
-      });
-
-      return () => { unsubSales(); unsubExpenses(); };
-  }, [registerSession]);
-
-  useEffect(() => {
-    if (!db) return;
-    const itemsUnsub = onSnapshot(collection(db, getCollName('items')), (s) => {
-      const rawItems = s.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      const uniqueItems = Array.from(new Map(rawItems.map(item => [item.id, item])).values());
-      setItems(uniqueItems);
-    }, (e) => { if (e.code === 'permission-denied') { setDbStatus('error'); setDbErrorMsg(currentUser ? 'Sin permisos.' : 'Inicia sesión.'); } });
-    const staffUnsub = onSnapshot(collection(db, getCollName('staff')), (s) => setStaff(s.docs.map(d => ({id: d.id, ...d.data()}))));
-    const settingsUnsub = onSnapshot(collection(db, getCollName('settings')), (s) => {
-        let brandingLoaded = false;
-        s.docs.forEach(d => {
-            const data = d.data();
-            if (d.id === 'categories') setCategories(data.list || []);
-            if (d.id === 'roles') setRoles(data.list || INITIAL_ROLES);
-            if (d.id === 'branding') { setLogo(data.logo); if(data.appName) setAppName(data.appName); brandingLoaded = true; }
-        });
-        setIsLoadingApp(false);
-    });
-
-    // --- NUEVO LISTENER: ESCUCHAR MESAS OCUPADAS ---
-    const activeSrvCol = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`;
-    const srvUnsub = onSnapshot(collection(db, activeSrvCol), (s) => {
-        // Guardamos la lista completa de servicios activos en el estado
-        setActiveServices(s.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
-
-    return () => { itemsUnsub(); staffUnsub(); settingsUnsub(); srvUnsub(); };
-  }, [currentUser]);
-
-  const handleSave = async (d) => { try { if(currentItem) await setDoc(doc(db, getCollName('items'), currentItem.id), d); else await addDoc(collection(db, getCollName('items')), d); toast.success('Guardado'); setIsModalOpen(false); } catch { toast.error('Error'); }};
-  const handleDelete = async (id) => { try { await deleteDoc(doc(db, getCollName('items'), id)); toast.success('Eliminado'); } catch { toast.error('Error'); }};
-  const handleAddStaff = async (d) => { await addDoc(collection(db, getCollName('staff')), d); toast.success('Personal creado'); };
-  const handleUpdateStaff = async (id, d) => { await updateDoc(doc(db, getCollName('staff'), id), d); toast.success('Personal actualizado'); };
-  const handleDeleteStaff = async (id) => { if(window.confirm("¿Eliminar?")) { await deleteDoc(doc(db, getCollName('staff'), id)); toast.success('Borrado'); } };
-  const handleAddCategory = (n) => setDoc(doc(db, getCollName('settings'), 'categories'), { list: [...categories, n] });
-  const handleRenameCategory = (i, n) => { const l = [...categories]; l[i] = n; setDoc(doc(db, getCollName('settings'), 'categories'), { list: l }); };
-  const handleDeleteCategory = (i) => { const l = categories.filter((_, x) => x !== i); setDoc(doc(db, getCollName('settings'), 'categories'), { list: l }); };
-  const handleAddRole = (n) => setDoc(doc(db, getCollName('settings'), 'roles'), { list: [...roles, n] });
-  const handleRenameRole = (i, n) => { const l = [...roles]; l[i] = n; setDoc(doc(db, getCollName('settings'), 'roles'), { list: l }); };
-  const handleDeleteRole = (i) => { const l = roles.filter((_, x) => x !== i); setDoc(doc(db, getCollName('settings'), 'roles'), { list: l }); };
-  const handleSaveBranding = (l, n) => { setDoc(doc(db, getCollName('settings'), 'branding'), { logo: l, appName: n }, { merge: true }); setLogo(l); setAppName(n); toast.success('Marca actualizada'); };
-
-  const filterCategories = ['Todos', ...categories];
-  const filteredItems = filter === 'Todos' ? items : items.filter(i => i.category === filter);
-  const isAdminMode = view === 'admin' || view === 'report' || view === 'staff_admin' || view === 'cashier' || view === 'register_control';
-  const isCashierOnly = staffMember && staffMember.role === 'Cajero';
-
-  if (isLoadingApp) return <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 animate-in fade-in"><div className="bg-white p-8 rounded-3xl shadow-xl flex flex-col items-center"><div className="relative mb-4"><div className="absolute inset-0 bg-orange-200 rounded-full animate-ping opacity-75"></div><div className="relative bg-white p-4 rounded-full border-4 border-orange-500 overflow-hidden w-24 h-24 flex items-center justify-center">{LOGO_URL_FIJO ? (<img src={LOGO_URL_FIJO} alt="Cargando" className="w-full h-full object-contain animate-pulse" />) : (<ChefHat size={48} className="text-orange-500" />)}</div></div><h2 className="text-xl font-bold text-gray-800">Cargando sistema...</h2><p className="text-sm text-gray-400 mt-2">Conectando con la nube</p></div></div>;
+  useEffect(() => { const initAuth = async () => { if (!auth.currentUser) { if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token && !isPersonalProject) { await signInWithCustomToken(auth, __initial_auth_token); } else { await signInAnonymously(auth).catch(() => setDbStatus('warning')); } } }; initAuth(); return onAuthStateChanged(auth, (u) => { setCurrentUser(u); if (u) { setDbStatus('connected'); setDbErrorMsg(''); } }); }, []);
+  useEffect(() => { if (!db) return; const checkSession = async () => { const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`; const q = query(collection(db, colName), where('status', '==', 'open'), limit(1)); const snap = await getDocs(q); if (!snap.empty) { const data = snap.docs[0].data(); setRegisterSession({ id: snap.docs[0].id, ...data }); } }; checkSession(); }, [db, currentUser]);
+  useEffect(() => { if (!db || !registerSession) return; const salesCol = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`; const qSales = query(collection(db, salesCol), where('registerId', '==', registerSession.id)); const expensesCol = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`; const qExpenses = query(collection(db, expensesCol), where('registerId', '==', registerSession.id)); const unsubSales = onSnapshot(qSales, (snap) => { let cash = 0, qr = 0, card = 0; snap.forEach(doc => { const sale = doc.data(); if (sale.payments && Array.isArray(sale.payments)) { sale.payments.forEach(p => { const amt = parseFloat(p.amount) || 0; const method = (p.method || '').toLowerCase(); if (method.includes('efectivo')) cash += amt; else if (method.includes('qr')) qr += amt; else if (method.includes('tarjeta')) card += amt; }); if (sale.changeGiven) cash -= parseFloat(sale.changeGiven); } else { const total = parseFloat(sale.total); const method = (sale.paymentMethod || 'efectivo').toLowerCase(); if (method.includes('efectivo')) { const change = parseFloat(sale.changeGiven) || 0; const received = parseFloat(sale.amountReceived) || total; if(sale.amountReceived) cash += (received - change); else cash += total; } else if (method.includes('qr')) qr += total; else if (method.includes('tarjeta')) card += total; } }); setSessionStats(prev => ({ ...prev, cashSales: cash, qrSales: qr, cardSales: card, digitalSales: qr + card })); }); const unsubExpenses = onSnapshot(qExpenses, (snap) => { let totalExp = 0; const list = []; snap.forEach(doc => { const exp = doc.data(); totalExp += parseFloat(exp.amount); list.push({ id: doc.id, ...exp }); }); setSessionStats(prev => ({ ...prev, totalExpenses: totalExp, expensesList: list })); }); return () => { unsubSales(); unsubExpenses(); }; }, [registerSession]);
+  useEffect(() => { if (!db) return; const itemsUnsub = onSnapshot(collection(db, getCollName('items')), (s) => { const rawItems = s.docs.map(doc => ({ id: doc.id, ...doc.data() })); const uniqueItems = Array.from(new Map(rawItems.map(item => [item.id, item])).values()); setItems(uniqueItems); }, (e) => { if (e.code === 'permission-denied') { setDbStatus('error'); setDbErrorMsg(currentUser ? 'Sin permisos.' : 'Inicia sesión.'); } }); const staffUnsub = onSnapshot(collection(db, getCollName('staff')), (s) => setStaff(s.docs.map(d => ({id: d.id, ...d.data()})))); const settingsUnsub = onSnapshot(collection(db, getCollName('settings')), (s) => { let brandingLoaded = false; s.docs.forEach(d => { const data = d.data(); if (d.id === 'categories') setCategories(data.list || []); if (d.id === 'roles') setRoles(data.list || INITIAL_ROLES); if (d.id === 'branding') { setLogo(data.logo); if(data.appName) setAppName(data.appName); brandingLoaded = true; } }); setIsLoadingApp(false); }); const activeSrvCol = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`; const srvUnsub = onSnapshot(collection(db, activeSrvCol), (s) => { setActiveServices(s.docs.map(d => ({ id: d.id, ...d.data() }))); }); return () => { itemsUnsub(); staffUnsub(); settingsUnsub(); srvUnsub(); }; }, [currentUser]);
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900 pb-20">
@@ -778,13 +484,13 @@ export default function App() {
       <BrandingModal isOpen={isBrandingModalOpen} onClose={() => setIsBrandingModalOpen(false)} onSave={handleSaveBranding} currentLogo={logo} currentName={appName} />
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onLogin={handleLogin} />
       
-      {/* MODAL DE SERVICIOS (Ahora le pasamos la "Lista Negra" de mesas ocupadas) */}
+      {/* MODAL DE SERVICIOS */}
       <ServiceStartModal 
         isOpen={isServiceModalOpen} 
         onClose={() => setIsServiceModalOpen(false)}
         services={items.filter(i => i.category === 'Servicios')}
         onStart={handleStartService}
-        occupiedLocations={activeServices.map(s => s.note)} // <--- ESTO ES LO NUEVO
+        occupiedLocations={activeServices.map(s => s.note)}
       />
     </div>
   );
