@@ -1,9 +1,8 @@
-// src/components/Views.jsx - VERSIÓN FINAL CORREGIDA (Con MenuCard exportado y sin error de constructor)
-import React, { useState } from 'react';
-// Usamos ArrowLeft para evitar el conflicto de nombre con 'Delete'
-import { Lock, ArrowLeft, ChefHat, Edit2, Trash2, User, Printer } from 'lucide-react';
+// src/components/Views.jsx - VERSIÓN FINAL (Con Ticket de Asistencia Estilo Foto)
+import React, { useState, useEffect } from 'react';
+import { Lock, ArrowLeft, ChefHat, Edit2, Trash2, User, Printer, CheckCircle } from 'lucide-react';
 
-// --- 1. TARJETA DE MENÚ (ESTA ES LA QUE FALTABA) ---
+// --- 1. TARJETA DE MENÚ ---
 export const MenuCard = ({ item }) => (
   <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 h-full flex flex-col">
     <div className="h-48 overflow-hidden relative group bg-gray-100 flex items-center justify-center flex-shrink-0">
@@ -25,8 +24,6 @@ export const MenuCard = ({ item }) => (
 export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
-  
-  // ESTADO DE CARGA PARA EVITAR DOBLE CLIC
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const handleNumClick = (num) => { if (pin.length < 4 && !isLoggingIn) { setPin(pin + num); setError(''); } };
@@ -35,16 +32,10 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
   const handleLogin = async () => {
     if (isLoggingIn) return; 
     setIsLoggingIn(true);
-
     setTimeout(() => {
         const member = staffMembers.find(m => String(m.pin) === String(pin));
-        if (member) {
-            onLoginSuccess(member);
-        } else {
-            setError('PIN incorrecto'); 
-            setPin(''); 
-            setIsLoggingIn(false); 
-        }
+        if (member) { onLoginSuccess(member); } 
+        else { setError('PIN incorrecto'); setPin(''); setIsLoggingIn(false); }
     }, 500);
   };
 
@@ -56,71 +47,100 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
           <h2 className="text-2xl font-black text-gray-800 mb-2">Ingreso Personal</h2>
           <p className="text-gray-500 text-sm">Introduce tu código</p>
         </div>
-        <div className="flex justify-center gap-4 mb-8">
-          {[0, 1, 2, 3].map(i => (<div key={i} className={`w-4 h-4 rounded-full border-2 transition-all ${i < pin.length ? 'bg-blue-600 border-blue-600 scale-110' : 'border-gray-300'}`} />))}
-        </div>
+        <div className="flex justify-center gap-4 mb-8">{[0, 1, 2, 3].map(i => (<div key={i} className={`w-4 h-4 rounded-full border-2 transition-all ${i < pin.length ? 'bg-blue-600 border-blue-600 scale-110' : 'border-gray-300'}`} />))}</div>
         {error && <div className="text-red-500 text-center font-bold text-xs mb-4 animate-pulse bg-red-50 py-2 mx-8 rounded">{error}</div>}
         <div className="grid grid-cols-3 gap-4 px-8 pb-8">
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
-            <button key={num} onClick={() => handleNumClick(num.toString())} disabled={isLoggingIn} className="h-16 w-16 mx-auto rounded-full bg-gray-50 text-2xl font-bold text-gray-700 hover:bg-blue-100 disabled:opacity-50 active:scale-95 transition-all">{num}</button>
-          ))}
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (<button key={num} onClick={() => handleNumClick(num.toString())} disabled={isLoggingIn} className="h-16 w-16 mx-auto rounded-full bg-gray-50 text-2xl font-bold text-gray-700 hover:bg-blue-100 disabled:opacity-50 active:scale-95 transition-all">{num}</button>))}
           <div className="flex items-center justify-center"><button onClick={onCancel} disabled={isLoggingIn} className="text-sm font-medium text-gray-500 hover:text-gray-800 disabled:opacity-50">Cancelar</button></div>
           <button onClick={() => handleNumClick('0')} disabled={isLoggingIn} className="h-16 w-16 mx-auto rounded-full bg-gray-50 text-2xl font-bold text-gray-700 hover:bg-blue-100 disabled:opacity-50 active:scale-95 transition-all">0</button>
           <button onClick={handleDelete} disabled={isLoggingIn} className="flex items-center justify-center h-16 w-16 mx-auto rounded-full text-red-400 hover:bg-red-50 disabled:opacity-50 active:scale-95 transition-all"><ArrowLeft size={28} /></button>
         </div>
-        <div className="p-6 bg-gray-50 border-t">
-          <button onClick={handleLogin} disabled={pin.length < 4 || isLoggingIn} className={`w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 shadow-lg transition-all ${pin.length === 4 && !isLoggingIn ? 'bg-blue-600 hover:bg-blue-700 hover:scale-105' : 'bg-gray-300 cursor-not-allowed'}`}>
-            {isLoggingIn ? "VERIFICANDO..." : "INGRESAR"}
-          </button>
-        </div>
+        <div className="p-6 bg-gray-50 border-t"><button onClick={handleLogin} disabled={pin.length < 4 || isLoggingIn} className={`w-full py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 shadow-lg transition-all ${pin.length === 4 && !isLoggingIn ? 'bg-blue-600 hover:bg-blue-700 hover:scale-105' : 'bg-gray-300 cursor-not-allowed'}`}>{isLoggingIn ? "VERIFICANDO..." : "INGRESAR"}</button></div>
       </div>
     </div>
   );
 };
 
-// --- 3. VISTA DE CREDENCIAL ---
+// --- 3. NUEVO: TICKET DE ASISTENCIA (Replica de la foto) ---
+export const AttendancePrintView = ({ data, onContinue }) => {
+  // data trae: name, id, time, date, appName
+  
+  return (
+    <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
+      {/* TARJETA DEL TICKET (Lo que se imprime) */}
+      <div id="attendance-card" className="bg-white p-6 w-[300px] shadow-xl text-center font-mono border border-gray-300" style={{ fontFamily: "'Courier New', Courier, monospace" }}>
+        
+        {/* Encabezado */}
+        <h2 className="font-bold text-lg uppercase mb-1" style={{ letterSpacing: '1px' }}>CONTROL DE ASISTENCIA</h2>
+        <p className="text-sm mb-4">Jornada: {data.date}</p>
+        
+        {/* ID Grande */}
+        <h1 className="text-4xl font-black mb-2">{data.id ? data.id.slice(0, 3).toUpperCase() : '000'}</h1>
+        
+        {/* Nombre */}
+        <div className="text-left border-b border-dashed border-black pb-4 mb-4">
+            <p className="uppercase text-sm">Nombre: <span className="font-bold">{data.name}</span></p>
+        </div>
+
+        {/* Hora Gigante */}
+        <div className="text-5xl font-black mb-1 tracking-widest">
+            {data.time}
+        </div>
+        <p className="text-sm mb-6">{data.date}</p>
+
+        {/* Footer */}
+        <p className="text-[10px] uppercase text-left mb-12">{data.appName || 'SISTEMA'}</p>
+
+        {/* Firma */}
+        <div className="border-t border-black pt-2 mx-4">
+            <p className="text-sm uppercase">FIRMA</p>
+        </div>
+      </div>
+
+      {/* Botones de Acción (No se imprimen) */}
+      <div className="mt-8 flex flex-col gap-3 w-full max-w-[300px] no-print">
+          <button 
+            onClick={() => window.print()} 
+            className="w-full bg-black text-white py-4 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:scale-105 transition-transform"
+          >
+            <Printer size={20}/> IMPRIMIR TICKET
+          </button>
+          
+          <button 
+            onClick={onContinue} 
+            className="w-full bg-green-600 text-white py-4 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:bg-green-700 transition-colors"
+          >
+            <CheckCircle size={20}/> CONTINUAR AL SISTEMA
+          </button>
+      </div>
+    </div>
+  );
+};
+
+// --- 4. CREDENCIALES ---
 export const CredentialPrintView = ({ member, appName }) => {
   if (!member) return <div className="text-center p-10 text-red-500 font-bold">Error: Sin datos.</div>;
-
   const safeName = member.name || "Sin Nombre";
   const safeRole = member.role || "Personal";
   const safePin = member.pin || "****";
   const safeId = member.id || "---";
   const initial = safeName.charAt(0).toUpperCase();
-
   return (
     <div className="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4">
       <div id="credential-card" className="bg-white border-2 border-black w-[300px] p-6 text-center shadow-2xl rounded-xl">
-        <div className="border-b-2 border-black pb-4 mb-4">
-            <h1 className="font-black text-2xl uppercase tracking-widest">{appName || "EMPRESA"}</h1>
-            <p className="text-[10px] font-bold uppercase text-gray-500 tracking-wider">Credencial Oficial</p>
-        </div>
-        <div className="mx-auto w-32 h-32 bg-gray-100 border-4 border-gray-200 rounded-full flex items-center justify-center mb-4 border-black">
-            <span className="text-6xl font-black text-gray-800">{initial}</span>
-        </div>
+        <div className="border-b-2 border-black pb-4 mb-4"><h1 className="font-black text-2xl uppercase tracking-widest">{appName || "EMPRESA"}</h1><p className="text-[10px] font-bold uppercase text-gray-500 tracking-wider">Credencial Oficial</p></div>
+        <div className="mx-auto w-32 h-32 bg-gray-100 border-4 border-gray-200 rounded-full flex items-center justify-center mb-4 border-black"><span className="text-6xl font-black text-gray-800">{initial}</span></div>
         <h2 className="text-2xl font-black text-gray-900 uppercase leading-tight mb-2 break-words">{safeName}</h2>
-        <div className="inline-block bg-black text-white px-4 py-1 rounded-full font-bold uppercase text-sm mb-6 border border-black">
-            {safeRole}
-        </div>
-        <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg mb-4">
-            <p className="text-[10px] text-yellow-700 font-bold uppercase">PIN DE ACCESO</p>
-            <p className="text-xl font-mono font-bold text-gray-800 tracking-widest">{safePin}</p>
-        </div>
-        <div className="text-[10px] font-mono text-gray-400 border-t pt-2 uppercase text-black">
-            ID: {safeId.slice(0, 8)}
-        </div>
+        <div className="inline-block bg-black text-white px-4 py-1 rounded-full font-bold uppercase text-sm mb-6 border border-black">{safeRole}</div>
+        <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg mb-4"><p className="text-[10px] text-yellow-700 font-bold uppercase">PIN DE ACCESO</p><p className="text-xl font-mono font-bold text-gray-800 tracking-widest">{safePin}</p></div>
+        <div className="text-[10px] font-mono text-gray-400 border-t pt-2 uppercase text-black">ID: {safeId.slice(0, 8)}</div>
       </div>
-      <div className="mt-8 text-center no-print">
-          <p className="text-gray-500 text-sm mb-4">Listo para imprimir.</p>
-          <button onClick={() => window.print()} className="flex items-center gap-2 bg-blue-600 text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-blue-700 hover:scale-105 transition-all">
-            <Printer size={20} /> IMPRIMIR AHORA
-          </button>
-      </div>
+      <div className="mt-8 text-center no-print"><p className="text-gray-500 text-sm mb-4">Listo para imprimir.</p><button onClick={() => window.print()} className="flex items-center gap-2 bg-blue-600 text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-blue-700 hover:scale-105 transition-all"><Printer size={20} /> IMPRIMIR AHORA</button></div>
     </div>
   );
 };
 
-// --- 4. REPORTE IMPRIMIBLE ---
+// --- 5. REPORTE IMPRIMIBLE ---
 export const PrintableView = ({ items }) => {
   const totalCost = items.reduce((acc, curr) => acc + (Number(curr.cost) || 0), 0);
   const totalPrice = items.reduce((acc, curr) => acc + (Number(curr.price) || 0), 0);
@@ -128,10 +148,7 @@ export const PrintableView = ({ items }) => {
   return (
     <div className="bg-white p-8 md:p-12 shadow-2xl mx-auto max-w-4xl min-h-[1100px] relative">
       <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-orange-400 to-orange-600 rounded-t-lg no-print"></div>
-      <div className="flex justify-between items-end mb-8 border-b-2 border-gray-800 pb-4">
-        <div><h1 className="text-4xl font-black text-gray-900 tracking-tight uppercase">Reporte de Menú</h1></div>
-        <div className="text-right"><div className="text-sm font-bold text-gray-900">FECHA</div><div className="text-gray-600">{new Date().toLocaleDateString()}</div></div>
-      </div>
+      <div className="flex justify-between items-end mb-8 border-b-2 border-gray-800 pb-4"><div><h1 className="text-4xl font-black text-gray-900 tracking-tight uppercase">Reporte de Menú</h1></div><div className="text-right"><div className="text-sm font-bold text-gray-900">FECHA</div><div className="text-gray-600">{new Date().toLocaleDateString()}</div></div></div>
       <div className="grid grid-cols-4 gap-4 mb-8">
         <div className="p-4 border border-gray-200 rounded"><div className="text-xs text-gray-500 uppercase font-bold">Items</div><div className="text-2xl font-bold text-gray-900">{items.length}</div></div>
         <div className="p-4 border border-gray-200 rounded"><div className="text-xs text-gray-500 uppercase font-bold">Costo Total</div><div className="text-2xl font-bold text-gray-900">Bs. {totalCost.toFixed(2)}</div></div>
@@ -146,7 +163,7 @@ export const PrintableView = ({ items }) => {
   );
 };
 
-// --- 5. FILA DE ADMIN ---
+// --- 6. ADMIN ROW ---
 export const AdminRow = ({ item, onEdit, onDelete }) => {
   const price = Number(item.price) || 0; const cost = Number(item.cost) || 0; const margin = price - cost; const marginPercent = price > 0 ? ((margin / price) * 100).toFixed(1) : 0;
   let marginColor = "text-red-500"; if (marginPercent > 30) marginColor = "text-yellow-600"; if (marginPercent > 50) marginColor = "text-green-600";

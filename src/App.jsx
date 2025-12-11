@@ -1,4 +1,4 @@
-// src/App.jsx - VERSIÓN FINAL (Con Control de Asistencias Automático)
+// src/App.jsx - VERSIÓN FINAL (Con Ticket de Asistencia Intermedio)
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
@@ -18,10 +18,10 @@ import PaymentModal from './components/PaymentModal';
 import CashierView from './components/CashierView';
 import OpenRegisterModal from './components/OpenRegisterModal';
 import RegisterControlView from './components/RegisterControlView';
-import AttendanceView from './components/AttendanceView'; // <--- IMPORTADO
+import AttendanceView from './components/AttendanceView';
 
 import { AuthModal, BrandingModal, ProductModal, CategoryManager, RoleManager, ServiceStartModal } from './components/Modals';
-import { MenuCard, PinLoginView, CredentialPrintView, PrintableView, AdminRow } from './components/Views';
+import { MenuCard, PinLoginView, CredentialPrintView, PrintableView, AdminRow, AttendancePrintView } from './components/Views';
 
 const LOGO_URL_FIJO = ""; 
 
@@ -65,6 +65,9 @@ export default function App() {
   const [credentialToPrint, setCredentialToPrint] = useState(null);
   const [staffMember, setStaffMember] = useState(null);
   
+  // ESTADO PARA EL TICKET DE ASISTENCIA
+  const [lastAttendance, setLastAttendance] = useState(null);
+  
   // Pagos
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [pendingSale, setPendingSale] = useState(null);
@@ -92,54 +95,51 @@ export default function App() {
   
   const handlePrint = () => window.print();
 
-  // --- LÓGICA DE LOGIN + REGISTRO DE ASISTENCIA AUTOMÁTICO ---
+  // --- LÓGICA DE LOGIN + REGISTRO DE ASISTENCIA + TICKET ---
   const handleStaffPinLogin = async (member) => { 
     const newSessionId = Date.now().toString() + Math.floor(Math.random() * 1000);
+    const now = new Date();
     try {
-        // 1. Actualizar sesión activa
         await updateDoc(doc(db, getCollName('staff'), member.id), { activeSessionId: newSessionId });
         
-        // 2. CREAR REGISTRO DE ENTRADA (ASISTENCIA)
         const shiftsCol = isPersonalProject ? 'work_shifts' : `${ROOT_COLLECTION}work_shifts`;
         await addDoc(collection(db, shiftsCol), {
             staffId: member.id,
             staffName: member.name,
             contractType: member.contractType || 'Fijo',
             hourlyRate: member.hourlyRate || 0,
-            startTime: new Date().toISOString(),
+            startTime: now.toISOString(),
             endTime: null,
-            sessionId: newSessionId // Vinculamos con la sesión para poder cerrarlo luego
+            sessionId: newSessionId 
         });
 
         const memberWithSession = { ...member, activeSessionId: newSessionId };
         setStaffMember(memberWithSession); 
-        if (member.role === 'Cajero' || member.role === 'Administrador') { setView('cashier'); toast.success(`Caja abierta: ${member.name}`); } 
-        else { setView('pos'); toast.success(`Turno iniciado: ${member.name}`); }
+        
+        // PREPARAMOS EL TICKET DE ASISTENCIA PARA IMPRIMIR
+        setLastAttendance({
+            name: member.name,
+            id: member.id, // O el ID corto si prefieres
+            date: now.toLocaleDateString(),
+            time: now.toLocaleTimeString(),
+            appName: appName || "LicoBar"
+        });
+
+        // EN LUGAR DE IR DIRECTO, VAMOS A LA VISTA DE IMPRESIÓN
+        setView('attendance_print'); 
+        toast.success(`Entrada registrada: ${member.name}`);
+
     } catch (error) { toast.error("Error de conexión"); }
   };
 
-  // --- LÓGICA DE DESCONEXIÓN Y CIERRE DE TURNO ---
-  const handleKickStaffAndCloseShift = async (member) => {
-      if (!member.activeSessionId) return;
-      if (!window.confirm(`¿Desconectar a ${member.name} y cerrar su turno?`)) return;
-      try {
-          // 1. Cerrar sesión en perfil
-          const staffColName = isPersonalProject ? 'staffMembers' : `${ROOT_COLLECTION}staffMembers`;
-          await updateDoc(doc(db, staffColName, member.id), { activeSessionId: null });
-
-          // 2. CERRAR REGISTRO DE ASISTENCIA (Buscar el abierto)
-          const shiftsCol = isPersonalProject ? 'work_shifts' : `${ROOT_COLLECTION}work_shifts`;
-          const q = query(collection(db, shiftsCol), where('sessionId', '==', member.activeSessionId));
-          const snap = await getDocs(q);
-          
-          const batchPromises = [];
-          snap.forEach(docShift => {
-              batchPromises.push(updateDoc(doc(db, shiftsCol, docShift.id), { endTime: new Date().toISOString() }));
-          });
-          await Promise.all(batchPromises);
-
-          toast.success(`${member.name} desconectado y turno cerrado.`);
-      } catch (error) { toast.error("Error al desconectar."); }
+  // --- NUEVA FUNCIÓN: CONTINUAR DESDE EL TICKET DE ASISTENCIA ---
+  const handleContinueFromAttendance = () => {
+      if (!staffMember) return;
+      if (staffMember.role === 'Cajero' || staffMember.role === 'Administrador') { 
+          setView('cashier'); 
+      } else { 
+          setView('pos'); 
+      }
   };
 
   useEffect(() => {
@@ -153,17 +153,23 @@ export default function App() {
         }
     };
     initAuth();
-    return onAuthStateChanged(auth, (u) => { setCurrentUser(u); if (u) { setDbStatus('connected'); setDbErrorMsg(''); } });
+    return onAuthStateChanged(auth, (u) => { 
+        setCurrentUser(u); 
+        if (u) { 
+            setDbStatus('connected'); 
+            setDbErrorMsg(''); 
+        } 
+    });
   }, []);
 
   useEffect(() => { if (!db || !currentUser) return; const checkSession = async () => { const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`; const q = query(collection(db, colName), where('status', '==', 'open'), limit(1)); const snap = await getDocs(q); if (!snap.empty) { const data = snap.docs[0].data(); setRegisterSession({ id: snap.docs[0].id, ...data }); } }; checkSession(); }, [db, currentUser]);
-  useEffect(() => { if (!db || !registerSession) return; const salesCol = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`; const qSales = query(collection(db, salesCol), where('registerId', '==', registerSession.id)); const expensesCol = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`; const qExpenses = query(collection(db, expensesCol), where('registerId', '==', registerSession.id)); const unsubSales = onSnapshot(qSales, (snap) => { let cash = 0, qr = 0, card = 0; snap.forEach(doc => { const sale = doc.data(); if (sale.payments && Array.isArray(sale.payments)) { sale.payments.forEach(p => { const amt = parseFloat(p.amount) || 0; const method = (p.method || '').toLowerCase(); if (method.includes('efectivo')) cash += amt; else if (method.includes('qr')) qr += amt; else if (method.includes('tarjeta')) card += amt; }); if (sale.changeGiven) cash -= parseFloat(sale.changeGiven); } else { const total = parseFloat(sale.total); const method = (sale.paymentMethod || 'efectivo').toLowerCase(); if (method.includes('efectivo')) { const change = parseFloat(sale.changeGiven) || 0; const received = parseFloat(sale.amountReceived) || total; if(sale.amountReceived) cash += (received - change); else cash += total; } else if (method.includes('qr')) qr += total; else if (method.includes('tarjeta')) card += total; } }); setSessionStats(prev => ({ ...prev, cashSales: cash, qrSales: qr, cardSales: card, digitalSales: qr + card })); }); const unsubExpenses = onSnapshot(qExpenses, (snap) => { let totalExp = 0; const list = []; snap.forEach(doc => { const exp = doc.data(); totalExp += parseFloat(exp.amount); list.push({ id: doc.id, ...exp }); }); setSessionStats(prev => ({ ...prev, totalExpenses: totalExp, expensesList: list })); }); return () => { unsubSales(); unsubExpenses(); }; }, [registerSession]);
   useEffect(() => { if (!db || !currentUser) return; const itemsUnsub = onSnapshot(collection(db, getCollName('items')), (s) => { const rawItems = s.docs.map(doc => ({ id: doc.id, ...doc.data() })); const uniqueItems = Array.from(new Map(rawItems.map(item => [item.id, item])).values()); setItems(uniqueItems); }, (e) => { console.warn("Esperando permisos..."); }); const staffUnsub = onSnapshot(collection(db, getCollName('staff')), (s) => setStaff(s.docs.map(d => ({id: d.id, ...d.data()})))); const settingsUnsub = onSnapshot(collection(db, getCollName('settings')), (s) => { let brandingLoaded = false; s.docs.forEach(d => { const data = d.data(); if (d.id === 'categories') setCategories(data.list || []); if (d.id === 'roles') setRoles(data.list || INITIAL_ROLES); if (d.id === 'branding') { setLogo(data.logo); if(data.appName) setAppName(data.appName); brandingLoaded = true; } }); setIsLoadingApp(false); }); const activeSrvCol = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`; const srvUnsub = onSnapshot(collection(db, activeSrvCol), (s) => { setActiveServices(s.docs.map(d => ({ id: d.id, ...d.data() }))); }); return () => { itemsUnsub(); staffUnsub(); settingsUnsub(); srvUnsub(); }; }, [currentUser]);
+  useEffect(() => { if (!db || !registerSession) return; const salesCol = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`; const qSales = query(collection(db, salesCol), where('registerId', '==', registerSession.id)); const expensesCol = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`; const qExpenses = query(collection(db, expensesCol), where('registerId', '==', registerSession.id)); const unsubSales = onSnapshot(qSales, (snap) => { let cash = 0, qr = 0, card = 0; snap.forEach(doc => { const sale = doc.data(); if (sale.payments && Array.isArray(sale.payments)) { sale.payments.forEach(p => { const amt = parseFloat(p.amount) || 0; const method = (p.method || '').toLowerCase(); if (method.includes('efectivo')) cash += amt; else if (method.includes('qr')) qr += amt; else if (method.includes('tarjeta')) card += amt; }); if (sale.changeGiven) cash -= parseFloat(sale.changeGiven); } else { const total = parseFloat(sale.total); const method = (sale.paymentMethod || 'efectivo').toLowerCase(); if (method.includes('efectivo')) { const change = parseFloat(sale.changeGiven) || 0; const received = parseFloat(sale.amountReceived) || total; if(sale.amountReceived) cash += (received - change); else cash += total; } else if (method.includes('qr')) qr += total; else if (method.includes('tarjeta')) card += total; } }); setSessionStats(prev => ({ ...prev, cashSales: cash, qrSales: qr, cardSales: card, digitalSales: qr + card })); }); const unsubExpenses = onSnapshot(qExpenses, (snap) => { let totalExp = 0; const list = []; snap.forEach(doc => { const exp = doc.data(); totalExp += parseFloat(exp.amount); list.push({ id: doc.id, ...exp }); }); setSessionStats(prev => ({ ...prev, totalExpenses: totalExp, expensesList: list })); }); return () => { unsubSales(); unsubExpenses(); }; }, [registerSession]);
 
   const checkRegisterStatus = (requireOwnership = false) => { if (registerSession) { const isAdmin = currentUser && !currentUser.isAnonymous; const isOwner = staffMember && registerSession.openedBy === staffMember.name; if (requireOwnership && !isAdmin && !isOwner) { toast.error(`⛔ ACCESO DENEGADO\nTurno de: ${registerSession.openedBy}`, { duration: 5000 }); return false; } return true; } const canOpenRegister = (currentUser && !currentUser.isAnonymous) || (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador')); if (canOpenRegister) setIsOpenRegisterModalOpen(true); else toast.error("⚠️ LA CAJA ESTÁ CERRADA.", { icon: '🔒' }); return false; };
   const handleOpenRegister = async (amount, activeTeam = []) => { try { const sessionData = { status: 'open', openedBy: staffMember ? staffMember.name : (currentUser?.email || 'Admin'), openedAt: new Date().toISOString(), openingAmount: amount, activeTeam: activeTeam, salesTotal: 0 }; const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`; const docRef = await addDoc(collection(db, colName), sessionData); setRegisterSession({ id: docRef.id, ...sessionData }); setIsOpenRegisterModalOpen(false); toast.success(`Turno Abierto`, { icon: '🔓' }); } catch (error) { toast.error("Error al abrir caja"); } };
   const handleStartService = async (service, note) => { if (!checkRegisterStatus(false)) return; try { const serviceData = { serviceName: service.name, pricePerHour: service.price, startTime: new Date().toISOString(), note: note, staffName: staffMember ? staffMember.name : 'Admin', registerId: registerSession.id }; const colName = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`; await addDoc(collection(db, colName), serviceData); const orderData = { date: new Date().toISOString(), staffId: staffMember ? staffMember.id : 'anon', staffName: staffMember ? staffMember.name : 'Mesero', orderId: 'INI-' + Math.floor(Math.random() * 1000), items: [{ id: 'start-' + Date.now(), name: `⏱️ INICIO: ${service.name} (${note})`, price: 0, qty: 1, category: 'Servicios' }], total: 0, status: 'pending' }; setIsServiceModalOpen(false); const ticketData = { ...orderData, type: 'order', businessName: appName, date: new Date().toLocaleString() }; setLastSale(ticketData); setView('receipt_view'); toast.success("Servicio iniciado. Imprimiendo ticket..."); } catch (e) { toast.error("Error al iniciar servicio"); } };
-  const handleStopService = async (service, cost, timeLabel) => { if (!checkRegisterStatus(true)) return; if (!window.confirm(`¿Detener ${service.serviceName}?\nCosto: Bs. ${cost.toFixed(2)}`)) return; try { const srvCol = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`; await deleteDoc(doc(db, srvCol, service.id)); const orderData = { date: new Date().toISOString(), staffId: staffMember ? staffMember.id : 'anon', staffName: service.staffName || 'Sistema', orderId: 'SRV-' + Math.floor(Math.random() * 1000), items: [{ id: 'srv-' + Date.now(), name: `${service.serviceName} (${timeLabel})`, price: cost, qty: 1, category: 'Servicios' }], total: cost, status: 'pending' }; const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`; await addDoc(collection(db, ordersCol), orderData); toast.success("Servicio detenido."); } catch (e) { console.error(e); toast.error("Error al detener servicio"); } };
+  const handleStopService = async (service, cost, timeLabel) => { if (!checkRegisterStatus(true)) return; if (!window.confirm(`¿Detener ${service.serviceName}?\nCosto: Bs. ${cost.toFixed(2)}`)) return; try { const srvCol = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`; await deleteDoc(doc(db, srvCol, service.id)); const orderData = { date: new Date().toISOString(), staffId: staffMember ? staffMember.id : 'anon', staffName: service.staffName || 'Sistema', orderId: 'SRV-' + Math.floor(Math.random() * 1000), items: [{ id: 'srv-' + Date.now(), name: `${service.serviceName} (${timeLabel})`, price: cost, qty: 1, category: 'Servicios' }], total: cost, status: 'pending' }; const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`; await addDoc(collection(db, ordersCol), orderData); toast.success("Servicio detenido. Ticket de inicio borrado."); } catch (e) { console.error(e); toast.error("Error al detener servicio"); } };
   const handleAddExpense = async (description, amount) => { if (!registerSession) return; try { const expenseData = { registerId: registerSession.id, description, amount, date: new Date().toISOString(), createdBy: staffMember ? staffMember.name : 'Admin' }; const colName = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`; await addDoc(collection(db, colName), expenseData); toast.success("Gasto registrado", { icon: '💸' }); } catch (e) { toast.error("Error guardando gasto"); } };
   const handleDeleteExpense = async (id) => { if(!window.confirm("¿Eliminar este gasto?")) return; try { const colName = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`; await deleteDoc(doc(db, colName, id)); toast.success("Gasto eliminado"); } catch (e) { toast.error("Error"); } };
   const handleCloseRegister = () => { if (!registerSession) return; const cashFinal = registerSession.openingAmount + sessionStats.cashSales - sessionStats.totalExpenses; toast((t) => ( <div className="flex flex-col gap-3 min-w-[240px]"> <div className="border-b pb-3"> <p className="font-bold text-gray-800 text-lg mb-2">Resumen de Cierre</p> <div className="bg-gray-50 p-2 rounded mb-3 grid grid-cols-2 gap-2 text-xs"> <div className="bg-white p-2 rounded border border-gray-100"><span className="text-gray-500 block uppercase text-[10px]">Total QR</span><span className="font-bold text-blue-600 text-sm">Bs. {sessionStats.qrSales.toFixed(2)}</span></div> <div className="bg-white p-2 rounded border border-gray-100"><span className="text-gray-500 block uppercase text-[10px]">Total Tarjeta</span><span className="font-bold text-purple-600 text-sm">Bs. {sessionStats.cardSales.toFixed(2)}</span></div> </div> <div className="px-2"><p className="text-xs text-gray-500 uppercase font-bold">Efectivo en Caja:</p><p className="text-2xl font-black text-green-600">Bs. {cashFinal.toFixed(2)}</p></div> </div> <div className="flex gap-2"><button onClick={() => { confirmCloseRegister(cashFinal); toast.dismiss(t.id); }} className="bg-red-600 text-white px-4 py-3 rounded-lg text-xs font-bold shadow-sm flex-1 hover:bg-red-700 transition-colors">CERRAR TURNO</button><button onClick={() => toast.dismiss(t.id)} className="bg-gray-200 text-gray-800 px-4 py-3 rounded-lg text-xs font-bold flex-1 hover:bg-gray-300 transition-colors">CANCELAR</button></div> </div> ), { duration: 10000, position: 'top-center', icon: null }); };
@@ -191,7 +197,7 @@ export default function App() {
 
   const filterCategories = ['Todos', ...categories];
   const filteredItems = filter === 'Todos' ? items : items.filter(i => i.category === filter);
-  const isAdminMode = view === 'admin' || view === 'report' || view === 'staff_admin' || view === 'cashier' || view === 'register_control' || view === 'attendance'; // <--- Añadido attendance
+  const isAdminMode = view === 'admin' || view === 'report' || view === 'staff_admin' || view === 'cashier' || view === 'register_control' || view === 'attendance';
   const isCashierOnly = staffMember && staffMember.role === 'Cajero';
 
   if (isLoadingApp) return <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 animate-in fade-in"><div className="bg-white p-8 rounded-3xl shadow-xl flex flex-col items-center"><div className="relative mb-4"><div className="absolute inset-0 bg-orange-200 rounded-full animate-ping opacity-75"></div><div className="relative bg-white p-4 rounded-full border-4 border-orange-500 overflow-hidden w-24 h-24 flex items-center justify-center">{LOGO_URL_FIJO ? (<img src={LOGO_URL_FIJO} alt="Cargando" className="w-full h-full object-contain animate-pulse" />) : (<ChefHat size={48} className="text-orange-500" />)}</div></div><h2 className="text-xl font-bold text-gray-800">Cargando sistema...</h2><p className="text-sm text-gray-400 mt-2">Conectando con la nube</p></div></div>;
@@ -231,7 +237,6 @@ export default function App() {
                     {!isCashierOnly && (
                         <>
                             <button onClick={() => setView('staff_admin')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'staff_admin' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><Users size={18}/> Personal</button>
-                            {/* --- NUEVA PESTAÑA: ASISTENCIA --- */}
                             <button onClick={() => setView('attendance')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'attendance' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><Calendar size={18}/> Asistencia</button>
                         </>
                     )}
@@ -239,18 +244,15 @@ export default function App() {
                   </div>
                 </div>
                 {view === 'report' && <div className="animate-in fade-in"><SalesDashboard onReprintZ={handleReprintZReport} /><div className="hidden print:block mt-8"><PrintableView items={items} /></div></div>}
-                
-                {/* --- SECCIÓN NUEVA: RENDERIZADO DE ASISTENCIA --- */}
                 {view === 'attendance' && <AttendanceView />}
-
-                {view === 'cashier' && (<CashierView onProcessPayment={handleStartPaymentFromCashier} onVoidOrder={handleVoidAndPrint} onReprintOrder={handleReprintOrder} onStopService={handleStopService} 
-                    // PASAMOS LA FUNCIÓN DE DESCONEXIÓN MEJORADA
-                    // Nota: CashierView ahora manejará el click en el usuario y llamará a handleKickStaffAndCloseShift
-                    // Pero para hacerlo simple, CashierView tiene su propia lógica de updateDoc. 
-                    // Lo ideal sería pasarle esta función, pero dejemos que CashierView maneje la desconexión básica por ahora
-                    // Si quieres que el cajero cierre el turno al patear, hay que actualizar CashierView también.
-                    // Por ahora, el registro AUTOMÁTICO funciona al loguearse.
-                />)}
+                {/* AQUÍ ESTÁ EL CAMBIO IMPORTANTE: VISTA DE IMPRESIÓN DE ASISTENCIA */}
+                {view === 'attendance_print' && lastAttendance && (
+                    <AttendancePrintView 
+                        data={lastAttendance} 
+                        onContinue={handleContinueFromAttendance} 
+                    />
+                )}
+                {view === 'cashier' && (<CashierView onProcessPayment={handleStartPaymentFromCashier} onVoidOrder={handleVoidAndPrint} onReprintOrder={handleReprintOrder} onStopService={handleStopService} />)}
                 {view === 'register_control' && <RegisterControlView session={registerSession} onOpen={handleOpenRegister} onClose={handleCloseRegister} staff={staff} stats={sessionStats} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} />}
                 {view === 'staff_admin' && !isCashierOnly && <StaffManagerView staff={staff} roles={roles} onAddStaff={handleAddStaff} onUpdateStaff={handleUpdateStaff} onDeleteStaff={handleDeleteStaff} onManageRoles={() => setIsRoleModalOpen(true)} onPrintCredential={handlePrintCredential} />}
                 {view === 'credential_print' && credentialToPrint && (<div className="flex flex-col items-center w-full min-h-screen bg-gray-100"><div className="w-full max-w-md p-4 flex justify-start no-print"><button onClick={() => setView('staff_admin')} className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-lg shadow hover:bg-gray-50 font-bold"><ArrowLeft size={20} /> Volver a la Lista</button></div><CredentialPrintView member={credentialToPrint} appName={appName} /></div>)}
