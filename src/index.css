@@ -1,53 +1,22 @@
-/* src/index.css - VERSIÓN COMPATIBLE CON TODO */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background-color: #f9fafb;
-  margin: 0;
-  padding: 0;
-  color: #1f2937;
+  background-color: #f3f4f6; /* Un gris suave de fondo */
 }
 
-.hide-scrollbar::-webkit-scrollbar { display: none; }
-.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+/* Ocultar barra de scroll en elementos específicos pero permitir scroll */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
 
-/* =========================================
-   REGLAS MAESTRAS DE IMPRESIÓN
-   ========================================= */
 @media print {
-  /* 1. CONFIGURACIÓN GENERAL */
-  @page { margin: 0; size: auto; }
-  body { background: white; }
-  
-  /* 2. OCULTAR INTERFAZ (Botones, menús, etc) */
-  header, footer, nav, button, .no-print, .sidebar {
+  .no-print {
     display: none !important;
-  }
-
-  /* 3. CASO A: IMPRIMIENDO CREDENCIAL */
-  /* Si existe el ID 'credential-card', ocultamos todo lo demás */
-  body:has(#credential-card) * {
-    visibility: hidden;
-  }
-  body:has(#credential-card) #credential-card,
-  body:has(#credential-card) #credential-card * {
-    visibility: visible;
-  }
-  #credential-card {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    border: none;
-    box-shadow: none;
-  }
-
-  /* 4. CASO B: IMPRIMIENDO REPORTES (Inventario) */
-  /* Reactivamos la visibilidad para los reportes estándar */
-  .print\:block, .print\:block * {
-    visibility: visible !important;
   }
 }
