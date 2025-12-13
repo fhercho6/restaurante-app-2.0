@@ -1,7 +1,7 @@
 // src/components/Views.jsx - VERSIÓN FINAL (Login Anti-Doble Clic + Iconos Corregidos)
 import React, { useState } from 'react';
 // Usamos ArrowLeft para evitar el error de 'Delete'
-import { Lock, ArrowLeft, ChefHat, Edit2, Trash2, User, Printer, Loader } from 'lucide-react';
+import { Lock, ArrowLeft, ChefHat, Edit2, Trash2, User, Printer, AlertTriangle } from 'lucide-react';
 
 // --- 1. TARJETA DE MENÚ ---
 export const MenuCard = ({ item }) => (
@@ -166,14 +166,44 @@ export const PrintableView = ({ items }) => {
 };
 
 // --- 5. FILA DE ADMIN ---
+// --- 6. ADMIN ROW CON ALERTA DE STOCK ---
 export const AdminRow = ({ item, onEdit, onDelete }) => {
-  const price = Number(item.price) || 0; const cost = Number(item.cost) || 0; const margin = price - cost; const marginPercent = price > 0 ? ((margin / price) * 100).toFixed(1) : 0;
-  let marginColor = "text-red-500"; if (marginPercent > 30) marginColor = "text-yellow-600"; if (marginPercent > 50) marginColor = "text-green-600";
-  const stock = item.stock !== undefined && item.stock !== '' ? String(item.stock) : '-';
+  const price = Number(item.price) || 0; 
+  const cost = Number(item.cost) || 0; 
+  const margin = price - cost; 
+  const marginPercent = price > 0 ? ((margin / price) * 100).toFixed(1) : 0;
+  
+  let marginColor = "text-red-500"; 
+  if (marginPercent > 30) marginColor = "text-yellow-600"; 
+  if (marginPercent > 50) marginColor = "text-green-600";
+  
+  // LÓGICA DE STOCK BAJO
+  const stockNum = Number(item.stock);
+  const hasStock = item.stock !== undefined && item.stock !== '';
+  const isLowStock = hasStock && stockNum < 5;
+  const stockDisplay = hasStock ? String(item.stock) : '-';
+
   return (
-    <tr className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-      <td className="p-4"><div className="flex items-center gap-3"><div className="w-12 h-12 rounded-lg bg-gray-200 overflow-hidden flex-shrink-0">{item.image ? <img src={item.image} alt={item.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }}/> : <div className="w-full h-full flex items-center justify-center text-gray-400"><ChefHat size={20}/></div>}</div><div><div className="font-bold text-gray-800">{item.name}</div><div className="text-xs text-gray-500">{item.category}</div></div></div></td>
-      <td className="p-4 text-center font-medium text-gray-600">{stock}</td>
+    <tr className={`border-b border-gray-100 transition-colors ${isLowStock ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-gray-50'}`}>
+      <td className="p-4">
+        <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-lg bg-gray-200 overflow-hidden flex-shrink-0 relative">
+                {item.image ? <img src={item.image} alt={item.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }}/> : <div className="w-full h-full flex items-center justify-center text-gray-400"><ChefHat size={20}/></div>}
+                {/* Etiqueta sobre la imagen */}
+                {isLowStock && <div className="absolute inset-0 bg-red-500/20 flex items-center justify-center"><AlertTriangle size={24} className="text-red-600 animate-pulse"/></div>}
+            </div>
+            <div>
+                <div className="font-bold text-gray-800">{item.name}</div>
+                <div className="text-xs text-gray-500">{item.category}</div>
+            </div>
+        </div>
+      </td>
+      <td className="p-4 text-center font-medium text-gray-600">
+          <div className="flex flex-col items-center">
+              <span className={`text-lg ${isLowStock ? 'font-black text-red-600' : ''}`}>{stockDisplay}</span>
+              {isLowStock && <span className="text-[9px] bg-red-600 text-white px-2 py-0.5 rounded-full uppercase font-bold animate-pulse">¡Poco Stock!</span>}
+          </div>
+      </td>
       <td className="p-4 text-right font-medium text-gray-600">Bs. {cost.toFixed(2)}</td>
       <td className="p-4 text-right font-bold text-gray-800">Bs. {price.toFixed(2)}</td>
       <td className={`p-4 text-right font-bold ${marginColor}`}><div className="flex flex-col items-end"><span>{marginPercent}%</span><span className="text-xs opacity-75">(Bs. {margin.toFixed(2)})</span></div></td>
