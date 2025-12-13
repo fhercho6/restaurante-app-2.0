@@ -1,5 +1,6 @@
-// src/components/POSInterface.jsx - CON ALERTAS DE STOCK BAJO
+// src/components/POSInterface.jsx - CORREGIDO (Sin ReferenceError)
 import React, { useState } from 'react';
+// IMPORTANTE: NO IMPORTAMOS 'Loader' AQUÍ PARA EVITAR EL ERROR
 import { Search, ShoppingCart, Trash2, ChevronLeft, Send, Clock, ChefHat } from 'lucide-react';
 
 export default function POSInterface({ items, categories, staffMember, onCheckout, onPrintOrder, onExit, onOpenServiceModal }) {
@@ -10,20 +11,18 @@ export default function POSInterface({ items, categories, staffMember, onCheckou
 
   const canCharge = staffMember?.role === 'Cajero' || staffMember?.role === 'Administrador';
 
-  // --- COMPONENTE INTERNO DE TARJETA (Aquí está la magia del Stock) ---
+  // --- TARJETA DE PRODUCTO (Con Alerta de Stock) ---
   const POSCard = ({ item, onClick }) => {
-    // Lógica de alerta de Stock
     const stockNum = Number(item.stock);
     const hasStock = item.stock !== undefined && item.stock !== '';
-    const isLowStock = hasStock && stockNum < 5; // Alerta si hay menos de 5
-    const isOut = hasStock && stockNum <= 0;     // Bloqueado si es 0 o menos
+    const isLowStock = hasStock && stockNum < 5;
+    const isOut = hasStock && stockNum <= 0;
 
     return (
       <div 
         onClick={!isOut ? onClick : undefined} 
         className={`bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-all cursor-pointer flex flex-col h-40 relative group ${isOut ? 'opacity-60 grayscale cursor-not-allowed' : ''}`}
       >
-        {/* Imagen / Fondo */}
         <div className="h-24 bg-gray-100 flex items-center justify-center overflow-hidden relative">
           {item.image ? (
             <img src={item.image} alt={item.name} className="w-full h-full object-cover" onError={(e) => e.target.style.display='none'} />
@@ -31,19 +30,16 @@ export default function POSInterface({ items, categories, staffMember, onCheckou
             <ChefHat className="text-gray-300" size={32} />
           )}
           
-          {/* Precio */}
           <div className="absolute top-1 right-1 bg-black/70 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
               Bs. {Number(item.price).toFixed(2)}
           </div>
 
-          {/* ALERTA VISUAL: STOCK BAJO */}
           {isLowStock && !isOut && (
              <div className="absolute bottom-0 w-full bg-red-600 text-white text-[9px] font-black text-center py-0.5 uppercase tracking-wider animate-pulse">
                 ¡SOLO QUEDAN {stockNum}!
              </div>
           )}
 
-          {/* ALERTA VISUAL: AGOTADO */}
           {isOut && (
              <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white font-black uppercase tracking-widest text-sm transform -rotate-12">
                 AGOTADO
@@ -51,7 +47,6 @@ export default function POSInterface({ items, categories, staffMember, onCheckou
           )}
         </div>
         
-        {/* Información del Producto */}
         <div className="p-2 flex flex-col flex-1 justify-between">
            <div>
               <p className="text-[10px] text-orange-600 font-bold uppercase truncate leading-none mb-1">{item.category}</p>
@@ -61,8 +56,8 @@ export default function POSInterface({ items, categories, staffMember, onCheckou
       </div>
     );
   };
-  // ------------------------------------------------------------------------
 
+  // --- LÓGICA DEL CARRITO ---
   const addToCart = (item) => {
     setCart(prev => {
       const existing = prev.find(i => i.id === item.id);
@@ -104,7 +99,6 @@ export default function POSInterface({ items, categories, staffMember, onCheckou
 
   return (
     <div className="flex h-[85vh] bg-gray-100 rounded-xl overflow-hidden border border-gray-300 animate-in fade-in">
-      
       {/* IZQUIERDA - PRODUCTOS */}
       <div className="flex-1 flex flex-col min-w-0 bg-gray-50">
         <div className="bg-white p-3 shadow-sm z-10">
@@ -116,13 +110,11 @@ export default function POSInterface({ items, categories, staffMember, onCheckou
                  <span className="text-[10px] text-green-600 font-bold uppercase">{staffMember?.role || 'Personal'}</span>
                </div>
             </div>
-            
             <button onClick={onOpenServiceModal} className="bg-purple-600 text-white px-3 py-1.5 rounded-lg font-bold shadow hover:bg-purple-700 text-xs flex items-center gap-1">
               <Clock size={14} /> Servicio
             </button>
           </div>
 
-          {/* Categorías */}
           <div className="flex gap-2 pb-2 overflow-x-auto hide-scrollbar">
             <button onClick={() => setCategoryFilter('Todos')} className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap border ${categoryFilter === 'Todos' ? 'bg-black text-white' : 'bg-white text-gray-600'}`}>Todos</button>
             {categories.filter(c => c !== 'Servicios').map(cat => (
@@ -136,7 +128,6 @@ export default function POSInterface({ items, categories, staffMember, onCheckou
           </div>
         </div>
 
-        {/* GRILLA DE PRODUCTOS */}
         <div className="flex-1 overflow-y-auto p-3 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 content-start">
           {filteredItems.map(item => (
             <POSCard key={item.id} item={item} onClick={() => addToCart(item)} />
@@ -183,6 +174,7 @@ export default function POSInterface({ items, categories, staffMember, onCheckou
           
           <div className={`grid ${canCharge ? 'grid-cols-2' : 'grid-cols-1'} gap-2`}>
              <button onClick={handleSendOrderSafe} disabled={cart.length === 0 || isProcessing} className="bg-gray-800 text-white py-3 rounded-lg font-bold shadow hover:bg-gray-900 disabled:opacity-50 text-xs flex flex-col items-center justify-center">
+                {/* AQUÍ ESTABA EL ERROR: Usamos texto simple en lugar de Loader */}
                 {isProcessing ? 'Enviando...' : <><Send size={16} className="mb-1"/> ENVIAR</>}
              </button>
 
