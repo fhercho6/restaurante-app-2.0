@@ -1,76 +1,86 @@
-// src/components/OpenRegisterModal.jsx
+// src/components/OpenRegisterModal.jsx - CORREGIDO (Sin error de DialogTitle)
 import React, { useState } from 'react';
-import { Lock, Unlock, DollarSign } from 'lucide-react';
+import { DollarSign, X, ArrowRight, Lock } from 'lucide-react';
 
-const OpenRegisterModal = ({ isOpen, onClose, onOpenRegister }) => {
+export default function OpenRegisterModal({ isOpen, onClose, onOpenRegister }) {
   const [amount, setAmount] = useState('');
+  const [activeTeam, setActiveTeam] = useState('');
 
   if (!isOpen) return null;
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const initialAmount = parseFloat(amount);
-    if (isNaN(initialAmount)) {
-        alert("Ingresa un monto válido");
-        return;
-    }
-    onOpenRegister(initialAmount);
+    if (!amount) return;
+    // Enviamos el monto y el equipo (opcional)
+    onOpenRegister(parseFloat(amount), activeTeam ? activeTeam.split(',').map(s => s.trim()) : []);
     setAmount('');
+    setActiveTeam('');
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-900/90 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-in fade-in">
-      <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
+    // 1. role="dialog" y aria-modal="true" para accesibilidad
+    // 2. aria-labelledby="modal-title" conecta con el h3
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-300" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      
+      <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden transform transition-all scale-100">
         
-        <div className="bg-orange-600 p-6 text-center">
+        {/* ENCABEZADO */}
+        <div className="bg-green-600 p-6 text-center relative">
             <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3 backdrop-blur-md">
-                <Lock size={32} className="text-white" />
+                <Lock className="text-white" size={32} />
             </div>
-            <h2 className="text-2xl font-black text-white uppercase tracking-wide">CAJA CERRADA</h2>
-            <p className="text-orange-100 text-sm mt-1">Debes realizar la apertura para vender</p>
+            {/* ID "modal-title" vinculado al aria-labelledby */}
+            <h3 id="modal-title" className="text-2xl font-black text-white tracking-tight">APERTURA DE CAJA</h3>
+            <p className="text-green-100 text-xs uppercase font-medium tracking-widest mt-1">Inicia tu turno de ventas</p>
+            
+            <button onClick={onClose} className="absolute top-4 right-4 text-white/60 hover:text-white transition-colors" aria-label="Cerrar">
+                <X size={24}/>
+            </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-8">
-            <label className="block text-sm font-bold text-gray-700 mb-2">
-                Monto Inicial (Caja Chica / Cambio)
-            </label>
-            
-            <div className="relative mb-6">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <DollarSign className="text-gray-400" size={20}/>
+        {/* FORMULARIO */}
+        <div className="p-8">
+            <form onSubmit={handleSubmit} className="space-y-6">
+                <div>
+                    <label className="block text-xs font-bold text-gray-400 uppercase mb-2 ml-1">Monto Inicial (Base)</label>
+                    <div className="relative group">
+                        <span className="absolute left-4 top-3.5 text-gray-400 group-focus-within:text-green-600 transition-colors">Bs.</span>
+                        <input 
+                            type="number" 
+                            step="0.50"
+                            placeholder="0.00" 
+                            className="w-full pl-12 pr-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl font-bold text-gray-800 text-lg outline-none focus:border-green-500 focus:bg-white transition-all"
+                            value={amount}
+                            onChange={(e) => setAmount(e.target.value)}
+                            autoFocus
+                            required
+                        />
+                    </div>
                 </div>
-                <input 
-                    type="number" 
-                    autoFocus
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3 text-xl font-bold text-gray-900 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:ring-0 outline-none transition-colors"
-                    placeholder="0.00"
-                    min="0"
-                    step="0.10"
-                    required
-                />
-            </div>
 
-            <div className="flex gap-3">
-                <button 
-                    type="button" 
-                    onClick={onClose} 
-                    className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold rounded-xl transition-colors"
-                >
-                    Cancelar
-                </button>
+                <div>
+                    <label className="block text-xs font-bold text-gray-400 uppercase mb-2 ml-1">Equipo de Turno (Opcional)</label>
+                    <input 
+                        type="text" 
+                        placeholder="Ej: Juan, Maria..." 
+                        className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl font-medium text-gray-700 outline-none focus:border-green-500 focus:bg-white transition-all"
+                        value={activeTeam}
+                        onChange={(e) => setActiveTeam(e.target.value)}
+                    />
+                    <p className="text-[10px] text-gray-400 mt-1 ml-1">Separa los nombres con comas.</p>
+                </div>
+
                 <button 
                     type="submit" 
-                    className="flex-1 py-3 bg-gray-900 hover:bg-black text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95"
+                    disabled={!amount}
+                    className="w-full py-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold text-lg shadow-lg shadow-green-200 transition-all transform active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    <Unlock size={18}/> ABRIR CAJA
+                    ABRIR CAJA <ArrowRight size={20}/>
                 </button>
-            </div>
-        </form>
+            </form>
+        </div>
+
       </div>
     </div>
   );
-};
-
-export default OpenRegisterModal;
+}
