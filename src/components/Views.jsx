@@ -140,8 +140,14 @@ export const PrintableView = ({ items }) => (
     </div>
 );
 
-// --- 5. ADMIN ROW (Fila de Tabla con Loader en imagen si es necesario) ---
-export const AdminRow = ({ item, onEdit, onDelete }) => {
+// src/components/Views.jsx - (Reemplaza SOLO el componente AdminRow al final)
+
+export const AdminRow = ({ item, onEdit, onDelete, isQuickEdit, onQuickUpdate }) => {
+  const [localStock, setLocalStock] = useState(item.stock);
+  
+  // Actualizamos el estado local si cambia el prop
+  useEffect(() => { setLocalStock(item.stock); }, [item.stock]);
+
   const price = Number(item.price) || 0; 
   const cost = Number(item.cost) || 0; 
   const margin = price - cost; 
@@ -156,13 +162,25 @@ export const AdminRow = ({ item, onEdit, onDelete }) => {
   const isLowStock = hasStock && stockNum < 5;
   const stockDisplay = hasStock ? String(item.stock) : '-';
 
+  const handleBlur = () => {
+      if (String(localStock) !== String(item.stock)) {
+          onQuickUpdate(item.id, localStock);
+      }
+  };
+
+  const handleKeyDown = (e) => {
+      if (e.key === 'Enter') {
+          e.target.blur(); // Esto dispara el handleBlur y guarda
+      }
+  };
+
   return (
-    <tr className={`border-b border-gray-100 transition-colors ${isLowStock ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-gray-50'}`}>
+    <tr className={`border-b border-gray-100 transition-colors ${isLowStock && !isQuickEdit ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-gray-50'}`}>
       <td className="p-4">
         <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-lg bg-gray-200 overflow-hidden flex-shrink-0 relative group">
                 {item.image ? <img src={item.image} alt={item.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }}/> : <div className="w-full h-full flex items-center justify-center text-gray-400"><ChefHat size={20}/></div>}
-                {isLowStock && <div className="absolute inset-0 bg-red-500/20 flex items-center justify-center"><AlertTriangle size={24} className="text-red-600 animate-pulse"/></div>}
+                {isLowStock && !isQuickEdit && <div className="absolute inset-0 bg-red-500/20 flex items-center justify-center"><AlertTriangle size={24} className="text-red-600 animate-pulse"/></div>}
             </div>
             <div>
                 <div className="font-bold text-gray-800">{item.name}</div>
@@ -171,15 +189,34 @@ export const AdminRow = ({ item, onEdit, onDelete }) => {
         </div>
       </td>
       <td className="p-4 text-center font-medium text-gray-600">
-          <div className="flex flex-col items-center">
-              <span className={`text-lg ${isLowStock ? 'font-black text-red-600' : ''}`}>{stockDisplay}</span>
-              {isLowStock && <span className="text-[9px] bg-red-600 text-white px-2 py-0.5 rounded-full uppercase font-bold animate-pulse">¡Poco Stock!</span>}
-          </div>
+          {isQuickEdit ? (
+              <input 
+                type="number" 
+                className="w-20 p-2 text-center border-2 border-blue-400 rounded-lg font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm"
+                value={localStock}
+                onChange={(e) => setLocalStock(e.target.value)}
+                onBlur={handleBlur}
+                onKeyDown={handleKeyDown}
+                autoFocus={false}
+              />
+          ) : (
+              <div className="flex flex-col items-center">
+                  <span className={`text-lg ${isLowStock ? 'font-black text-red-600' : ''}`}>{stockDisplay}</span>
+                  {isLowStock && <span className="text-[9px] bg-red-600 text-white px-2 py-0.5 rounded-full uppercase font-bold animate-pulse">¡Poco Stock!</span>}
+              </div>
+          )}
       </td>
       <td className="p-4 text-right font-medium text-gray-600">Bs. {cost.toFixed(2)}</td>
       <td className="p-4 text-right font-bold text-gray-800">Bs. {price.toFixed(2)}</td>
       <td className={`p-4 text-right font-bold ${marginColor}`}><div className="flex flex-col items-end"><span>{marginPercent}%</span><span className="text-xs opacity-75">(Bs. {margin.toFixed(2)})</span></div></td>
-      <td className="p-4 text-right no-print"><div className="flex justify-end gap-2"><button onClick={() => onEdit(item)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Edit2 size={18} /></button><button onClick={() => { if (window.confirm('¿Eliminar?')) onDelete(item.id); }} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18} /></button></div></td>
+      <td className="p-4 text-right no-print">
+          {!isQuickEdit && (
+            <div className="flex justify-end gap-2">
+                <button onClick={() => onEdit(item)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Edit2 size={18} /></button>
+                <button onClick={() => { if (window.confirm('¿Eliminar?')) onDelete(item.id); }} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18} /></button>
+            </div>
+          )}
+      </td>
     </tr>
   );
 };

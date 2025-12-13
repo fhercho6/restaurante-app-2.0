@@ -1,6 +1,5 @@
-// src/App.jsx - APARIENCIA PREMIUM (Splash Screen)
+// src/App.jsx - VERSIÓN FINAL CON MODO RÁPIDO Y DISEÑO PREMIUM
 import React, { useState, useEffect } from 'react';
-// IMPORTANTE: Agregamos Loader2 para la animación segura
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
   Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign, ArrowLeft, Lock, Unlock, Wallet, Loader2 
@@ -72,6 +71,9 @@ export default function App() {
   const [orderToPay, setOrderToPay] = useState(null); 
   const [lastSale, setLastSale] = useState(null);
 
+  // --- NUEVO ESTADO: MODO RÁPIDO ---
+  const [isQuickEditMode, setIsQuickEditMode] = useState(false);
+
   const getCollName = (type) => {
     if (type === 'items') return isPersonalProject ? 'menuItems' : `${ROOT_COLLECTION}menuItems`;
     if (type === 'staff') return isPersonalProject ? 'staffMembers' : `${ROOT_COLLECTION}staffMembers`;
@@ -112,6 +114,16 @@ export default function App() {
             toast.success(`Turno iniciado: ${member.name}`); 
         }
     } catch (error) { toast.error("Error de conexión"); }
+  };
+
+  // --- NUEVA FUNCIÓN: ACTUALIZAR STOCK RÁPIDO ---
+  const handleQuickStockUpdate = async (id, newStock) => {
+      try {
+          await updateDoc(doc(db, getCollName('items'), id), { stock: newStock });
+          toast.success('Stock actualizado', { duration: 1000, icon: '⚡' });
+      } catch (error) {
+          toast.error('Error al actualizar');
+      }
   };
 
   useEffect(() => { const initAuth = async () => { if (!auth.currentUser) { if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token && !isPersonalProject) { await signInWithCustomToken(auth, __initial_auth_token); } else { await signInAnonymously(auth).catch(() => setDbStatus('warning')); } } }; initAuth(); return onAuthStateChanged(auth, (u) => { setCurrentUser(u); if (u) { setDbStatus('connected'); setDbErrorMsg(''); } }); }, []);
@@ -157,9 +169,7 @@ export default function App() {
   if (isLoadingApp) return (
     <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center animate-in fade-in duration-700">
       <div className="relative">
-        {/* Efecto de brillo de fondo */}
         <div className="absolute inset-0 bg-orange-500 blur-3xl opacity-20 animate-pulse"></div>
-        {/* Logo contenedor */}
         <div className="relative bg-white/10 backdrop-blur-xl p-8 rounded-full border border-white/10 shadow-2xl mb-8">
            {LOGO_URL_FIJO ? (
              <img src={LOGO_URL_FIJO} className="w-16 h-16 object-contain" alt="Logo"/>
@@ -168,7 +178,6 @@ export default function App() {
            )}
         </div>
       </div>
-      {/* Spinner Premium */}
       <Loader2 size={32} className="text-orange-500 animate-spin mb-4" />
       <h2 className="text-white font-bold text-xl tracking-widest uppercase mb-1">ZZIF System</h2>
       <p className="text-gray-500 text-xs font-medium uppercase tracking-wider">Cargando recursos...</p>
@@ -221,7 +230,55 @@ export default function App() {
                 {view === 'register_control' && <RegisterControlView session={registerSession} onOpen={handleOpenRegister} onClose={handleCloseRegister} staff={staff} stats={sessionStats} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} />}
                 {view === 'staff_admin' && !isCashierOnly && <StaffManagerView staff={staff} roles={roles} onAddStaff={handleAddStaff} onUpdateStaff={handleUpdateStaff} onDeleteStaff={handleDeleteStaff} onManageRoles={() => setIsRoleModalOpen(true)} onPrintCredential={handlePrintCredential} />}
                 {view === 'credential_print' && credentialToPrint && (<div className="flex flex-col items-center w-full min-h-screen bg-gray-100"><div className="w-full max-w-md p-4 flex justify-start no-print"><button onClick={() => setView('staff_admin')} className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-lg shadow hover:bg-gray-50 font-bold"><ArrowLeft size={20} /> Volver a la Lista</button></div><CredentialPrintView member={credentialToPrint} appName={appName} /></div>)}
-                {view === 'admin' && !isCashierOnly && (<div className="space-y-6"><div className="flex justify-between items-center mb-4"><div className="flex gap-2"><button aria-label="Configuración" onClick={() => setIsCategoryModalOpen(true)} className="p-2 bg-gray-100 rounded-full"><Settings size={20}/></button><div className="flex flex-wrap gap-2">{filterCategories.map(cat => (<button key={cat} onClick={() => setFilter(cat)} className={`px-3 py-1 rounded-full text-sm whitespace-nowrap ${filter === cat ? 'bg-orange-500 text-white' : 'bg-white border'}`}>{cat}</button>))}</div></div><button aria-label="Nuevo Producto" onClick={() => { setCurrentItem(null); setIsModalOpen(true); }} className="px-4 py-2 bg-green-600 text-white rounded-full flex gap-2 shadow"><Plus size={20}/> Nuevo</button></div><div className="bg-white rounded-xl shadow border overflow-hidden"><table className="w-full text-left"><thead><tr className="bg-gray-50 text-xs uppercase text-gray-500"><th className="p-4">Producto</th><th className="p-4 text-center">Stock</th><th className="p-4 text-right">Precio</th><th className="p-4 text-right">Acciones</th></tr></thead><tbody className="divide-y">{filteredItems.map(item => (<AdminRow key={item.id} item={item} onEdit={(i) => { setCurrentItem(i); setIsModalOpen(true); }} onDelete={handleDelete} />))}</tbody></table></div></div>)}
+                
+                {/* --- SECCIÓN DE ADMIN (MODIFICADA CON MODO RÁPIDO) --- */}
+                {view === 'admin' && !isCashierOnly && (
+                  <div className="space-y-6">
+                    <div className="flex justify-between items-center mb-4">
+                      <div className="flex gap-2">
+                        <button aria-label="Configuración" onClick={() => setIsCategoryModalOpen(true)} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"><Settings size={20}/></button>
+                        
+                        {/* NUEVO BOTÓN DE MODO RÁPIDO */}
+                        <button 
+                            onClick={() => setIsQuickEditMode(!isQuickEditMode)} 
+                            className={`px-4 py-2 rounded-full font-bold text-sm flex items-center gap-2 transition-all ${isQuickEditMode ? 'bg-blue-600 text-white shadow-lg shadow-blue-200 ring-2 ring-blue-400' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                        >
+                            {isQuickEditMode ? '⚡ MODO RÁPIDO ACTIVO' : '⚡ Activar Edición Rápida'}
+                        </button>
+
+                        <div className="flex flex-wrap gap-2 h-10 overflow-y-hidden">
+                            {filterCategories.map(cat => (<button key={cat} onClick={() => setFilter(cat)} className={`px-3 py-1 rounded-full text-sm whitespace-nowrap ${filter === cat ? 'bg-orange-500 text-white' : 'bg-white border'}`}>{cat}</button>))}
+                        </div>
+                      </div>
+                      <button aria-label="Nuevo Producto" onClick={() => { setCurrentItem(null); setIsModalOpen(true); }} className="px-4 py-2 bg-green-600 text-white rounded-full flex gap-2 shadow hover:bg-green-700 transition-colors"><Plus size={20}/> Nuevo</button>
+                    </div>
+
+                    <div className="bg-white rounded-xl shadow border overflow-hidden">
+                      <table className="w-full text-left">
+                        <thead>
+                          <tr className="bg-gray-50 text-xs uppercase text-gray-500">
+                            <th className="p-4">Producto</th>
+                            <th className="p-4 text-center">Stock {isQuickEditMode && '(Editando)'}</th>
+                            <th className="p-4 text-right">Precio</th>
+                            <th className="p-4 text-right">Acciones</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {filteredItems.map(item => (
+                            <AdminRow 
+                                key={item.id} 
+                                item={item} 
+                                onEdit={(i) => { setCurrentItem(i); setIsModalOpen(true); }} 
+                                onDelete={handleDelete}
+                                isQuickEdit={isQuickEditMode} 
+                                onQuickUpdate={handleQuickStockUpdate} 
+                            />
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </>
             )}
             {view === 'pin_login' && <PinLoginView staffMembers={staff} onLoginSuccess={handleStaffPinLogin} onCancel={() => setView('landing')} />}
