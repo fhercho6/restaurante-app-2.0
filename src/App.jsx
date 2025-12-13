@@ -1,5 +1,6 @@
-// src/App.jsx - CON GASTOS + SISTEMA ESTABLE
+// src/App.jsx - GARANTIZADO SIN LOADER
 import React, { useState, useEffect } from 'react';
+// ICONOS SEGUROS (Sin Loader)
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
   Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign, ArrowLeft, Lock, Unlock, Wallet 
@@ -19,7 +20,6 @@ import CashierView from './components/CashierView';
 import OpenRegisterModal from './components/OpenRegisterModal';
 import RegisterControlView from './components/RegisterControlView';
 
-// IMPORTAMOS EL NUEVO ExpenseModal
 import { AuthModal, BrandingModal, ProductModal, CategoryManager, RoleManager, ServiceStartModal, ExpenseModal } from './components/Modals';
 import { MenuCard, PinLoginView, CredentialPrintView, PrintableView, AdminRow } from './components/Views';
 
@@ -58,8 +58,6 @@ export default function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isBrandingModalOpen, setIsBrandingModalOpen] = useState(false);
   const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
-  
-  // NUEVO: ESTADO PARA MODAL DE GASTOS
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   
   // Estados Operativos
@@ -80,18 +78,12 @@ export default function App() {
     return isPersonalProject ? 'settings' : `${ROOT_COLLECTION}settings`;
   };
 
-  // --- HANDLERS OPTIMIZADOS ---
   const handleLogin = (userApp) => { 
-      // 1. Primero cerramos el modal y damos feedback visual (Instantáneo)
-      setIsAuthModalOpen(false);
-      toast.success(`Bienvenido`);
-
-      // 2. Damos un respiro de 10ms al navegador para que termine la animación del clic
-      // antes de cargar la vista pesada de Administración.
-      setTimeout(() => {
-          setView('admin');
-      }, 10);
+      setIsAuthModalOpen(false); 
+      toast.success(`Bienvenido`); 
+      setTimeout(() => setView('admin'), 10);
   };
+
   const handleLogout = async () => { await signOut(auth); window.location.reload(); };
   const handleEnterMenu = () => { setFilter('Todos'); setView('menu'); };
   const handleEnterStaff = () => setView('pin_login');
@@ -198,15 +190,12 @@ export default function App() {
                     {!isCashierOnly && (
                         <>
                             <button onClick={() => setView('staff_admin')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'staff_admin' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><Users size={18}/> Personal</button>
-                            {/* <button onClick={() => setView('attendance')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'attendance' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><Calendar size={18}/> Asistencia</button> */}
                         </>
                     )}
                     <button onClick={() => setView('report')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'report' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><FileText size={18}/> Reporte</button>
                   </div>
                 </div>
                 {view === 'report' && <div className="animate-in fade-in"><SalesDashboard onReprintZ={handleReprintZReport} /><div className="hidden print:block mt-8"><PrintableView items={items} /></div></div>}
-                
-                {/* view === 'attendance' && <AttendanceView onReprint={handleReprintAttendance} /> */}
                 
                 {view === 'cashier' && (<CashierView onProcessPayment={handleStartPaymentFromCashier} onVoidOrder={handleVoidAndPrint} onReprintOrder={handleReprintOrder} onStopService={handleStopService} onOpenExpense={() => setIsExpenseModalOpen(true)} />)}
                 {view === 'register_control' && <RegisterControlView session={registerSession} onOpen={handleOpenRegister} onClose={handleCloseRegister} staff={staff} stats={sessionStats} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} />}
