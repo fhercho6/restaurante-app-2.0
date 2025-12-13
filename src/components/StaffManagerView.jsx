@@ -1,6 +1,7 @@
-// src/components/StaffManagerView.jsx - VERSIÓN FINAL (Anti-Doble Clic)
+// src/components/StaffManagerView.jsx - VERSIÓN FINAL SEGURA (Sin Loader)
 import React, { useState } from 'react';
-import { User, Plus, Printer, Edit2, Trash2, Shield, Loader } from 'lucide-react';
+// IMPORTANTE: Quitamos 'Loader' de los imports para evitar errores
+import { User, Plus, Printer, Edit2, Trash2, Shield } from 'lucide-react';
 
 export default function StaffManagerView({ staff, roles, onAddStaff, onUpdateStaff, onDeleteStaff, onManageRoles, onPrintCredential }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -64,7 +65,8 @@ export default function StaffManagerView({ staff, roles, onAddStaff, onUpdateSta
           </div>
           <div className="flex gap-2 w-full md:w-auto">
              <button type="submit" disabled={isSaving} className={`px-6 py-2 rounded-lg font-bold text-white shadow-md transition-all whitespace-nowrap flex-1 flex items-center justify-center gap-2 ${isSaving ? 'bg-gray-400 cursor-wait' : 'bg-blue-600 hover:bg-blue-700'}`}>
-                {isSaving ? <Loader className="animate-spin" size={16}/> : (isEditing ? 'Actualizar' : 'Registrar')}
+                {/* CAMBIO: Usamos texto en lugar de ícono para evitar errores */}
+                {isSaving ? 'Guardando...' : (isEditing ? 'Actualizar' : 'Registrar')}
              </button>
              {isEditing && <button type="button" onClick={resetForm} disabled={isSaving} className="px-4 py-2 rounded-lg font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-all">Cancelar</button>}
           </div>
