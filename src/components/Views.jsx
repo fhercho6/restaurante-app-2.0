@@ -1,6 +1,7 @@
-// src/components/Views.jsx - ARREGLADO (Línea 88 corregida)
+// src/components/Views.jsx - APARIENCIA PREMIUM RESTAURADA (Con Loader Seguro)
 import React, { useState } from 'react';
-import { Lock, ArrowLeft, ChefHat, Edit2, Trash2, User, Printer, AlertTriangle } from 'lucide-react';
+// IMPORTAMOS 'Loader2' QUE ES EL SEGURO Y BONITO
+import { Lock, ArrowLeft, ChefHat, Edit2, Trash2, User, Printer, AlertTriangle, Loader2 } from 'lucide-react';
 
 // --- 1. MENÚ CARD ---
 export const MenuCard = ({ item }) => {
@@ -31,17 +32,17 @@ export const MenuCard = ({ item }) => {
   );
 };
 
-// --- 2. PIN LOGIN (AQUÍ ESTABA EL ERROR) ---
+// --- 2. PIN LOGIN (CON ANIMACIÓN DE CARGA RESTAURADA) ---
 export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false); // Estado para feedback visual
+  const [loading, setLoading] = useState(false);
 
   const handlePinSubmit = (e) => {
     e.preventDefault();
     setLoading(true);
     
-    // Pequeña pausa para simular proceso
+    // Simulación estética de carga
     setTimeout(() => {
         const member = staffMembers.find(m => m.pin === pin);
         if (member) {
@@ -52,7 +53,7 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
           setLoading(false);
           setTimeout(() => setError(''), 2000);
         }
-    }, 500);
+    }, 800);
   };
 
   const handleNumClick = (num) => {
@@ -63,37 +64,42 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
     <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4 animate-in zoom-in duration-300">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-           <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm"><Lock className="text-white" size={32}/></div>
-           <h2 className="text-2xl font-bold text-white mb-1">Acceso de Personal</h2>
-           <p className="text-gray-400 text-sm">Ingresa tu código de 4 dígitos</p>
+           <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm shadow-lg ring-4 ring-white/5">
+              <Lock className="text-white" size={32}/>
+           </div>
+           <h2 className="text-2xl font-bold text-white mb-1 tracking-tight">Acceso de Personal</h2>
+           <p className="text-gray-400 text-sm font-medium">Sistema de Seguridad ZZIF</p>
         </div>
 
-        <div className="bg-white rounded-3xl p-6 shadow-2xl">
+        <div className="bg-white rounded-3xl p-6 shadow-2xl relative overflow-hidden">
+           {/* Si está cargando, mostramos el SPINNER bonito */}
+           {loading && (
+             <div className="absolute inset-0 bg-white/90 backdrop-blur-sm z-10 flex flex-col items-center justify-center animate-in fade-in">
+                <Loader2 size={48} className="text-orange-500 animate-spin mb-4"/>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest animate-pulse">Verificando...</p>
+             </div>
+           )}
+
            <div className="mb-8">
               <div className="flex justify-center gap-4 mb-2">
-                 {[0,1,2,3].map(i => (<div key={i} className={`w-4 h-4 rounded-full transition-all duration-300 ${i < pin.length ? 'bg-orange-500 scale-110' : 'bg-gray-200'}`}></div>))}
+                 {[0,1,2,3].map(i => (
+                    <div key={i} className={`w-4 h-4 rounded-full transition-all duration-300 ${i < pin.length ? 'bg-orange-500 scale-125 shadow-orange-200 shadow-lg' : 'bg-gray-100 border border-gray-200'}`}></div>
+                 ))}
               </div>
-              {error && <p className="text-center text-red-500 text-sm font-bold animate-bounce">{error}</p>}
+              <div className="h-6 text-center">
+                {error && <p className="text-red-500 text-sm font-bold animate-bounce flex items-center justify-center gap-1"><AlertTriangle size={14}/> {error}</p>}
+              </div>
            </div>
 
-            {/* SI ESTÁ CARGANDO, MOSTRAMOS TEXTO EN LUGAR DE TECLADO */}
-            {loading ? (
-                <div className="py-20 text-center">
-                    <p className="text-orange-500 font-bold text-lg animate-pulse">VERIFICANDO...</p>
-                </div>
-            ) : (
-               <>
-                   <div className="grid grid-cols-3 gap-3 mb-6">
-                      {[1,2,3,4,5,6,7,8,9].map(num => (
-                         <button key={num} onClick={() => handleNumClick(String(num))} className="h-16 rounded-2xl bg-gray-50 text-2xl font-bold text-gray-700 hover:bg-gray-100 active:scale-95 transition-all shadow-sm border border-gray-100">{num}</button>
-                      ))}
-                      <button onClick={() => setPin('')} className="h-16 rounded-2xl bg-red-50 text-red-500 font-bold hover:bg-red-100 flex items-center justify-center"><Trash2 size={24}/></button>
-                      <button onClick={() => handleNumClick('0')} className="h-16 rounded-2xl bg-gray-50 text-2xl font-bold text-gray-700 hover:bg-gray-100 active:scale-95 border border-gray-100">0</button>
-                      <button onClick={handlePinSubmit} className="h-16 rounded-2xl bg-green-500 text-white flex items-center justify-center hover:bg-green-600 shadow-lg shadow-green-200 active:scale-95"><ArrowLeft size={28} className="rotate-180"/></button>
-                   </div>
-                   <button onClick={onCancel} className="w-full py-4 text-gray-400 font-bold text-sm hover:text-gray-600 uppercase tracking-widest">Cancelar</button>
-               </>
-            )}
+           <div className="grid grid-cols-3 gap-3 mb-6">
+              {[1,2,3,4,5,6,7,8,9].map(num => (
+                 <button key={num} onClick={() => handleNumClick(String(num))} className="h-16 rounded-2xl bg-gray-50 text-2xl font-bold text-gray-700 hover:bg-white hover:shadow-md hover:scale-[1.02] active:scale-95 transition-all border border-gray-100">{num}</button>
+              ))}
+              <button onClick={() => setPin('')} className="h-16 rounded-2xl bg-red-50 text-red-500 font-bold hover:bg-red-100 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center"><Trash2 size={24}/></button>
+              <button onClick={() => handleNumClick('0')} className="h-16 rounded-2xl bg-gray-50 text-2xl font-bold text-gray-700 hover:bg-white hover:shadow-md hover:scale-[1.02] active:scale-95 transition-all border border-gray-100">0</button>
+              <button onClick={handlePinSubmit} className="h-16 rounded-2xl bg-black text-white flex items-center justify-center hover:bg-gray-800 shadow-xl hover:scale-[1.02] active:scale-95 transition-all"><ArrowLeft size={28} className="rotate-180"/></button>
+           </div>
+           <button onClick={onCancel} className="w-full py-4 text-gray-400 font-bold text-xs hover:text-gray-800 uppercase tracking-widest transition-colors">Cancelar y Volver</button>
         </div>
       </div>
     </div>
@@ -134,7 +140,7 @@ export const PrintableView = ({ items }) => (
     </div>
 );
 
-// --- 5. ADMIN ROW (Fila de Tabla) ---
+// --- 5. ADMIN ROW (Fila de Tabla con Loader en imagen si es necesario) ---
 export const AdminRow = ({ item, onEdit, onDelete }) => {
   const price = Number(item.price) || 0; 
   const cost = Number(item.cost) || 0; 
@@ -154,7 +160,7 @@ export const AdminRow = ({ item, onEdit, onDelete }) => {
     <tr className={`border-b border-gray-100 transition-colors ${isLowStock ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-gray-50'}`}>
       <td className="p-4">
         <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-lg bg-gray-200 overflow-hidden flex-shrink-0 relative">
+            <div className="w-12 h-12 rounded-lg bg-gray-200 overflow-hidden flex-shrink-0 relative group">
                 {item.image ? <img src={item.image} alt={item.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }}/> : <div className="w-full h-full flex items-center justify-center text-gray-400"><ChefHat size={20}/></div>}
                 {isLowStock && <div className="absolute inset-0 bg-red-500/20 flex items-center justify-center"><AlertTriangle size={24} className="text-red-600 animate-pulse"/></div>}
             </div>
