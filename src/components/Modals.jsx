@@ -1,4 +1,3 @@
-// src/components/Modals.jsx - VERSIÓN FINAL ACCESIBLE (Sin errores de consola)
 import React, { useState, useEffect } from 'react';
 import { X, Upload, Save, Plus, Trash2, Edit2, Check, Shield, Clock, MapPin, DollarSign } from 'lucide-react';
 
@@ -16,22 +15,22 @@ export const AuthModal = ({ isOpen, onClose, onLogin }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in" role="dialog" aria-modal="true" aria-labelledby="modal-auth-title">
       <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
         <div className="p-6 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
-          <h3 id="auth-title" className="font-bold text-gray-800">Acceso Administrativo</h3>
-          <button onClick={onClose} aria-label="Cerrar"><X size={20} className="text-gray-400 hover:text-gray-600"/></button>
+          <h3 id="modal-auth-title" className="font-bold text-gray-800">Acceso Administrativo</h3>
+          <button onClick={onClose} aria-label="Cerrar modal"><X size={20} className="text-gray-400 hover:text-gray-600"/></button>
         </div>
         <div className="p-6 space-y-4">
           <div>
             <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Usuario / Email</label>
-            <input type="text" className="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none focus:border-orange-500 transition-colors font-bold text-gray-700" value={email} onChange={e => setEmail(e.target.value)} />
+            <input type="text" className="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none focus:border-orange-500 font-bold text-gray-700" value={email} onChange={e => setEmail(e.target.value)} />
           </div>
           <div>
             <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Contraseña</label>
-            <input type="password" className="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none focus:border-orange-500 transition-colors font-bold text-gray-700" value={password} onChange={e => setPassword(e.target.value)} />
+            <input type="password" className="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none focus:border-orange-500 font-bold text-gray-700" value={password} onChange={e => setPassword(e.target.value)} />
           </div>
-          <button onClick={() => onLogin({ email, password })} className="w-full bg-black text-white py-4 rounded-xl font-bold text-lg hover:bg-gray-800 transition-colors shadow-lg shadow-gray-200">ENTRAR AL SISTEMA</button>
+          <button onClick={() => onLogin({ email, password })} className="w-full bg-black text-white py-4 rounded-xl font-bold text-lg hover:bg-gray-800 shadow-lg transition-transform active:scale-95">ENTRAR AL SISTEMA</button>
         </div>
       </div>
     </div>
@@ -59,32 +58,32 @@ export const ProductModal = ({ isOpen, onClose, onSave, item, categories }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-in zoom-in duration-200" role="dialog" aria-modal="true" aria-labelledby="product-title">
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-in zoom-in duration-200" role="dialog" aria-modal="true" aria-labelledby="modal-prod-title">
       <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b flex justify-between items-center bg-gray-50">
-          <h2 id="product-title" className="text-xl font-black text-gray-800">{item ? 'Editar Producto' : 'Nuevo Producto'}</h2>
+          <h2 id="modal-prod-title" className="text-xl font-black text-gray-800">{item ? 'Editar Producto' : 'Nuevo Producto'}</h2>
           <button onClick={onClose} aria-label="Cerrar"><X className="text-gray-400 hover:text-red-500" /></button>
         </div>
         <div className="p-6 space-y-4">
           <div className="flex justify-center mb-4">
             <div className="w-32 h-32 rounded-2xl bg-gray-100 border-2 border-dashed border-gray-300 flex flex-col items-center justify-center relative overflow-hidden group cursor-pointer hover:border-orange-500 transition-colors">
               {formData.image ? <img src={formData.image} alt="" className="w-full h-full object-cover" /> : <Upload className="text-gray-400 mb-2" />}
-              <input type="file" accept="image/*" onChange={handleImageUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+              <input type="file" accept="image/*" onChange={handleImageUpload} className="absolute inset-0 opacity-0 cursor-pointer" aria-label="Subir imagen" />
               <span className="text-xs text-gray-400 font-bold">Subir Foto</span>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
-              <label className="text-xs font-bold text-gray-500 uppercase">Nombre del Producto</label>
-              <input type="text" className="w-full p-3 border rounded-xl font-bold text-gray-800 focus:ring-2 focus:ring-orange-500 outline-none" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+              <label className="text-xs font-bold text-gray-500 uppercase">Nombre</label>
+              <input type="text" className="w-full p-3 border rounded-xl font-bold text-gray-800 outline-none focus:border-orange-500" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
             </div>
             <div>
-              <label className="text-xs font-bold text-gray-500 uppercase">Precio Venta</label>
-              <div className="relative"><span className="absolute left-3 top-3 text-gray-400 font-bold">Bs.</span><input type="number" className="w-full pl-10 p-3 border rounded-xl font-bold text-gray-800 outline-none" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} /></div>
+              <label className="text-xs font-bold text-gray-500 uppercase">Precio</label>
+              <input type="number" className="w-full p-3 border rounded-xl font-bold text-gray-800 outline-none focus:border-orange-500" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} />
             </div>
             <div>
-              <label className="text-xs font-bold text-gray-500 uppercase">Costo (Opcional)</label>
-              <div className="relative"><span className="absolute left-3 top-3 text-gray-400 font-bold">Bs.</span><input type="number" className="w-full pl-10 p-3 border rounded-xl font-bold text-gray-500 outline-none" value={formData.cost} onChange={e => setFormData({...formData, cost: e.target.value})} /></div>
+              <label className="text-xs font-bold text-gray-500 uppercase">Costo</label>
+              <input type="number" className="w-full p-3 border rounded-xl font-bold text-gray-500 outline-none focus:border-orange-500" value={formData.cost} onChange={e => setFormData({...formData, cost: e.target.value})} />
             </div>
             <div>
               <label className="text-xs font-bold text-gray-500 uppercase">Categoría</label>
@@ -93,11 +92,11 @@ export const ProductModal = ({ isOpen, onClose, onSave, item, categories }) => {
               </select>
             </div>
             <div>
-              <label className="text-xs font-bold text-gray-500 uppercase">Stock Inicial</label>
-              <input type="number" className="w-full p-3 border rounded-xl font-bold text-gray-800 outline-none" value={formData.stock} onChange={e => setFormData({...formData, stock: e.target.value})} />
+              <label className="text-xs font-bold text-gray-500 uppercase">Stock</label>
+              <input type="number" className="w-full p-3 border rounded-xl font-bold text-gray-800 outline-none focus:border-orange-500" value={formData.stock} onChange={e => setFormData({...formData, stock: e.target.value})} />
             </div>
           </div>
-          <button onClick={() => onSave(formData)} className="w-full bg-green-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-green-700 shadow-lg mt-4 flex items-center justify-center gap-2"><Save size={20}/> GUARDAR PRODUCTO</button>
+          <button onClick={() => onSave(formData)} className="w-full bg-green-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-green-700 shadow-lg mt-4 flex items-center justify-center gap-2 transition-transform active:scale-95"><Save size={20}/> GUARDAR</button>
         </div>
       </div>
     </div>
@@ -109,14 +108,14 @@ export const CategoryManager = ({ isOpen, onClose, categories, onAdd, onRename, 
   const [newCat, setNewCat] = useState('');
   const [editingIndex, setEditingIndex] = useState(null);
   const [editName, setEditName] = useState('');
-
+  
   if(!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="cat-title">
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="modal-cat-title">
       <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
-        <div className="flex justify-between mb-4"><h3 id="cat-title" className="font-bold text-lg">Gestionar Categorías</h3><button onClick={onClose} aria-label="Cerrar"><X/></button></div>
-        <div className="flex gap-2 mb-6"><input type="text" placeholder="Nueva categoría..." className="flex-1 p-2 border rounded-lg" value={newCat} onChange={e=>setNewCat(e.target.value)}/><button onClick={()=>{if(newCat){onAdd(newCat);setNewCat('');}}} className="bg-black text-white p-2 rounded-lg"><Plus/></button></div>
+        <div className="flex justify-between mb-4"><h3 id="modal-cat-title" className="font-bold text-lg">Categorías</h3><button onClick={onClose} aria-label="Cerrar"><X/></button></div>
+        <div className="flex gap-2 mb-6"><input type="text" placeholder="Nueva..." className="flex-1 p-2 border rounded-lg" value={newCat} onChange={e=>setNewCat(e.target.value)}/><button onClick={()=>{if(newCat){onAdd(newCat);setNewCat('');}}} className="bg-black text-white p-2 rounded-lg" aria-label="Agregar categoría"><Plus/></button></div>
         <div className="space-y-2 max-h-60 overflow-y-auto">
           {categories.map((cat, i) => (
             <div key={i} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg group">
@@ -138,14 +137,14 @@ export const RoleManager = ({ isOpen, onClose, roles, onAdd, onRename, onDelete 
   const [newRole, setNewRole] = useState('');
   const [editingIndex, setEditingIndex] = useState(null);
   const [editName, setEditName] = useState('');
-
+  
   if(!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="role-title">
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="modal-role-title">
       <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
-        <div className="flex justify-between mb-4"><h3 id="role-title" className="font-bold text-lg flex items-center gap-2"><Shield size={18}/> Roles de Personal</h3><button onClick={onClose} aria-label="Cerrar"><X/></button></div>
-        <div className="flex gap-2 mb-6"><input type="text" placeholder="Nuevo rol..." className="flex-1 p-2 border rounded-lg" value={newRole} onChange={e=>setNewRole(e.target.value)}/><button onClick={()=>{if(newRole){onAdd(newRole);setNewRole('');}}} className="bg-black text-white p-2 rounded-lg"><Plus/></button></div>
+        <div className="flex justify-between mb-4"><h3 id="modal-role-title" className="font-bold text-lg flex items-center gap-2"><Shield size={18}/> Roles</h3><button onClick={onClose} aria-label="Cerrar"><X/></button></div>
+        <div className="flex gap-2 mb-6"><input type="text" placeholder="Nuevo rol..." className="flex-1 p-2 border rounded-lg" value={newRole} onChange={e=>setNewRole(e.target.value)}/><button onClick={()=>{if(newRole){onAdd(newRole);setNewRole('');}}} className="bg-black text-white p-2 rounded-lg" aria-label="Agregar rol"><Plus/></button></div>
         <div className="space-y-2">
           {roles.map((rol, i) => (
             <div key={i} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg group">
@@ -166,27 +165,21 @@ export const RoleManager = ({ isOpen, onClose, roles, onAdd, onRename, onDelete 
 export const BrandingModal = ({ isOpen, onClose, onSave, currentLogo, currentName }) => {
   const [logo, setLogo] = useState(null);
   const [appName, setAppName] = useState('');
-
-  useEffect(() => {
-    if (isOpen) { setLogo(currentLogo); setAppName(currentName || ''); }
-  }, [isOpen, currentLogo, currentName]);
-
+  
+  useEffect(() => { if (isOpen) { setLogo(currentLogo); setAppName(currentName || ''); } }, [isOpen, currentLogo, currentName]);
+  
   if(!isOpen) return null;
-
-  const handleImage = (e) => {
-    const file = e.target.files[0];
-    if(file) { const r = new FileReader(); r.onloadend = () => setLogo(r.result); r.readAsDataURL(file); }
-  };
-
+  const handleImage = (e) => { const file = e.target.files[0]; if(file) { const r = new FileReader(); r.onloadend = () => setLogo(r.result); r.readAsDataURL(file); } };
+  
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="brand-title">
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="modal-brand-title">
       <div className="bg-white rounded-2xl w-full max-w-sm p-6 text-center">
-        <h3 id="brand-title" className="font-bold text-lg mb-6">Personalizar Marca</h3>
+        <h3 id="modal-brand-title" className="font-bold text-lg mb-6">Personalizar Marca</h3>
         <div className="w-32 h-32 mx-auto bg-gray-100 rounded-full flex items-center justify-center overflow-hidden border-2 border-dashed border-gray-300 relative mb-4">
-          {logo ? <img src={logo} className="w-full h-full object-contain" alt="Logo actual"/> : <Upload className="text-gray-400"/>}
-          <input type="file" accept="image/*" onChange={handleImage} className="absolute inset-0 opacity-0 cursor-pointer"/>
+          {logo ? <img src={logo} className="w-full h-full object-contain" alt="Logo"/> : <Upload className="text-gray-400"/>}
+          <input type="file" accept="image/*" onChange={handleImage} className="absolute inset-0 opacity-0 cursor-pointer" aria-label="Subir logo"/>
         </div>
-        <input type="text" placeholder="Nombre del Negocio" className="w-full p-3 border rounded-xl mb-6 text-center font-bold" value={appName} onChange={e => setAppName(e.target.value)} />
+        <input type="text" placeholder="Nombre" className="w-full p-3 border rounded-xl mb-6 text-center font-bold" value={appName} onChange={e => setAppName(e.target.value)} aria-label="Nombre del negocio" />
         <div className="flex gap-2"><button onClick={onClose} className="flex-1 py-3 bg-gray-100 rounded-xl font-bold">Cancelar</button><button onClick={() => { onSave(logo, appName); onClose(); }} className="flex-1 py-3 bg-black text-white rounded-xl font-bold">Guardar</button></div>
       </div>
     </div>
@@ -196,83 +189,41 @@ export const BrandingModal = ({ isOpen, onClose, onSave, currentLogo, currentNam
 // --- 6. SERVICE START MODAL ---
 export const ServiceStartModal = ({ isOpen, onClose, services, onStart, occupiedLocations = [] }) => {
   const [selectedService, setSelectedService] = useState(null);
-  const [note, setNote] = useState(''); 
-
+  const [note, setNote] = useState('');
+  
   if (!isOpen) return null;
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!selectedService || !note) return;
-    onStart(selectedService, note);
-    setNote('');
-    setSelectedService(null);
-  };
-
+  const handleSubmit = (e) => { e.preventDefault(); if (!selectedService || !note) return; onStart(selectedService, note); setNote(''); setSelectedService(null); };
+  
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-in fade-in" role="dialog" aria-modal="true" aria-labelledby="service-title">
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-in fade-in" role="dialog" aria-modal="true" aria-labelledby="modal-srv-title">
       <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl">
-        <h2 id="service-title" className="text-xl font-black text-gray-800 mb-4 flex items-center gap-2">
-          <Clock size={24} className="text-purple-600"/> Iniciar Servicio
-        </h2>
+        <h2 id="modal-srv-title" className="text-xl font-black text-gray-800 mb-4 flex items-center gap-2"><Clock size={24} className="text-purple-600"/> Iniciar Servicio</h2>
         <form onSubmit={handleSubmit}>
-          
           <div className="mb-4">
-            <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Tipo de Servicio</label>
+            <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Servicio</label>
             <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
               {services.map(srv => (
-                <div 
-                  key={srv.id} 
-                  onClick={() => setSelectedService(srv)}
-                  className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${selectedService?.id === srv.id ? 'border-purple-600 bg-purple-50' : 'border-gray-100 hover:border-purple-300'}`}
-                >
-                  <div className="flex justify-between font-bold text-gray-800">
-                    <span>{srv.name}</span>
-                    <span className="text-purple-600">Bs. {Number(srv.price).toFixed(2)} / hr</span>
-                  </div>
+                <div key={srv.id} onClick={() => setSelectedService(srv)} className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${selectedService?.id === srv.id ? 'border-purple-600 bg-purple-50' : 'border-gray-100 hover:border-purple-300'}`}>
+                  <div className="flex justify-between font-bold text-gray-800"><span>{srv.name}</span><span className="text-purple-600">Bs. {Number(srv.price).toFixed(2)}/h</span></div>
                 </div>
               ))}
-              {services.length === 0 && <p className="text-sm text-gray-400 italic p-2 text-center bg-gray-50 rounded-lg">No hay servicios creados.</p>}
             </div>
           </div>
-          
           <div className="mb-6">
-            <label className="block text-xs font-bold text-gray-500 uppercase mb-2 flex items-center gap-1"><MapPin size={12}/> Ubicación / Mesa</label>
-            
-            <select
-              required
-              className="w-full p-3 border rounded-xl font-bold text-gray-800 focus:ring-2 focus:ring-purple-500 outline-none bg-white"
-              value={note}
-              onChange={e => setNote(e.target.value)}
-            >
-              <option value="">-- Seleccionar Mesa --</option>
-              {COMMON_LOCATIONS.map(loc => {
-                const isOccupied = occupiedLocations.includes(loc);
-                return (
-                  <option key={loc} value={loc} disabled={isOccupied} className={isOccupied ? 'text-gray-300 bg-gray-100' : 'text-gray-800'}>
-                    {loc} {isOccupied ? '(Ocupado)' : ''}
-                  </option>
-                );
-              })}
+            <label className="block text-xs font-bold text-gray-500 uppercase mb-2 flex items-center gap-1"><MapPin size={12}/> Mesa</label>
+            <select required className="w-full p-3 border rounded-xl font-bold text-gray-800 focus:ring-2 focus:ring-purple-500 outline-none bg-white" value={note} onChange={e => setNote(e.target.value)}>
+              <option value="">-- Seleccionar --</option>
+              {COMMON_LOCATIONS.map(loc => { const isOccupied = occupiedLocations.includes(loc); return (<option key={loc} value={loc} disabled={isOccupied} className={isOccupied ? 'text-gray-300' : ''}>{loc} {isOccupied ? '(Ocupado)' : ''}</option>); })}
             </select>
           </div>
-
-          <div className="flex gap-3">
-            <button type="button" onClick={onClose} className="flex-1 py-3 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-colors">Cancelar</button>
-            <button 
-              type="submit" 
-              disabled={!selectedService || !note} 
-              className={`flex-1 py-3 text-white font-bold rounded-xl shadow-lg transition-all ${(!selectedService || !note) ? 'bg-gray-300 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700'}`}
-            >
-              INICIAR
-            </button>
-          </div>
+          <div className="flex gap-3"><button type="button" onClick={onClose} className="flex-1 py-3 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200">Cancelar</button><button type="submit" disabled={!selectedService || !note} className={`flex-1 py-3 text-white font-bold rounded-xl shadow-lg ${(!selectedService || !note) ? 'bg-gray-300 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700'}`}>INICIAR</button></div>
         </form>
       </div>
     </div>
   );
 };
 
-// --- 7. NUEVO: MODAL DE GASTOS (CORREGIDO ACCESIBILIDAD) ---
+// --- 7. MODAL DE GASTOS (CORREGIDO ACCESIBILIDAD) ---
 export const ExpenseModal = ({ isOpen, onClose, onSave }) => {
   const [desc, setDesc] = useState('');
   const [amount, setAmount] = useState('');
@@ -289,16 +240,14 @@ export const ExpenseModal = ({ isOpen, onClose, onSave }) => {
   };
 
   return (
-    // FIX ACCESIBILIDAD: role, aria-modal y aria-labelledby
-    <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 animate-in zoom-in duration-200" role="dialog" aria-modal="true" aria-labelledby="expense-title">
+    <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 animate-in zoom-in duration-200" role="dialog" aria-modal="true" aria-labelledby="modal-expense-title">
       <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl">
          <div className="flex justify-between items-center mb-6">
-             {/* ID vinculado al aria-labelledby */}
-             <h3 id="expense-title" className="text-xl font-black text-red-600 flex items-center gap-2">
+             <h3 id="modal-expense-title" className="text-xl font-black text-red-600 flex items-center gap-2">
                  <div className="bg-red-100 p-2 rounded-full"><DollarSign size={24}/></div>
                  Registrar Gasto
              </h3>
-             <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full" aria-label="Cerrar"><X size={20}/></button>
+             <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full" aria-label="Cerrar modal"><X size={20}/></button>
          </div>
 
          <form onSubmit={handleSubmit} className="space-y-4">
@@ -328,7 +277,7 @@ export const ExpenseModal = ({ isOpen, onClose, onSave }) => {
              </div>
 
              <div className="pt-2">
-                 <button type="submit" className="w-full py-4 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-lg shadow-lg shadow-red-200 transition-all flex items-center justify-center gap-2">
+                 <button type="submit" className="w-full py-4 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-lg shadow-lg shadow-red-200 transition-all flex items-center justify-center gap-2 active:scale-95">
                      GUARDAR GASTO
                  </button>
              </div>
