@@ -1,9 +1,9 @@
-// src/App.jsx - GARANTIZADO SIN LOADER
+// src/App.jsx - APARIENCIA PREMIUM (Splash Screen)
 import React, { useState, useEffect } from 'react';
-// ICONOS SEGUROS (Sin Loader)
+// IMPORTANTE: Agregamos Loader2 para la animación segura
 import { 
   Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
-  Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign, ArrowLeft, Lock, Unlock, Wallet 
+  Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign, ArrowLeft, Lock, Unlock, Wallet, Loader2 
 } from 'lucide-react';
 import { onAuthStateChanged, signOut, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
 import { collection, doc, setDoc, addDoc, deleteDoc, onSnapshot, updateDoc, query, where, limit, getDocs } from 'firebase/firestore';
@@ -153,7 +153,27 @@ export default function App() {
   const isAdminMode = view === 'admin' || view === 'report' || view === 'staff_admin' || view === 'cashier' || view === 'register_control';
   const isCashierOnly = staffMember && staffMember.role === 'Cajero';
 
-  if (isLoadingApp) return <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 animate-in fade-in"><div className="bg-white p-8 rounded-3xl shadow-xl flex flex-col items-center"><div className="relative mb-4"><div className="absolute inset-0 bg-orange-200 rounded-full animate-ping opacity-75"></div><div className="relative bg-white p-4 rounded-full border-4 border-orange-500 overflow-hidden w-24 h-24 flex items-center justify-center">{LOGO_URL_FIJO ? (<img src={LOGO_URL_FIJO} alt="Cargando" className="w-full h-full object-contain animate-pulse" />) : (<ChefHat size={48} className="text-orange-500" />)}</div></div><h2 className="text-xl font-bold text-gray-800">Cargando sistema...</h2><p className="text-sm text-gray-400 mt-2">Conectando con la nube</p></div></div>;
+  // --- SPLASH SCREEN PREMIUM ---
+  if (isLoadingApp) return (
+    <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center animate-in fade-in duration-700">
+      <div className="relative">
+        {/* Efecto de brillo de fondo */}
+        <div className="absolute inset-0 bg-orange-500 blur-3xl opacity-20 animate-pulse"></div>
+        {/* Logo contenedor */}
+        <div className="relative bg-white/10 backdrop-blur-xl p-8 rounded-full border border-white/10 shadow-2xl mb-8">
+           {LOGO_URL_FIJO ? (
+             <img src={LOGO_URL_FIJO} className="w-16 h-16 object-contain" alt="Logo"/>
+           ) : (
+             <ChefHat size={64} className="text-white drop-shadow-lg" strokeWidth={1.5} />
+           )}
+        </div>
+      </div>
+      {/* Spinner Premium */}
+      <Loader2 size={32} className="text-orange-500 animate-spin mb-4" />
+      <h2 className="text-white font-bold text-xl tracking-widest uppercase mb-1">ZZIF System</h2>
+      <p className="text-gray-500 text-xs font-medium uppercase tracking-wider">Cargando recursos...</p>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900 pb-20">
@@ -220,13 +240,7 @@ export default function App() {
       <BrandingModal isOpen={isBrandingModalOpen} onClose={() => setIsBrandingModalOpen(false)} onSave={handleSaveBranding} currentLogo={logo} currentName={appName} />
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onLogin={handleLogin} />
       <ServiceStartModal isOpen={isServiceModalOpen} onClose={() => setIsServiceModalOpen(false)} services={items.filter(i => i.category === 'Servicios')} onStart={handleStartService} occupiedLocations={activeServices.map(s => s.note)} />
-      
-      {/* NUEVO MODAL DE GASTOS */}
-      <ExpenseModal 
-         isOpen={isExpenseModalOpen} 
-         onClose={() => setIsExpenseModalOpen(false)} 
-         onSave={handleAddExpense} 
-      />
+      <ExpenseModal isOpen={isExpenseModalOpen} onClose={() => setIsExpenseModalOpen(false)} onSave={handleAddExpense} />
     </div>
   );
 }
