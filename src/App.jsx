@@ -1,9 +1,6 @@
-// src/App.jsx - VERSIÓN FINAL CON MODO RÁPIDO Y DISEÑO PREMIUM
+// src/App.jsx - VERSIÓN COMPLETA (SPLASH PREMIUM + MODO RÁPIDO + SIN ERRORES)
 import React, { useState, useEffect } from 'react';
-import { 
-  Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, 
-  Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign, ArrowLeft, Lock, Unlock, Wallet, Loader2 
-} from 'lucide-react';
+import { Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign, ArrowLeft, Lock, Unlock, Wallet, Loader2 } from 'lucide-react';
 import { onAuthStateChanged, signOut, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
 import { collection, doc, setDoc, addDoc, deleteDoc, onSnapshot, updateDoc, query, where, limit, getDocs } from 'firebase/firestore';
 import toast, { Toaster } from 'react-hot-toast';
@@ -18,12 +15,10 @@ import PaymentModal from './components/PaymentModal';
 import CashierView from './components/CashierView';
 import OpenRegisterModal from './components/OpenRegisterModal';
 import RegisterControlView from './components/RegisterControlView';
-
 import { AuthModal, BrandingModal, ProductModal, CategoryManager, RoleManager, ServiceStartModal, ExpenseModal } from './components/Modals';
 import { MenuCard, PinLoginView, CredentialPrintView, PrintableView, AdminRow } from './components/Views';
 
 const LOGO_URL_FIJO = ""; 
-
 const INITIAL_CATEGORIES = ['Bebidas', 'Comidas', 'Servicios']; 
 const INITIAL_ROLES = ['Garzón', 'Cajero', 'Cocinero', 'Administrador'];
 
@@ -31,26 +26,18 @@ export default function App() {
   const [view, setView] = useState('landing');
   const [currentUser, setCurrentUser] = useState(null);
   const [isLoadingApp, setIsLoadingApp] = useState(true);
-
-  // Datos
   const [items, setItems] = useState([]);
   const [staff, setStaff] = useState([]);
   const [categories, setCategories] = useState(INITIAL_CATEGORIES);
   const [roles, setRoles] = useState(INITIAL_ROLES);
   const [activeServices, setActiveServices] = useState([]); 
-
-  // Config
   const [dbStatus, setDbStatus] = useState('connecting');
   const [dbErrorMsg, setDbErrorMsg] = useState('');
   const [logo, setLogo] = useState(null);
   const [appName, setAppName] = useState(""); 
-
-  // Estado de Caja
   const [registerSession, setRegisterSession] = useState(null);
   const [isOpenRegisterModalOpen, setIsOpenRegisterModalOpen] = useState(false);
   const [sessionStats, setSessionStats] = useState({ cashSales: 0, qrSales: 0, cardSales: 0, digitalSales: 0, totalExpenses: 0, expensesList: [] });
-
-  // Modales
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
@@ -58,21 +45,15 @@ export default function App() {
   const [isBrandingModalOpen, setIsBrandingModalOpen] = useState(false);
   const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
-  
-  // Estados Operativos
   const [currentItem, setCurrentItem] = useState(null);
   const [filter, setFilter] = useState('Todos');
   const [credentialToPrint, setCredentialToPrint] = useState(null);
   const [staffMember, setStaffMember] = useState(null);
-  
-  // Pagos
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [pendingSale, setPendingSale] = useState(null);
   const [orderToPay, setOrderToPay] = useState(null); 
   const [lastSale, setLastSale] = useState(null);
-
-  // --- NUEVO ESTADO: MODO RÁPIDO ---
-  const [isQuickEditMode, setIsQuickEditMode] = useState(false);
+  const [isQuickEditMode, setIsQuickEditMode] = useState(false); // ESTADO MODO RÁPIDO
 
   const getCollName = (type) => {
     if (type === 'items') return isPersonalProject ? 'menuItems' : `${ROOT_COLLECTION}menuItems`;
@@ -80,51 +61,15 @@ export default function App() {
     return isPersonalProject ? 'settings' : `${ROOT_COLLECTION}settings`;
   };
 
-  const handleLogin = (userApp) => { 
-      setIsAuthModalOpen(false); 
-      toast.success(`Bienvenido`); 
-      setTimeout(() => setView('admin'), 10);
-  };
-
+  const handleLogin = (userApp) => { setIsAuthModalOpen(false); toast.success(`Bienvenido`); setTimeout(() => setView('admin'), 10); };
   const handleLogout = async () => { await signOut(auth); window.location.reload(); };
   const handleEnterMenu = () => { setFilter('Todos'); setView('menu'); };
   const handleEnterStaff = () => setView('pin_login');
   const handleEnterAdmin = () => { if (currentUser && !currentUser.isAnonymous) setView('admin'); else setIsAuthModalOpen(true); };
-  
-  const handlePrintCredential = (member) => { 
-    if (!member) { toast.error("Error: Empleado no válido"); return; }
-    setCredentialToPrint(member); 
-    setView('credential_print'); 
-  };
-  
+  const handlePrintCredential = (member) => { if (!member) { toast.error("Error: Empleado no válido"); return; } setCredentialToPrint(member); setView('credential_print'); };
   const handlePrint = () => window.print();
-
-  const handleStaffPinLogin = async (member) => { 
-    const newSessionId = Date.now().toString() + Math.floor(Math.random() * 1000);
-    try {
-        await updateDoc(doc(db, getCollName('staff'), member.id), { activeSessionId: newSessionId });
-        const memberWithSession = { ...member, activeSessionId: newSessionId };
-        setStaffMember(memberWithSession); 
-        
-        if (member.role === 'Cajero' || member.role === 'Administrador') { 
-            setView('cashier'); 
-            toast.success(`Caja abierta: ${member.name}`); 
-        } else { 
-            setView('pos'); 
-            toast.success(`Turno iniciado: ${member.name}`); 
-        }
-    } catch (error) { toast.error("Error de conexión"); }
-  };
-
-  // --- NUEVA FUNCIÓN: ACTUALIZAR STOCK RÁPIDO ---
-  const handleQuickStockUpdate = async (id, newStock) => {
-      try {
-          await updateDoc(doc(db, getCollName('items'), id), { stock: newStock });
-          toast.success('Stock actualizado', { duration: 1000, icon: '⚡' });
-      } catch (error) {
-          toast.error('Error al actualizar');
-      }
-  };
+  const handleStaffPinLogin = async (member) => { const newSessionId = Date.now().toString() + Math.floor(Math.random() * 1000); try { await updateDoc(doc(db, getCollName('staff'), member.id), { activeSessionId: newSessionId }); const memberWithSession = { ...member, activeSessionId: newSessionId }; setStaffMember(memberWithSession); if (member.role === 'Cajero' || member.role === 'Administrador') { setView('cashier'); toast.success(`Caja abierta: ${member.name}`); } else { setView('pos'); toast.success(`Turno iniciado: ${member.name}`); } } catch (error) { toast.error("Error de conexión"); } };
+  const handleQuickStockUpdate = async (id, newStock) => { try { await updateDoc(doc(db, getCollName('items'), id), { stock: newStock }); toast.success('Stock actualizado', { duration: 1000, icon: '⚡' }); } catch (error) { toast.error('Error al actualizar'); } };
 
   useEffect(() => { const initAuth = async () => { if (!auth.currentUser) { if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token && !isPersonalProject) { await signInWithCustomToken(auth, __initial_auth_token); } else { await signInAnonymously(auth).catch(() => setDbStatus('warning')); } } }; initAuth(); return onAuthStateChanged(auth, (u) => { setCurrentUser(u); if (u) { setDbStatus('connected'); setDbErrorMsg(''); } }); }, []);
   useEffect(() => { if (!db || !currentUser) return; const checkSession = async () => { const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`; const q = query(collection(db, colName), where('status', '==', 'open'), limit(1)); const snap = await getDocs(q); if (!snap.empty) { const data = snap.docs[0].data(); setRegisterSession({ id: snap.docs[0].id, ...data }); } }; checkSession(); }, [db, currentUser]);
@@ -165,22 +110,15 @@ export default function App() {
   const isAdminMode = view === 'admin' || view === 'report' || view === 'staff_admin' || view === 'cashier' || view === 'register_control';
   const isCashierOnly = staffMember && staffMember.role === 'Cajero';
 
-  // --- SPLASH SCREEN PREMIUM ---
   if (isLoadingApp) return (
     <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center animate-in fade-in duration-700">
       <div className="relative">
         <div className="absolute inset-0 bg-orange-500 blur-3xl opacity-20 animate-pulse"></div>
         <div className="relative bg-white/10 backdrop-blur-xl p-8 rounded-full border border-white/10 shadow-2xl mb-8">
-           {LOGO_URL_FIJO ? (
-             <img src={LOGO_URL_FIJO} className="w-16 h-16 object-contain" alt="Logo"/>
-           ) : (
-             <ChefHat size={64} className="text-white drop-shadow-lg" strokeWidth={1.5} />
-           )}
+           {LOGO_URL_FIJO ? (<img src={LOGO_URL_FIJO} className="w-16 h-16 object-contain" alt="Logo"/>) : (<ChefHat size={64} className="text-white drop-shadow-lg" strokeWidth={1.5} />)}
         </div>
       </div>
-      <Loader2 size={32} className="text-orange-500 animate-spin mb-4" />
-      <h2 className="text-white font-bold text-xl tracking-widest uppercase mb-1">ZZIF System</h2>
-      <p className="text-gray-500 text-xs font-medium uppercase tracking-wider">Cargando recursos...</p>
+      <Loader2 size={32} className="text-orange-500 animate-spin mb-4" /><h2 className="text-white font-bold text-xl tracking-widest uppercase mb-1">ZZIF System</h2><p className="text-gray-500 text-xs font-medium uppercase tracking-wider">Cargando recursos...</p>
     </div>
   );
 
@@ -199,7 +137,7 @@ export default function App() {
           <header className="bg-white shadow-sm border-b border-gray-100 no-print">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
               <div className="flex items-center gap-3" onClick={() => isAdminMode && !isCashierOnly && setIsBrandingModalOpen(true)}>
-                <div className={`rounded-lg overflow-hidden flex items-center justify-center ${logo ? 'bg-white' : 'bg-orange-500 p-2 text-white'}`} style={{ width: '40px', height: '40px' }}>{logo ? <img src={logo} alt="Logo del negocio" className="w-full h-full object-contain"/> : <ChefHat size={24} />}</div>
+                <div className={`rounded-lg overflow-hidden flex items-center justify-center ${logo ? 'bg-white' : 'bg-orange-500 p-2 text-white'}`} style={{ width: '40px', height: '40px' }}>{logo ? <img src={logo} alt="Logo" className="w-full h-full object-contain"/> : <ChefHat size={24} />}</div>
                 <div><h1 className="text-lg font-bold text-gray-800 leading-none">{appName}</h1><span className="text-[10px] text-gray-500 font-medium uppercase">Cloud Menu</span></div>
               </div>
               <div className="flex items-center gap-2 header-buttons">
@@ -216,65 +154,29 @@ export default function App() {
                     {!isCashierOnly && <button onClick={() => setView('admin')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'admin' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><ClipboardList size={18}/> Inventario</button>}
                     <button onClick={() => setView('cashier')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'cashier' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><DollarSign size={18}/> Caja</button>
                     <button onClick={() => setView('register_control')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'register_control' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><Wallet size={18}/> Control Caja</button>
-                    {!isCashierOnly && (
-                        <>
-                            <button onClick={() => setView('staff_admin')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'staff_admin' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><Users size={18}/> Personal</button>
-                        </>
-                    )}
+                    {!isCashierOnly && <button onClick={() => setView('staff_admin')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'staff_admin' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><Users size={18}/> Personal</button>}
                     <button onClick={() => setView('report')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'report' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><FileText size={18}/> Reporte</button>
                   </div>
                 </div>
                 {view === 'report' && <div className="animate-in fade-in"><SalesDashboard onReprintZ={handleReprintZReport} /><div className="hidden print:block mt-8"><PrintableView items={items} /></div></div>}
-                
                 {view === 'cashier' && (<CashierView onProcessPayment={handleStartPaymentFromCashier} onVoidOrder={handleVoidAndPrint} onReprintOrder={handleReprintOrder} onStopService={handleStopService} onOpenExpense={() => setIsExpenseModalOpen(true)} />)}
                 {view === 'register_control' && <RegisterControlView session={registerSession} onOpen={handleOpenRegister} onClose={handleCloseRegister} staff={staff} stats={sessionStats} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} />}
                 {view === 'staff_admin' && !isCashierOnly && <StaffManagerView staff={staff} roles={roles} onAddStaff={handleAddStaff} onUpdateStaff={handleUpdateStaff} onDeleteStaff={handleDeleteStaff} onManageRoles={() => setIsRoleModalOpen(true)} onPrintCredential={handlePrintCredential} />}
                 {view === 'credential_print' && credentialToPrint && (<div className="flex flex-col items-center w-full min-h-screen bg-gray-100"><div className="w-full max-w-md p-4 flex justify-start no-print"><button onClick={() => setView('staff_admin')} className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-lg shadow hover:bg-gray-50 font-bold"><ArrowLeft size={20} /> Volver a la Lista</button></div><CredentialPrintView member={credentialToPrint} appName={appName} /></div>)}
-                
-                {/* --- SECCIÓN DE ADMIN (MODIFICADA CON MODO RÁPIDO) --- */}
                 {view === 'admin' && !isCashierOnly && (
                   <div className="space-y-6">
                     <div className="flex justify-between items-center mb-4">
                       <div className="flex gap-2">
                         <button aria-label="Configuración" onClick={() => setIsCategoryModalOpen(true)} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"><Settings size={20}/></button>
-                        
-                        {/* NUEVO BOTÓN DE MODO RÁPIDO */}
-                        <button 
-                            onClick={() => setIsQuickEditMode(!isQuickEditMode)} 
-                            className={`px-4 py-2 rounded-full font-bold text-sm flex items-center gap-2 transition-all ${isQuickEditMode ? 'bg-blue-600 text-white shadow-lg shadow-blue-200 ring-2 ring-blue-400' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-                        >
-                            {isQuickEditMode ? '⚡ MODO RÁPIDO ACTIVO' : '⚡ Activar Edición Rápida'}
-                        </button>
-
-                        <div className="flex flex-wrap gap-2 h-10 overflow-y-hidden">
-                            {filterCategories.map(cat => (<button key={cat} onClick={() => setFilter(cat)} className={`px-3 py-1 rounded-full text-sm whitespace-nowrap ${filter === cat ? 'bg-orange-500 text-white' : 'bg-white border'}`}>{cat}</button>))}
-                        </div>
+                        <button onClick={() => setIsQuickEditMode(!isQuickEditMode)} className={`px-4 py-2 rounded-full font-bold text-sm flex items-center gap-2 transition-all ${isQuickEditMode ? 'bg-blue-600 text-white shadow-lg shadow-blue-200 ring-2 ring-blue-400' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>{isQuickEditMode ? '⚡ MODO RÁPIDO ACTIVO' : '⚡ Activar Edición Rápida'}</button>
+                        <div className="flex flex-wrap gap-2 h-10 overflow-y-hidden">{filterCategories.map(cat => (<button key={cat} onClick={() => setFilter(cat)} className={`px-3 py-1 rounded-full text-sm whitespace-nowrap ${filter === cat ? 'bg-orange-500 text-white' : 'bg-white border'}`}>{cat}</button>))}</div>
                       </div>
                       <button aria-label="Nuevo Producto" onClick={() => { setCurrentItem(null); setIsModalOpen(true); }} className="px-4 py-2 bg-green-600 text-white rounded-full flex gap-2 shadow hover:bg-green-700 transition-colors"><Plus size={20}/> Nuevo</button>
                     </div>
-
                     <div className="bg-white rounded-xl shadow border overflow-hidden">
                       <table className="w-full text-left">
-                        <thead>
-                          <tr className="bg-gray-50 text-xs uppercase text-gray-500">
-                            <th className="p-4">Producto</th>
-                            <th className="p-4 text-center">Stock {isQuickEditMode && '(Editando)'}</th>
-                            <th className="p-4 text-right">Precio</th>
-                            <th className="p-4 text-right">Acciones</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y">
-                          {filteredItems.map(item => (
-                            <AdminRow 
-                                key={item.id} 
-                                item={item} 
-                                onEdit={(i) => { setCurrentItem(i); setIsModalOpen(true); }} 
-                                onDelete={handleDelete}
-                                isQuickEdit={isQuickEditMode} 
-                                onQuickUpdate={handleQuickStockUpdate} 
-                            />
-                          ))}
-                        </tbody>
+                        <thead><tr className="bg-gray-50 text-xs uppercase text-gray-500"><th className="p-4">Producto</th><th className="p-4 text-center">Stock {isQuickEditMode && '(Editando)'}</th><th className="p-4 text-right">Precio</th><th className="p-4 text-right">Acciones</th></tr></thead>
+                        <tbody className="divide-y">{filteredItems.map(item => (<AdminRow key={item.id} item={item} onEdit={(i) => { setCurrentItem(i); setIsModalOpen(true); }} onDelete={handleDelete} isQuickEdit={isQuickEditMode} onQuickUpdate={handleQuickStockUpdate} />))}</tbody>
                       </table>
                     </div>
                   </div>
