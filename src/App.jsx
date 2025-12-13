@@ -80,7 +80,18 @@ export default function App() {
     return isPersonalProject ? 'settings' : `${ROOT_COLLECTION}settings`;
   };
 
-  const handleLogin = (userApp) => { setIsAuthModalOpen(false); setView('admin'); toast.success(`Bienvenido`); };
+  // --- HANDLERS OPTIMIZADOS ---
+  const handleLogin = (userApp) => { 
+      // 1. Primero cerramos el modal y damos feedback visual (Instantáneo)
+      setIsAuthModalOpen(false);
+      toast.success(`Bienvenido`);
+
+      // 2. Damos un respiro de 10ms al navegador para que termine la animación del clic
+      // antes de cargar la vista pesada de Administración.
+      setTimeout(() => {
+          setView('admin');
+      }, 10);
+  };
   const handleLogout = async () => { await signOut(auth); window.location.reload(); };
   const handleEnterMenu = () => { setFilter('Todos'); setView('menu'); };
   const handleEnterStaff = () => setView('pin_login');
