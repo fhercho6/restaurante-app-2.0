@@ -1,6 +1,6 @@
-// src/components/Modals.jsx - CON GESTOR DE TIPOS DE GASTO
+// src/components/Modals.jsx - DISEÑO PREMIUM + GASTOS MEJORADO
 import React, { useState, useEffect } from 'react';
-import { X, Upload, Save, Trash2, Plus, Edit2, Check, LayoutGrid, DollarSign, FileText } from 'lucide-react';
+import { X, Upload, Save, Trash2, Plus, Edit2, Check, LayoutGrid, DollarSign, FileText, ChevronDown } from 'lucide-react';
 
 // --- 1. AUTH MODAL (Login) ---
 export const AuthModal = ({ isOpen, onClose, onLogin }) => {
@@ -173,7 +173,7 @@ export const TableManager = ({ isOpen, onClose, tables, onAdd, onRename, onDelet
     );
 };
 
-// --- 6. EXPENSE TYPE MANAGER (NUEVO) ---
+// --- 6. EXPENSE TYPE MANAGER ---
 export const ExpenseTypeManager = ({ isOpen, onClose, expenseTypes, onAdd, onRename, onDelete }) => {
     const [newType, setNewType] = useState('');
     const [editingIndex, setEditingIndex] = useState(null);
@@ -271,13 +271,12 @@ export const ServiceStartModal = ({ isOpen, onClose, services, onStart, occupied
     );
 };
 
-// --- 9. EXPENSE MODAL (ACTUALIZADO: CON LISTA) ---
+// --- 9. EXPENSE MODAL (DISEÑO MEJORADO) ---
 export const ExpenseModal = ({ isOpen, onClose, onSave, expenseTypes }) => {
     const [selectedType, setSelectedType] = useState(expenseTypes && expenseTypes.length > 0 ? expenseTypes[0] : '');
     const [detail, setDetail] = useState('');
     const [amount, setAmount] = useState('');
 
-    // Actualizar default cuando cargan los tipos
     useEffect(() => {
         if (expenseTypes && expenseTypes.length > 0 && !selectedType) {
             setSelectedType(expenseTypes[0]);
@@ -288,7 +287,6 @@ export const ExpenseModal = ({ isOpen, onClose, onSave, expenseTypes }) => {
 
     const handleSubmit = () => {
         if (amount) {
-            // Guardamos: "TIPO - Detalle"
             const finalDesc = selectedType + (detail ? ` - ${detail}` : '');
             onSave(finalDesc, parseFloat(amount));
             setDetail('');
@@ -298,35 +296,49 @@ export const ExpenseModal = ({ isOpen, onClose, onSave, expenseTypes }) => {
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in">
-            <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-xl">
-                <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-black text-red-600 flex items-center gap-2"><DollarSign size={20}/> Registrar Salida</h3>
-                    <button onClick={onClose}><X size={20} className="text-gray-400 hover:text-black"/></button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl transform transition-all">
+                {/* Header Rediseñado */}
+                <div className="bg-red-600 p-6 flex justify-between items-center text-white">
+                    <div>
+                        <h3 className="text-xl font-black tracking-tight flex items-center gap-2">
+                            <DollarSign size={24} className="text-red-200"/>
+                            Registro de Gastos
+                        </h3>
+                        <p className="text-red-100 text-xs font-medium uppercase tracking-wider mt-1 opacity-90">x Turno Actual</p>
+                    </div>
+                    <button onClick={onClose} className="bg-white/20 hover:bg-white/30 p-2 rounded-full transition-colors backdrop-blur-md">
+                        <X size={20} className="text-white"/>
+                    </button>
                 </div>
                 
-                <div className="space-y-4">
+                <div className="p-6 space-y-5">
                     {/* SELECTOR DE TIPO */}
-                    <div>
-                        <label className="label-input">Motivo / Tipo de Gasto</label>
-                        <select 
-                            className="input-field"
-                            value={selectedType}
-                            onChange={e => setSelectedType(e.target.value)}
-                        >
-                            {expenseTypes && expenseTypes.length > 0 ? (
-                                expenseTypes.map(type => <option key={type} value={type}>{type}</option>)
-                            ) : (
-                                <option value="Varios">Varios (Sin tipos definidos)</option>
-                            )}
-                        </select>
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wide ml-1">Motivo / Tipo</label>
+                        <div className="relative">
+                            <select 
+                                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-800 outline-none focus:ring-2 focus:ring-red-500 appearance-none transition-all"
+                                value={selectedType}
+                                onChange={e => setSelectedType(e.target.value)}
+                            >
+                                {expenseTypes && expenseTypes.length > 0 ? (
+                                    expenseTypes.map(type => <option key={type} value={type}>{type}</option>)
+                                ) : (
+                                    <option value="Varios">Varios (Sin tipos definidos)</option>
+                                )}
+                            </select>
+                            <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-gray-500">
+                                <ChevronDown size={18}/>
+                            </div>
+                        </div>
                     </div>
 
                     {/* DETALLE OPCIONAL */}
-                    <div>
-                        <label className="label-input">Detalle (Opcional)</label>
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wide ml-1">Detalle Adicional <span className="text-gray-300 font-normal">(Opcional)</span></label>
                         <input 
-                            className="input-field" 
+                            className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-red-500 transition-all" 
                             placeholder="Ej. Placas, Limones extra..." 
                             value={detail} 
                             onChange={e=>setDetail(e.target.value)}
@@ -334,13 +346,13 @@ export const ExpenseModal = ({ isOpen, onClose, onSave, expenseTypes }) => {
                     </div>
 
                     {/* MONTO */}
-                    <div>
-                        <label className="label-input">Monto (Bs)</label>
-                        <div className="relative">
-                            <span className="absolute left-4 top-3 text-gray-500 font-bold">Bs.</span>
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wide ml-1">Monto a Retirar</label>
+                        <div className="relative group">
+                            <span className="absolute left-4 top-3.5 text-gray-400 font-bold group-focus-within:text-red-500 transition-colors">Bs.</span>
                             <input 
                                 type="number" 
-                                className="input-field pl-10 text-xl font-bold text-red-600" 
+                                className="w-full pl-12 pr-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl text-xl font-black text-gray-900 outline-none focus:border-red-500 focus:bg-white transition-all placeholder-gray-300" 
                                 placeholder="0.00" 
                                 value={amount} 
                                 onChange={e=>setAmount(e.target.value)}
@@ -349,7 +361,12 @@ export const ExpenseModal = ({ isOpen, onClose, onSave, expenseTypes }) => {
                         </div>
                     </div>
 
-                    <button onClick={handleSubmit} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl shadow-lg mt-2">
+                    <button 
+                        onClick={handleSubmit} 
+                        disabled={!amount}
+                        className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-red-200 mt-2 transition-transform active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <FileText size={20}/>
                         REGISTRAR SALIDA
                     </button>
                 </div>
