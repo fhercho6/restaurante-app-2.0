@@ -1,167 +1,258 @@
-// src/components/CashierView.jsx - CON BOTÓN DE GASTOS
+// src/components/CashierView.jsx - CON PESTAÑA DE VENTA RÁPIDA
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, orderBy, updateDoc, doc } from 'firebase/firestore';
-import { db, isPersonalProject, ROOT_COLLECTION } from '../config/firebase';
-import { ChefHat, DollarSign, Trash2, User, AlertTriangle, Printer, Clock, StopCircle, UserX, Info, Hourglass, Lock, PlusCircle } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { db, ROOT_COLLECTION, isPersonalProject } from '../config/firebase';
+import { 
+  Clock, CheckCircle, AlertCircle, XCircle, Printer, Coffee, DollarSign, 
+  Search, Grid, List, ShoppingCart, Trash2, ChevronRight, Plus, Minus
+} from 'lucide-react';
 
-// AHORA RECIBE 'onOpenExpense'
-const CashierView = ({ onProcessPayment, onVoidOrder, onReprintOrder, onStopService, onOpenExpense }) => {
+// --- SUB-COMPONENTE: TARJETA DE PRODUCTO (Mini POS) ---
+const CashierProductCard = ({ item, onClick }) => {
+    const stockNum = Number(item.stock);
+    const hasStock = item.stock !== undefined && item.stock !== '';
+    const isLowStock = hasStock && stockNum < 5;
+    const isOut = hasStock && stockNum <= 0;
+  
+    return (
+      <div 
+        onClick={!isOut ? onClick : undefined} 
+        className={`bg-white border border-gray-200 rounded-xl overflow-hidden cursor-pointer hover:shadow-md transition-all flex flex-col h-32 relative group ${isOut ? 'opacity-60 grayscale cursor-not-allowed' : ''}`}
+      >
+        <div className="h-20 bg-gray-50 flex items-center justify-center overflow-hidden relative">
+          {item.image ? (
+            <img src={item.image} alt={item.name} className="w-full h-full object-cover" onError={(e)=>e.target.style.display='none'}/>
+          ) : (
+            <Coffee className="text-gray-300" size={24}/>
+          )}
+          <div className="absolute top-1 right-1 bg-black/80 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+             Bs. {item.price}
+          </div>
+          {isLowStock && !isOut && <div className="absolute bottom-0 w-full bg-red-500 text-white text-[9px] font-black text-center uppercase animate-pulse">Stock: {stockNum}</div>}
+        </div>
+        <div className="p-2 flex-1 flex flex-col justify-center">
+            <p className="text-[10px] text-gray-500 font-bold uppercase truncate">{item.category}</p>
+            <h4 className="text-xs font-bold text-gray-800 leading-tight line-clamp-2">{item.name}</h4>
+        </div>
+      </div>
+    );
+};
+
+export default function CashierView({ items, categories, onProcessPayment, onVoidOrder, onReprintOrder, onStopService, onOpenExpense }) {
+  // --- ESTADOS ---
+  const [activeTab, setActiveTab] = useState('orders'); // 'orders' | 'quick'
   const [orders, setOrders] = useState([]);
-  const [staffList, setStaffList] = useState([]);
-  const [activeServices, setActiveServices] = useState([]); 
-  const [loading, setLoading] = useState(true);
-  const [currentTime, setCurrentTime] = useState(Date.now());
+  
+  // Estados para Venta Rápida
+  const [cart, setCart] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [catFilter, setCatFilter] = useState('Todos');
 
+  // --- ESCUCHA DE PEDIDOS PENDIENTES ---
   useEffect(() => {
     const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
-    const qOrders = query(collection(db, ordersCol), orderBy('date', 'asc'));
-    const unsubOrders = onSnapshot(qOrders, (snapshot) => {
-      setOrders(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-      setLoading(false);
+    const q = query(collection(db, ordersCol), orderBy('date', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const ordersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setOrders(ordersData);
     });
-
-    const staffCol = isPersonalProject ? 'staffMembers' : `${ROOT_COLLECTION}staffMembers`;
-    const unsubStaff = onSnapshot(collection(db, staffCol), (s) => setStaffList(s.docs.map(d => ({ id: d.id, ...d.data() })).filter(m => m.role === 'Garzón' || m.role === 'Cajero')));
-
-    const servicesCol = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`;
-    const unsubServices = onSnapshot(collection(db, servicesCol), (s) => {
-        setActiveServices(s.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
-
-    const timer = setInterval(() => setCurrentTime(Date.now()), 60000);
-
-    return () => { unsubOrders(); unsubStaff(); unsubServices(); clearInterval(timer); };
+    return () => unsubscribe();
   }, []);
 
-  const handleKickStaff = async (member) => {
-      if (!member.activeSessionId) return;
-      if (!window.confirm(`¿Desconectar a ${member.name}?`)) return;
-      try {
-          const staffColName = isPersonalProject ? 'staffMembers' : `${ROOT_COLLECTION}staffMembers`;
-          await updateDoc(doc(db, staffColName, member.id), { activeSessionId: null });
-          toast.success(`${member.name} desconectado.`);
-      } catch (error) { toast.error("Error al desconectar."); }
+  // --- LÓGICA VENTA RÁPIDA ---
+  const addToCart = (item) => {
+    setCart(prev => {
+        const exist = prev.find(i => i.id === item.id);
+        if(exist) return prev.map(i => i.id === item.id ? {...i, qty: i.qty + 1} : i);
+        return [...prev, {...item, qty: 1}];
+    });
+  };
+  
+  const updateQty = (id, delta) => {
+    setCart(prev => prev.map(i => i.id === id ? {...i, qty: Math.max(1, i.qty + delta)} : i));
   };
 
-  const calculateServiceCost = (service) => {
-    const start = new Date(service.startTime).getTime();
-    const now = currentTime;
-    const diffMs = now - start;
-    const diffHours = diffMs / (1000 * 60 * 60);
-    const pricePerHour = parseFloat(service.pricePerHour);
-    const cost = diffHours * pricePerHour;
-    const minutes = Math.floor(diffMs / 60000);
-    const hours = Math.floor(minutes / 60);
-    const minsLeft = minutes % 60;
-    const startTimeFormatted = new Date(service.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-    const halfHourPrice = pricePerHour / 2;
-    return { cost, label: `${hours}h ${minsLeft}m`, startTimeFormatted, pricePerHour, halfHourPrice };
+  const removeFromCart = (id) => setCart(prev => prev.filter(i => i.id !== id));
+
+  const handleQuickCheckout = () => {
+    if (cart.length === 0) return;
+    const total = cart.reduce((acc, i) => acc + (i.price * i.qty), 0);
+    // Creamos un objeto de orden temporal para pasarle al Modal de Pago
+    const quickOrder = {
+        id: 'QUICK-' + Date.now(),
+        items: cart,
+        total: total,
+        staffName: 'Caja Directa',
+        staffId: 'cashier',
+        type: 'quick_sale'
+    };
+    onProcessPayment(quickOrder); // Reusamos la lógica de pago de App.jsx
+    setCart([]); // Limpiamos carrito (si se cancela el pago, se pierde, pero es venta rápida)
   };
 
-  const handleVoidClick = (order) => {
-    const isServiceStart = order.items.some(i => i.name.includes('⏱️ INICIO'));
-    const message = isServiceStart ? "¿Forzar borrado de ticket?" : "¿Anular Pedido?";
-    toast((t) => (
-      <div className="flex flex-col gap-2">
-        <span className="font-bold text-gray-800 text-sm">{message}</span>
-        <div className="flex gap-2 mt-1">
-          <button onClick={() => { toast.dismiss(t.id); onVoidOrder(order); }} className="bg-red-600 text-white px-3 py-2 rounded-lg text-xs font-bold flex-1">SÍ, BORRAR</button>
-          <button onClick={() => toast.dismiss(t.id)} className="bg-gray-200 text-gray-800 px-3 py-2 rounded-lg text-xs font-bold flex-1">CANCELAR</button>
-        </div>
-      </div>
-    ), { duration: 5000 });
-  };
+  // Filtros de Productos
+  const filteredItems = items ? items.filter(i => {
+      const matchCat = catFilter === 'Todos' ? true : i.category === catFilter;
+      const matchSearch = i.name.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchCat && matchSearch && i.category !== 'Servicios';
+  }) : [];
 
-  if (loading) return <div className="p-10 text-center animate-pulse text-gray-400">Cargando caja...</div>;
+  const cartTotal = cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
 
   return (
-    <div className="animate-in fade-in pb-20">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-        <div><h2 className="text-2xl font-bold text-gray-800">Caja Principal</h2><p className="text-gray-500 text-sm">Control de mesas y servicios</p></div>
-        
-        <div className="flex items-center gap-4">
-            {/* BOTÓN NUEVO: GASTOS */}
-            <button onClick={onOpenExpense} className="bg-red-100 text-red-700 px-4 py-2 rounded-full font-bold text-sm shadow-sm hover:bg-red-200 transition-colors flex items-center gap-2 border border-red-200">
-                <div className="bg-red-500 text-white rounded-full p-0.5"><PlusCircle size={14}/></div>
-                Registrar Gasto
-            </button>
+    <div className="flex flex-col h-[calc(100vh-100px)] animate-in fade-in">
+      
+      {/* --- ENCABEZADO Y TABS --- */}
+      <div className="flex justify-between items-center mb-4 px-1">
+         <div className="flex bg-white p-1 rounded-xl shadow-sm border border-gray-200">
+             <button 
+                onClick={() => setActiveTab('orders')}
+                className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${activeTab === 'orders' ? 'bg-orange-500 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
+             >
+                <List size={18}/> COMANDAS <span className="bg-white/20 px-1.5 rounded-full text-xs">{orders.filter(o => o.status === 'pending').length}</span>
+             </button>
+             <button 
+                onClick={() => setActiveTab('quick')}
+                className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${activeTab === 'quick' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
+             >
+                <Grid size={18}/> VENTA RÁPIDA
+             </button>
+         </div>
 
-            <div className="flex gap-2 overflow-x-auto max-w-full pb-2 md:pb-0 hide-scrollbar">
-                {staffList.map(member => {
-                    const isOnline = member.activeSessionId && member.activeSessionId.length > 5;
-                    return (
-                        <button key={member.id} onClick={() => handleKickStaff(member)} disabled={!isOnline} className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all group relative ${isOnline ? 'bg-white border-green-200 shadow-sm hover:border-red-300 hover:bg-red-50 cursor-pointer' : 'bg-gray-50 border-transparent opacity-60 grayscale cursor-default'}`} title={isOnline ? "Clic para desconectar" : "Desconectado"}>
-                            <div className="relative">{isOnline ? (<><div className="w-2 h-2 rounded-full bg-green-500 animate-pulse group-hover:hidden"></div><UserX size={12} className="text-red-500 hidden group-hover:block" /></>) : (<div className="w-2 h-2 rounded-full bg-gray-300"></div>)}</div>
-                            <span className={`text-xs font-bold ${isOnline ? 'text-gray-800 group-hover:text-red-600' : 'text-gray-400'}`}>{member.name.split(' ')[0]}</span>
-                        </button>
-                    );
-                })}
-            </div>
-        </div>
+         <button onClick={onOpenExpense} className="px-4 py-2 bg-red-100 text-red-600 rounded-xl font-bold text-sm hover:bg-red-200 transition-colors flex items-center gap-2">
+            <DollarSign size={16}/> Registrar Gasto
+         </button>
       </div>
 
-      {activeServices.length > 0 && (
-          <div className="mb-8">
-              <h3 className="font-bold text-gray-700 mb-3 flex items-center gap-2"><Clock className="text-purple-600"/> Servicios en Curso</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {activeServices.map(srv => {
-                      const { cost, label, startTimeFormatted, pricePerHour, halfHourPrice } = calculateServiceCost(srv);
-                      const isHighRate = pricePerHour >= 90; 
-                      return (
-                          <div key={srv.id} className={`bg-white border-l-4 p-4 rounded-r-xl shadow-sm flex justify-between items-center relative overflow-hidden ${isHighRate ? 'border-red-500' : 'border-purple-500'}`}>
-                              <div className={`absolute top-0 right-0 p-1 rounded-bl-lg text-[9px] font-bold uppercase tracking-wider ${isHighRate ? 'bg-red-100 text-red-700' : 'bg-purple-100 text-purple-700'}`}>{isHighRate ? 'TARIFA ALTA' : 'ESTÁNDAR'}</div>
-                              <div>
-                                  <div className="font-black text-xl text-gray-800 leading-none mb-1">{srv.note}</div>
-                                  <div className="text-xs text-gray-500 font-medium flex items-center gap-1 mb-2"><Clock size={12} className="text-gray-400"/> Inicio: {startTimeFormatted}</div>
-                                  <div className="text-[10px] text-gray-500 bg-gray-50 p-1 rounded mb-2 border border-gray-100"><div className="flex items-center gap-1 font-bold"><Info size={10}/> Tarifa: Bs. {pricePerHour}/h</div><div className="pl-4 text-gray-400">(30 min = Bs. {halfHourPrice})</div></div>
-                                  <div className="flex items-center gap-2"><div className="text-xs text-gray-400 flex items-center gap-1 bg-gray-50 px-2 py-0.5 rounded"><User size={10}/> {srv.staffName}</div><div className={`text-sm font-mono font-bold px-2 py-0.5 rounded ${isHighRate ? 'text-red-600 bg-red-50' : 'text-purple-600 bg-purple-50'}`}>{label}</div></div>
-                              </div>
-                              <div className="text-right">
-                                  <div className="text-xl font-black text-gray-900 mb-2">Bs. {cost.toFixed(2)}</div>
-                                  <button onClick={() => onStopService(srv, cost, label)} className="bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-bold shadow hover:bg-red-700 flex items-center gap-1"><StopCircle size={14}/> COBRAR</button>
-                              </div>
-                          </div>
-                      )
-                  })}
-              </div>
-          </div>
-      )}
-
-      {orders.length > 0 && (<div className="mb-4 flex items-center gap-2"><span className="bg-red-100 text-red-600 px-3 py-1 rounded-full text-xs font-bold animate-pulse flex items-center gap-1"><AlertTriangle size={12}/> {orders.length} pendientes</span><span className="text-xs text-gray-400">Total: <strong>Bs. {orders.reduce((acc, o) => acc + Number(o.total), 0).toFixed(2)}</strong></span></div>)}
-
-      {orders.length === 0 && activeServices.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-2xl border-2 border-dashed border-gray-200"><ChefHat size={48} className="mx-auto text-gray-300 mb-4 opacity-50"/><h3 className="text-lg text-gray-400 font-medium">Todo limpio</h3></div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {orders.map(order => {
-                const isServiceStart = order.items.some(i => i.name.includes('⏱️ INICIO'));
-                const cardStyle = isServiceStart ? 'border-l-4 border-l-purple-500 bg-purple-50/30' : 'bg-white border border-gray-200';
-
-                return (
-                    <div key={order.id} className={`${cardStyle} rounded-xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col relative`}>
-                        {isServiceStart && <div className="absolute top-0 right-0 bg-purple-100 text-purple-700 text-[9px] font-bold px-2 py-1 rounded-bl-lg uppercase tracking-wider">⏳ Servicio Activo</div>}
-                        <div className="p-3 border-b flex justify-between items-center bg-white/50">
-                            <div className="flex items-center gap-2"><span className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs font-bold">{new Date(order.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span><span className="font-bold text-gray-800">#{order.orderId ? order.orderId.slice(-4) : '...'}</span></div>
-                            <span className="text-xs font-medium text-gray-500 uppercase tracking-wider flex items-center gap-1"><User size={10}/> {order.staffName}</span>
-                        </div>
-                        <div className="p-3 flex-1 overflow-y-auto max-h-32 bg-gray-50/50">{order.items.map((item, idx) => (<div key={idx} className="flex justify-between text-xs mb-1 last:mb-0"><span className="text-gray-700 font-medium">{item.qty} x {item.name}</span><span className="text-gray-400 tabular-nums">{(item.price * item.qty).toFixed(2)}</span></div>))}</div>
-                        <div className="p-3 border-t bg-white grid grid-cols-5 gap-2">
-                            <div className="col-span-2 flex items-center"><span className="text-lg font-black text-gray-900">Bs. {Number(order.total).toFixed(2)}</span></div>
-                            <button onClick={() => handleVoidClick(order)} className="col-span-1 bg-red-50 text-red-500 hover:bg-red-100 rounded-lg flex items-center justify-center border border-red-200"><Trash2 size={18}/></button>
-                            <button onClick={() => onReprintOrder && onReprintOrder(order)} className="col-span-1 bg-yellow-100 text-yellow-700 hover:bg-yellow-200 rounded-lg flex items-center justify-center border border-yellow-200"><Printer size={18}/></button>
-                            {isServiceStart ? (
-                                <button disabled className="col-span-1 bg-gray-100 text-gray-400 rounded-lg flex flex-col items-center justify-center cursor-not-allowed border border-gray-200"><Hourglass size={14}/><span className="text-[8px] font-bold uppercase leading-none mt-0.5">En Curso</span></button>
-                            ) : (
-                                <button onClick={() => onProcessPayment(order)} className="col-span-1 bg-green-600 text-white hover:bg-green-700 rounded-lg flex items-center justify-center shadow-sm"><DollarSign size={20}/></button>
-                            )}
-                        </div>
+      {/* --- CONTENIDO PRINCIPAL --- */}
+      <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden relative">
+         
+         {/* --- PESTAÑA 1: COMANDAS (Lógica Original) --- */}
+         {activeTab === 'orders' && (
+            <div className="absolute inset-0 overflow-y-auto p-4">
+                {orders.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full text-gray-300">
+                        <Clock size={64} className="mb-4 opacity-20"/>
+                        <p className="font-bold text-lg">No hay pedidos pendientes</p>
                     </div>
-                );
-            })}
-        </div>
-      )}
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {orders.map((order) => (
+                            <div key={order.id} className={`rounded-xl border-2 overflow-hidden flex flex-col shadow-sm transition-all hover:shadow-md ${order.status === 'pending' ? 'border-orange-100 bg-white' : 'border-gray-100 bg-gray-50 opacity-75'}`}>
+                                {/* Cabecera Ticket */}
+                                <div className={`p-3 flex justify-between items-start ${order.status === 'pending' ? 'bg-orange-50' : 'bg-gray-100'}`}>
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="font-black text-gray-800 text-lg">#{order.orderId || '---'}</span>
+                                            <span className="text-[10px] font-bold uppercase tracking-wider bg-white px-2 py-0.5 rounded-full text-gray-500 border border-gray-200">{new Date(order.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                        </div>
+                                        <p className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1"><CheckCircle size={10} className="text-green-500"/> {order.staffName}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="font-black text-xl text-gray-800">Bs. {order.total?.toFixed(2)}</p>
+                                        <p className="text-[10px] text-orange-600 font-bold uppercase">{order.status === 'pending' ? 'Pendiente' : 'Pagado'}</p>
+                                    </div>
+                                </div>
+
+                                {/* Items */}
+                                <div className="p-3 flex-1 overflow-y-auto max-h-40 space-y-2">
+                                    {order.items?.map((item, idx) => (
+                                        <div key={idx} className="flex justify-between text-sm items-center border-b border-gray-50 pb-1 last:border-0">
+                                            <div className="flex gap-2">
+                                                <span className="font-bold text-gray-800 w-5 text-center bg-gray-100 rounded">{item.qty}</span>
+                                                <span className="text-gray-600 leading-tight">{item.name}</span>
+                                            </div>
+                                            <span className="font-mono font-medium text-gray-400 text-xs">{(item.price * item.qty).toFixed(2)}</span>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Acciones */}
+                                <div className="p-2 bg-white border-t border-gray-100 grid grid-cols-3 gap-2">
+                                    <button onClick={() => onReprintOrder(order)} className="p-2 text-gray-400 hover:text-black hover:bg-gray-100 rounded-lg flex items-center justify-center transition-colors" title="Reimprimir Comanda"><Printer size={18}/></button>
+                                    <button onClick={() => {if(window.confirm('¿Anular pedido?')) onVoidOrder(order)}} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg flex items-center justify-center transition-colors" title="Anular"><XCircle size={18}/></button>
+                                    <button onClick={() => onProcessPayment(order)} className="bg-green-600 text-white rounded-lg font-bold text-sm hover:bg-green-700 shadow-md flex items-center justify-center gap-1 active:scale-95 transition-transform">COBRAR</button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+         )}
+
+         {/* --- PESTAÑA 2: VENTA RÁPIDA (Nuevo) --- */}
+         {activeTab === 'quick' && (
+             <div className="absolute inset-0 flex">
+                 {/* IZQUIERDA: PRODUCTOS */}
+                 <div className="flex-1 bg-gray-50 flex flex-col border-r border-gray-200">
+                     <div className="p-3 bg-white border-b border-gray-200 space-y-2">
+                         <div className="relative">
+                             <Search className="absolute left-3 top-2.5 text-gray-400" size={16}/>
+                             <input type="text" placeholder="Buscar producto..." className="w-full pl-9 p-2 bg-gray-100 rounded-lg text-sm outline-none focus:ring-1 focus:ring-blue-500" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                         </div>
+                         <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
+                             <button onClick={() => setCatFilter('Todos')} className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap border ${catFilter === 'Todos' ? 'bg-black text-white' : 'bg-white text-gray-600'}`}>Todos</button>
+                             {categories?.filter(c => c !== 'Servicios').map(cat => (
+                                 <button key={cat} onClick={() => setCatFilter(cat)} className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap border ${catFilter === cat ? 'bg-black text-white' : 'bg-white text-gray-600'}`}>{cat}</button>
+                             ))}
+                         </div>
+                     </div>
+                     <div className="flex-1 overflow-y-auto p-3 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 content-start">
+                         {filteredItems.map(item => (
+                             <CashierProductCard key={item.id} item={item} onClick={() => addToCart(item)} />
+                         ))}
+                     </div>
+                 </div>
+
+                 {/* DERECHA: CARRITO RÁPIDO */}
+                 <div className="w-80 bg-white flex flex-col shadow-xl z-10">
+                     <div className="p-3 bg-blue-50 border-b border-blue-100 flex justify-between items-center">
+                         <h3 className="font-black text-blue-900 flex items-center gap-2"><ShoppingCart size={18}/> Venta Directa</h3>
+                         <button onClick={() => setCart([])} className="text-xs text-red-500 font-bold hover:underline">Limpiar</button>
+                     </div>
+                     
+                     <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                         {cart.length === 0 ? (
+                             <div className="h-full flex flex-col items-center justify-center text-gray-300 space-y-2">
+                                 <ShoppingCart size={40} className="opacity-20"/>
+                                 <p className="text-xs font-medium">Carrito vacío</p>
+                             </div>
+                         ) : (
+                             cart.map(item => (
+                                 <div key={item.id} className="flex justify-between items-center bg-white border border-gray-100 p-2 rounded-lg shadow-sm">
+                                     <div className="flex-1 min-w-0">
+                                         <div className="text-xs font-bold text-gray-800 truncate">{item.name}</div>
+                                         <div className="text-[10px] text-gray-500">Bs. {item.price}</div>
+                                     </div>
+                                     <div className="flex items-center gap-2 bg-gray-50 rounded px-1 mx-2">
+                                         <button onClick={() => updateQty(item.id, -1)} className="text-gray-500 hover:text-black"><Minus size={14}/></button>
+                                         <span className="text-xs font-bold w-4 text-center">{item.qty}</span>
+                                         <button onClick={() => updateQty(item.id, 1)} className="text-blue-600 hover:text-blue-800"><Plus size={14}/></button>
+                                     </div>
+                                     <button onClick={() => removeFromCart(item.id)} className="text-red-400 hover:text-red-600"><Trash2 size={14}/></button>
+                                 </div>
+                             ))
+                         )}
+                     </div>
+
+                     <div className="p-4 bg-gray-50 border-t border-gray-200">
+                         <div className="flex justify-between items-end mb-3">
+                             <span className="text-gray-500 text-xs font-bold uppercase">Total a Cobrar</span>
+                             <span className="text-2xl font-black text-gray-900">Bs. {cartTotal.toFixed(2)}</span>
+                         </div>
+                         <button 
+                             onClick={handleQuickCheckout}
+                             disabled={cart.length === 0}
+                             className="w-full py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-transform active:scale-95"
+                         >
+                             COBRAR AHORA <ChevronRight size={18}/>
+                         </button>
+                     </div>
+                 </div>
+             </div>
+         )}
+
+      </div>
     </div>
   );
-};
-export default CashierView;
+}
