@@ -1,6 +1,6 @@
-// src/components/Modals.jsx - CON GESTOR DE MESAS
+// src/components/Modals.jsx - CON GESTOR DE TIPOS DE GASTO
 import React, { useState, useEffect } from 'react';
-import { X, Upload, Save, Trash2, Plus, Edit2, Check, LayoutGrid } from 'lucide-react';
+import { X, Upload, Save, Trash2, Plus, Edit2, Check, LayoutGrid, DollarSign, FileText } from 'lucide-react';
 
 // --- 1. AUTH MODAL (Login) ---
 export const AuthModal = ({ isOpen, onClose, onLogin }) => {
@@ -117,7 +117,7 @@ export const RoleManager = ({ isOpen, onClose, roles, onAdd, onRename, onDelete 
     );
 };
 
-// --- 5. TABLE MANAGER (NUEVO) ---
+// --- 5. TABLE MANAGER ---
 export const TableManager = ({ isOpen, onClose, tables, onAdd, onRename, onDelete }) => {
     const [newTable, setNewTable] = useState('');
     const [editingIndex, setEditingIndex] = useState(null);
@@ -133,7 +133,6 @@ export const TableManager = ({ isOpen, onClose, tables, onAdd, onRename, onDelet
                     <button onClick={onClose}><X size={20}/></button>
                 </div>
                 
-                {/* Agregar Mesa */}
                 <div className="p-4 bg-gray-50 border-b flex gap-2">
                     <input 
                         className="flex-1 p-2 border rounded-lg outline-none focus:ring-2 focus:ring-purple-500" 
@@ -145,7 +144,6 @@ export const TableManager = ({ isOpen, onClose, tables, onAdd, onRename, onDelet
                     <button onClick={()=>{if(newTable){onAdd(newTable);setNewTable('')}}} className="bg-purple-600 text-white p-2 rounded-lg hover:bg-purple-700"><Plus size={20}/></button>
                 </div>
                 
-                {/* Lista */}
                 <div className="max-h-[60vh] overflow-y-auto p-2 space-y-2">
                     {tables.map((table, idx) => (
                         <div key={idx} className="flex items-center justify-between p-3 bg-white border rounded-xl shadow-sm group hover:border-purple-200 transition-colors">
@@ -175,7 +173,65 @@ export const TableManager = ({ isOpen, onClose, tables, onAdd, onRename, onDelet
     );
 };
 
-// --- 6. BRANDING MODAL ---
+// --- 6. EXPENSE TYPE MANAGER (NUEVO) ---
+export const ExpenseTypeManager = ({ isOpen, onClose, expenseTypes, onAdd, onRename, onDelete }) => {
+    const [newType, setNewType] = useState('');
+    const [editingIndex, setEditingIndex] = useState(null);
+    const [editName, setEditName] = useState('');
+    
+    if (!isOpen) return null;
+    
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in">
+            <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+                <div className="bg-red-900 text-white p-4 flex justify-between items-center">
+                    <h3 className="font-bold flex items-center gap-2"><DollarSign size={20}/> Tipos de Gasto</h3>
+                    <button onClick={onClose}><X size={20}/></button>
+                </div>
+                
+                {/* Agregar Tipo */}
+                <div className="p-4 bg-gray-50 border-b flex gap-2">
+                    <input 
+                        className="flex-1 p-2 border rounded-lg outline-none focus:ring-2 focus:ring-red-500" 
+                        placeholder="Ej. Hielo, Taxi, Limpieza..." 
+                        value={newType} 
+                        onChange={e=>setNewType(e.target.value)} 
+                        onKeyDown={e=>{if(e.key==='Enter'&&newType){onAdd(newType);setNewType('')}}}
+                    />
+                    <button onClick={()=>{if(newType){onAdd(newType);setNewType('')}}} className="bg-red-600 text-white p-2 rounded-lg hover:bg-red-700"><Plus size={20}/></button>
+                </div>
+                
+                {/* Lista */}
+                <div className="max-h-[60vh] overflow-y-auto p-2 space-y-2">
+                    {expenseTypes.map((type, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-3 bg-white border rounded-xl shadow-sm group hover:border-red-200 transition-colors">
+                            {editingIndex === idx ? (
+                                <input 
+                                    className="flex-1 border-b-2 border-red-500 outline-none font-bold text-red-900" 
+                                    autoFocus 
+                                    value={editName} 
+                                    onChange={e=>setEditName(e.target.value)} 
+                                    onBlur={()=>{if(editName)onRename(idx,editName);setEditingIndex(null)}} 
+                                    onKeyDown={e=>{if(e.key==='Enter'&&editName){onRename(idx,editName);setEditingIndex(null)}}} 
+                                />
+                            ) : (
+                                <span className="font-bold text-gray-700 flex-1">{type}</span>
+                            )}
+                            
+                            <div className="flex gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onClick={()=>{setEditingIndex(idx);setEditName(type)}} className="text-blue-500 hover:bg-blue-50 p-1.5 rounded"><Edit2 size={16}/></button>
+                                <button onClick={()=>{if(window.confirm('¿Borrar este tipo de gasto?'))onDelete(idx)}} className="text-red-500 hover:bg-red-50 p-1.5 rounded"><Trash2 size={16}/></button>
+                            </div>
+                        </div>
+                    ))}
+                    {expenseTypes.length === 0 && <p className="text-center text-gray-400 py-4 text-sm">No hay tipos definidos</p>}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- 7. BRANDING MODAL ---
 export const BrandingModal = ({ isOpen, onClose, onSave, currentLogo, currentName }) => {
     const [logoUrl, setLogoUrl] = useState(currentLogo || '');
     const [appName, setAppName] = useState(currentName || '');
@@ -195,7 +251,7 @@ export const BrandingModal = ({ isOpen, onClose, onSave, currentLogo, currentNam
     );
 };
 
-// --- 7. SERVICE START MODAL ---
+// --- 8. SERVICE START MODAL ---
 export const ServiceStartModal = ({ isOpen, onClose, services, onStart, occupiedLocations }) => {
     const [selectedService, setSelectedService] = useState(null);
     const [note, setNote] = useState('');
@@ -215,20 +271,87 @@ export const ServiceStartModal = ({ isOpen, onClose, services, onStart, occupied
     );
 };
 
-// --- 8. EXPENSE MODAL ---
-export const ExpenseModal = ({ isOpen, onClose, onSave }) => {
-    const [desc, setDesc] = useState('');
+// --- 9. EXPENSE MODAL (ACTUALIZADO: CON LISTA) ---
+export const ExpenseModal = ({ isOpen, onClose, onSave, expenseTypes }) => {
+    const [selectedType, setSelectedType] = useState(expenseTypes && expenseTypes.length > 0 ? expenseTypes[0] : '');
+    const [detail, setDetail] = useState('');
     const [amount, setAmount] = useState('');
+
+    // Actualizar default cuando cargan los tipos
+    useEffect(() => {
+        if (expenseTypes && expenseTypes.length > 0 && !selectedType) {
+            setSelectedType(expenseTypes[0]);
+        }
+    }, [expenseTypes]);
+
     if(!isOpen) return null;
+
+    const handleSubmit = () => {
+        if (amount) {
+            // Guardamos: "TIPO - Detalle"
+            const finalDesc = selectedType + (detail ? ` - ${detail}` : '');
+            onSave(finalDesc, parseFloat(amount));
+            setDetail('');
+            setAmount('');
+            onClose();
+        }
+    };
+
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in">
             <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-xl">
-                <h3 className="text-lg font-black text-red-600 mb-4">Registrar Gasto</h3>
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-black text-red-600 flex items-center gap-2"><DollarSign size={20}/> Registrar Salida</h3>
+                    <button onClick={onClose}><X size={20} className="text-gray-400 hover:text-black"/></button>
+                </div>
+                
                 <div className="space-y-4">
-                    <div><label className="label-input">Descripción</label><input className="input-field" placeholder="Ej. Hielo, Taxis..." value={desc} onChange={e=>setDesc(e.target.value)} autoFocus/></div>
-                    <div><label className="label-input">Monto (Bs)</label><input type="number" className="input-field" placeholder="0.00" value={amount} onChange={e=>setAmount(e.target.value)}/></div>
-                    <button onClick={()=>{if(desc && amount) { onSave(desc, parseFloat(amount)); setDesc(''); setAmount(''); onClose(); }}} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl shadow-lg">REGISTRAR SALIDA</button>
-                    <button onClick={onClose} className="w-full py-2 text-gray-500 text-sm">Cancelar</button>
+                    {/* SELECTOR DE TIPO */}
+                    <div>
+                        <label className="label-input">Motivo / Tipo de Gasto</label>
+                        <select 
+                            className="input-field"
+                            value={selectedType}
+                            onChange={e => setSelectedType(e.target.value)}
+                        >
+                            {expenseTypes && expenseTypes.length > 0 ? (
+                                expenseTypes.map(type => <option key={type} value={type}>{type}</option>)
+                            ) : (
+                                <option value="Varios">Varios (Sin tipos definidos)</option>
+                            )}
+                        </select>
+                    </div>
+
+                    {/* DETALLE OPCIONAL */}
+                    <div>
+                        <label className="label-input">Detalle (Opcional)</label>
+                        <input 
+                            className="input-field" 
+                            placeholder="Ej. Placas, Limones extra..." 
+                            value={detail} 
+                            onChange={e=>setDetail(e.target.value)}
+                        />
+                    </div>
+
+                    {/* MONTO */}
+                    <div>
+                        <label className="label-input">Monto (Bs)</label>
+                        <div className="relative">
+                            <span className="absolute left-4 top-3 text-gray-500 font-bold">Bs.</span>
+                            <input 
+                                type="number" 
+                                className="input-field pl-10 text-xl font-bold text-red-600" 
+                                placeholder="0.00" 
+                                value={amount} 
+                                onChange={e=>setAmount(e.target.value)}
+                                autoFocus
+                            />
+                        </div>
+                    </div>
+
+                    <button onClick={handleSubmit} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl shadow-lg mt-2">
+                        REGISTRAR SALIDA
+                    </button>
                 </div>
             </div>
         </div>

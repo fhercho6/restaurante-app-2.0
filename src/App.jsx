@@ -1,4 +1,4 @@
-// src/App.jsx - CON GESTIÓN DINÁMICA DE MESAS
+// src/App.jsx - CON GESTIÓN DE GASTOS COMPLETA
 import React, { useState, useEffect } from 'react';
 import { Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign, ArrowLeft, Lock, Unlock, Wallet, Loader2, LayoutGrid } from 'lucide-react';
 import { onAuthStateChanged, signOut, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
@@ -16,15 +16,16 @@ import CashierView from './components/CashierView';
 import OpenRegisterModal from './components/OpenRegisterModal';
 import RegisterControlView from './components/RegisterControlView';
 
-// Importamos el nuevo TableManager
-import { AuthModal, BrandingModal, ProductModal, CategoryManager, RoleManager, TableManager, ServiceStartModal, ExpenseModal } from './components/Modals';
+// Importamos el nuevo ExpenseTypeManager
+import { AuthModal, BrandingModal, ProductModal, CategoryManager, RoleManager, TableManager, ExpenseTypeManager, ServiceStartModal, ExpenseModal } from './components/Modals';
 import { MenuCard, PinLoginView, CredentialPrintView, PrintableView, AdminRow } from './components/Views';
 
 const LOGO_URL_FIJO = ""; 
 const INITIAL_CATEGORIES = ['Bebidas', 'Comidas', 'Servicios']; 
 const INITIAL_ROLES = ['Garzón', 'Cajero', 'Cocinero', 'Administrador'];
-// Lista inicial por defecto si no hay nada en BD
 const INITIAL_TABLES = ['Barra', 'Mesa 1', 'Mesa 2', 'Mesa 3', 'Mesa 4', 'VIP 1']; 
+// Tipos de gasto por defecto
+const INITIAL_EXPENSE_TYPES = ['Hielo', 'Taxi', 'Insumos', 'Limpieza', 'Adelanto Sueldo', 'Proveedores'];
 
 export default function App() {
   const [view, setView] = useState('landing');
@@ -34,9 +35,10 @@ export default function App() {
   const [staff, setStaff] = useState([]);
   const [categories, setCategories] = useState(INITIAL_CATEGORIES);
   const [roles, setRoles] = useState(INITIAL_ROLES);
-  
-  // NUEVO ESTADO PARA MESAS
   const [tables, setTables] = useState(INITIAL_TABLES);
+  
+  // NUEVO ESTADO PARA TIPOS DE GASTO
+  const [expenseTypes, setExpenseTypes] = useState(INITIAL_EXPENSE_TYPES);
 
   const [activeServices, setActiveServices] = useState([]); 
   const [dbStatus, setDbStatus] = useState('connecting');
@@ -50,8 +52,9 @@ export default function App() {
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
   
-  // NUEVO MODAL PARA MESAS
   const [isTableModalOpen, setIsTableModalOpen] = useState(false);
+  // NUEVO MODAL DE TIPOS DE GASTO
+  const [isExpenseTypeModalOpen, setIsExpenseTypeModalOpen] = useState(false);
 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isBrandingModalOpen, setIsBrandingModalOpen] = useState(false);
@@ -94,7 +97,7 @@ export default function App() {
 
   useEffect(() => { const initAuth = async () => { if (!auth.currentUser) { if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token && !isPersonalProject) { await signInWithCustomToken(auth, __initial_auth_token); } else { await signInAnonymously(auth).catch(() => setDbStatus('warning')); } } }; initAuth(); return onAuthStateChanged(auth, (u) => { setCurrentUser(u); if (u) { setDbStatus('connected'); setDbErrorMsg(''); } }); }, []);
   useEffect(() => { if (!db || !currentUser) return; const checkSession = async () => { const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`; const q = query(collection(db, colName), where('status', '==', 'open'), limit(1)); const snap = await getDocs(q); if (!snap.empty) { const data = snap.docs[0].data(); setRegisterSession({ id: snap.docs[0].id, ...data }); } }; checkSession(); }, [db, currentUser]);
-  useEffect(() => { if (!db || !currentUser) return; const itemsUnsub = onSnapshot(collection(db, getCollName('items')), (s) => { const rawItems = s.docs.map(doc => ({ id: doc.id, ...doc.data() })); const uniqueItems = Array.from(new Map(rawItems.map(item => [item.id, item])).values()); setItems(uniqueItems); }, (e) => { console.warn("Esperando permisos..."); }); const staffUnsub = onSnapshot(collection(db, getCollName('staff')), (s) => setStaff(s.docs.map(d => ({id: d.id, ...d.data()})))); const settingsUnsub = onSnapshot(collection(db, getCollName('settings')), (s) => { let brandingLoaded = false; s.docs.forEach(d => { const data = d.data(); if (d.id === 'categories') setCategories(data.list || []); if (d.id === 'roles') setRoles(data.list || INITIAL_ROLES); if (d.id === 'tables') setTables(data.list || INITIAL_TABLES); if (d.id === 'branding') { setLogo(data.logo); if(data.appName) setAppName(data.appName); brandingLoaded = true; } }); setIsLoadingApp(false); }); const activeSrvCol = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`; const srvUnsub = onSnapshot(collection(db, activeSrvCol), (s) => { setActiveServices(s.docs.map(d => ({ id: d.id, ...d.data() }))); }); return () => { itemsUnsub(); staffUnsub(); settingsUnsub(); srvUnsub(); }; }, [currentUser]);
+  useEffect(() => { if (!db || !currentUser) return; const itemsUnsub = onSnapshot(collection(db, getCollName('items')), (s) => { const rawItems = s.docs.map(doc => ({ id: doc.id, ...doc.data() })); const uniqueItems = Array.from(new Map(rawItems.map(item => [item.id, item])).values()); setItems(uniqueItems); }, (e) => { console.warn("Esperando permisos..."); }); const staffUnsub = onSnapshot(collection(db, getCollName('staff')), (s) => setStaff(s.docs.map(d => ({id: d.id, ...d.data()})))); const settingsUnsub = onSnapshot(collection(db, getCollName('settings')), (s) => { let brandingLoaded = false; s.docs.forEach(d => { const data = d.data(); if (d.id === 'categories') setCategories(data.list || []); if (d.id === 'roles') setRoles(data.list || INITIAL_ROLES); if (d.id === 'tables') setTables(data.list || INITIAL_TABLES); if (d.id === 'expenses') setExpenseTypes(data.list || INITIAL_EXPENSE_TYPES); if (d.id === 'branding') { setLogo(data.logo); if(data.appName) setAppName(data.appName); brandingLoaded = true; } }); setIsLoadingApp(false); }); const activeSrvCol = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`; const srvUnsub = onSnapshot(collection(db, activeSrvCol), (s) => { setActiveServices(s.docs.map(d => ({ id: d.id, ...d.data() }))); }); return () => { itemsUnsub(); staffUnsub(); settingsUnsub(); srvUnsub(); }; }, [currentUser]);
   useEffect(() => { if (!db || !registerSession) return; const salesCol = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`; const qSales = query(collection(db, salesCol), where('registerId', '==', registerSession.id)); const expensesCol = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`; const qExpenses = query(collection(db, expensesCol), where('registerId', '==', registerSession.id)); const unsubSales = onSnapshot(qSales, (snap) => { let cash = 0, qr = 0, card = 0; snap.forEach(doc => { const sale = doc.data(); if (sale.payments && Array.isArray(sale.payments)) { sale.payments.forEach(p => { const amt = parseFloat(p.amount) || 0; const method = (p.method || '').toLowerCase(); if (method.includes('efectivo')) cash += amt; else if (method.includes('qr')) qr += amt; else if (method.includes('tarjeta')) card += amt; }); if (sale.changeGiven) cash -= parseFloat(sale.changeGiven); } else { const total = parseFloat(sale.total); const method = (sale.paymentMethod || 'efectivo').toLowerCase(); if (method.includes('efectivo')) { const change = parseFloat(sale.changeGiven) || 0; const received = parseFloat(sale.amountReceived) || total; if(sale.amountReceived) cash += (received - change); else cash += total; } else if (method.includes('qr')) qr += total; else if (method.includes('tarjeta')) card += total; } }); setSessionStats(prev => ({ ...prev, cashSales: cash, qrSales: qr, cardSales: card, digitalSales: qr + card })); }); const unsubExpenses = onSnapshot(qExpenses, (snap) => { let totalExp = 0; const list = []; snap.forEach(doc => { const exp = doc.data(); totalExp += parseFloat(exp.amount); list.push({ id: doc.id, ...exp }); }); setSessionStats(prev => ({ ...prev, totalExpenses: totalExp, expensesList: list })); }); return () => { unsubSales(); unsubExpenses(); }; }, [registerSession]);
 
   const checkRegisterStatus = (requireOwnership = false) => { if (registerSession) { const isAdmin = currentUser && !currentUser.isAnonymous; const isOwner = staffMember && registerSession.openedBy === staffMember.name; if (requireOwnership && !isAdmin && !isOwner) { toast.error(`⛔ ACCESO DENEGADO\nTurno de: ${registerSession.openedBy}`, { duration: 5000 }); return false; } return true; } const canOpenRegister = (currentUser && !currentUser.isAnonymous) || (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador')); if (canOpenRegister) setIsOpenRegisterModalOpen(true); else toast.error("⚠️ LA CAJA ESTÁ CERRADA.", { icon: '🔒' }); return false; };
@@ -124,11 +127,14 @@ export default function App() {
   const handleAddRole = (n) => setDoc(doc(db, getCollName('settings'), 'roles'), { list: [...roles, n] });
   const handleRenameRole = (i, n) => { const l = [...roles]; l[i] = n; setDoc(doc(db, getCollName('settings'), 'roles'), { list: l }); };
   const handleDeleteRole = (i) => { const l = roles.filter((_, x) => x !== i); setDoc(doc(db, getCollName('settings'), 'roles'), { list: l }); };
-  
-  // FUNCIONES PARA GESTIONAR MESAS
   const handleAddTable = (n) => setDoc(doc(db, getCollName('settings'), 'tables'), { list: [...tables, n] });
   const handleRenameTable = (i, n) => { const l = [...tables]; l[i] = n; setDoc(doc(db, getCollName('settings'), 'tables'), { list: l }); };
   const handleDeleteTable = (i) => { const l = tables.filter((_, x) => x !== i); setDoc(doc(db, getCollName('settings'), 'tables'), { list: l }); };
+  
+  // FUNCIONES PARA TIPOS DE GASTO
+  const handleAddExpenseType = (n) => setDoc(doc(db, getCollName('settings'), 'expenses'), { list: [...expenseTypes, n] });
+  const handleRenameExpenseType = (i, n) => { const l = [...expenseTypes]; l[i] = n; setDoc(doc(db, getCollName('settings'), 'expenses'), { list: l }); };
+  const handleDeleteExpenseType = (i) => { const l = expenseTypes.filter((_, x) => x !== i); setDoc(doc(db, getCollName('settings'), 'expenses'), { list: l }); };
 
   const handleSaveBranding = (l, n) => { setDoc(doc(db, getCollName('settings'), 'branding'), { logo: l, appName: n }, { merge: true }); setLogo(l); setAppName(n); toast.success('Marca actualizada'); };
 
@@ -186,10 +192,7 @@ export default function App() {
                   </div>
                 </div>
                 {view === 'report' && <div className="animate-in fade-in"><SalesDashboard onReprintZ={handleReprintZReport} /><div className="hidden print:block mt-8"><PrintableView items={items} /></div></div>}
-                
-                {/* --- PÁSAMOS TABLES A CASHIER VIEW --- */}
                 {view === 'cashier' && (<CashierView items={items} categories={categories} tables={tables} onProcessPayment={handleStartPaymentFromCashier} onVoidOrder={handleVoidAndPrint} onReprintOrder={handleReprintOrder} onStopService={handleStopService} onOpenExpense={() => setIsExpenseModalOpen(true)} />)}
-                
                 {view === 'register_control' && <RegisterControlView session={registerSession} onOpen={handleOpenRegister} onClose={handleCloseRegister} staff={staff} stats={sessionStats} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} />}
                 {view === 'staff_admin' && !isCashierOnly && <StaffManagerView staff={staff} roles={roles} onAddStaff={handleAddStaff} onUpdateStaff={handleUpdateStaff} onDeleteStaff={handleDeleteStaff} onManageRoles={() => setIsRoleModalOpen(true)} onPrintCredential={handlePrintCredential} />}
                 {view === 'credential_print' && credentialToPrint && (<div className="flex flex-col items-center w-full min-h-screen bg-gray-100"><div className="w-full max-w-md p-4 flex justify-start no-print"><button onClick={() => setView('staff_admin')} className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-lg shadow hover:bg-gray-50 font-bold"><ArrowLeft size={20} /> Volver a la Lista</button></div><CredentialPrintView member={credentialToPrint} appName={appName} /></div>)}
@@ -201,8 +204,10 @@ export default function App() {
                       <div className="flex gap-2">
                         <button aria-label="Configuración" onClick={() => setIsCategoryModalOpen(true)} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"><Settings size={20}/></button>
                         
-                        {/* NUEVO BOTÓN GESTIONAR MESAS */}
                         <button onClick={() => setIsTableModalOpen(true)} className="px-4 py-2 bg-purple-50 text-purple-700 rounded-full font-bold text-sm hover:bg-purple-100 flex items-center gap-2 transition-colors border border-purple-100"><LayoutGrid size={16}/> Mesas</button>
+                        
+                        {/* NUEVO BOTÓN: TIPOS DE GASTO */}
+                        <button onClick={() => setIsExpenseTypeModalOpen(true)} className="px-4 py-2 bg-red-50 text-red-700 rounded-full font-bold text-sm hover:bg-red-100 flex items-center gap-2 transition-colors border border-red-100"><DollarSign size={16}/> Tipos Gasto</button>
 
                         <button onClick={() => setIsQuickEditMode(!isQuickEditMode)} className={`px-4 py-2 rounded-full font-bold text-sm flex items-center gap-2 transition-all ${isQuickEditMode ? 'bg-blue-600 text-white shadow-lg shadow-blue-200 ring-2 ring-blue-400' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>{isQuickEditMode ? '⚡ MODO RÁPIDO ACTIVO' : '⚡ Activar Edición Rápida'}</button>
                         <div className="flex flex-wrap gap-2 h-10 overflow-y-hidden">{filterCategories.map(cat => (<button key={cat} onClick={() => setFilter(cat)} className={`px-3 py-1 rounded-full text-sm whitespace-nowrap ${filter === cat ? 'bg-orange-500 text-white' : 'bg-white border'}`}>{cat}</button>))}</div>
@@ -233,13 +238,17 @@ export default function App() {
       <CategoryManager isOpen={isCategoryModalOpen} onClose={() => setIsCategoryModalOpen(false)} categories={categories} onAdd={handleAddCategory} onRename={handleRenameCategory} onDelete={handleDeleteCategory} />
       <RoleManager isOpen={isRoleModalOpen} onClose={() => setIsRoleModalOpen(false)} roles={roles} onAdd={handleAddRole} onRename={handleRenameRole} onDelete={handleDeleteRole} />
       
-      {/* NUEVO: TABLE MANAGER */}
       <TableManager isOpen={isTableModalOpen} onClose={() => setIsTableModalOpen(false)} tables={tables} onAdd={handleAddTable} onRename={handleRenameTable} onDelete={handleDeleteTable} />
+      
+      {/* NUEVO MODAL DE TIPOS DE GASTO */}
+      <ExpenseTypeManager isOpen={isExpenseTypeModalOpen} onClose={() => setIsExpenseTypeModalOpen(false)} expenseTypes={expenseTypes} onAdd={handleAddExpenseType} onRename={handleRenameExpenseType} onDelete={handleDeleteExpenseType} />
 
       <BrandingModal isOpen={isBrandingModalOpen} onClose={() => setIsBrandingModalOpen(false)} onSave={handleSaveBranding} currentLogo={logo} currentName={appName} />
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onLogin={handleLogin} />
       <ServiceStartModal isOpen={isServiceModalOpen} onClose={() => setIsServiceModalOpen(false)} services={items.filter(i => i.category === 'Servicios')} onStart={handleStartService} occupiedLocations={activeServices.map(s => s.note)} />
-      <ExpenseModal isOpen={isExpenseModalOpen} onClose={() => setIsExpenseModalOpen(false)} onSave={handleAddExpense} />
+      
+      {/* EXPENSE MODAL AHORA RECIBE TIPOS */}
+      <ExpenseModal isOpen={isExpenseModalOpen} onClose={() => setIsExpenseModalOpen(false)} onSave={handleAddExpense} expenseTypes={expenseTypes} />
     </div>
   );
 }
