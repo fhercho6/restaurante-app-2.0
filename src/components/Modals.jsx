@@ -232,25 +232,77 @@ export const ExpenseTypeManager = ({ isOpen, onClose, expenseTypes, onAdd, onRen
 };
 
 // --- 7. BRANDING MODAL ---
-export const BrandingModal = ({ isOpen, onClose, onSave, currentLogo, currentName }) => {
+// --- 7. SYSTEM CONFIG MODAL (ANTES BRANDING) ---
+export const BrandingModal = ({ isOpen, onClose, onSave, currentLogo, currentName, currentAutoLock }) => {
     const [logoUrl, setLogoUrl] = useState(currentLogo || '');
     const [appName, setAppName] = useState(currentName || '');
+    const [autoLockTime, setAutoLockTime] = useState(currentAutoLock || 45); // Default 45s
+
+    // Actualizar estados al abrir
+    useEffect(() => {
+        setLogoUrl(currentLogo || '');
+        setAppName(currentName || '');
+        setAutoLockTime(currentAutoLock || 45);
+    }, [isOpen, currentLogo, currentName, currentAutoLock]);
+
     if(!isOpen) return null;
+    
     return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
             <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl">
-                <h3 className="text-lg font-black mb-4">Personalizar Marca</h3>
-                <div className="space-y-4">
-                    <div><label className="label-input">Nombre del Negocio</label><input className="input-field" value={appName} onChange={e=>setAppName(e.target.value)}/></div>
-                    <div><label className="label-input">URL del Logo</label><input className="input-field" value={logoUrl} onChange={e=>setLogoUrl(e.target.value)}/></div>
-                    <button onClick={()=>{onSave(logoUrl, appName); onClose()}} className="w-full bg-black text-white py-3 rounded-xl font-bold mt-2">GUARDAR CAMBIOS</button>
-                    <button onClick={onClose} className="w-full text-gray-500 py-2 text-sm">Cancelar</button>
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-black text-gray-800">Configuración del Sistema</h3>
+                    <button onClick={onClose}><X size={20} className="text-gray-400 hover:text-black"/></button>
+                </div>
+                
+                <div className="space-y-5">
+                    {/* Identidad */}
+                    <div>
+                        <label className="label-input">Nombre del Negocio</label>
+                        <input className="input-field" value={appName} onChange={e=>setAppName(e.target.value)} placeholder="Ej. LicoBar"/>
+                    </div>
+                    <div>
+                        <label className="label-input">URL del Logo</label>
+                        <input className="input-field" value={logoUrl} onChange={e=>setLogoUrl(e.target.value)} placeholder="https://..."/>
+                    </div>
+
+                    <hr className="border-gray-100"/>
+
+                    {/* Seguridad */}
+                    <div>
+                        <div className="flex justify-between items-center mb-1">
+                            <label className="label-input mb-0">Cierre Automático (Garzones)</label>
+                            <span className="text-xs font-black bg-gray-100 px-2 py-1 rounded text-gray-600">{autoLockTime} seg</span>
+                        </div>
+                        <input 
+                            type="range" 
+                            min="15" 
+                            max="120" 
+                            step="5" 
+                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-black"
+                            value={autoLockTime} 
+                            onChange={e=>setAutoLockTime(parseInt(e.target.value))}
+                        />
+                        <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+                            <span>15s (Rápido)</span>
+                            <span>120s (Lento)</span>
+                        </div>
+                        <p className="text-[10px] text-gray-400 mt-2 leading-tight">
+                            Tiempo que la tablet espera inactiva antes de cerrar la sesión del garzón automáticamente.
+                        </p>
+                    </div>
+
+                    <button 
+                        onClick={()=>{ onSave(logoUrl, appName, autoLockTime); onClose(); }} 
+                        className="w-full bg-black text-white py-3 rounded-xl font-bold mt-2 shadow-lg hover:bg-gray-800 transition-transform active:scale-95"
+                    >
+                        GUARDAR CAMBIOS
+                    </button>
                 </div>
             </div>
         </div>
     );
 };
-
 // --- 8. SERVICE START MODAL ---
 export const ServiceStartModal = ({ isOpen, onClose, services, onStart, occupiedLocations }) => {
     const [selectedService, setSelectedService] = useState(null);
