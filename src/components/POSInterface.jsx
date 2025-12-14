@@ -1,18 +1,17 @@
-// src/components/POSInterface.jsx - CATEGORÍAS MEJORADAS + IMÁGENES OK
+// src/components/POSInterface.jsx - SIN BOTÓN DE SERVICIO
 import React, { useState } from 'react';
-// NO IMPORTAMOS LOADER PARA EVITAR ERRORES
-import { Search, ShoppingCart, Trash2, ChevronLeft, Send, Clock, ChefHat, ChevronDown, ChevronUp, Plus, Minus } from 'lucide-react';
+import { Search, ShoppingCart, Trash2, ChevronLeft, Send, ChefHat, ChevronDown, ChevronUp, Plus, Minus } from 'lucide-react';
 
-export default function POSInterface({ items, categories, staffMember, onCheckout, onPrintOrder, onExit, onOpenServiceModal }) {
+export default function POSInterface({ items, categories, staffMember, onCheckout, onPrintOrder, onExit }) {
   const [cart, setCart] = useState([]);
   const [categoryFilter, setCategoryFilter] = useState('Todos');
   const [searchTerm, setSearchTerm] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [expandCategories, setExpandCategories] = useState(false); // Estado para expandir categorías
+  const [expandCategories, setExpandCategories] = useState(false); 
 
   const canCharge = staffMember?.role === 'Cajero' || staffMember?.role === 'Administrador';
 
-  // --- TARJETA DE PRODUCTO (MEJORADA) ---
+  // --- TARJETA DE PRODUCTO ---
   const POSCard = ({ item, onClick }) => {
     const stockNum = Number(item.stock);
     const hasStock = item.stock !== undefined && item.stock !== '';
@@ -54,7 +53,7 @@ export default function POSInterface({ items, categories, staffMember, onCheckou
 
   // --- CARRITO ---
   const addToCart = (item) => { 
-      if (navigator.vibrate) navigator.vibrate(30); // Feedback táctil
+      if (navigator.vibrate) navigator.vibrate(30); 
       setCart(prev => { const existing = prev.find(i => i.id === item.id); if (existing) return prev.map(i => i.id === item.id ? { ...i, qty: i.qty + 1 } : i); return [...prev, { ...item, qty: 1 }]; }); 
   };
   const updateQty = (id, delta) => { setCart(prev => prev.map(item => { if (item.id === id) return { ...item, qty: Math.max(1, item.qty + delta) }; return item; })); };
@@ -73,7 +72,7 @@ export default function POSInterface({ items, categories, staffMember, onCheckou
       <div className="flex-1 flex flex-col min-w-0 bg-gray-50">
         <div className="bg-white p-3 shadow-sm z-10 space-y-3">
           
-          {/* Header Garzón */}
+          {/* Header Garzón (SIN BOTÓN DE SERVICIO) */}
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
                 <button onClick={onExit} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 text-gray-600"><ChevronLeft size={20}/></button>
@@ -82,9 +81,7 @@ export default function POSInterface({ items, categories, staffMember, onCheckou
                     <span className="text-[10px] text-green-600 font-bold uppercase">{staffMember?.role || 'Personal'}</span>
                 </div>
             </div>
-            <button onClick={onOpenServiceModal} className="bg-purple-600 text-white px-3 py-1.5 rounded-lg font-bold shadow hover:bg-purple-700 text-xs flex items-center gap-1">
-                <Clock size={14} /> Servicio
-            </button>
+            {/* El botón de servicio ha sido eliminado de aquí */}
           </div>
 
           {/* Buscador */}
@@ -93,7 +90,7 @@ export default function POSInterface({ items, categories, staffMember, onCheckou
               <input type="text" placeholder="Buscar..." className="w-full pl-9 pr-4 py-2 bg-gray-100 rounded-lg text-sm outline-none focus:ring-1 focus:ring-orange-500" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
           </div>
 
-          {/* Categorías (NUEVO DISEÑO) */}
+          {/* Categorías (Grilla Expandible) */}
           <div className="relative">
              <div className={`flex flex-wrap gap-2 overflow-y-auto pr-6 transition-all ${expandCategories ? 'max-h-48' : 'max-h-12'} scrollbar-hide`}>
                 <button onClick={() => setCategoryFilter('Todos')} className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap border transition-all ${categoryFilter === 'Todos' ? 'bg-black text-white border-black' : 'bg-white text-gray-600 border-gray-200'}`}>Todos</button>
@@ -101,7 +98,6 @@ export default function POSInterface({ items, categories, staffMember, onCheckou
                     <button key={cat} onClick={() => setCategoryFilter(cat)} className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap border transition-all ${categoryFilter === cat ? 'bg-black text-white border-black' : 'bg-white text-gray-600 border-gray-200'}`}>{cat}</button>
                 ))}
              </div>
-             {/* Botón de expandir */}
              <button onClick={() => setExpandCategories(!expandCategories)} className="absolute right-0 top-0 bottom-0 bg-white/80 backdrop-blur-sm pl-2 flex items-start pt-1">
                 {expandCategories ? <ChevronUp size={20} className="text-gray-500"/> : <ChevronDown size={20} className="text-gray-500"/>}
              </button>
