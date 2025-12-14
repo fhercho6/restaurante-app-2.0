@@ -1,10 +1,10 @@
-// src/components/CashierView.jsx - VENTA RÁPIDA + CÁLCULO DE SERVICIOS
+// src/components/CashierView.jsx - SERVICIO POR HORA CON UBICACIÓN ESPECÍFICA
 import React, { useState, useEffect } from 'react';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db, ROOT_COLLECTION, isPersonalProject } from '../config/firebase';
 import { 
   Clock, CheckCircle, XCircle, Printer, Coffee, DollarSign, 
-  Search, Grid, List, ShoppingCart, Trash2, ChevronRight, Plus, Minus, Tag, ChevronDown, ChevronUp, Calculator, X
+  Search, Grid, List, ShoppingCart, Trash2, ChevronRight, Plus, Minus, Tag, ChevronDown, ChevronUp, X, MapPin
 } from 'lucide-react';
 
 // --- SUB-COMPONENTE: TARJETA DE PRODUCTO ---
@@ -51,41 +51,32 @@ const CashierProductCard = ({ item, onClick }) => {
     );
 };
 
-// --- MODAL CÁLCULO DE SERVICIO ---
+// --- MODAL CÁLCULO DE SERVICIO (AHORA CON UBICACIÓN) ---
 const ServiceTimeModal = ({ item, onClose, onConfirm }) => {
     const [startTime, setStartTime] = useState('');
     const [endTime, setEndTime] = useState('');
-    const [duration, setDuration] = useState(0); // en horas
+    const [location, setLocation] = useState(''); // NUEVO CAMPO
+    const [duration, setDuration] = useState(0); 
     const [totalCost, setTotalCost] = useState(0);
 
-    // Al abrir, sugerir hora actual como fin y 1 hora antes como inicio
     useEffect(() => {
         const now = new Date();
         const nowStr = now.toTimeString().slice(0, 5);
         const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
         const startStr = oneHourAgo.toTimeString().slice(0, 5);
-        
         setEndTime(nowStr);
         setStartTime(startStr);
     }, []);
 
-    // Calcular costo cuando cambian las horas
     useEffect(() => {
         if(startTime && endTime) {
             const [startH, startM] = startTime.split(':').map(Number);
             const [endH, endM] = endTime.split(':').map(Number);
-            
             let startMinutes = startH * 60 + startM;
             let endMinutes = endH * 60 + endM;
-
-            // Si termina al día siguiente (ej. inicia 23:00 termina 01:00)
-            if (endMinutes < startMinutes) {
-                endMinutes += 24 * 60;
-            }
-
+            if (endMinutes < startMinutes) endMinutes += 24 * 60;
             const diffMinutes = endMinutes - startMinutes;
             const diffHours = diffMinutes / 60;
-            
             setDuration(diffHours);
             setTotalCost(diffHours * item.price);
         }
@@ -93,7 +84,8 @@ const ServiceTimeModal = ({ item, onClose, onConfirm }) => {
 
     const handleConfirm = () => {
         if(totalCost > 0) {
-            onConfirm(item, totalCost, `${startTime} - ${endTime}`, duration);
+            // Pasamos la ubicación también
+            onConfirm(item, totalCost, `${startTime} - ${endTime}`, duration, location);
         }
     };
 
@@ -111,50 +103,50 @@ const ServiceTimeModal = ({ item, onClose, onConfirm }) => {
                         <p className="text-purple-600 font-bold text-sm">Bs. {item.price} / hora</p>
                     </div>
                     
+                    {/* CAMPO DE UBICACIÓN DENTRO DEL MODAL */}
+                    <div>
+                        <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Ubicación / Mesa</label>
+                        <div className="relative">
+                            <MapPin size={14} className="absolute left-3 top-3 text-gray-400"/>
+                            <input 
+                                type="text" 
+                                className="w-full pl-9 p-2 border rounded-lg font-bold text-gray-800 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none uppercase" 
+                                placeholder="Ej. MESA 4"
+                                value={location} 
+                                onChange={e => setLocation(e.target.value)} 
+                                autoFocus
+                            />
+                        </div>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Hora Inicio</label>
-                            <input type="time" className="w-full p-2 border rounded-lg font-bold text-gray-800 text-center bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none" value={startTime} onChange={e => setStartTime(e.target.value)} />
-                        </div>
-                        <div>
-                            <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Hora Fin</label>
-                            <input type="time" className="w-full p-2 border rounded-lg font-bold text-gray-800 text-center bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none" value={endTime} onChange={e => setEndTime(e.target.value)} />
-                        </div>
+                        <div><label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Inicio</label><input type="time" className="w-full p-2 border rounded-lg font-bold text-gray-800 text-center bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none" value={startTime} onChange={e => setStartTime(e.target.value)} /></div>
+                        <div><label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Fin</label><input type="time" className="w-full p-2 border rounded-lg font-bold text-gray-800 text-center bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none" value={endTime} onChange={e => setEndTime(e.target.value)} /></div>
                     </div>
-
+                    
                     <div className="bg-gray-100 p-3 rounded-xl flex justify-between items-center border border-gray-200">
-                        <div>
-                            <p className="text-xs text-gray-500">Tiempo Total</p>
-                            <p className="font-bold text-gray-800">{Math.floor(duration)}h {Math.round((duration % 1) * 60)}min</p>
-                        </div>
-                        <div className="text-right">
-                            <p className="text-xs text-gray-500">A Cobrar</p>
-                            <p className="font-black text-xl text-purple-600">Bs. {totalCost.toFixed(2)}</p>
-                        </div>
+                        <div><p className="text-xs text-gray-500">Tiempo Total</p><p className="font-bold text-gray-800">{Math.floor(duration)}h {Math.round((duration % 1) * 60)}min</p></div>
+                        <div className="text-right"><p className="text-xs text-gray-500">A Cobrar</p><p className="font-black text-xl text-purple-600">Bs. {totalCost.toFixed(2)}</p></div>
                     </div>
-
-                    <button onClick={handleConfirm} className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2">
-                        <Plus size={18}/> AGREGAR AL CARRITO
-                    </button>
+                    <button onClick={handleConfirm} className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2"><Plus size={18}/> AGREGAR</button>
                 </div>
             </div>
         </div>
     );
 };
 
-
 export default function CashierView({ items, categories, onProcessPayment, onVoidOrder, onReprintOrder, onStopService, onOpenExpense }) {
   const [activeTab, setActiveTab] = useState('orders'); 
   const [orders, setOrders] = useState([]);
   
-  // Estados Venta Rápida
   const [cart, setCart] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [catFilter, setCatFilter] = useState('Todos');
   const [expandCategories, setExpandCategories] = useState(false); 
-  
-  // Estado para Modal de Servicio
   const [serviceModalItem, setServiceModalItem] = useState(null);
+  
+  // Ubicación global (opcional, para venta de productos normales)
+  const [quickTable, setQuickTable] = useState(''); 
 
   useEffect(() => {
     const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
@@ -165,13 +157,10 @@ export default function CashierView({ items, categories, onProcessPayment, onVoi
     return () => unsubscribe();
   }, []);
 
-  // --- LÓGICA VENTA RÁPIDA ---
   const handleItemClick = (item) => {
       if (item.category === 'Servicios') {
-          // Si es servicio, abrimos el modal de cálculo
           setServiceModalItem(item);
       } else {
-          // Si es producto normal, al carrito directo
           addToCart(item);
       }
   };
@@ -185,22 +174,29 @@ export default function CashierView({ items, categories, onProcessPayment, onVoi
     });
   };
 
-  const addServiceToCart = (item, calculatedPrice, timeRange, durationHours) => {
-      setServiceModalItem(null); // Cerrar modal
-      // Agregamos como un item especial
+  // --- AGREGAR SERVICIO CON UBICACIÓN AL NOMBRE ---
+  const addServiceToCart = (item, calculatedPrice, timeRange, durationHours, locationName) => {
+      setServiceModalItem(null); 
+      
+      // Construimos el nombre con la ubicación incluida
+      let finalName = `${item.name} (${timeRange})`;
+      if (locationName && locationName.trim() !== '') {
+          finalName += ` - ${locationName.toUpperCase()}`;
+      }
+
       const serviceItem = {
           ...item,
-          id: item.id + '-' + Date.now(), // ID único para permitir varios servicios
+          id: item.id + '-' + Date.now(), 
           price: calculatedPrice,
-          name: `${item.name} (${timeRange})`,
+          name: finalName, // Nombre modificado
           qty: 1,
-          isServiceItem: true // Flag para no permitir editar cantidad normal
+          isServiceItem: true 
       };
       setCart(prev => [...prev, serviceItem]);
   };
   
   const updateQty = (id, delta, isServiceItem) => {
-      if (isServiceItem) return; // No cambiar cantidad de servicios calculados
+      if (isServiceItem) return; 
       setCart(prev => prev.map(i => i.id === id ? {...i, qty: Math.max(1, i.qty + delta)} : i));
   };
 
@@ -209,19 +205,24 @@ export default function CashierView({ items, categories, onProcessPayment, onVoi
   const handleQuickCheckout = () => {
     if (cart.length === 0) return;
     const total = cart.reduce((acc, i) => acc + (i.price * i.qty), 0);
+    
+    // Si se usó el campo global de abajo, lo usamos.
+    const locationName = quickTable.trim() ? quickTable : 'Barra (Rápida)';
+
     const quickOrder = {
         id: 'QUICK-' + Date.now(),
         items: cart,
         total: total,
-        staffName: 'Caja Directa',
+        staffName: `Caja - ${locationName}`, 
         staffId: 'cashier',
-        type: 'quick_sale'
+        type: 'quick_sale',
+        table: locationName 
     };
     onProcessPayment(quickOrder); 
     setCart([]); 
+    setQuickTable(''); 
   };
 
-  // Filtros: YA NO OCULTAMOS SERVICIOS
   const filteredItems = items ? items.filter(i => {
       const matchCat = catFilter === 'Todos' ? true : i.category === catFilter;
       const matchSearch = i.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -233,13 +234,8 @@ export default function CashierView({ items, categories, onProcessPayment, onVoi
   return (
     <div className="flex flex-col h-[calc(100vh-100px)] animate-in fade-in">
       
-      {/* Modal de Servicio */}
       {serviceModalItem && (
-          <ServiceTimeModal 
-            item={serviceModalItem} 
-            onClose={() => setServiceModalItem(null)} 
-            onConfirm={addServiceToCart} 
-          />
+          <ServiceTimeModal item={serviceModalItem} onClose={() => setServiceModalItem(null)} onConfirm={addServiceToCart} />
       )}
 
       {/* --- ENCABEZADO --- */}
@@ -299,7 +295,6 @@ export default function CashierView({ items, categories, onProcessPayment, onVoi
                              <Search className="absolute left-3 top-2.5 text-gray-400" size={16}/>
                              <input type="text" placeholder="Buscar producto o servicio..." className="w-full pl-9 p-2 bg-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                          </div>
-                         
                          <div className="relative">
                             <div className={`flex flex-wrap gap-2 overflow-y-auto pr-1 transition-all ${expandCategories ? 'max-h-60' : 'max-h-24'} scrollbar-thin`}>
                                 <button onClick={() => setCatFilter('Todos')} className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap border transition-all ${catFilter === 'Todos' ? 'bg-black text-white border-black ring-2 ring-gray-200' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'}`}>Todos</button>
@@ -314,7 +309,6 @@ export default function CashierView({ items, categories, onProcessPayment, onVoi
                             </button>
                          </div>
                      </div>
-
                      <div className="flex-1 overflow-y-auto p-4">
                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 pb-20">
                              {filteredItems.map(item => (<CashierProductCard key={item.id} item={item} onClick={() => handleItemClick(item)} />))}
@@ -349,7 +343,20 @@ export default function CashierView({ items, categories, onProcessPayment, onVoi
                              ))
                          )}
                      </div>
+                     
                      <div className="p-4 bg-gray-50 border-t border-gray-200">
+                         {/* CAMPO DE UBICACIÓN GLOBAL (Para cuando NO es servicio) */}
+                         <div className="mb-3 relative">
+                             <MapPin size={16} className="absolute left-3 top-3 text-gray-400"/>
+                             <input 
+                                type="text" 
+                                placeholder="Mesa / Ubicación (Opcional)" 
+                                className="w-full pl-9 p-2.5 rounded-xl border border-gray-300 text-sm font-bold text-gray-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
+                                value={quickTable}
+                                onChange={e => setQuickTable(e.target.value)}
+                             />
+                         </div>
+
                          <div className="flex justify-between items-end mb-3"><span className="text-gray-500 text-xs font-bold uppercase">Total a Cobrar</span><span className="text-2xl font-black text-gray-900">Bs. {cartTotal.toFixed(2)}</span></div>
                          <button onClick={handleQuickCheckout} disabled={cart.length === 0} className="w-full py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-transform active:scale-95">COBRAR AHORA <ChevronRight size={18}/></button>
                      </div>
