@@ -1,11 +1,12 @@
-// src/components/CashierView.jsx - USA LISTA DE MESAS DINÁMICA
+// src/components/CashierView.jsx - VERSIÓN FINAL: COBRO MASIVO + MESAS DINÁMICAS + SERVICIOS
 import React, { useState, useEffect } from 'react';
-import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, writeBatch, doc } from 'firebase/firestore';
 import { db, ROOT_COLLECTION, isPersonalProject } from '../config/firebase';
 import { 
   Clock, CheckCircle, XCircle, Printer, Coffee, DollarSign, 
-  Search, Grid, List, ShoppingCart, Trash2, ChevronRight, Plus, Minus, Tag, ChevronDown, ChevronUp, X, MapPin
+  Search, Grid, List, ShoppingCart, Trash2, ChevronRight, Plus, Minus, Tag, ChevronDown, ChevronUp, X, MapPin, CheckSquare, CreditCard
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 // --- SUB-COMPONENTE: TARJETA DE PRODUCTO ---
 const CashierProductCard = ({ item, onClick }) => {
@@ -51,7 +52,7 @@ const CashierProductCard = ({ item, onClick }) => {
     );
 };
 
-// --- MODAL CÁLCULO DE SERVICIO ---
+// --- MODAL CÁLCULO DE SERVICIO (CON SELECTOR DE MESAS) ---
 const ServiceTimeModal = ({ item, onClose, onConfirm, tables }) => {
     const [startTime, setStartTime] = useState('');
     const [endTime, setEndTime] = useState('');
@@ -90,7 +91,7 @@ const ServiceTimeModal = ({ item, onClose, onConfirm, tables }) => {
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
-            <div className="bg-white rounded-2xl w-full max-w-xs overflow-hidden">
+            <div className="bg-white rounded-2xl w-full max-w-xs overflow-hidden shadow-2xl">
                 <div className="bg-purple-600 p-4 text-white flex justify-between items-center">
                     <h3 className="font-bold flex items-center gap-2"><Clock size={18}/> Calcular Servicio</h3>
                     <button onClick={onClose} className="hover:bg-purple-700 p-1 rounded-full"><X size={18}/></button>
@@ -102,7 +103,7 @@ const ServiceTimeModal = ({ item, onClose, onConfirm, tables }) => {
                         <p className="text-purple-600 font-bold text-sm">Bs. {item.price} / hora</p>
                     </div>
                     
-                    {/* SELECTOR DE MESA (DINÁMICO) */}
+                    {/* SELECTOR DE MESA */}
                     <div>
                         <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Ubicación / Mesa</label>
                         <div className="relative">
@@ -140,6 +141,7 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
   const [activeTab, setActiveTab] = useState('orders'); 
   const [orders, setOrders] = useState([]);
   
+  // --- ESTADOS VENTA RÁPIDA ---
   const [cart, setCart] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [catFilter, setCatFilter] = useState('Todos');
@@ -147,7 +149,11 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
   const [serviceModalItem, setServiceModalItem] = useState(null);
   const [quickTable, setQuickTable] = useState(tables && tables.length > 0 ? tables[0] : 'Barra'); 
 
-  // Si cambia la lista de mesas, nos aseguramos que quickTable tenga un valor válido
+  // --- ESTADOS COBRO MASIVO ---
+  const [selectedOrders, setSelectedOrders] = useState([]); // ID de las comandas seleccionadas
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+
+  // Actualizar quickTable si cambia la lista de mesas
   useEffect(() => {
       if (tables && tables.length > 0 && !tables.includes(quickTable)) {
           setQuickTable(tables[0]);
@@ -163,6 +169,7 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
     return () => unsubscribe();
   }, []);
 
+  // --- LÓGICA VENTA RÁPIDA ---
   const handleItemClick = (item) => {
       if (item.category === 'Servicios') {
           setServiceModalItem(item);
@@ -221,10 +228,67 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
     };
     onProcessPayment(quickOrder); 
     setCart([]); 
-    // No reseteamos a Barra, mantenemos la última usada por comodidad, o reseteamos si prefieres.
-    // setQuickTable(tables[0]); 
   };
 
+  // --- LÓGICA DE COBRO MASIVO (BULK PAY) ---
+  const toggleOrderSelection = (orderId) => {
+      setSelectedOrders(prev => {
+          if (prev.includes(orderId)) return prev.filter(id => id !== orderId);
+          return [...prev, orderId];
+      });
+  };
+
+  const handleBulkPay = async (paymentMethod) => {
+      if(selectedOrders.length === 0) return;
+      
+      const ordersToPay = orders.filter(o => selectedOrders.includes(o.id));
+      const totalAmount = ordersToPay.reduce((sum, o) => sum + o.total, 0);
+
+      if(!window.confirm(`¿COBRAR ${selectedOrders.length} COMANDAS CON ${paymentMethod.toUpperCase()}?\n\nTotal: Bs. ${totalAmount.toFixed(2)}`)) return;
+
+      const toastId = toast.loading('Procesando cobro masivo...');
+      
+      try {
+          const batch = writeBatch(db);
+          const salesCol = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`;
+          const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
+          
+          ordersToPay.forEach(order => {
+              // 1. Crear Venta en Historial
+              const saleData = {
+                  date: new Date().toISOString(),
+                  total: order.total,
+                  items: order.items,
+                  staffId: order.staffId || 'anon',
+                  staffName: order.staffName,
+                  cashier: 'Caja (Masivo)',
+                  registerId: 'active-session', // Idealmente pasar ID real de sesión, pero para simplificar
+                  payments: [{ method: paymentMethod, amount: order.total }], // MÉTODO CORRECTO AQUÍ
+                  totalPaid: order.total,
+                  changeGiven: 0,
+                  isBulk: true
+              };
+              const saleRef = doc(collection(db, salesCol)); 
+              batch.set(saleRef, saleData);
+
+              // 2. Borrar Comanda Pendiente
+              const orderRef = doc(db, ordersCol, order.id);
+              batch.delete(orderRef);
+          });
+
+          await batch.commit();
+          
+          toast.success(`¡${selectedOrders.length} cobros registrados!`, { id: toastId });
+          setSelectedOrders([]);
+          setIsSelectionMode(false); // Salir del modo selección
+
+      } catch (error) {
+          console.error(error);
+          toast.error('Error al procesar cobros', { id: toastId });
+      }
+  };
+
+  // --- RENDERS ---
   const filteredItems = items ? items.filter(i => {
       const matchCat = catFilter === 'Todos' ? true : i.category === catFilter;
       const matchSearch = i.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -232,9 +296,10 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
   }) : [];
 
   const cartTotal = cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
+  const totalSelected = orders.filter(o => selectedOrders.includes(o.id)).reduce((acc, o) => acc + o.total, 0);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-100px)] animate-in fade-in">
+    <div className="flex flex-col h-[calc(100vh-100px)] animate-in fade-in relative">
       
       {serviceModalItem && (
           <ServiceTimeModal item={serviceModalItem} onClose={() => setServiceModalItem(null)} onConfirm={addServiceToCart} tables={tables} />
@@ -243,48 +308,117 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
       {/* --- ENCABEZADO --- */}
       <div className="flex justify-between items-center mb-3 px-1 flex-wrap gap-2">
          <div className="flex bg-white p-1 rounded-xl shadow-sm border border-gray-200">
-             <button onClick={() => setActiveTab('orders')} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${activeTab === 'orders' ? 'bg-orange-500 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}>
+             <button onClick={() => {setActiveTab('orders'); setIsSelectionMode(false); setSelectedOrders([]);}} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${activeTab === 'orders' ? 'bg-orange-500 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}>
                 <List size={16}/> COMANDAS <span className="bg-white/20 px-1.5 rounded-full text-[10px]">{orders.filter(o => o.status === 'pending').length}</span>
              </button>
-             <button onClick={() => setActiveTab('quick')} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${activeTab === 'quick' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}>
+             <button onClick={() => {setActiveTab('quick'); setIsSelectionMode(false);}} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${activeTab === 'quick' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}>
                 <Grid size={16}/> VENTA RÁPIDA
              </button>
          </div>
-         <button onClick={onOpenExpense} className="px-4 py-2 bg-red-50 text-red-600 border border-red-100 rounded-xl font-bold text-xs hover:bg-red-100 transition-colors flex items-center gap-2">
-            <DollarSign size={14}/> GASTO
-         </button>
+         <div className="flex gap-2">
+            {/* BOTÓN MODO SELECCIÓN */}
+            {activeTab === 'orders' && orders.length > 0 && (
+                <button 
+                    onClick={() => { setIsSelectionMode(!isSelectionMode); setSelectedOrders([]); }} 
+                    className={`px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2 border transition-colors ${isSelectionMode ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}
+                >
+                    {isSelectionMode ? <X size={14}/> : <CheckSquare size={14}/>} 
+                    {isSelectionMode ? 'Cancelar Selección' : 'Seleccionar Varios'}
+                </button>
+            )}
+            <button onClick={onOpenExpense} className="px-4 py-2 bg-red-50 text-red-600 border border-red-100 rounded-xl font-bold text-xs hover:bg-red-100 transition-colors flex items-center gap-2">
+                <DollarSign size={14}/> GASTO
+            </button>
+         </div>
       </div>
 
       <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden relative">
-         {/* --- COMANDAS --- */}
+         
+         {/* --- PESTAÑA COMANDAS --- */}
          {activeTab === 'orders' && (
-            <div className="absolute inset-0 overflow-y-auto p-4 bg-gray-50/50">
+            <div className="absolute inset-0 overflow-y-auto p-4 bg-gray-50/50 pb-24">
                 {orders.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-gray-300"><Clock size={64} className="mb-4 opacity-20"/><p className="font-bold text-lg">Sin comandas pendientes</p></div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        {orders.map((order) => (
-                            <div key={order.id} className={`rounded-xl border flex flex-col shadow-sm transition-all hover:shadow-md ${order.status === 'pending' ? 'border-orange-100 bg-white' : 'border-gray-100 bg-gray-50 opacity-75'}`}>
-                                <div className={`p-3 flex justify-between items-start ${order.status === 'pending' ? 'bg-orange-50' : 'bg-gray-100'}`}>
-                                    <div>
-                                        <div className="flex items-center gap-2 mb-1"><span className="font-black text-gray-800 text-base">#{order.orderId || '---'}</span><span className="text-[10px] font-bold bg-white px-2 py-0.5 rounded text-gray-500 border border-gray-200">{new Date(order.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span></div>
-                                        <p className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1"><CheckCircle size={10} className="text-green-500"/> {order.staffName}</p>
+                        {orders.map((order) => {
+                            const isSelected = selectedOrders.includes(order.id);
+                            return (
+                                <div 
+                                    key={order.id} 
+                                    onClick={() => isSelectionMode && toggleOrderSelection(order.id)}
+                                    className={`rounded-xl border flex flex-col shadow-sm transition-all ${
+                                        isSelectionMode 
+                                            ? (isSelected ? 'ring-4 ring-green-500 border-green-500 bg-green-50 cursor-pointer transform scale-[1.02]' : 'cursor-pointer hover:border-gray-400 opacity-60 hover:opacity-100') 
+                                            : 'hover:shadow-md'
+                                    } ${order.status === 'pending' ? 'bg-white' : 'bg-gray-50 opacity-75'}`}
+                                >
+                                    <div className="p-3 flex justify-between items-start border-b border-gray-100">
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-1">
+                                                {isSelectionMode && (
+                                                    <div className={`w-5 h-5 rounded flex items-center justify-center border ${isSelected ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 bg-white'}`}>
+                                                        {isSelected && <CheckSquare size={14}/>}
+                                                    </div>
+                                                )}
+                                                <span className="font-black text-gray-800 text-base">#{order.orderId || '---'}</span>
+                                                <span className="text-[10px] font-bold bg-gray-100 px-2 py-0.5 rounded text-gray-500">{new Date(order.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                            </div>
+                                            <p className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1"><CheckCircle size={10} className="text-green-500"/> {order.staffName}</p>
+                                        </div>
+                                        <div className="text-right"><p className="font-black text-lg text-gray-800">Bs. {order.total?.toFixed(2)}</p></div>
                                     </div>
-                                    <div className="text-right"><p className="font-black text-lg text-gray-800">Bs. {order.total?.toFixed(2)}</p></div>
+                                    <div className="p-3 flex-1 overflow-y-auto max-h-32 space-y-1">
+                                        {order.items?.map((item, idx) => (<div key={idx} className="flex justify-between text-xs items-center border-b border-gray-50 pb-1 last:border-0"><div className="flex gap-2 items-center"><span className="font-bold text-gray-800 w-5 text-center bg-gray-100 rounded text-[10px]">{item.qty}</span><span className="text-gray-600 truncate max-w-[120px]">{item.name}</span></div><span className="font-mono text-gray-400">{(item.price * item.qty).toFixed(2)}</span></div>))}
+                                    </div>
+                                    
+                                    {/* SOLO MOSTRAR BOTONES SI NO ESTAMOS EN MODO SELECCIÓN */}
+                                    {!isSelectionMode && (
+                                        <div className="p-2 bg-gray-50 border-t border-gray-100 grid grid-cols-3 gap-2">
+                                            <button onClick={(e) => {e.stopPropagation(); onReprintOrder(order)}} className="p-2 text-gray-400 hover:text-black hover:bg-white rounded-lg flex items-center justify-center border border-transparent hover:border-gray-200"><Printer size={16}/></button>
+                                            <button onClick={(e) => {e.stopPropagation(); if(window.confirm('¿Anular?')) onVoidOrder(order)}} className="p-2 text-red-400 hover:text-red-600 hover:bg-white rounded-lg flex items-center justify-center border border-transparent hover:border-gray-200"><XCircle size={16}/></button>
+                                            <button onClick={(e) => {e.stopPropagation(); onProcessPayment(order)}} className="bg-green-600 text-white rounded-lg font-bold text-xs hover:bg-green-700 shadow-md flex items-center justify-center">COBRAR</button>
+                                        </div>
+                                    )}
                                 </div>
-                                <div className="p-3 flex-1 overflow-y-auto max-h-32 space-y-1">
-                                    {order.items?.map((item, idx) => (<div key={idx} className="flex justify-between text-xs items-center border-b border-gray-50 pb-1 last:border-0"><div className="flex gap-2 items-center"><span className="font-bold text-gray-800 w-5 text-center bg-gray-100 rounded text-[10px]">{item.qty}</span><span className="text-gray-600 truncate max-w-[120px]">{item.name}</span></div><span className="font-mono text-gray-400">{(item.price * item.qty).toFixed(2)}</span></div>))}
-                                </div>
-                                <div className="p-2 bg-white border-t border-gray-100 grid grid-cols-3 gap-2">
-                                    <button onClick={() => onReprintOrder(order)} className="p-2 text-gray-400 hover:text-black hover:bg-gray-100 rounded-lg flex items-center justify-center"><Printer size={16}/></button>
-                                    <button onClick={() => {if(window.confirm('¿Anular pedido?')) onVoidOrder(order)}} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg flex items-center justify-center"><XCircle size={16}/></button>
-                                    <button onClick={() => onProcessPayment(order)} className="bg-green-600 text-white rounded-lg font-bold text-xs hover:bg-green-700 shadow-md flex items-center justify-center">COBRAR</button>
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>
+         )}
+
+         {/* --- BARRA FLOTANTE DE COBRO MASIVO (3 MÉTODOS) --- */}
+         {isSelectionMode && selectedOrders.length > 0 && (
+             <div className="absolute bottom-4 left-2 right-2 bg-gray-900 text-white p-3 rounded-2xl shadow-2xl flex flex-col sm:flex-row justify-between items-center animate-in slide-in-from-bottom duration-300 z-50 gap-3">
+                 <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
+                     <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">{selectedOrders.length} SELECCIONADOS</span>
+                     <p className="text-xl font-black text-white">Total: Bs. {totalSelected.toFixed(2)}</p>
+                 </div>
+                 
+                 <div className="flex gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0 justify-center">
+                     <button 
+                        onClick={() => handleBulkPay('Efectivo')} 
+                        className="flex-1 sm:flex-none bg-green-600 hover:bg-green-500 text-white px-4 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-transform text-xs sm:text-sm flex items-center justify-center gap-2 whitespace-nowrap"
+                     >
+                         <DollarSign size={16}/> EFECTIVO
+                     </button>
+                     
+                     <button 
+                        onClick={() => handleBulkPay('QR')} 
+                        className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-500 text-white px-4 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-transform text-xs sm:text-sm flex items-center justify-center gap-2 whitespace-nowrap"
+                     >
+                         <Grid size={16}/> QR
+                     </button>
+
+                     <button 
+                        onClick={() => handleBulkPay('Tarjeta')} 
+                        className="flex-1 sm:flex-none bg-purple-600 hover:bg-purple-500 text-white px-4 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-transform text-xs sm:text-sm flex items-center justify-center gap-2 whitespace-nowrap"
+                     >
+                         <CreditCard size={16}/> TARJETA
+                     </button>
+                 </div>
+             </div>
          )}
 
          {/* --- VENTA RÁPIDA --- */}
