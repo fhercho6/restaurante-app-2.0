@@ -1,4 +1,4 @@
-// src/components/CashierView.jsx - VENTA RÁPIDA + SERVICIOS + SELECTOR DE MESAS
+// src/components/CashierView.jsx - CORRECCIÓN DEFINITIVA: LISTA EN MODAL DE SERVICIO
 import React, { useState, useEffect } from 'react';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db, ROOT_COLLECTION, isPersonalProject } from '../config/firebase';
@@ -60,11 +60,11 @@ const CashierProductCard = ({ item, onClick }) => {
     );
 };
 
-// --- MODAL CÁLCULO DE SERVICIO (CON SELECTOR) ---
+// --- MODAL CÁLCULO DE SERVICIO (CON LISTA DESPLEGABLE) ---
 const ServiceTimeModal = ({ item, onClose, onConfirm }) => {
     const [startTime, setStartTime] = useState('');
     const [endTime, setEndTime] = useState('');
-    const [location, setLocation] = useState('Barra'); // Default
+    const [location, setLocation] = useState('Barra'); // Default a Barra
     const [duration, setDuration] = useState(0); 
     const [totalCost, setTotalCost] = useState(0);
 
@@ -111,7 +111,7 @@ const ServiceTimeModal = ({ item, onClose, onConfirm }) => {
                         <p className="text-purple-600 font-bold text-sm">Bs. {item.price} / hora</p>
                     </div>
                     
-                    {/* SELECTOR DE MESA */}
+                    {/* --- AQUÍ ESTÁ EL CAMBIO: SELECTOR EN LUGAR DE INPUT --- */}
                     <div>
                         <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Ubicación / Mesa</label>
                         <div className="relative">
@@ -154,8 +154,6 @@ export default function CashierView({ items, categories, onProcessPayment, onVoi
   const [catFilter, setCatFilter] = useState('Todos');
   const [expandCategories, setExpandCategories] = useState(false); 
   const [serviceModalItem, setServiceModalItem] = useState(null);
-  
-  // Ubicación global con Selector
   const [quickTable, setQuickTable] = useState('Barra'); 
 
   useEffect(() => {
