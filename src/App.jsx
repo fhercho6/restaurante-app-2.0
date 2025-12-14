@@ -1,4 +1,4 @@
-// src/App.jsx - VERSIÓN COMPLETA (SPLASH PREMIUM + MODO RÁPIDO + SIN ERRORES)
+// src/App.jsx - EDICIÓN RÁPIDA COMPLETA
 import React, { useState, useEffect } from 'react';
 import { Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign, ArrowLeft, Lock, Unlock, Wallet, Loader2 } from 'lucide-react';
 import { onAuthStateChanged, signOut, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
@@ -53,7 +53,7 @@ export default function App() {
   const [pendingSale, setPendingSale] = useState(null);
   const [orderToPay, setOrderToPay] = useState(null); 
   const [lastSale, setLastSale] = useState(null);
-  const [isQuickEditMode, setIsQuickEditMode] = useState(false); // ESTADO MODO RÁPIDO
+  const [isQuickEditMode, setIsQuickEditMode] = useState(false); 
 
   const getCollName = (type) => {
     if (type === 'items') return isPersonalProject ? 'menuItems' : `${ROOT_COLLECTION}menuItems`;
@@ -69,7 +69,18 @@ export default function App() {
   const handlePrintCredential = (member) => { if (!member) { toast.error("Error: Empleado no válido"); return; } setCredentialToPrint(member); setView('credential_print'); };
   const handlePrint = () => window.print();
   const handleStaffPinLogin = async (member) => { const newSessionId = Date.now().toString() + Math.floor(Math.random() * 1000); try { await updateDoc(doc(db, getCollName('staff'), member.id), { activeSessionId: newSessionId }); const memberWithSession = { ...member, activeSessionId: newSessionId }; setStaffMember(memberWithSession); if (member.role === 'Cajero' || member.role === 'Administrador') { setView('cashier'); toast.success(`Caja abierta: ${member.name}`); } else { setView('pos'); toast.success(`Turno iniciado: ${member.name}`); } } catch (error) { toast.error("Error de conexión"); } };
-  const handleQuickStockUpdate = async (id, newStock) => { try { await updateDoc(doc(db, getCollName('items'), id), { stock: newStock }); toast.success('Stock actualizado', { duration: 1000, icon: '⚡' }); } catch (error) { toast.error('Error al actualizar'); } };
+  
+  // --- ACTUALIZACIÓN RÁPIDA GENÉRICA (Stock, Precio, Costo) ---
+  const handleQuickUpdate = async (id, field, value) => {
+      try {
+          // Convertimos a número si es precio o costo
+          const valToSave = (field === 'price' || field === 'cost') ? parseFloat(value) : value;
+          await updateDoc(doc(db, getCollName('items'), id), { [field]: valToSave });
+          toast.success(`${field === 'stock' ? 'Stock' : field === 'price' ? 'Precio' : 'Costo'} actualizado`, { duration: 1000, icon: '⚡' });
+      } catch (error) {
+          toast.error('Error al actualizar');
+      }
+  };
 
   useEffect(() => { const initAuth = async () => { if (!auth.currentUser) { if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token && !isPersonalProject) { await signInWithCustomToken(auth, __initial_auth_token); } else { await signInAnonymously(auth).catch(() => setDbStatus('warning')); } } }; initAuth(); return onAuthStateChanged(auth, (u) => { setCurrentUser(u); if (u) { setDbStatus('connected'); setDbErrorMsg(''); } }); }, []);
   useEffect(() => { if (!db || !currentUser) return; const checkSession = async () => { const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`; const q = query(collection(db, colName), where('status', '==', 'open'), limit(1)); const snap = await getDocs(q); if (!snap.empty) { const data = snap.docs[0].data(); setRegisterSession({ id: snap.docs[0].id, ...data }); } }; checkSession(); }, [db, currentUser]);
@@ -163,6 +174,8 @@ export default function App() {
                 {view === 'register_control' && <RegisterControlView session={registerSession} onOpen={handleOpenRegister} onClose={handleCloseRegister} staff={staff} stats={sessionStats} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} />}
                 {view === 'staff_admin' && !isCashierOnly && <StaffManagerView staff={staff} roles={roles} onAddStaff={handleAddStaff} onUpdateStaff={handleUpdateStaff} onDeleteStaff={handleDeleteStaff} onManageRoles={() => setIsRoleModalOpen(true)} onPrintCredential={handlePrintCredential} />}
                 {view === 'credential_print' && credentialToPrint && (<div className="flex flex-col items-center w-full min-h-screen bg-gray-100"><div className="w-full max-w-md p-4 flex justify-start no-print"><button onClick={() => setView('staff_admin')} className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-lg shadow hover:bg-gray-50 font-bold"><ArrowLeft size={20} /> Volver a la Lista</button></div><CredentialPrintView member={credentialToPrint} appName={appName} /></div>)}
+                
+                {/* --- SECCIÓN DE ADMIN (ACTUALIZADA CON EDICIÓN RÁPIDA TOTAL) --- */}
                 {view === 'admin' && !isCashierOnly && (
                   <div className="space-y-6">
                     <div className="flex justify-between items-center mb-4">
@@ -175,8 +188,8 @@ export default function App() {
                     </div>
                     <div className="bg-white rounded-xl shadow border overflow-hidden">
                       <table className="w-full text-left">
-                        <thead><tr className="bg-gray-50 text-xs uppercase text-gray-500"><th className="p-4">Producto</th><th className="p-4 text-center">Stock {isQuickEditMode && '(Editando)'}</th><th className="p-4 text-right">Precio</th><th className="p-4 text-right">Acciones</th></tr></thead>
-                        <tbody className="divide-y">{filteredItems.map(item => (<AdminRow key={item.id} item={item} onEdit={(i) => { setCurrentItem(i); setIsModalOpen(true); }} onDelete={handleDelete} isQuickEdit={isQuickEditMode} onQuickUpdate={handleQuickStockUpdate} />))}</tbody>
+                        <thead><tr className="bg-gray-50 text-xs uppercase text-gray-500"><th className="p-4">Producto</th><th className="p-4 text-center">Stock</th><th className="p-4 text-right">Costo</th><th className="p-4 text-right">Precio</th><th className="p-4 text-right">Margen</th><th className="p-4 text-right">Acciones</th></tr></thead>
+                        <tbody className="divide-y">{filteredItems.map(item => (<AdminRow key={item.id} item={item} onEdit={(i) => { setCurrentItem(i); setIsModalOpen(true); }} onDelete={handleDelete} isQuickEdit={isQuickEditMode} onQuickUpdate={handleQuickUpdate} />))}</tbody>
                       </table>
                     </div>
                   </div>

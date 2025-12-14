@@ -1,4 +1,4 @@
-// src/components/Views.jsx - VERSIÓN FINAL (Con Modo Rápido + Fix Loader)
+// src/components/Views.jsx - EDICIÓN RÁPIDA TOTAL (Stock, Costo, Precio)
 import React, { useState, useEffect } from 'react';
 import { Lock, ArrowLeft, ChefHat, Edit2, Trash2, User, Printer, AlertTriangle, Loader2 } from 'lucide-react';
 
@@ -100,27 +100,43 @@ export const PrintableView = ({ items }) => (
     </div>
 );
 
-// --- 5. ADMIN ROW (CON MODO RÁPIDO) ---
+// --- 5. ADMIN ROW (EDICIÓN TOTAL) ---
 export const AdminRow = ({ item, onEdit, onDelete, isQuickEdit, onQuickUpdate }) => {
   const [localStock, setLocalStock] = useState(item.stock);
-  useEffect(() => { setLocalStock(item.stock); }, [item.stock]);
+  const [localPrice, setLocalPrice] = useState(item.price);
+  const [localCost, setLocalCost] = useState(item.cost);
 
-  const price = Number(item.price) || 0; 
-  const cost = Number(item.cost) || 0; 
-  const margin = price - cost; 
-  const marginPercent = price > 0 ? ((margin / price) * 100).toFixed(1) : 0;
+  // Sincronizar estado local si cambia la BD (y no estamos editando)
+  useEffect(() => { setLocalStock(item.stock); }, [item.stock]);
+  useEffect(() => { setLocalPrice(item.price); }, [item.price]);
+  useEffect(() => { setLocalCost(item.cost); }, [item.cost]);
+
+  // Cálculos dinámicos (Usan los valores locales si estamos editando para ver el margen en tiempo real)
+  const priceDisplay = isQuickEdit ? Number(localPrice) : Number(item.price) || 0;
+  const costDisplay = isQuickEdit ? Number(localCost) : Number(item.cost) || 0;
+  const stockDisplay = isQuickEdit ? localStock : (item.stock !== undefined && item.stock !== '' ? String(item.stock) : '-');
+  
+  const margin = priceDisplay - costDisplay; 
+  const marginPercent = priceDisplay > 0 ? ((margin / priceDisplay) * 100).toFixed(1) : 0;
   
   let marginColor = "text-red-500"; 
   if (marginPercent > 30) marginColor = "text-yellow-600"; 
   if (marginPercent > 50) marginColor = "text-green-600";
   
-  const stockNum = Number(item.stock);
-  const hasStock = item.stock !== undefined && item.stock !== '';
-  const isLowStock = hasStock && stockNum < 5;
-  const stockDisplay = hasStock ? String(item.stock) : '-';
+  const stockNum = Number(localStock);
+  const isLowStock = stockNum < 5;
 
-  const handleBlur = () => { if (String(localStock) !== String(item.stock)) { onQuickUpdate(item.id, localStock); } };
-  const handleKeyDown = (e) => { if (e.key === 'Enter') { e.target.blur(); } };
+  // Funciones genéricas de guardado
+  const handleBlur = (field, val) => {
+      // Solo guardamos si cambió el valor original
+      if (String(val) !== String(item[field])) {
+          onQuickUpdate(item.id, field, val);
+      }
+  };
+
+  const handleKeyDown = (e) => {
+      if (e.key === 'Enter') { e.target.blur(); }
+  };
 
   return (
     <tr className={`border-b border-gray-100 transition-colors ${isLowStock && !isQuickEdit ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-gray-50'}`}>
@@ -133,16 +149,48 @@ export const AdminRow = ({ item, onEdit, onDelete, isQuickEdit, onQuickUpdate })
             <div><div className="font-bold text-gray-800">{item.name}</div><div className="text-xs text-gray-500">{item.category}</div></div>
         </div>
       </td>
+      
+      {/* STOCK */}
       <td className="p-4 text-center font-medium text-gray-600">
           {isQuickEdit ? (
-              <input type="number" className="w-20 p-2 text-center border-2 border-blue-400 rounded-lg font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm" value={localStock} onChange={(e) => setLocalStock(e.target.value)} onBlur={handleBlur} onKeyDown={handleKeyDown} />
+              <input type="number" className="w-16 p-2 text-center border-2 border-blue-400 rounded-lg font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm" value={localStock} onChange={(e) => setLocalStock(e.target.value)} onBlur={() => handleBlur('stock', localStock)} onKeyDown={handleKeyDown} />
           ) : (
               <div className="flex flex-col items-center"><span className={`text-lg ${isLowStock ? 'font-black text-red-600' : ''}`}>{stockDisplay}</span>{isLowStock && <span className="text-[9px] bg-red-600 text-white px-2 py-0.5 rounded-full uppercase font-bold animate-pulse">¡Poco Stock!</span>}</div>
           )}
       </td>
-      <td className="p-4 text-right font-medium text-gray-600">Bs. {cost.toFixed(2)}</td>
-      <td className="p-4 text-right font-bold text-gray-800">Bs. {price.toFixed(2)}</td>
-      <td className={`p-4 text-right font-bold ${marginColor}`}><div className="flex flex-col items-end"><span>{marginPercent}%</span><span className="text-xs opacity-75">(Bs. {margin.toFixed(2)})</span></div></td>
+      
+      {/* COSTO */}
+      <td className="p-4 text-right font-medium text-gray-600">
+          {isQuickEdit ? (
+               <div className="flex justify-end items-center gap-1">
+                 <span className="text-xs text-gray-400">Bs.</span>
+                 <input type="number" step="0.5" className="w-20 p-2 text-right border-2 border-orange-300 rounded-lg font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white shadow-sm" value={localCost} onChange={(e) => setLocalCost(e.target.value)} onBlur={() => handleBlur('cost', localCost)} onKeyDown={handleKeyDown} />
+               </div>
+          ) : (
+               <span>Bs. {costDisplay.toFixed(2)}</span>
+          )}
+      </td>
+
+      {/* PRECIO */}
+      <td className="p-4 text-right font-bold text-gray-800">
+          {isQuickEdit ? (
+               <div className="flex justify-end items-center gap-1">
+                 <span className="text-xs text-gray-400">Bs.</span>
+                 <input type="number" step="0.5" className="w-20 p-2 text-right border-2 border-green-400 rounded-lg font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500 bg-white shadow-sm" value={localPrice} onChange={(e) => setLocalPrice(e.target.value)} onBlur={() => handleBlur('price', localPrice)} onKeyDown={handleKeyDown} />
+               </div>
+          ) : (
+               <span>Bs. {priceDisplay.toFixed(2)}</span>
+          )}
+      </td>
+
+      {/* MARGEN (Automático) */}
+      <td className={`p-4 text-right font-bold ${marginColor}`}>
+          <div className="flex flex-col items-end">
+              <span>{marginPercent}%</span>
+              <span className="text-xs opacity-75">(Bs. {margin.toFixed(2)})</span>
+          </div>
+      </td>
+
       <td className="p-4 text-right no-print">
           {!isQuickEdit && (
             <div className="flex justify-end gap-2"><button onClick={() => onEdit(item)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Edit2 size={18} /></button><button onClick={() => { if (window.confirm('¿Eliminar?')) onDelete(item.id); }} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18} /></button></div>
