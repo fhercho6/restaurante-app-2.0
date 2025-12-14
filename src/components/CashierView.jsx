@@ -1,10 +1,10 @@
-// src/components/CashierView.jsx - CATEGORÍAS ORGANIZADAS + IMÁGENES OK
+// src/components/CashierView.jsx - VENTA RÁPIDA + CÁLCULO DE SERVICIOS
 import React, { useState, useEffect } from 'react';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db, ROOT_COLLECTION, isPersonalProject } from '../config/firebase';
 import { 
   Clock, CheckCircle, XCircle, Printer, Coffee, DollarSign, 
-  Search, Grid, List, ShoppingCart, Trash2, ChevronRight, Plus, Minus, Tag, ChevronDown, ChevronUp
+  Search, Grid, List, ShoppingCart, Trash2, ChevronRight, Plus, Minus, Tag, ChevronDown, ChevronUp, Calculator, X
 } from 'lucide-react';
 
 // --- SUB-COMPONENTE: TARJETA DE PRODUCTO ---
@@ -13,12 +13,13 @@ const CashierProductCard = ({ item, onClick }) => {
     const hasStock = item.stock !== undefined && item.stock !== '';
     const isLowStock = hasStock && stockNum < 5;
     const isOut = hasStock && stockNum <= 0;
+    const isService = item.category === 'Servicios';
   
     return (
       <button 
-        onClick={!isOut ? onClick : undefined} 
-        disabled={isOut}
-        className={`relative w-full text-left bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all active:scale-95 flex flex-col h-36 group ${isOut ? 'opacity-50 grayscale cursor-not-allowed' : 'cursor-pointer'}`}
+        onClick={!isOut || isService ? onClick : undefined} 
+        disabled={isOut && !isService}
+        className={`relative w-full text-left bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all active:scale-95 flex flex-col h-36 group ${isOut && !isService ? 'opacity-50 grayscale cursor-not-allowed' : 'cursor-pointer'}`}
       >
         <div className="h-20 w-full bg-gray-50 flex items-center justify-center overflow-hidden p-2 relative">
           {item.image ? (
@@ -30,12 +31,14 @@ const CashierProductCard = ({ item, onClick }) => {
                 onError={(e)=>e.target.style.display='none'}
             />
           ) : (
-            <Coffee className="text-gray-300" size={24}/>
+            isService ? <Clock className="text-purple-400" size={32}/> : <Coffee className="text-gray-300" size={24}/>
           )}
-          <div className="absolute top-1 right-1 bg-black/80 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm z-10">
-             Bs. {item.price}
+          
+          <div className={`absolute top-1 right-1 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm z-10 ${isService ? 'bg-purple-600 text-white' : 'bg-black/80 text-white'}`}>
+             Bs. {item.price}{isService ? '/hr' : ''}
           </div>
-          {isLowStock && !isOut && <div className="absolute bottom-0 inset-x-0 bg-red-500 text-white text-[9px] font-black text-center uppercase tracking-wide">Quedan: {stockNum}</div>}
+
+          {isLowStock && !isOut && !isService && <div className="absolute bottom-0 inset-x-0 bg-red-500 text-white text-[9px] font-black text-center uppercase tracking-wide">Quedan: {stockNum}</div>}
         </div>
         <div className="p-2 flex-1 flex flex-col justify-between bg-white">
             <p className="text-[9px] text-gray-500 font-bold uppercase truncate flex items-center gap-1">
@@ -43,10 +46,102 @@ const CashierProductCard = ({ item, onClick }) => {
             </p>
             <h4 className="text-xs font-bold text-gray-800 leading-tight line-clamp-2">{item.name}</h4>
         </div>
-        {isOut && <div className="absolute inset-0 bg-white/60 flex items-center justify-center font-black text-gray-400 text-xs uppercase tracking-widest rotate-[-12deg] border-2 border-gray-200 m-4 rounded-lg">Agotado</div>}
+        {isOut && !isService && <div className="absolute inset-0 bg-white/60 flex items-center justify-center font-black text-gray-400 text-xs uppercase tracking-widest rotate-[-12deg] border-2 border-gray-200 m-4 rounded-lg">Agotado</div>}
       </button>
     );
 };
+
+// --- MODAL CÁLCULO DE SERVICIO ---
+const ServiceTimeModal = ({ item, onClose, onConfirm }) => {
+    const [startTime, setStartTime] = useState('');
+    const [endTime, setEndTime] = useState('');
+    const [duration, setDuration] = useState(0); // en horas
+    const [totalCost, setTotalCost] = useState(0);
+
+    // Al abrir, sugerir hora actual como fin y 1 hora antes como inicio
+    useEffect(() => {
+        const now = new Date();
+        const nowStr = now.toTimeString().slice(0, 5);
+        const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+        const startStr = oneHourAgo.toTimeString().slice(0, 5);
+        
+        setEndTime(nowStr);
+        setStartTime(startStr);
+    }, []);
+
+    // Calcular costo cuando cambian las horas
+    useEffect(() => {
+        if(startTime && endTime) {
+            const [startH, startM] = startTime.split(':').map(Number);
+            const [endH, endM] = endTime.split(':').map(Number);
+            
+            let startMinutes = startH * 60 + startM;
+            let endMinutes = endH * 60 + endM;
+
+            // Si termina al día siguiente (ej. inicia 23:00 termina 01:00)
+            if (endMinutes < startMinutes) {
+                endMinutes += 24 * 60;
+            }
+
+            const diffMinutes = endMinutes - startMinutes;
+            const diffHours = diffMinutes / 60;
+            
+            setDuration(diffHours);
+            setTotalCost(diffHours * item.price);
+        }
+    }, [startTime, endTime, item.price]);
+
+    const handleConfirm = () => {
+        if(totalCost > 0) {
+            onConfirm(item, totalCost, `${startTime} - ${endTime}`, duration);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xs overflow-hidden">
+                <div className="bg-purple-600 p-4 text-white flex justify-between items-center">
+                    <h3 className="font-bold flex items-center gap-2"><Clock size={18}/> Calcular Servicio</h3>
+                    <button onClick={onClose} className="hover:bg-purple-700 p-1 rounded-full"><X size={18}/></button>
+                </div>
+                <div className="p-6 space-y-4">
+                    <div className="text-center mb-2">
+                        <p className="text-xs text-gray-500 uppercase font-bold">Servicio</p>
+                        <h4 className="text-lg font-black text-gray-800">{item.name}</h4>
+                        <p className="text-purple-600 font-bold text-sm">Bs. {item.price} / hora</p>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Hora Inicio</label>
+                            <input type="time" className="w-full p-2 border rounded-lg font-bold text-gray-800 text-center bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none" value={startTime} onChange={e => setStartTime(e.target.value)} />
+                        </div>
+                        <div>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Hora Fin</label>
+                            <input type="time" className="w-full p-2 border rounded-lg font-bold text-gray-800 text-center bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none" value={endTime} onChange={e => setEndTime(e.target.value)} />
+                        </div>
+                    </div>
+
+                    <div className="bg-gray-100 p-3 rounded-xl flex justify-between items-center border border-gray-200">
+                        <div>
+                            <p className="text-xs text-gray-500">Tiempo Total</p>
+                            <p className="font-bold text-gray-800">{Math.floor(duration)}h {Math.round((duration % 1) * 60)}min</p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-xs text-gray-500">A Cobrar</p>
+                            <p className="font-black text-xl text-purple-600">Bs. {totalCost.toFixed(2)}</p>
+                        </div>
+                    </div>
+
+                    <button onClick={handleConfirm} className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2">
+                        <Plus size={18}/> AGREGAR AL CARRITO
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 
 export default function CashierView({ items, categories, onProcessPayment, onVoidOrder, onReprintOrder, onStopService, onOpenExpense }) {
   const [activeTab, setActiveTab] = useState('orders'); 
@@ -56,7 +151,10 @@ export default function CashierView({ items, categories, onProcessPayment, onVoi
   const [cart, setCart] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [catFilter, setCatFilter] = useState('Todos');
-  const [expandCategories, setExpandCategories] = useState(false); // Para expandir panel si se desea
+  const [expandCategories, setExpandCategories] = useState(false); 
+  
+  // Estado para Modal de Servicio
+  const [serviceModalItem, setServiceModalItem] = useState(null);
 
   useEffect(() => {
     const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
@@ -67,6 +165,17 @@ export default function CashierView({ items, categories, onProcessPayment, onVoi
     return () => unsubscribe();
   }, []);
 
+  // --- LÓGICA VENTA RÁPIDA ---
+  const handleItemClick = (item) => {
+      if (item.category === 'Servicios') {
+          // Si es servicio, abrimos el modal de cálculo
+          setServiceModalItem(item);
+      } else {
+          // Si es producto normal, al carrito directo
+          addToCart(item);
+      }
+  };
+
   const addToCart = (item) => {
     if (navigator.vibrate) navigator.vibrate(50);
     setCart(prev => {
@@ -75,8 +184,26 @@ export default function CashierView({ items, categories, onProcessPayment, onVoi
         return [...prev, {...item, qty: 1}];
     });
   };
+
+  const addServiceToCart = (item, calculatedPrice, timeRange, durationHours) => {
+      setServiceModalItem(null); // Cerrar modal
+      // Agregamos como un item especial
+      const serviceItem = {
+          ...item,
+          id: item.id + '-' + Date.now(), // ID único para permitir varios servicios
+          price: calculatedPrice,
+          name: `${item.name} (${timeRange})`,
+          qty: 1,
+          isServiceItem: true // Flag para no permitir editar cantidad normal
+      };
+      setCart(prev => [...prev, serviceItem]);
+  };
   
-  const updateQty = (id, delta) => setCart(prev => prev.map(i => i.id === id ? {...i, qty: Math.max(1, i.qty + delta)} : i));
+  const updateQty = (id, delta, isServiceItem) => {
+      if (isServiceItem) return; // No cambiar cantidad de servicios calculados
+      setCart(prev => prev.map(i => i.id === id ? {...i, qty: Math.max(1, i.qty + delta)} : i));
+  };
+
   const removeFromCart = (id) => setCart(prev => prev.filter(i => i.id !== id));
 
   const handleQuickCheckout = () => {
@@ -94,10 +221,11 @@ export default function CashierView({ items, categories, onProcessPayment, onVoi
     setCart([]); 
   };
 
+  // Filtros: YA NO OCULTAMOS SERVICIOS
   const filteredItems = items ? items.filter(i => {
       const matchCat = catFilter === 'Todos' ? true : i.category === catFilter;
       const matchSearch = i.name.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchCat && matchSearch && i.category !== 'Servicios';
+      return matchCat && matchSearch;
   }) : [];
 
   const cartTotal = cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
@@ -105,6 +233,15 @@ export default function CashierView({ items, categories, onProcessPayment, onVoi
   return (
     <div className="flex flex-col h-[calc(100vh-100px)] animate-in fade-in">
       
+      {/* Modal de Servicio */}
+      {serviceModalItem && (
+          <ServiceTimeModal 
+            item={serviceModalItem} 
+            onClose={() => setServiceModalItem(null)} 
+            onConfirm={addServiceToCart} 
+          />
+      )}
+
       {/* --- ENCABEZADO --- */}
       <div className="flex justify-between items-center mb-3 px-1 flex-wrap gap-2">
          <div className="flex bg-white p-1 rounded-xl shadow-sm border border-gray-200">
@@ -160,21 +297,18 @@ export default function CashierView({ items, categories, onProcessPayment, onVoi
                      <div className="p-3 bg-white border-b border-gray-200 space-y-3 z-10 shadow-sm">
                          <div className="relative">
                              <Search className="absolute left-3 top-2.5 text-gray-400" size={16}/>
-                             <input type="text" placeholder="Buscar producto..." className="w-full pl-9 p-2 bg-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                             <input type="text" placeholder="Buscar producto o servicio..." className="w-full pl-9 p-2 bg-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                          </div>
                          
-                         {/* --- CATEGORÍAS ORGANIZADAS --- */}
-                         {/* Usamos flex-wrap para que bajen de línea y un max-h con scroll vertical */}
                          <div className="relative">
                             <div className={`flex flex-wrap gap-2 overflow-y-auto pr-1 transition-all ${expandCategories ? 'max-h-60' : 'max-h-24'} scrollbar-thin`}>
                                 <button onClick={() => setCatFilter('Todos')} className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap border transition-all ${catFilter === 'Todos' ? 'bg-black text-white border-black ring-2 ring-gray-200' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'}`}>Todos</button>
-                                {categories?.filter(c => c !== 'Servicios').map(cat => (
+                                {categories?.map(cat => (
                                     <button key={cat} onClick={() => setCatFilter(cat)} className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap border transition-all ${catFilter === cat ? 'bg-black text-white border-black ring-2 ring-gray-200' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'}`}>
                                         {cat}
                                     </button>
                                 ))}
                             </div>
-                            {/* Botón discreto para expandir si hay muchas categorías */}
                             <button onClick={() => setExpandCategories(!expandCategories)} className="absolute right-0 top-0 bottom-0 bg-gradient-to-l from-white via-white to-transparent pl-4 flex items-start pt-1 md:hidden">
                                 {expandCategories ? <ChevronUp size={16} className="text-gray-400"/> : <ChevronDown size={16} className="text-gray-400"/>}
                             </button>
@@ -183,8 +317,8 @@ export default function CashierView({ items, categories, onProcessPayment, onVoi
 
                      <div className="flex-1 overflow-y-auto p-4">
                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 pb-20">
-                             {filteredItems.map(item => (<CashierProductCard key={item.id} item={item} onClick={() => addToCart(item)} />))}
-                             {filteredItems.length === 0 && <div className="col-span-full text-center py-10 text-gray-400"><p>No se encontraron productos.</p></div>}
+                             {filteredItems.map(item => (<CashierProductCard key={item.id} item={item} onClick={() => handleItemClick(item)} />))}
+                             {filteredItems.length === 0 && <div className="col-span-full text-center py-10 text-gray-400"><p>No se encontraron items.</p></div>}
                          </div>
                      </div>
                  </div>
@@ -197,8 +331,19 @@ export default function CashierView({ items, categories, onProcessPayment, onVoi
                          ) : (
                              cart.map(item => (
                                  <div key={item.id} className="flex justify-between items-center bg-white border border-gray-100 p-2 rounded-lg shadow-sm animate-in slide-in-from-right duration-200">
-                                     <div className="flex-1 min-w-0 mr-2"><div className="text-xs font-bold text-gray-800 truncate">{item.name}</div><div className="text-[10px] text-gray-500">unitario: Bs. {item.price}</div></div>
-                                     <div className="flex items-center gap-2 bg-gray-50 rounded px-1"><button onClick={() => updateQty(item.id, -1)} className="w-6 h-6 flex items-center justify-center text-gray-500 hover:text-black hover:bg-gray-200 rounded transition-colors"><Minus size={12}/></button><span className="text-xs font-bold w-4 text-center">{item.qty}</span><button onClick={() => updateQty(item.id, 1)} className="w-6 h-6 flex items-center justify-center text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded transition-colors"><Plus size={12}/></button></div>
+                                     <div className="flex-1 min-w-0 mr-2">
+                                         <div className="text-xs font-bold text-gray-800 truncate">{item.name}</div>
+                                         <div className="text-[10px] text-gray-500">{item.isServiceItem ? 'Servicio calculado' : `unitario: Bs. ${item.price}`}</div>
+                                     </div>
+                                     {item.isServiceItem ? (
+                                         <div className="font-bold text-sm text-purple-600 bg-purple-50 px-2 py-1 rounded">Bs. {item.price.toFixed(2)}</div>
+                                     ) : (
+                                         <div className="flex items-center gap-2 bg-gray-50 rounded px-1">
+                                             <button onClick={() => updateQty(item.id, -1)} className="w-6 h-6 flex items-center justify-center text-gray-500 hover:text-black hover:bg-gray-200 rounded transition-colors"><Minus size={12}/></button>
+                                             <span className="text-xs font-bold w-4 text-center">{item.qty}</span>
+                                             <button onClick={() => updateQty(item.id, 1)} className="w-6 h-6 flex items-center justify-center text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded transition-colors"><Plus size={12}/></button>
+                                         </div>
+                                     )}
                                      <button onClick={() => removeFromCart(item.id)} className="ml-2 text-red-400 hover:text-red-600"><Trash2 size={14}/></button>
                                  </div>
                              ))
