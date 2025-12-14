@@ -1,103 +1,63 @@
+// src/components/Modals.jsx - CON GESTOR DE MESAS
 import React, { useState, useEffect } from 'react';
-import { X, Upload, Save, Plus, Trash2, Edit2, Check, Shield, Clock, MapPin, DollarSign } from 'lucide-react';
+import { X, Upload, Save, Trash2, Plus, Edit2, Check, LayoutGrid } from 'lucide-react';
 
-// --- LISTA DE MESAS ---
-const COMMON_LOCATIONS = [
-  "PRIVADO 104", "PRIVADO 105", "PRIVADO 106", "PRIVADO 107", "PRIVADO 108",
-  "Mesa 1", "Mesa 2", "Mesa 3", "Mesa 4", "Mesa 5", "Barra"
-];
-
-// --- 1. MODAL DE AUTENTICACIÓN ---
+// --- 1. AUTH MODAL (Login) ---
 export const AuthModal = ({ isOpen, onClose, onLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  
   if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in" role="dialog" aria-modal="true" aria-labelledby="modal-auth-title">
-      <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
-        <div className="p-6 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
-          <h3 id="modal-auth-title" className="font-bold text-gray-800">Acceso Administrativo</h3>
-          <button onClick={onClose} aria-label="Cerrar modal"><X size={20} className="text-gray-400 hover:text-gray-600"/></button>
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
+      <div className="bg-white rounded-2xl w-full max-w-md p-8 shadow-2xl">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-black text-gray-900">ACCESO ADMINISTRADOR</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-black"><X size={24} /></button>
         </div>
-        <div className="p-6 space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Usuario / Email</label>
-            <input type="text" className="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none focus:border-orange-500 font-bold text-gray-700" value={email} onChange={e => setEmail(e.target.value)} />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Contraseña</label>
-            <input type="password" className="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none focus:border-orange-500 font-bold text-gray-700" value={password} onChange={e => setPassword(e.target.value)} />
-          </div>
-          <button onClick={() => onLogin({ email, password })} className="w-full bg-black text-white py-4 rounded-xl font-bold text-lg hover:bg-gray-800 shadow-lg transition-transform active:scale-95">ENTRAR AL SISTEMA</button>
-        </div>
+        <form onSubmit={(e) => { e.preventDefault(); onLogin({ email, password }); }} className="space-y-4">
+          <div><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Usuario / Email</label><input type="email" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-black transition-all" value={email} onChange={e => setEmail(e.target.value)} autoFocus /></div>
+          <div><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Contraseña</label><input type="password" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-black transition-all" value={password} onChange={e => setPassword(e.target.value)} /></div>
+          <button type="submit" className="w-full py-4 bg-black text-white font-bold rounded-xl hover:bg-gray-800 transition-transform active:scale-95 shadow-lg">INGRESAR</button>
+        </form>
       </div>
     </div>
   );
 };
 
-// --- 2. MODAL DE PRODUCTO ---
+// --- 2. PRODUCT MODAL (Crear/Editar) ---
 export const ProductModal = ({ isOpen, onClose, onSave, item, categories }) => {
-  const [formData, setFormData] = useState({ name: '', price: '', category: 'Bebidas', stock: '', image: '', cost: '' });
-
-  useEffect(() => {
-    if (item) setFormData(item);
-    else setFormData({ name: '', price: '', category: 'Bebidas', stock: '', image: '', cost: '' });
-  }, [item, isOpen]);
+  const [formData, setFormData] = useState({ name: '', price: '', category: categories[0] || 'Varios', image: '', stock: '', cost: '' });
+  useEffect(() => { 
+      if (item) setFormData(item); 
+      else setFormData({ name: '', price: '', category: categories[0] || 'Varios', image: '', stock: '', cost: '' }); 
+  }, [item, categories]);
 
   if (!isOpen) return null;
-
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => setFormData({ ...formData, image: reader.result });
-      reader.readAsDataURL(file);
-    }
-  };
+  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+  const handleSubmit = (e) => { e.preventDefault(); onSave(formData); };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-in zoom-in duration-200" role="dialog" aria-modal="true" aria-labelledby="modal-prod-title">
-      <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b flex justify-between items-center bg-gray-50">
-          <h2 id="modal-prod-title" className="text-xl font-black text-gray-800">{item ? 'Editar Producto' : 'Nuevo Producto'}</h2>
-          <button onClick={onClose} aria-label="Cerrar"><X className="text-gray-400 hover:text-red-500" /></button>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in zoom-in-95 duration-200">
+      <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+          <h2 className="text-xl font-black text-gray-800 uppercase">{item ? 'Editar Producto' : 'Nuevo Producto'}</h2>
+          <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full transition-colors"><X size={20} /></button>
         </div>
-        <div className="p-6 space-y-4">
-          <div className="flex justify-center mb-4">
-            <div className="w-32 h-32 rounded-2xl bg-gray-100 border-2 border-dashed border-gray-300 flex flex-col items-center justify-center relative overflow-hidden group cursor-pointer hover:border-orange-500 transition-colors">
-              {formData.image ? <img src={formData.image} alt="" className="w-full h-full object-cover" /> : <Upload className="text-gray-400 mb-2" />}
-              <input type="file" accept="image/*" onChange={handleImageUpload} className="absolute inset-0 opacity-0 cursor-pointer" aria-label="Subir imagen" />
-              <span className="text-xs text-gray-400 font-bold">Subir Foto</span>
+        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-5">
+            <div className="flex gap-4">
+                <div className="flex-1"><label className="label-input">Nombre del Producto</label><input name="name" className="input-field" placeholder="Ej. Coca Cola 2L" value={formData.name} onChange={handleChange} required /></div>
+                <div className="w-1/3"><label className="label-input">Categoría</label><select name="category" className="input-field" value={formData.category} onChange={handleChange}>{categories.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
             </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <label className="text-xs font-bold text-gray-500 uppercase">Nombre</label>
-              <input type="text" className="w-full p-3 border rounded-xl font-bold text-gray-800 outline-none focus:border-orange-500" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+            <div className="flex gap-4">
+                <div className="w-1/2"><label className="label-input">Precio Venta (Bs.)</label><input name="price" type="number" step="0.5" className="input-field font-mono font-bold text-green-600" placeholder="0.00" value={formData.price} onChange={handleChange} required /></div>
+                <div className="w-1/2"><label className="label-input">Costo (Opcional)</label><input name="cost" type="number" step="0.5" className="input-field font-mono" placeholder="0.00" value={formData.cost} onChange={handleChange} /></div>
             </div>
-            <div>
-              <label className="text-xs font-bold text-gray-500 uppercase">Precio</label>
-              <input type="number" className="w-full p-3 border rounded-xl font-bold text-gray-800 outline-none focus:border-orange-500" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} />
+            <div className="flex gap-4">
+                 <div className="w-1/2"><label className="label-input">Stock Inicial</label><input name="stock" type="number" className="input-field font-mono" placeholder="0" value={formData.stock} onChange={handleChange} /></div>
             </div>
-            <div>
-              <label className="text-xs font-bold text-gray-500 uppercase">Costo</label>
-              <input type="number" className="w-full p-3 border rounded-xl font-bold text-gray-500 outline-none focus:border-orange-500" value={formData.cost} onChange={e => setFormData({...formData, cost: e.target.value})} />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-gray-500 uppercase">Categoría</label>
-              <select className="w-full p-3 border rounded-xl font-bold text-gray-800 bg-white" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
-                {categories.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-bold text-gray-500 uppercase">Stock</label>
-              <input type="number" className="w-full p-3 border rounded-xl font-bold text-gray-800 outline-none focus:border-orange-500" value={formData.stock} onChange={e => setFormData({...formData, stock: e.target.value})} />
-            </div>
-          </div>
-          <button onClick={() => onSave(formData)} className="w-full bg-green-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-green-700 shadow-lg mt-4 flex items-center justify-center gap-2 transition-transform active:scale-95"><Save size={20}/> GUARDAR</button>
-        </div>
+            <div><label className="label-input">URL Imagen (Opcional)</label><div className="flex gap-2"><input name="image" className="input-field flex-1" placeholder="https://..." value={formData.image} onChange={handleChange} /><div className="w-12 h-12 bg-gray-100 rounded-lg border border-gray-200 overflow-hidden flex items-center justify-center">{formData.image ? <img src={formData.image} alt="Prev" className="w-full h-full object-cover" /> : <Upload size={16} className="text-gray-400" />}</div></div></div>
+            <button type="submit" className="w-full py-4 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl shadow-lg shadow-orange-200 transition-all active:scale-95 flex items-center justify-center gap-2 mt-4"><Save size={20} /> GUARDAR PRODUCTO</button>
+        </form>
       </div>
     </div>
   );
@@ -105,184 +65,172 @@ export const ProductModal = ({ isOpen, onClose, onSave, item, categories }) => {
 
 // --- 3. CATEGORY MANAGER ---
 export const CategoryManager = ({ isOpen, onClose, categories, onAdd, onRename, onDelete }) => {
-  const [newCat, setNewCat] = useState('');
-  const [editingIndex, setEditingIndex] = useState(null);
-  const [editName, setEditName] = useState('');
-  
-  if(!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="modal-cat-title">
-      <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
-        <div className="flex justify-between mb-4"><h3 id="modal-cat-title" className="font-bold text-lg">Categorías</h3><button onClick={onClose} aria-label="Cerrar"><X/></button></div>
-        <div className="flex gap-2 mb-6"><input type="text" placeholder="Nueva..." className="flex-1 p-2 border rounded-lg" value={newCat} onChange={e=>setNewCat(e.target.value)}/><button onClick={()=>{if(newCat){onAdd(newCat);setNewCat('');}}} className="bg-black text-white p-2 rounded-lg" aria-label="Agregar categoría"><Plus/></button></div>
-        <div className="space-y-2 max-h-60 overflow-y-auto">
-          {categories.map((cat, i) => (
-            <div key={i} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg group">
-              {editingIndex === i ? (
-                <div className="flex gap-2 flex-1"><input autoFocus className="flex-1 p-1 text-sm border rounded" value={editName} onChange={e=>setEditName(e.target.value)}/><button onClick={()=>{onRename(i, editName); setEditingIndex(null);}} className="text-green-600"><Check size={16}/></button></div>
-              ) : (
-                <><span className="font-medium text-gray-700">{cat}</span><div className="flex gap-2 opacity-0 group-hover:opacity-100"><button onClick={()=>{setEditingIndex(i); setEditName(cat);}} className="text-blue-500"><Edit2 size={16}/></button><button onClick={()=>onDelete(i)} className="text-red-500"><Trash2 size={16}/></button></div></>
-              )}
+    const [newCat, setNewCat] = useState('');
+    const [editingIndex, setEditingIndex] = useState(null);
+    const [editName, setEditName] = useState('');
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in">
+            <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+                <div className="bg-gray-900 text-white p-4 flex justify-between items-center"><h3 className="font-bold">Gestionar Categorías</h3><button onClick={onClose}><X size={20}/></button></div>
+                <div className="p-4 bg-gray-50 border-b flex gap-2"><input className="flex-1 p-2 border rounded-lg" placeholder="Nueva Categoría" value={newCat} onChange={e=>setNewCat(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&newCat){onAdd(newCat);setNewCat('')}}} /><button onClick={()=>{if(newCat){onAdd(newCat);setNewCat('')}}} className="bg-green-600 text-white p-2 rounded-lg"><Plus size={20}/></button></div>
+                <div className="max-h-[60vh] overflow-y-auto p-2 space-y-2">
+                    {categories.map((cat, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-3 bg-white border rounded-xl shadow-sm group">
+                            {editingIndex === idx ? (<input className="flex-1 border-b-2 border-blue-500 outline-none font-bold" autoFocus value={editName} onChange={e=>setEditName(e.target.value)} onBlur={()=>{if(editName)onRename(idx,editName);setEditingIndex(null)}} onKeyDown={e=>{if(e.key==='Enter'&&editName){onRename(idx,editName);setEditingIndex(null)}}} />) : (<span className="font-bold text-gray-700 flex-1">{cat}</span>)}
+                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onClick={()=>{setEditingIndex(idx);setEditName(cat)}} className="text-blue-500 hover:bg-blue-50 p-1.5 rounded"><Edit2 size={16}/></button>
+                                <button onClick={()=>{if(window.confirm('¿Borrar?'))onDelete(idx)}} className="text-red-500 hover:bg-red-50 p-1.5 rounded"><Trash2 size={16}/></button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
             </div>
-          ))}
         </div>
-      </div>
-    </div>
-  );
+    );
 };
 
 // --- 4. ROLE MANAGER ---
 export const RoleManager = ({ isOpen, onClose, roles, onAdd, onRename, onDelete }) => {
-  const [newRole, setNewRole] = useState('');
-  const [editingIndex, setEditingIndex] = useState(null);
-  const [editName, setEditName] = useState('');
-  
-  if(!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="modal-role-title">
-      <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
-        <div className="flex justify-between mb-4"><h3 id="modal-role-title" className="font-bold text-lg flex items-center gap-2"><Shield size={18}/> Roles</h3><button onClick={onClose} aria-label="Cerrar"><X/></button></div>
-        <div className="flex gap-2 mb-6"><input type="text" placeholder="Nuevo rol..." className="flex-1 p-2 border rounded-lg" value={newRole} onChange={e=>setNewRole(e.target.value)}/><button onClick={()=>{if(newRole){onAdd(newRole);setNewRole('');}}} className="bg-black text-white p-2 rounded-lg" aria-label="Agregar rol"><Plus/></button></div>
-        <div className="space-y-2">
-          {roles.map((rol, i) => (
-            <div key={i} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg group">
-              {editingIndex === i ? (
-                <div className="flex gap-2 flex-1"><input autoFocus className="flex-1 p-1 text-sm border rounded" value={editName} onChange={e=>setEditName(e.target.value)}/><button onClick={()=>{onRename(i, editName); setEditingIndex(null);}} className="text-green-600"><Check size={16}/></button></div>
-              ) : (
-                <><span className="font-medium text-gray-700">{rol}</span><div className="flex gap-2 opacity-0 group-hover:opacity-100"><button onClick={()=>{setEditingIndex(i); setEditName(rol);}} className="text-blue-500"><Edit2 size={16}/></button><button onClick={()=>onDelete(i)} className="text-red-500"><Trash2 size={16}/></button></div></>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// --- 5. BRANDING MODAL ---
-export const BrandingModal = ({ isOpen, onClose, onSave, currentLogo, currentName }) => {
-  const [logo, setLogo] = useState(null);
-  const [appName, setAppName] = useState('');
-  
-  useEffect(() => { if (isOpen) { setLogo(currentLogo); setAppName(currentName || ''); } }, [isOpen, currentLogo, currentName]);
-  
-  if(!isOpen) return null;
-  const handleImage = (e) => { const file = e.target.files[0]; if(file) { const r = new FileReader(); r.onloadend = () => setLogo(r.result); r.readAsDataURL(file); } };
-  
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="modal-brand-title">
-      <div className="bg-white rounded-2xl w-full max-w-sm p-6 text-center">
-        <h3 id="modal-brand-title" className="font-bold text-lg mb-6">Personalizar Marca</h3>
-        <div className="w-32 h-32 mx-auto bg-gray-100 rounded-full flex items-center justify-center overflow-hidden border-2 border-dashed border-gray-300 relative mb-4">
-          {logo ? <img src={logo} className="w-full h-full object-contain" alt="Logo"/> : <Upload className="text-gray-400"/>}
-          <input type="file" accept="image/*" onChange={handleImage} className="absolute inset-0 opacity-0 cursor-pointer" aria-label="Subir logo"/>
-        </div>
-        <input type="text" placeholder="Nombre" className="w-full p-3 border rounded-xl mb-6 text-center font-bold" value={appName} onChange={e => setAppName(e.target.value)} aria-label="Nombre del negocio" />
-        <div className="flex gap-2"><button onClick={onClose} className="flex-1 py-3 bg-gray-100 rounded-xl font-bold">Cancelar</button><button onClick={() => { onSave(logo, appName); onClose(); }} className="flex-1 py-3 bg-black text-white rounded-xl font-bold">Guardar</button></div>
-      </div>
-    </div>
-  );
-};
-
-// --- 6. SERVICE START MODAL ---
-export const ServiceStartModal = ({ isOpen, onClose, services, onStart, occupiedLocations = [] }) => {
-  const [selectedService, setSelectedService] = useState(null);
-  const [note, setNote] = useState('');
-  
-  if (!isOpen) return null;
-  const handleSubmit = (e) => { e.preventDefault(); if (!selectedService || !note) return; onStart(selectedService, note); setNote(''); setSelectedService(null); };
-  
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-in fade-in" role="dialog" aria-modal="true" aria-labelledby="modal-srv-title">
-      <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl">
-        <h2 id="modal-srv-title" className="text-xl font-black text-gray-800 mb-4 flex items-center gap-2"><Clock size={24} className="text-purple-600"/> Iniciar Servicio</h2>
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Servicio</label>
-            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-              {services.map(srv => (
-                <div key={srv.id} onClick={() => setSelectedService(srv)} className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${selectedService?.id === srv.id ? 'border-purple-600 bg-purple-50' : 'border-gray-100 hover:border-purple-300'}`}>
-                  <div className="flex justify-between font-bold text-gray-800"><span>{srv.name}</span><span className="text-purple-600">Bs. {Number(srv.price).toFixed(2)}/h</span></div>
+    const [newRole, setNewRole] = useState('');
+    const [editingIndex, setEditingIndex] = useState(null);
+    const [editName, setEditName] = useState('');
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in">
+            <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+                <div className="bg-blue-900 text-white p-4 flex justify-between items-center"><h3 className="font-bold">Gestionar Roles</h3><button onClick={onClose}><X size={20}/></button></div>
+                <div className="p-4 bg-gray-50 border-b flex gap-2"><input className="flex-1 p-2 border rounded-lg" placeholder="Nuevo Rol" value={newRole} onChange={e=>setNewRole(e.target.value)} /><button onClick={()=>{if(newRole){onAdd(newRole);setNewRole('')}}} className="bg-blue-600 text-white p-2 rounded-lg"><Plus size={20}/></button></div>
+                <div className="max-h-[60vh] overflow-y-auto p-2 space-y-2">
+                    {roles.map((role, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-3 bg-white border rounded-xl shadow-sm group">
+                            {editingIndex === idx ? (<input className="flex-1 border-b-2 border-blue-500 outline-none font-bold" autoFocus value={editName} onChange={e=>setEditName(e.target.value)} onBlur={()=>{if(editName)onRename(idx,editName);setEditingIndex(null)}} onKeyDown={e=>{if(e.key==='Enter'&&editName){onRename(idx,editName);setEditingIndex(null)}}} />) : (<span className="font-bold text-gray-700 flex-1">{role}</span>)}
+                            <div className="flex gap-2">
+                                <button onClick={()=>{setEditingIndex(idx);setEditName(role)}} className="text-blue-500 hover:bg-blue-50 p-1.5 rounded"><Edit2 size={16}/></button>
+                                <button onClick={()=>{if(window.confirm('¿Borrar?'))onDelete(idx)}} className="text-red-500 hover:bg-red-50 p-1.5 rounded"><Trash2 size={16}/></button>
+                            </div>
+                        </div>
+                    ))}
                 </div>
-              ))}
             </div>
-          </div>
-          <div className="mb-6">
-            <label className="block text-xs font-bold text-gray-500 uppercase mb-2 flex items-center gap-1"><MapPin size={12}/> Mesa</label>
-            <select required className="w-full p-3 border rounded-xl font-bold text-gray-800 focus:ring-2 focus:ring-purple-500 outline-none bg-white" value={note} onChange={e => setNote(e.target.value)}>
-              <option value="">-- Seleccionar --</option>
-              {COMMON_LOCATIONS.map(loc => { const isOccupied = occupiedLocations.includes(loc); return (<option key={loc} value={loc} disabled={isOccupied} className={isOccupied ? 'text-gray-300' : ''}>{loc} {isOccupied ? '(Ocupado)' : ''}</option>); })}
-            </select>
-          </div>
-          <div className="flex gap-3"><button type="button" onClick={onClose} className="flex-1 py-3 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200">Cancelar</button><button type="submit" disabled={!selectedService || !note} className={`flex-1 py-3 text-white font-bold rounded-xl shadow-lg ${(!selectedService || !note) ? 'bg-gray-300 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700'}`}>INICIAR</button></div>
-        </form>
-      </div>
-    </div>
-  );
+        </div>
+    );
 };
 
-// --- 7. MODAL DE GASTOS (CORREGIDO ACCESIBILIDAD) ---
+// --- 5. TABLE MANAGER (NUEVO) ---
+export const TableManager = ({ isOpen, onClose, tables, onAdd, onRename, onDelete }) => {
+    const [newTable, setNewTable] = useState('');
+    const [editingIndex, setEditingIndex] = useState(null);
+    const [editName, setEditName] = useState('');
+    
+    if (!isOpen) return null;
+    
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in">
+            <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+                <div className="bg-purple-900 text-white p-4 flex justify-between items-center">
+                    <h3 className="font-bold flex items-center gap-2"><LayoutGrid size={20}/> Gestión de Mesas</h3>
+                    <button onClick={onClose}><X size={20}/></button>
+                </div>
+                
+                {/* Agregar Mesa */}
+                <div className="p-4 bg-gray-50 border-b flex gap-2">
+                    <input 
+                        className="flex-1 p-2 border rounded-lg outline-none focus:ring-2 focus:ring-purple-500" 
+                        placeholder="Ej. Terraza 1" 
+                        value={newTable} 
+                        onChange={e=>setNewTable(e.target.value)} 
+                        onKeyDown={e=>{if(e.key==='Enter'&&newTable){onAdd(newTable);setNewTable('')}}}
+                    />
+                    <button onClick={()=>{if(newTable){onAdd(newTable);setNewTable('')}}} className="bg-purple-600 text-white p-2 rounded-lg hover:bg-purple-700"><Plus size={20}/></button>
+                </div>
+                
+                {/* Lista */}
+                <div className="max-h-[60vh] overflow-y-auto p-2 space-y-2">
+                    {tables.map((table, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-3 bg-white border rounded-xl shadow-sm group hover:border-purple-200 transition-colors">
+                            {editingIndex === idx ? (
+                                <input 
+                                    className="flex-1 border-b-2 border-purple-500 outline-none font-bold text-purple-900 uppercase" 
+                                    autoFocus 
+                                    value={editName} 
+                                    onChange={e=>setEditName(e.target.value)} 
+                                    onBlur={()=>{if(editName)onRename(idx,editName);setEditingIndex(null)}} 
+                                    onKeyDown={e=>{if(e.key==='Enter'&&editName){onRename(idx,editName);setEditingIndex(null)}}} 
+                                />
+                            ) : (
+                                <span className="font-bold text-gray-700 flex-1 uppercase">{table}</span>
+                            )}
+                            
+                            <div className="flex gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onClick={()=>{setEditingIndex(idx);setEditName(table)}} className="text-blue-500 hover:bg-blue-50 p-1.5 rounded"><Edit2 size={16}/></button>
+                                <button onClick={()=>{if(window.confirm('¿Borrar esta mesa?'))onDelete(idx)}} className="text-red-500 hover:bg-red-50 p-1.5 rounded"><Trash2 size={16}/></button>
+                            </div>
+                        </div>
+                    ))}
+                    {tables.length === 0 && <p className="text-center text-gray-400 py-4 text-sm">No hay mesas registradas</p>}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- 6. BRANDING MODAL ---
+export const BrandingModal = ({ isOpen, onClose, onSave, currentLogo, currentName }) => {
+    const [logoUrl, setLogoUrl] = useState(currentLogo || '');
+    const [appName, setAppName] = useState(currentName || '');
+    if(!isOpen) return null;
+    return (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl">
+                <h3 className="text-lg font-black mb-4">Personalizar Marca</h3>
+                <div className="space-y-4">
+                    <div><label className="label-input">Nombre del Negocio</label><input className="input-field" value={appName} onChange={e=>setAppName(e.target.value)}/></div>
+                    <div><label className="label-input">URL del Logo</label><input className="input-field" value={logoUrl} onChange={e=>setLogoUrl(e.target.value)}/></div>
+                    <button onClick={()=>{onSave(logoUrl, appName); onClose()}} className="w-full bg-black text-white py-3 rounded-xl font-bold mt-2">GUARDAR CAMBIOS</button>
+                    <button onClick={onClose} className="w-full text-gray-500 py-2 text-sm">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- 7. SERVICE START MODAL ---
+export const ServiceStartModal = ({ isOpen, onClose, services, onStart, occupiedLocations }) => {
+    const [selectedService, setSelectedService] = useState(null);
+    const [note, setNote] = useState('');
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
+            <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+                <div className="bg-purple-600 p-4 text-white flex justify-between items-center"><h3 className="font-bold">Iniciar Servicio</h3><button onClick={onClose}><X size={20}/></button></div>
+                <div className="p-4 space-y-4">
+                    <div><label className="block text-xs font-bold text-gray-500 uppercase mb-2">Selecciona Servicio</label><div className="grid grid-cols-2 gap-2">{services.map(srv => (<button key={srv.id} onClick={() => setSelectedService(srv)} className={`p-3 rounded-xl border text-sm font-bold transition-all text-left ${selectedService?.id === srv.id ? 'border-purple-600 bg-purple-50 text-purple-700 ring-2 ring-purple-200' : 'border-gray-200 hover:border-gray-300'}`}>{srv.name}<span className="block text-[10px] text-gray-400 font-normal">Bs. {srv.price}/hr</span></button>))}</div></div>
+                    <div><label className="block text-xs font-bold text-gray-500 uppercase mb-2">Ubicación / Mesa</label><input placeholder="Ej. Mesa 1, VIP..." className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-500" value={note} onChange={e => setNote(e.target.value)} /></div>
+                    {occupiedLocations.includes(note) && note && <p className="text-xs text-red-500 font-bold">⚠️ Esta ubicación parece ocupada.</p>}
+                    <button disabled={!selectedService || !note} onClick={() => onStart(selectedService, note)} className="w-full py-3 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg transition-transform active:scale-95">INICIAR CRONÓMETRO</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- 8. EXPENSE MODAL ---
 export const ExpenseModal = ({ isOpen, onClose, onSave }) => {
-  const [desc, setDesc] = useState('');
-  const [amount, setAmount] = useState('');
-  
-  if (!isOpen) return null;
-
-  const handleSubmit = (e) => {
-      e.preventDefault();
-      if (!desc || !amount) return;
-      onSave(desc, parseFloat(amount));
-      setDesc('');
-      setAmount('');
-      onClose();
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 animate-in zoom-in duration-200" role="dialog" aria-modal="true" aria-labelledby="modal-expense-title">
-      <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl">
-         <div className="flex justify-between items-center mb-6">
-             <h3 id="modal-expense-title" className="text-xl font-black text-red-600 flex items-center gap-2">
-                 <div className="bg-red-100 p-2 rounded-full"><DollarSign size={24}/></div>
-                 Registrar Gasto
-             </h3>
-             <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full" aria-label="Cerrar modal"><X size={20}/></button>
-         </div>
-
-         <form onSubmit={handleSubmit} className="space-y-4">
-             <div>
-                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Motivo / Descripción</label>
-                 <input 
-                    type="text" 
-                    placeholder="Ej: Hielo, Taxi, Adelanto..." 
-                    className="w-full p-3 border-2 border-gray-200 rounded-xl font-bold text-gray-700 outline-none focus:border-red-500"
-                    value={desc}
-                    onChange={e => setDesc(e.target.value)}
-                    required
-                    autoFocus
-                 />
-             </div>
-             <div>
-                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Monto (Bs)</label>
-                 <input 
-                    type="number" 
-                    placeholder="0.00" 
-                    className="w-full p-3 border-2 border-gray-200 rounded-xl font-bold text-gray-700 outline-none focus:border-red-500 text-2xl"
-                    value={amount}
-                    onChange={e => setAmount(e.target.value)}
-                    required
-                    step="0.50"
-                 />
-             </div>
-
-             <div className="pt-2">
-                 <button type="submit" className="w-full py-4 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-lg shadow-lg shadow-red-200 transition-all flex items-center justify-center gap-2 active:scale-95">
-                     GUARDAR GASTO
-                 </button>
-             </div>
-         </form>
-      </div>
-    </div>
-  );
+    const [desc, setDesc] = useState('');
+    const [amount, setAmount] = useState('');
+    if(!isOpen) return null;
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-xl">
+                <h3 className="text-lg font-black text-red-600 mb-4">Registrar Gasto</h3>
+                <div className="space-y-4">
+                    <div><label className="label-input">Descripción</label><input className="input-field" placeholder="Ej. Hielo, Taxis..." value={desc} onChange={e=>setDesc(e.target.value)} autoFocus/></div>
+                    <div><label className="label-input">Monto (Bs)</label><input type="number" className="input-field" placeholder="0.00" value={amount} onChange={e=>setAmount(e.target.value)}/></div>
+                    <button onClick={()=>{if(desc && amount) { onSave(desc, parseFloat(amount)); setDesc(''); setAmount(''); onClose(); }}} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl shadow-lg">REGISTRAR SALIDA</button>
+                    <button onClick={onClose} className="w-full py-2 text-gray-500 text-sm">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    );
 };

@@ -1,4 +1,4 @@
-// src/components/CashierView.jsx - CORRECCIÓN DEFINITIVA: LISTA EN MODAL DE SERVICIO
+// src/components/CashierView.jsx - USA LISTA DE MESAS DINÁMICA
 import React, { useState, useEffect } from 'react';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db, ROOT_COLLECTION, isPersonalProject } from '../config/firebase';
@@ -6,15 +6,6 @@ import {
   Clock, CheckCircle, XCircle, Printer, Coffee, DollarSign, 
   Search, Grid, List, ShoppingCart, Trash2, ChevronRight, Plus, Minus, Tag, ChevronDown, ChevronUp, X, MapPin
 } from 'lucide-react';
-
-// --- LISTA DE MESAS PREDEFINIDA ---
-const PREDEFINED_LOCATIONS = [
-    "Barra", 
-    "Mesa 1", "Mesa 2", "Mesa 3", "Mesa 4", "Mesa 5", 
-    "Mesa 6", "Mesa 7", "Mesa 8", "Mesa 9", "Mesa 10",
-    "Mesa 11", "Mesa 12", "Mesa 13", "Mesa 14", "Mesa 15",
-    "VIP 1", "VIP 2", "Terraza 1", "Terraza 2"
-];
 
 // --- SUB-COMPONENTE: TARJETA DE PRODUCTO ---
 const CashierProductCard = ({ item, onClick }) => {
@@ -60,11 +51,11 @@ const CashierProductCard = ({ item, onClick }) => {
     );
 };
 
-// --- MODAL CÁLCULO DE SERVICIO (CON LISTA DESPLEGABLE) ---
-const ServiceTimeModal = ({ item, onClose, onConfirm }) => {
+// --- MODAL CÁLCULO DE SERVICIO ---
+const ServiceTimeModal = ({ item, onClose, onConfirm, tables }) => {
     const [startTime, setStartTime] = useState('');
     const [endTime, setEndTime] = useState('');
-    const [location, setLocation] = useState('Barra'); // Default a Barra
+    const [location, setLocation] = useState(tables && tables.length > 0 ? tables[0] : 'Barra'); 
     const [duration, setDuration] = useState(0); 
     const [totalCost, setTotalCost] = useState(0);
 
@@ -99,7 +90,7 @@ const ServiceTimeModal = ({ item, onClose, onConfirm }) => {
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xs overflow-hidden">
+            <div className="bg-white rounded-2xl w-full max-w-xs overflow-hidden">
                 <div className="bg-purple-600 p-4 text-white flex justify-between items-center">
                     <h3 className="font-bold flex items-center gap-2"><Clock size={18}/> Calcular Servicio</h3>
                     <button onClick={onClose} className="hover:bg-purple-700 p-1 rounded-full"><X size={18}/></button>
@@ -111,17 +102,17 @@ const ServiceTimeModal = ({ item, onClose, onConfirm }) => {
                         <p className="text-purple-600 font-bold text-sm">Bs. {item.price} / hora</p>
                     </div>
                     
-                    {/* --- AQUÍ ESTÁ EL CAMBIO: SELECTOR EN LUGAR DE INPUT --- */}
+                    {/* SELECTOR DE MESA (DINÁMICO) */}
                     <div>
                         <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Ubicación / Mesa</label>
                         <div className="relative">
                             <MapPin size={14} className="absolute left-3 top-3 text-purple-500"/>
                             <select 
-                                className="w-full pl-9 p-2 border rounded-lg font-bold text-gray-800 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none appearance-none"
+                                className="w-full pl-9 p-2 border rounded-lg font-bold text-gray-800 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none appearance-none uppercase"
                                 value={location} 
                                 onChange={e => setLocation(e.target.value)}
                             >
-                                {PREDEFINED_LOCATIONS.map(loc => (
+                                {tables && tables.map(loc => (
                                     <option key={loc} value={loc}>{loc}</option>
                                 ))}
                             </select>
@@ -145,7 +136,7 @@ const ServiceTimeModal = ({ item, onClose, onConfirm }) => {
     );
 };
 
-export default function CashierView({ items, categories, onProcessPayment, onVoidOrder, onReprintOrder, onStopService, onOpenExpense }) {
+export default function CashierView({ items, categories, tables, onProcessPayment, onVoidOrder, onReprintOrder, onStopService, onOpenExpense }) {
   const [activeTab, setActiveTab] = useState('orders'); 
   const [orders, setOrders] = useState([]);
   
@@ -154,7 +145,14 @@ export default function CashierView({ items, categories, onProcessPayment, onVoi
   const [catFilter, setCatFilter] = useState('Todos');
   const [expandCategories, setExpandCategories] = useState(false); 
   const [serviceModalItem, setServiceModalItem] = useState(null);
-  const [quickTable, setQuickTable] = useState('Barra'); 
+  const [quickTable, setQuickTable] = useState(tables && tables.length > 0 ? tables[0] : 'Barra'); 
+
+  // Si cambia la lista de mesas, nos aseguramos que quickTable tenga un valor válido
+  useEffect(() => {
+      if (tables && tables.length > 0 && !tables.includes(quickTable)) {
+          setQuickTable(tables[0]);
+      }
+  }, [tables, quickTable]);
 
   useEffect(() => {
     const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
@@ -185,7 +183,7 @@ export default function CashierView({ items, categories, onProcessPayment, onVoi
   const addServiceToCart = (item, calculatedPrice, timeRange, durationHours, locationName) => {
       setServiceModalItem(null); 
       let finalName = `${item.name} (${timeRange})`;
-      if (locationName && locationName !== 'Barra') {
+      if (locationName) {
           finalName += ` - ${locationName}`;
       }
 
@@ -210,8 +208,6 @@ export default function CashierView({ items, categories, onProcessPayment, onVoi
   const handleQuickCheckout = () => {
     if (cart.length === 0) return;
     const total = cart.reduce((acc, i) => acc + (i.price * i.qty), 0);
-    
-    // Usamos la mesa seleccionada en el dropdown global
     const locationName = quickTable;
 
     const quickOrder = {
@@ -225,7 +221,8 @@ export default function CashierView({ items, categories, onProcessPayment, onVoi
     };
     onProcessPayment(quickOrder); 
     setCart([]); 
-    setQuickTable('Barra'); // Reset a Barra
+    // No reseteamos a Barra, mantenemos la última usada por comodidad, o reseteamos si prefieres.
+    // setQuickTable(tables[0]); 
   };
 
   const filteredItems = items ? items.filter(i => {
@@ -240,7 +237,7 @@ export default function CashierView({ items, categories, onProcessPayment, onVoi
     <div className="flex flex-col h-[calc(100vh-100px)] animate-in fade-in">
       
       {serviceModalItem && (
-          <ServiceTimeModal item={serviceModalItem} onClose={() => setServiceModalItem(null)} onConfirm={addServiceToCart} />
+          <ServiceTimeModal item={serviceModalItem} onClose={() => setServiceModalItem(null)} onConfirm={addServiceToCart} tables={tables} />
       )}
 
       {/* --- ENCABEZADO --- */}
@@ -259,8 +256,7 @@ export default function CashierView({ items, categories, onProcessPayment, onVoi
       </div>
 
       <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden relative">
-         
-         {/* --- PESTAÑA COMANDAS --- */}
+         {/* --- COMANDAS --- */}
          {activeTab === 'orders' && (
             <div className="absolute inset-0 overflow-y-auto p-4 bg-gray-50/50">
                 {orders.length === 0 ? (
@@ -291,7 +287,7 @@ export default function CashierView({ items, categories, onProcessPayment, onVoi
             </div>
          )}
 
-         {/* --- PESTAÑA VENTA RÁPIDA --- */}
+         {/* --- VENTA RÁPIDA --- */}
          {activeTab === 'quick' && (
              <div className="absolute inset-0 flex">
                  <div className="flex-1 bg-gray-50 flex flex-col border-r border-gray-200 min-w-0">
@@ -350,15 +346,15 @@ export default function CashierView({ items, categories, onProcessPayment, onVoi
                      </div>
                      
                      <div className="p-4 bg-gray-50 border-t border-gray-200">
-                         {/* SELECTOR GLOBAL DE MESA (Venta Normal) */}
+                         {/* SELECTOR GLOBAL DE MESA */}
                          <div className="mb-3 relative">
                              <MapPin size={16} className="absolute left-3 top-3 text-gray-400"/>
                              <select 
-                                className="w-full pl-9 p-2.5 rounded-xl border border-gray-300 text-sm font-bold text-gray-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white appearance-none"
+                                className="w-full pl-9 p-2.5 rounded-xl border border-gray-300 text-sm font-bold text-gray-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white appearance-none uppercase"
                                 value={quickTable}
                                 onChange={e => setQuickTable(e.target.value)}
                              >
-                                {PREDEFINED_LOCATIONS.map(loc => (
+                                {tables && tables.map(loc => (
                                     <option key={loc} value={loc}>{loc}</option>
                                 ))}
                              </select>
