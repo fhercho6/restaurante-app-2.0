@@ -1,4 +1,4 @@
-// src/components/CashierView.jsx - SERVICIO POR HORA CON UBICACIÓN ESPECÍFICA
+// src/components/CashierView.jsx - VENTA RÁPIDA + SERVICIOS + SELECTOR DE MESAS
 import React, { useState, useEffect } from 'react';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db, ROOT_COLLECTION, isPersonalProject } from '../config/firebase';
@@ -6,6 +6,15 @@ import {
   Clock, CheckCircle, XCircle, Printer, Coffee, DollarSign, 
   Search, Grid, List, ShoppingCart, Trash2, ChevronRight, Plus, Minus, Tag, ChevronDown, ChevronUp, X, MapPin
 } from 'lucide-react';
+
+// --- LISTA DE MESAS PREDEFINIDA ---
+const PREDEFINED_LOCATIONS = [
+    "Barra", 
+    "Mesa 1", "Mesa 2", "Mesa 3", "Mesa 4", "Mesa 5", 
+    "Mesa 6", "Mesa 7", "Mesa 8", "Mesa 9", "Mesa 10",
+    "Mesa 11", "Mesa 12", "Mesa 13", "Mesa 14", "Mesa 15",
+    "VIP 1", "VIP 2", "Terraza 1", "Terraza 2"
+];
 
 // --- SUB-COMPONENTE: TARJETA DE PRODUCTO ---
 const CashierProductCard = ({ item, onClick }) => {
@@ -51,11 +60,11 @@ const CashierProductCard = ({ item, onClick }) => {
     );
 };
 
-// --- MODAL CÁLCULO DE SERVICIO (AHORA CON UBICACIÓN) ---
+// --- MODAL CÁLCULO DE SERVICIO (CON SELECTOR) ---
 const ServiceTimeModal = ({ item, onClose, onConfirm }) => {
     const [startTime, setStartTime] = useState('');
     const [endTime, setEndTime] = useState('');
-    const [location, setLocation] = useState(''); // NUEVO CAMPO
+    const [location, setLocation] = useState('Barra'); // Default
     const [duration, setDuration] = useState(0); 
     const [totalCost, setTotalCost] = useState(0);
 
@@ -84,7 +93,6 @@ const ServiceTimeModal = ({ item, onClose, onConfirm }) => {
 
     const handleConfirm = () => {
         if(totalCost > 0) {
-            // Pasamos la ubicación también
             onConfirm(item, totalCost, `${startTime} - ${endTime}`, duration, location);
         }
     };
@@ -103,19 +111,21 @@ const ServiceTimeModal = ({ item, onClose, onConfirm }) => {
                         <p className="text-purple-600 font-bold text-sm">Bs. {item.price} / hora</p>
                     </div>
                     
-                    {/* CAMPO DE UBICACIÓN DENTRO DEL MODAL */}
+                    {/* SELECTOR DE MESA */}
                     <div>
                         <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Ubicación / Mesa</label>
                         <div className="relative">
-                            <MapPin size={14} className="absolute left-3 top-3 text-gray-400"/>
-                            <input 
-                                type="text" 
-                                className="w-full pl-9 p-2 border rounded-lg font-bold text-gray-800 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none uppercase" 
-                                placeholder="Ej. MESA 4"
+                            <MapPin size={14} className="absolute left-3 top-3 text-purple-500"/>
+                            <select 
+                                className="w-full pl-9 p-2 border rounded-lg font-bold text-gray-800 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none appearance-none"
                                 value={location} 
-                                onChange={e => setLocation(e.target.value)} 
-                                autoFocus
-                            />
+                                onChange={e => setLocation(e.target.value)}
+                            >
+                                {PREDEFINED_LOCATIONS.map(loc => (
+                                    <option key={loc} value={loc}>{loc}</option>
+                                ))}
+                            </select>
+                            <ChevronDown size={14} className="absolute right-3 top-3 text-gray-400 pointer-events-none"/>
                         </div>
                     </div>
 
@@ -145,8 +155,8 @@ export default function CashierView({ items, categories, onProcessPayment, onVoi
   const [expandCategories, setExpandCategories] = useState(false); 
   const [serviceModalItem, setServiceModalItem] = useState(null);
   
-  // Ubicación global (opcional, para venta de productos normales)
-  const [quickTable, setQuickTable] = useState(''); 
+  // Ubicación global con Selector
+  const [quickTable, setQuickTable] = useState('Barra'); 
 
   useEffect(() => {
     const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
@@ -174,21 +184,18 @@ export default function CashierView({ items, categories, onProcessPayment, onVoi
     });
   };
 
-  // --- AGREGAR SERVICIO CON UBICACIÓN AL NOMBRE ---
   const addServiceToCart = (item, calculatedPrice, timeRange, durationHours, locationName) => {
       setServiceModalItem(null); 
-      
-      // Construimos el nombre con la ubicación incluida
       let finalName = `${item.name} (${timeRange})`;
-      if (locationName && locationName.trim() !== '') {
-          finalName += ` - ${locationName.toUpperCase()}`;
+      if (locationName && locationName !== 'Barra') {
+          finalName += ` - ${locationName}`;
       }
 
       const serviceItem = {
           ...item,
           id: item.id + '-' + Date.now(), 
           price: calculatedPrice,
-          name: finalName, // Nombre modificado
+          name: finalName, 
           qty: 1,
           isServiceItem: true 
       };
@@ -206,8 +213,8 @@ export default function CashierView({ items, categories, onProcessPayment, onVoi
     if (cart.length === 0) return;
     const total = cart.reduce((acc, i) => acc + (i.price * i.qty), 0);
     
-    // Si se usó el campo global de abajo, lo usamos.
-    const locationName = quickTable.trim() ? quickTable : 'Barra (Rápida)';
+    // Usamos la mesa seleccionada en el dropdown global
+    const locationName = quickTable;
 
     const quickOrder = {
         id: 'QUICK-' + Date.now(),
@@ -220,7 +227,7 @@ export default function CashierView({ items, categories, onProcessPayment, onVoi
     };
     onProcessPayment(quickOrder); 
     setCart([]); 
-    setQuickTable(''); 
+    setQuickTable('Barra'); // Reset a Barra
   };
 
   const filteredItems = items ? items.filter(i => {
@@ -345,16 +352,19 @@ export default function CashierView({ items, categories, onProcessPayment, onVoi
                      </div>
                      
                      <div className="p-4 bg-gray-50 border-t border-gray-200">
-                         {/* CAMPO DE UBICACIÓN GLOBAL (Para cuando NO es servicio) */}
+                         {/* SELECTOR GLOBAL DE MESA (Venta Normal) */}
                          <div className="mb-3 relative">
                              <MapPin size={16} className="absolute left-3 top-3 text-gray-400"/>
-                             <input 
-                                type="text" 
-                                placeholder="Mesa / Ubicación (Opcional)" 
-                                className="w-full pl-9 p-2.5 rounded-xl border border-gray-300 text-sm font-bold text-gray-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
+                             <select 
+                                className="w-full pl-9 p-2.5 rounded-xl border border-gray-300 text-sm font-bold text-gray-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white appearance-none"
                                 value={quickTable}
                                 onChange={e => setQuickTable(e.target.value)}
-                             />
+                             >
+                                {PREDEFINED_LOCATIONS.map(loc => (
+                                    <option key={loc} value={loc}>{loc}</option>
+                                ))}
+                             </select>
+                             <ChevronDown size={16} className="absolute right-3 top-3 text-gray-400 pointer-events-none"/>
                          </div>
 
                          <div className="flex justify-between items-end mb-3"><span className="text-gray-500 text-xs font-bold uppercase">Total a Cobrar</span><span className="text-2xl font-black text-gray-900">Bs. {cartTotal.toFixed(2)}</span></div>
