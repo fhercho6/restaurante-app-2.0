@@ -1,4 +1,4 @@
-// src/App.jsx - CON AUTO-IMPRESIÓN ACTIVADA
+// src/App.jsx - CORRECCIÓN GUARDADO DE STOCK (INTEGERS)
 import React, { useState, useEffect, useMemo } from 'react';
 import { Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign, ArrowLeft, Lock, Unlock, Wallet, Loader2, LayoutGrid, Gift, Trees, TrendingUp, Package, AlertCircle, Filter, X } from 'lucide-react';
 import { onAuthStateChanged, signOut, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
@@ -121,7 +121,28 @@ export default function App() {
       } catch (error) { console.error(error); toast.error("Error al registrar asistencia"); }
   };
 
-  const handleQuickUpdate = async (id, field, value) => { try { const valToSave = (field === 'price' || field === 'cost') ? parseFloat(value) : value; await updateDoc(doc(db, getCollName('items'), id), { [field]: valToSave }); toast.success(`${field === 'stock' ? 'Stock' : field === 'price' ? 'Precio' : 'Costo'} actualizado`, { duration: 1000, icon: '⚡' }); } catch (error) { toast.error('Error al actualizar'); } };
+  // --- CORRECCIÓN: GUARDADO ROBUSTO DE EDICIÓN RÁPIDA ---
+  const handleQuickUpdate = async (id, field, value) => { 
+      try { 
+          let valToSave = value;
+          // Si es precio o costo, forzamos decimal
+          if (field === 'price' || field === 'cost') {
+              valToSave = parseFloat(value);
+              if (isNaN(valToSave)) valToSave = 0;
+          }
+          // Si es stock, forzamos ENTERO (importante para que no sea texto)
+          if (field === 'stock') {
+              valToSave = parseInt(value);
+              if (isNaN(valToSave)) valToSave = 0;
+          }
+
+          await updateDoc(doc(db, getCollName('items'), id), { [field]: valToSave }); 
+          toast.success('Actualizado', { icon: '💾', duration: 1000 }); 
+      } catch (error) { 
+          console.error(error);
+          toast.error('Error al actualizar'); 
+      } 
+  };
 
   // --- DATA LOADING ---
   useEffect(() => { const initAuth = async () => { if (!auth.currentUser) { if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token && !isPersonalProject) { await signInWithCustomToken(auth, __initial_auth_token); } else { await signInAnonymously(auth).catch(() => setDbStatus('warning')); } } }; initAuth(); return onAuthStateChanged(auth, (u) => { setCurrentUser(u); if (u) { setDbStatus('connected'); setDbErrorMsg(''); } }); }, []);
