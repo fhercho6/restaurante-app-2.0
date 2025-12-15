@@ -1,6 +1,6 @@
-// src/App.jsx - CORRECCIÓN DEFINITIVA: TICKET VENTA RÁPIDA VISIBLE
+// src/App.jsx - VISTA ADMINISTRADOR MEJORADA (CATEGORÍAS LIMPIAS)
 import React, { useState, useEffect, useMemo } from 'react';
-import { Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign, ArrowLeft, Lock, Unlock, Wallet, Loader2, LayoutGrid, Gift, Trees, TrendingUp, Package, AlertCircle } from 'lucide-react';
+import { Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign, ArrowLeft, Lock, Unlock, Wallet, Loader2, LayoutGrid, Gift, Trees, TrendingUp, Package, AlertCircle, Filter, X } from 'lucide-react';
 import { onAuthStateChanged, signOut, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
 import { collection, doc, setDoc, addDoc, deleteDoc, onSnapshot, updateDoc, query, where, limit, getDocs } from 'firebase/firestore';
 import toast, { Toaster } from 'react-hot-toast';
@@ -20,7 +20,6 @@ import RegisterControlView from './components/RegisterControlView';
 import { AuthModal, BrandingModal, ProductModal, CategoryManager, RoleManager, TableManager, ExpenseTypeManager, ServiceStartModal, ExpenseModal } from './components/Modals';
 import { MenuCard, PinLoginView, CredentialPrintView, PrintableView, AdminRow } from './components/Views';
 
-const LOGO_URL_FIJO = ""; 
 const INITIAL_CATEGORIES = ['Bebidas', 'Comidas', 'Servicios']; 
 const INITIAL_ROLES = ['Garzón', 'Cajero', 'Cocinero', 'Administrador'];
 const INITIAL_TABLES = ['Barra', 'Mesa 1', 'Mesa 2', 'Mesa 3', 'Mesa 4', 'VIP 1']; 
@@ -49,18 +48,12 @@ export default function App() {
   
   // ESTADÍSTICAS DEL TURNO
   const [sessionStats, setSessionStats] = useState({ 
-      cashSales: 0, 
-      qrSales: 0, 
-      cardSales: 0, 
-      digitalSales: 0, 
-      totalExpenses: 0, 
-      totalCostOfGoods: 0, 
-      courtesyTotal: 0, 
-      courtesyCost: 0, 
-      expensesList: [],
-      soldProducts: [] 
+      cashSales: 0, qrSales: 0, cardSales: 0, digitalSales: 0, 
+      totalExpenses: 0, totalCostOfGoods: 0, courtesyTotal: 0, courtesyCost: 0, 
+      expensesList: [], soldProducts: [] 
   });
   
+  // ESTADOS MODALES
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
@@ -73,6 +66,7 @@ export default function App() {
   
   const [currentItem, setCurrentItem] = useState(null);
   const [filter, setFilter] = useState('Todos');
+  const [searchTerm, setSearchTerm] = useState(''); // BUSCADOR DE ADMIN
   const [credentialToPrint, setCredentialToPrint] = useState(null);
   const [staffMember, setStaffMember] = useState(null);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -229,18 +223,13 @@ export default function App() {
   const handleVoidAndPrint = async (order) => { try { const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`; await deleteDoc(doc(db, ordersCol, order.id)); const voidData = { ...order, type: 'void', businessName: appName, date: new Date().toLocaleString() }; setLastSale(voidData); toast.success("Pedido anulado"); setView('receipt_view'); } catch (error) { toast.error("Error al anular"); } };
   const handleReprintOrder = (order) => { const preCheckData = { ...order, type: 'order', businessName: appName, date: new Date().toLocaleString() }; setLastSale(preCheckData); setView('receipt_view'); toast.success("Reimprimiendo comanda..."); };
   
-  // --- HANDLE FINALIZAR (CORREGIDO PARA MOSTRAR RECIBO) ---
-  // --- HANDLE FINALIZAR (BLINDADO CONTRA ERROR 400) ---
+  // --- HANDLE FINALIZAR (CORREGIDO) ---
   const handleFinalizeSale = async (paymentResult) => { 
       if (!db) return; 
-      if (staffMember && staffMember.role !== 'Cajero' && staffMember.role !== 'Administrador') { 
-          toast.error("⛔ ACCESO DENEGADO: Solo Cajeros pueden cobrar."); setIsPaymentModalOpen(false); return; 
-      } 
+      if (staffMember && staffMember.role !== 'Cajero' && staffMember.role !== 'Administrador') { toast.error("⛔ ACCESO DENEGADO: Solo Cajeros pueden cobrar."); setIsPaymentModalOpen(false); return; } 
       if (!registerSession) { toast.error("¡La caja está cerrada!"); return; } 
-      
       const toastId = toast.loading('Procesando pago...'); 
       setIsPaymentModalOpen(false); 
-      
       const itemsToProcess = orderToPay ? orderToPay.items : pendingSale.cart; 
       const { paymentsList, totalPaid, change } = paymentResult; 
       const totalToProcess = totalPaid - change; 
@@ -248,101 +237,27 @@ export default function App() {
       try { 
           const batchPromises = []; 
           const timestamp = new Date(); 
-          let cashierName = 'Caja General'; 
-          if (staffMember) cashierName = staffMember.name; 
-          else if (currentUser) cashierName = 'Administrador'; 
-          
+          let cashierName = 'Caja General'; if (staffMember) cashierName = staffMember.name; else if (currentUser) cashierName = 'Administrador'; 
           const waiterName = orderToPay ? (orderToPay.staffName || 'Barra') : (staffMember ? staffMember.name : 'Barra'); 
           const waiterId = orderToPay ? (orderToPay.staffId || 'anon') : (staffMember ? staffMember.id : 'anon'); 
           
-          // 1. SANITIZAR ITEMS (Limpiar datos undefined)
-          const cleanItems = itemsToProcess.map(item => ({
-              id: item.id || 'unknown',
-              name: item.name || 'Sin nombre',
-              price: parseFloat(item.price) || 0,
-              qty: parseInt(item.qty) || 1,
-              category: item.category || 'General',
-              stock: item.stock !== undefined ? item.stock : null, // Importante: null si no existe
-              image: item.image || null, // Importante: null si no hay imagen
-              isServiceItem: !!item.isServiceItem,
-              location: item.location || null
-          }));
-
-          // 2. CREAR OBJETO DE VENTA LIMPIO
-          const saleData = { 
-              date: timestamp.toISOString(), 
-              total: parseFloat(totalToProcess) || 0, 
-              items: cleanItems, 
-              staffId: waiterId, 
-              staffName: waiterName, 
-              cashier: cashierName, 
-              registerId: registerSession.id, 
-              payments: paymentsList || [], 
-              totalPaid: parseFloat(totalPaid) || 0, 
-              changeGiven: parseFloat(change) || 0 
-          }; 
+          const cleanItems = itemsToProcess.map(item => ({ id: item.id || 'unknown', name: item.name || 'Sin nombre', price: parseFloat(item.price) || 0, qty: parseInt(item.qty) || 1, category: item.category || 'General', stock: item.stock !== undefined ? item.stock : null, image: item.image || null, isServiceItem: !!item.isServiceItem, location: item.location || null }));
+          const saleData = { date: timestamp.toISOString(), total: parseFloat(totalToProcess) || 0, items: cleanItems, staffId: waiterId, staffName: waiterName, cashier: cashierName, registerId: registerSession.id, payments: paymentsList || [], totalPaid: parseFloat(totalPaid) || 0, changeGiven: parseFloat(change) || 0 }; 
           
-          // 3. GUARDAR VENTA
           const salesCollection = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`; 
           const docRef = await addDoc(collection(db, salesCollection), saleData); 
           
-          // 4. ACTUALIZAR STOCK
-          cleanItems.forEach(item => { 
-              // Solo actualizamos si stock es un número válido
-              if (item.stock !== null && item.stock !== '' && !isNaN(item.stock)) { 
-                  const currentStock = parseInt(item.stock);
-                  const newStock = currentStock - item.qty; 
-                  // Protección extra: asegúrate de que el ID del item original (no el del carrito) sea correcto
-                  // Asumimos que item.id tiene el formato "ID_ORIGINAL-TIMESTAMP" para servicios,
-                  // pero para productos normales es el ID directo. 
-                  // Si item.id viene modificado, esto podría fallar, pero en teoría itemsToProcess mantiene la ref.
-                  
-                  // IMPORTANTE: Para productos de inventario, necesitamos el ID original del documento.
-                  // Si en 'addServiceToCart' o 'addToCart' modificamos el ID, aquí fallaría el update.
-                  // Asumiremos que el ID es correcto para productos simples.
-                  
-                  // Solo intentamos actualizar si NO es un servicio (los servicios no tienen stock real en DB)
-                  if (!item.isServiceItem) {
-                      batchPromises.push(updateDoc(doc(db, getCollName('items'), item.id), { stock: newStock })); 
-                  }
-              } 
-          }); 
-          
-          // 5. BORRAR PEDIDO PENDIENTE (Si no es venta rápida)
-          if (orderToPay && orderToPay.type !== 'quick_sale') { 
-              const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`; 
-              batchPromises.push(deleteDoc(doc(db, ordersCol, orderToPay.id))); 
-          } 
-          
+          cleanItems.forEach(item => { if (item.stock !== null && item.stock !== '' && !isNaN(item.stock) && !item.isServiceItem) { const newStock = parseInt(item.stock) - item.qty; batchPromises.push(updateDoc(doc(db, getCollName('items'), item.id), { stock: newStock })); } }); 
+          if (orderToPay && orderToPay.type !== 'quick_sale') { const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`; batchPromises.push(deleteDoc(doc(db, ordersCol, orderToPay.id))); } 
           await Promise.all(batchPromises); 
           
-          // 6. GENERAR TICKET (type: 'order' para que se vea)
-          const receiptData = { 
-              type: 'order', 
-              businessName: appName, 
-              date: timestamp.toLocaleString(), 
-              staffName: waiterName, 
-              cashierName: cashierName, 
-              orderId: docRef.id, 
-              items: cleanItems, 
-              total: totalToProcess, 
-              payments: paymentsList, 
-              change: change 
-          }; 
-          
+          const receiptData = { type: 'order', businessName: appName, date: timestamp.toLocaleString(), staffName: waiterName, cashierName: cashierName, orderId: docRef.id, items: cleanItems, total: totalToProcess, payments: paymentsList, change: change }; 
           setLastSale(receiptData); 
-          
-          // LIMPIAR CARRITO
           if (pendingSale && pendingSale.clearCart) pendingSale.clearCart([]); 
-          
-          setPendingSale(null); 
-          setOrderToPay(null); 
+          setPendingSale(null); setOrderToPay(null); 
           toast.success('¡Cobro exitoso!', { id: toastId }); 
           setView('receipt_view'); 
-      } catch (e) { 
-          console.error("Error detallado al cobrar:", e); // Esto te ayudará a ver qué falló en la consola
-          toast.error(`Error al cobrar: ${e.message}`, { id: toastId }); 
-      } 
+      } catch (e) { console.error("Error detallado al cobrar:", e); toast.error(`Error al cobrar: ${e.message}`, { id: toastId }); } 
   };
 
   const handleReceiptClose = () => { if (lastSale && lastSale.type === 'z-report') { setView('landing'); return; } const isCashier = (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador')) || (currentUser && !currentUser.isAnonymous); if (isCashier) setView('cashier'); else setView('pos'); };
@@ -367,6 +282,7 @@ export default function App() {
 
   const filterCategories = ['Todos', ...categories];
   const filteredItems = filter === 'Todos' ? items : items.filter(i => i.category === filter);
+  const finalFilteredItems = filteredItems.filter(i => i.name.toLowerCase().includes(searchTerm.toLowerCase()));
   const isAdminMode = view === 'admin' || view === 'report' || view === 'staff_admin' || view === 'cashier' || view === 'register_control';
   const isCashierOnly = staffMember && staffMember.role === 'Cajero';
 
@@ -411,26 +327,56 @@ export default function App() {
                 {view === 'credential_print' && credentialToPrint && (<div className="flex flex-col items-center w-full min-h-screen bg-gray-100"><div className="w-full max-w-md p-4 flex justify-start no-print"><button onClick={() => setView('staff_admin')} className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-lg shadow hover:bg-gray-50 font-bold"><ArrowLeft size={20} /> Volver a la Lista</button></div><CredentialPrintView member={credentialToPrint} appName={appName} /></div>)}
                 {view === 'admin' && !isCashierOnly && (
                   <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    {/* TARJETAS DE RESUMEN */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="bg-white p-4 rounded-xl border border-blue-100 shadow-sm flex items-center justify-between"><div><p className="text-xs text-gray-500 uppercase font-bold">Inversión (Costo)</p><p className="text-2xl font-black text-blue-600">Bs. {inventoryStats.totalCost.toFixed(2)}</p></div><div className="p-3 bg-blue-50 rounded-full text-blue-600"><DollarSign size={24}/></div></div>
                         <div className="bg-white p-4 rounded-xl border border-green-100 shadow-sm flex items-center justify-between"><div><p className="text-xs text-gray-500 uppercase font-bold">Venta Potencial</p><p className="text-2xl font-black text-green-600">Bs. {inventoryStats.totalRetail.toFixed(2)}</p></div><div className="p-3 bg-green-50 rounded-full text-green-600"><TrendingUp size={24}/></div></div>
                         <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between"><div><p className="text-xs text-gray-500 uppercase font-bold">Total Unidades</p><p className="text-2xl font-black text-gray-800">{inventoryStats.totalItems}</p></div><div className="p-3 bg-gray-100 rounded-full text-gray-600"><Package size={24}/></div></div>
                     </div>
-                    <div className="flex justify-between items-center mb-4">
-                      <div className="flex gap-2">
-                        <button aria-label="Configuración" onClick={() => setIsBrandingModalOpen(true)} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"><Settings size={20}/></button>
-                        <button onClick={() => setIsTableModalOpen(true)} className="px-4 py-2 bg-purple-50 text-purple-700 rounded-full font-bold text-sm hover:bg-purple-100 flex items-center gap-2 transition-colors border border-purple-100"><LayoutGrid size={16}/> Mesas</button>
-                        <button onClick={() => setIsExpenseTypeModalOpen(true)} className="px-4 py-2 bg-red-50 text-red-700 rounded-full font-bold text-sm hover:bg-red-100 flex items-center gap-2 transition-colors border border-red-100"><DollarSign size={16}/> Tipos Gasto</button>
-                        <button onClick={() => setIsCategoryModalOpen(true)} className="px-4 py-2 bg-gray-50 text-gray-700 rounded-full font-bold text-sm hover:bg-gray-100 flex items-center gap-2 transition-colors border border-gray-200"><Settings size={16}/> Cats</button>
-                        <button onClick={() => setIsQuickEditMode(!isQuickEditMode)} className={`px-4 py-2 rounded-full font-bold text-sm flex items-center gap-2 transition-all ${isQuickEditMode ? 'bg-blue-600 text-white shadow-lg shadow-blue-200 ring-2 ring-blue-400' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>{isQuickEditMode ? '⚡ MODO RÁPIDO ACTIVO' : '⚡ Activar Edición Rápida'}</button>
-                        <div className="flex flex-wrap gap-2 h-10 overflow-y-hidden">{filterCategories.map(cat => (<button key={cat} onClick={() => setFilter(cat)} className={`px-3 py-1 rounded-full text-sm whitespace-nowrap ${filter === cat ? 'bg-orange-500 text-white' : 'bg-white border'}`}>{cat}</button>))}</div>
-                      </div>
-                      <button aria-label="Nuevo Producto" onClick={() => { setCurrentItem(null); setIsModalOpen(true); }} className="px-4 py-2 bg-green-600 text-white rounded-full flex gap-2 shadow hover:bg-green-700 transition-colors"><Plus size={20}/> Nuevo</button>
+
+                    {/* BARRA DE HERRAMIENTAS Y BÚSQUEDA */}
+                    <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-2 rounded-xl shadow-sm border border-gray-200">
+                        {/* BOTONES DE CONFIGURACIÓN */}
+                        <div className="flex gap-2">
+                            <button onClick={() => setIsBrandingModalOpen(true)} className="p-2.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors" title="Configuración Global"><Settings size={20}/></button>
+                            <button onClick={() => setIsTableModalOpen(true)} className="p-2.5 bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100 border border-purple-100 transition-colors" title="Gestionar Mesas"><LayoutGrid size={20}/></button>
+                            <button onClick={() => setIsExpenseTypeModalOpen(true)} className="p-2.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 border border-red-100 transition-colors" title="Tipos de Gasto"><DollarSign size={20}/></button>
+                            <button onClick={() => setIsCategoryModalOpen(true)} className="p-2.5 bg-yellow-50 text-yellow-600 rounded-lg hover:bg-yellow-100 border border-yellow-100 transition-colors" title="Gestionar Categorías"><Filter size={20}/></button>
+                            <button onClick={() => setIsQuickEditMode(!isQuickEditMode)} className={`px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-all ${isQuickEditMode ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>{isQuickEditMode ? '⚡ EDICIÓN ACTIVA' : '⚡ Edición Rápida'}</button>
+                        </div>
+
+                        {/* BUSCADOR */}
+                        <div className="relative w-full md:w-64">
+                            <Search className="absolute left-3 top-2.5 text-gray-400" size={18}/>
+                            <input type="text" placeholder="Buscar producto..." className="w-full pl-10 p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}/>
+                            {searchTerm && <button onClick={() => setSearchTerm('')} className="absolute right-3 top-2.5 text-gray-400 hover:text-black"><X size={16}/></button>}
+                        </div>
+
+                        <button onClick={() => { setCurrentItem(null); setIsModalOpen(true); }} className="px-6 py-2.5 bg-green-600 text-white rounded-lg font-bold shadow hover:bg-green-700 transition-colors flex items-center gap-2"><Plus size={20}/> NUEVO</button>
                     </div>
+
+                    {/* CINTA DE CATEGORÍAS MEJORADA (SCROLLABLE) */}
+                    <div className="relative group">
+                        <div className="flex overflow-x-auto pb-2 gap-2 scrollbar-hide snap-x">
+                            {filterCategories.map(cat => (
+                                <button key={cat} onClick={() => setFilter(cat)} className={`flex-none snap-start px-6 py-2.5 rounded-full text-sm font-bold transition-all shadow-sm border ${filter === cat ? 'bg-black text-white border-black ring-2 ring-offset-2 ring-gray-300' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'}`}>{cat}</button>
+                            ))}
+                        </div>
+                        {/* Gradientes para indicar scroll */}
+                        <div className="absolute top-0 right-0 bottom-2 w-8 bg-gradient-to-l from-gray-50 to-transparent pointer-events-none md:hidden"></div>
+                    </div>
+
+                    {/* TABLA DE PRODUCTOS */}
                     <div className="bg-white rounded-xl shadow border overflow-hidden">
                       <table className="w-full text-left">
-                        <thead><tr className="bg-gray-50 text-xs uppercase text-gray-500"><th className="p-4">Producto</th><th className="p-4 text-center">Stock</th><th className="p-4 text-right">Costo</th><th className="p-4 text-right">Precio</th><th className="p-4 text-right">Margen</th><th className="p-4 text-right">Acciones</th></tr></thead>
-                        <tbody className="divide-y">{filteredItems.map(item => (<AdminRow key={item.id} item={item} onEdit={(i) => { setCurrentItem(i); setIsModalOpen(true); }} onDelete={handleDelete} isQuickEdit={isQuickEditMode} onQuickUpdate={handleQuickUpdate} />))}</tbody>
+                        <thead><tr className="bg-gray-50 text-xs uppercase text-gray-500 border-b border-gray-200"><th className="p-4">Producto</th><th className="p-4 text-center">Stock</th><th className="p-4 text-right">Costo</th><th className="p-4 text-right">Precio</th><th className="p-4 text-right">Margen</th><th className="p-4 text-right">Acciones</th></tr></thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {finalFilteredItems.length > 0 ? (
+                                finalFilteredItems.map(item => (<AdminRow key={item.id} item={item} onEdit={(i) => { setCurrentItem(i); setIsModalOpen(true); }} onDelete={handleDelete} isQuickEdit={isQuickEditMode} onQuickUpdate={handleQuickUpdate} />))
+                            ) : (
+                                <tr><td colSpan="6" className="p-8 text-center text-gray-400">No se encontraron productos.</td></tr>
+                            )}
+                        </tbody>
                       </table>
                     </div>
                   </div>
