@@ -1,4 +1,4 @@
-// src/components/CashierView.jsx - CON BOTÓN DE CORTESÍA
+// src/components/CashierView.jsx - CORRECCIÓN VENTA RÁPIDA (Impresión y Carrito)
 import React, { useState, useEffect } from 'react';
 import { collection, query, orderBy, onSnapshot, writeBatch, doc } from 'firebase/firestore';
 import { db, ROOT_COLLECTION, isPersonalProject } from '../config/firebase';
@@ -24,27 +24,17 @@ const CashierProductCard = ({ item, onClick }) => {
       >
         <div className="h-20 w-full bg-gray-50 flex items-center justify-center overflow-hidden p-2 relative">
           {item.image ? (
-            <img 
-                src={item.image} 
-                alt={item.name} 
-                className="w-full h-full object-contain mix-blend-multiply" 
-                loading="lazy"
-                onError={(e)=>e.target.style.display='none'}
-            />
+            <img src={item.image} alt={item.name} className="w-full h-full object-contain mix-blend-multiply" loading="lazy" onError={(e)=>e.target.style.display='none'} />
           ) : (
             isService ? <Clock className="text-purple-400" size={32}/> : <Coffee className="text-gray-300" size={24}/>
           )}
-          
           <div className={`absolute top-1 right-1 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm z-10 ${isService ? 'bg-purple-600 text-white' : 'bg-black/80 text-white'}`}>
              Bs. {item.price}{isService ? '/hr' : ''}
           </div>
-
           {isLowStock && !isOut && !isService && <div className="absolute bottom-0 inset-x-0 bg-red-500 text-white text-[9px] font-black text-center uppercase tracking-wide">Quedan: {stockNum}</div>}
         </div>
         <div className="p-2 flex-1 flex flex-col justify-between bg-white">
-            <p className="text-[9px] text-gray-500 font-bold uppercase truncate flex items-center gap-1">
-                <Tag size={8}/> {item.category}
-            </p>
+            <p className="text-[9px] text-gray-500 font-bold uppercase truncate flex items-center gap-1"><Tag size={8}/> {item.category}</p>
             <h4 className="text-xs font-bold text-gray-800 leading-tight line-clamp-2">{item.name}</h4>
         </div>
         {isOut && !isService && <div className="absolute inset-0 bg-white/60 flex items-center justify-center font-black text-gray-400 text-xs uppercase tracking-widest rotate-[-12deg] border-2 border-gray-200 m-4 rounded-lg">Agotado</div>}
@@ -91,70 +81,24 @@ const ServiceTimeModal = ({ item, onClose, onConfirm, tables, occupiedTables }) 
     }, [startTime, endTime, item.price]);
 
     const handleConfirm = () => {
-        if (occupiedTables.includes(location)) {
-            toast.error(`La ${location} ya tiene un servicio en esta venta.`);
-            return;
-        }
-        if(totalCost > 0) {
-            onConfirm(item, totalCost, `${startTime} - ${endTime}`, duration, location);
-        }
+        if (occupiedTables.includes(location)) { toast.error(`La ${location} ya tiene un servicio en esta venta.`); return; }
+        if(totalCost > 0) onConfirm(item, totalCost, `${startTime} - ${endTime}`, duration, location);
     };
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
             <div className="bg-white rounded-2xl w-full max-w-xs overflow-hidden shadow-2xl">
-                <div className="bg-purple-600 p-4 text-white flex justify-between items-center">
-                    <h3 className="font-bold flex items-center gap-2"><Clock size={18}/> Calcular Servicio</h3>
-                    <button onClick={onClose}><X size={18}/></button>
-                </div>
+                <div className="bg-purple-600 p-4 text-white flex justify-between items-center"><h3 className="font-bold flex items-center gap-2"><Clock size={18}/> Calcular Servicio</h3><button onClick={onClose}><X size={18}/></button></div>
                 <div className="p-6 space-y-4">
-                    <div className="text-center mb-2">
-                        <p className="text-xs text-gray-500 uppercase font-bold">Servicio</p>
-                        <h4 className="text-lg font-black text-gray-800">{item.name}</h4>
-                        <p className="text-purple-600 font-bold text-sm">Bs. {item.price} / hora</p>
-                    </div>
-                    
+                    <div className="text-center mb-2"><p className="text-xs text-gray-500 uppercase font-bold">Servicio</p><h4 className="text-lg font-black text-gray-800">{item.name}</h4><p className="text-purple-600 font-bold text-sm">Bs. {item.price} / hora</p></div>
                     <div>
                         <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Ubicación / Mesa</label>
-                        <div className="relative">
-                            <MapPin size={14} className="absolute left-3 top-3 text-purple-500"/>
-                            <select 
-                                className={`w-full pl-9 p-2 border rounded-lg font-bold outline-none appearance-none uppercase transition-colors ${occupiedTables.includes(location) ? 'border-red-300 bg-red-50 text-red-600' : 'text-gray-800 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500'}`}
-                                value={location} 
-                                onChange={e => setLocation(e.target.value)}
-                            >
-                                {tables && tables.map(loc => {
-                                    const isOccupied = occupiedTables.includes(loc);
-                                    return (
-                                        <option key={loc} value={loc} disabled={isOccupied} className={isOccupied ? 'text-gray-300' : ''}>
-                                            {loc} {isOccupied ? '(En Carrito)' : ''}
-                                        </option>
-                                    );
-                                })}
-                            </select>
-                            <ChevronDown size={14} className="absolute right-3 top-3 text-gray-400 pointer-events-none"/>
-                        </div>
-                        {occupiedTables.includes(location) && (
-                            <p className="text-[10px] text-red-500 font-bold mt-1 flex items-center gap-1"><AlertCircle size={10}/> Mesa ocupada en esta orden</p>
-                        )}
+                        <div className="relative"><MapPin size={14} className="absolute left-3 top-3 text-purple-500"/><select className={`w-full pl-9 p-2 border rounded-lg font-bold outline-none appearance-none uppercase transition-colors ${occupiedTables.includes(location) ? 'border-red-300 bg-red-50 text-red-600' : 'text-gray-800 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500'}`} value={location} onChange={e => setLocation(e.target.value)}>{tables && tables.map(loc => { const isOccupied = occupiedTables.includes(loc); return (<option key={loc} value={loc} disabled={isOccupied} className={isOccupied ? 'text-gray-300' : ''}>{loc} {isOccupied ? '(En Carrito)' : ''}</option>); })}</select><ChevronDown size={14} className="absolute right-3 top-3 text-gray-400 pointer-events-none"/></div>
+                        {occupiedTables.includes(location) && (<p className="text-[10px] text-red-500 font-bold mt-1 flex items-center gap-1"><AlertCircle size={10}/> Mesa ocupada en esta orden</p>)}
                     </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div><label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Inicio</label><input type="time" className="w-full p-2 border rounded-lg font-bold text-gray-800 text-center bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none" value={startTime} onChange={e => setStartTime(e.target.value)} /></div>
-                        <div><label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Fin</label><input type="time" className="w-full p-2 border rounded-lg font-bold text-gray-800 text-center bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none" value={endTime} onChange={e => setEndTime(e.target.value)} /></div>
-                    </div>
-                    
-                    <div className="bg-gray-100 p-3 rounded-xl flex justify-between items-center border border-gray-200">
-                        <div><p className="text-xs text-gray-500">Tiempo Total</p><p className="font-bold text-gray-800">{Math.floor(duration)}h {Math.round((duration % 1) * 60)}min</p></div>
-                        <div className="text-right"><p className="text-xs text-gray-500">A Cobrar</p><p className="font-black text-xl text-purple-600">Bs. {totalCost.toFixed(2)}</p></div>
-                    </div>
-                    <button 
-                        onClick={handleConfirm} 
-                        disabled={occupiedTables.includes(location)}
-                        className="w-full py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2"
-                    >
-                        <Plus size={18}/> {occupiedTables.includes(location) ? 'MESA OCUPADA' : 'AGREGAR'}
-                    </button>
+                    <div className="grid grid-cols-2 gap-4"><div><label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Inicio</label><input type="time" className="w-full p-2 border rounded-lg font-bold text-gray-800 text-center bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none" value={startTime} onChange={e => setStartTime(e.target.value)} /></div><div><label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Fin</label><input type="time" className="w-full p-2 border rounded-lg font-bold text-gray-800 text-center bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none" value={endTime} onChange={e => setEndTime(e.target.value)} /></div></div>
+                    <div className="bg-gray-100 p-3 rounded-xl flex justify-between items-center border border-gray-200"><div><p className="text-xs text-gray-500">Tiempo Total</p><p className="font-bold text-gray-800">{Math.floor(duration)}h {Math.round((duration % 1) * 60)}min</p></div><div className="text-right"><p className="text-xs text-gray-500">A Cobrar</p><p className="font-black text-xl text-purple-600">Bs. {totalCost.toFixed(2)}</p></div></div>
+                    <button onClick={handleConfirm} disabled={occupiedTables.includes(location)} className="w-full py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2"><Plus size={18}/> {occupiedTables.includes(location) ? 'MESA OCUPADA' : 'AGREGAR'}</button>
                 </div>
             </div>
         </div>
@@ -164,26 +108,19 @@ const ServiceTimeModal = ({ item, onClose, onConfirm, tables, occupiedTables }) 
 export default function CashierView({ items, categories, tables, onProcessPayment, onVoidOrder, onReprintOrder, onStopService, onOpenExpense }) {
   const [activeTab, setActiveTab] = useState('orders'); 
   const [orders, setOrders] = useState([]);
-  
-  // Estados Venta Rápida
   const [cart, setCart] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [catFilter, setCatFilter] = useState('Todos');
   const [expandCategories, setExpandCategories] = useState(false); 
   const [serviceModalItem, setServiceModalItem] = useState(null);
   const [quickTable, setQuickTable] = useState('LICOBAR'); 
-
-  // Estados Cobro Masivo
   const [selectedOrders, setSelectedOrders] = useState([]); 
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
 
-  // Lógica de prioridad "LICOBAR"
   useEffect(() => {
       if (tables && tables.length > 0) {
-          if (tables.includes('LICOBAR')) {
-              if (quickTable !== 'LICOBAR' && !tables.includes(quickTable)) setQuickTable('LICOBAR');
-          } 
+          if (tables.includes('LICOBAR')) { if (quickTable !== 'LICOBAR' && !tables.includes(quickTable)) setQuickTable('LICOBAR'); } 
           else if (!tables.includes(quickTable)) setQuickTable(tables[0]);
       }
   }, [tables, quickTable]);
@@ -191,53 +128,32 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
   useEffect(() => {
     const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
     const q = query(collection(db, ordersCol), orderBy('date', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setOrders(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
+    const unsubscribe = onSnapshot(q, (snapshot) => { setOrders(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))); });
     return () => unsubscribe();
   }, []);
 
   const handleItemClick = (item) => {
-      if (item.category === 'Servicios') {
-          setServiceModalItem(item);
-      } else {
-          addToCart(item);
-      }
+      if (item.category === 'Servicios') setServiceModalItem(item);
+      else addToCart(item);
   };
 
   const addToCart = (item) => {
     if (navigator.vibrate) navigator.vibrate(50);
-    setCart(prev => {
-        const exist = prev.find(i => i.id === item.id);
-        if(exist) return prev.map(i => i.id === item.id ? {...i, qty: i.qty + 1} : i);
-        return [...prev, {...item, qty: 1}];
-    });
+    setCart(prev => { const exist = prev.find(i => i.id === item.id); if(exist) return prev.map(i => i.id === item.id ? {...i, qty: i.qty + 1} : i); return [...prev, {...item, qty: 1}]; });
   };
 
   const addServiceToCart = (item, calculatedPrice, timeRange, durationHours, locationName) => {
       setServiceModalItem(null); 
       let finalName = `${item.name} (${timeRange})`;
       if (locationName) finalName += ` - ${locationName}`;
-
-      const serviceItem = {
-          ...item,
-          id: item.id + '-' + Date.now(), 
-          price: calculatedPrice,
-          name: finalName, 
-          location: locationName, 
-          qty: 1,
-          isServiceItem: true 
-      };
+      const serviceItem = { ...item, id: item.id + '-' + Date.now(), price: calculatedPrice, name: finalName, location: locationName, qty: 1, isServiceItem: true };
       setCart(prev => [...prev, serviceItem]);
   };
   
-  const updateQty = (id, delta, isServiceItem) => {
-      if (isServiceItem) return; 
-      setCart(prev => prev.map(i => i.id === id ? {...i, qty: Math.max(1, i.qty + delta)} : i));
-  };
-
+  const updateQty = (id, delta, isServiceItem) => { if (isServiceItem) return; setCart(prev => prev.map(i => i.id === id ? {...i, qty: Math.max(1, i.qty + delta)} : i)); };
   const removeFromCart = (id) => setCart(prev => prev.filter(i => i.id !== id));
 
+  // --- LÓGICA CORREGIDA VENTA RÁPIDA ---
   const handleQuickCheckout = () => {
     if (cart.length === 0) return;
     const total = cart.reduce((acc, i) => acc + (i.price * i.qty), 0);
@@ -249,23 +165,17 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
         total: total,
         staffName: `Caja - ${locationName}`, 
         staffId: 'cashier',
-        type: 'quick_sale',
+        type: 'quick_sale', // IMPORTANTE: Identifica que no está en Firestore
         table: locationName 
     };
-    onProcessPayment(quickOrder); 
-    setCart([]); 
     
-    if (tables && tables.includes('LICOBAR')) {
-        setQuickTable('LICOBAR');
-    }
+    // ENVIAMOS LA ORDEN Y LA FUNCIÓN PARA LIMPIAR EL CARRITO (Solo si se paga)
+    onProcessPayment(quickOrder, () => setCart([])); 
+    
+    if (tables && tables.includes('LICOBAR')) setQuickTable('LICOBAR');
   };
 
-  const toggleOrderSelection = (orderId) => {
-      setSelectedOrders(prev => {
-          if (prev.includes(orderId)) return prev.filter(id => id !== orderId);
-          return [...prev, orderId];
-      });
-  };
+  const toggleOrderSelection = (orderId) => { setSelectedOrders(prev => { if (prev.includes(orderId)) return prev.filter(id => id !== orderId); return [...prev, orderId]; }); };
 
   const requestBulkPay = (paymentMethod) => {
       if(selectedOrders.length === 0) return;
@@ -278,9 +188,7 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
                   <p className="font-bold text-gray-800 text-sm">¿Confirmar {paymentMethod}?</p>
                   <p className="text-xs text-gray-500">{selectedOrders.length} comandas</p>
                   <p className="text-lg font-black text-gray-900 mt-1">Total: Bs. {totalAmount.toFixed(2)}</p>
-                  {paymentMethod === 'Cortesía' && (
-                      <p className="text-[10px] text-red-500 font-bold mt-1">⚠️ No ingresará dinero a caja</p>
-                  )}
+                  {paymentMethod === 'Cortesía' && (<p className="text-[10px] text-red-500 font-bold mt-1">⚠️ No ingresará dinero a caja</p>)}
               </div>
               <div className="flex gap-2">
                   <button onClick={() => { toast.dismiss(t.id); executeBulkPay(paymentMethod, ordersToPay); }} className="bg-green-600 text-white py-2 rounded-lg text-xs font-bold flex-1 hover:bg-green-700 transition-colors">CONFIRMAR</button>
@@ -308,10 +216,10 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
                       cashier: 'Caja (Masivo)',
                       registerId: 'active-session', 
                       payments: [{ method: paymentMethod, amount: order.total }],
-                      totalPaid: paymentMethod === 'Cortesía' ? 0 : order.total, // SI ES CORTESÍA, PAGO ES 0
+                      totalPaid: paymentMethod === 'Cortesía' ? 0 : order.total, 
                       changeGiven: 0,
                       isBulk: true,
-                      paymentMethod: paymentMethod // Guardamos el método explícito
+                      paymentMethod: paymentMethod 
                   };
                   const saleRef = doc(collection(db, salesCol)); 
                   batch.set(saleRef, saleData);
@@ -323,21 +231,11 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
               toast.success(paymentMethod === 'Cortesía' ? 'Cortesía registrada' : 'Cobro exitoso', { icon: paymentMethod === 'Cortesía' ? '🎁' : '✅' });
               setSelectedOrders([]);
               setIsSelectionMode(false); 
-          } catch (error) {
-              console.error(error);
-              toast.error('Error al procesar', { icon: '❌' });
-          } finally {
-              setIsPaying(false); 
-          }
+          } catch (error) { console.error(error); toast.error('Error al procesar', { icon: '❌' }); } finally { setIsPaying(false); }
       }, 100);
   };
 
-  const filteredItems = items ? items.filter(i => {
-      const matchCat = catFilter === 'Todos' ? true : i.category === catFilter;
-      const matchSearch = i.name.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchCat && matchSearch;
-  }) : [];
-
+  const filteredItems = items ? items.filter(i => { const matchCat = catFilter === 'Todos' ? true : i.category === catFilter; const matchSearch = i.name.toLowerCase().includes(searchTerm.toLowerCase()); return matchCat && matchSearch; }) : [];
   const cartTotal = cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
   const totalSelected = orders.filter(o => selectedOrders.includes(o.id)).reduce((acc, o) => acc + o.total, 0);
   const occupiedTablesInCart = cart.filter(i => i.isServiceItem && i.location).map(i => i.location);
@@ -345,16 +243,7 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
   return (
     <div className="flex flex-col h-[calc(100vh-100px)] animate-in fade-in relative">
       {isPaying && (<div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-[60] flex items-center justify-center rounded-2xl animate-in fade-in duration-200"><div className="bg-white p-4 rounded-2xl shadow-2xl flex flex-col items-center gap-3 border border-gray-100"><Loader2 className="animate-spin text-blue-600" size={32}/><span className="font-bold text-gray-700 text-sm">Procesando...</span></div></div>)}
-      
-      {serviceModalItem && (
-          <ServiceTimeModal 
-            item={serviceModalItem} 
-            onClose={() => setServiceModalItem(null)} 
-            onConfirm={addServiceToCart} 
-            tables={tables} 
-            occupiedTables={occupiedTablesInCart} 
-          />
-      )}
+      {serviceModalItem && (<ServiceTimeModal item={serviceModalItem} onClose={() => setServiceModalItem(null)} onConfirm={addServiceToCart} tables={tables} occupiedTables={occupiedTablesInCart} />)}
 
       <div className="flex justify-between items-center mb-3 px-1 flex-wrap gap-2">
          <div className="flex bg-white p-1 rounded-xl shadow-sm border border-gray-200">
@@ -404,7 +293,6 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
                      <button onClick={() => requestBulkPay('Efectivo')} disabled={isPaying} className="flex-1 sm:flex-none bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white px-4 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-transform text-xs sm:text-sm flex items-center justify-center gap-2 whitespace-nowrap"><DollarSign size={16}/> EFECTIVO</button>
                      <button onClick={() => requestBulkPay('QR')} disabled={isPaying} className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-4 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-transform text-xs sm:text-sm flex items-center justify-center gap-2 whitespace-nowrap"><Grid size={16}/> QR</button>
                      <button onClick={() => requestBulkPay('Tarjeta')} disabled={isPaying} className="flex-1 sm:flex-none bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white px-4 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-transform text-xs sm:text-sm flex items-center justify-center gap-2 whitespace-nowrap"><CreditCard size={16}/> TARJETA</button>
-                     {/* BOTÓN CORTESÍA AGREGADO */}
                      <button onClick={() => requestBulkPay('Cortesía')} disabled={isPaying} className="flex-1 sm:flex-none bg-yellow-500 hover:bg-yellow-400 text-black px-4 py-3 rounded-xl font-black shadow-lg active:scale-95 transition-transform text-xs sm:text-sm flex items-center justify-center gap-2 whitespace-nowrap"><Gift size={16}/> CORTESÍA</button>
                  </div>
              </div>
