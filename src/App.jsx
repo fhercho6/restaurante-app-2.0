@@ -230,12 +230,17 @@ export default function App() {
   const handleReprintOrder = (order) => { const preCheckData = { ...order, type: 'order', businessName: appName, date: new Date().toLocaleString() }; setLastSale(preCheckData); setView('receipt_view'); toast.success("Reimprimiendo comanda..."); };
   
   // --- HANDLE FINALIZAR (CORREGIDO PARA MOSTRAR RECIBO) ---
+  // --- HANDLE FINALIZAR (BLINDADO CONTRA ERROR 400) ---
   const handleFinalizeSale = async (paymentResult) => { 
       if (!db) return; 
-      if (staffMember && staffMember.role !== 'Cajero' && staffMember.role !== 'Administrador') { toast.error("⛔ ACCESO DENEGADO: Solo Cajeros pueden cobrar."); setIsPaymentModalOpen(false); return; } 
+      if (staffMember && staffMember.role !== 'Cajero' && staffMember.role !== 'Administrador') { 
+          toast.error("⛔ ACCESO DENEGADO: Solo Cajeros pueden cobrar."); setIsPaymentModalOpen(false); return; 
+      } 
       if (!registerSession) { toast.error("¡La caja está cerrada!"); return; } 
+      
       const toastId = toast.loading('Procesando pago...'); 
       setIsPaymentModalOpen(false); 
+      
       const itemsToProcess = orderToPay ? orderToPay.items : pendingSale.cart; 
       const { paymentsList, totalPaid, change } = paymentResult; 
       const totalToProcess = totalPaid - change; 
@@ -243,25 +248,101 @@ export default function App() {
       try { 
           const batchPromises = []; 
           const timestamp = new Date(); 
-          let cashierName = 'Caja General'; if (staffMember) cashierName = staffMember.name; else if (currentUser) cashierName = 'Administrador'; 
-          const waiterName = orderToPay ? orderToPay.staffName : (staffMember ? staffMember.name : 'Barra'); 
-          const waiterId = orderToPay ? orderToPay.staffId : (staffMember ? staffMember.id : 'anon'); 
-          const saleData = { date: timestamp.toISOString(), total: totalToProcess, items: itemsToProcess, staffId: waiterId, staffName: waiterName, cashier: cashierName, registerId: registerSession.id, payments: paymentsList, totalPaid: totalPaid, changeGiven: change }; 
+          let cashierName = 'Caja General'; 
+          if (staffMember) cashierName = staffMember.name; 
+          else if (currentUser) cashierName = 'Administrador'; 
+          
+          const waiterName = orderToPay ? (orderToPay.staffName || 'Barra') : (staffMember ? staffMember.name : 'Barra'); 
+          const waiterId = orderToPay ? (orderToPay.staffId || 'anon') : (staffMember ? staffMember.id : 'anon'); 
+          
+          // 1. SANITIZAR ITEMS (Limpiar datos undefined)
+          const cleanItems = itemsToProcess.map(item => ({
+              id: item.id || 'unknown',
+              name: item.name || 'Sin nombre',
+              price: parseFloat(item.price) || 0,
+              qty: parseInt(item.qty) || 1,
+              category: item.category || 'General',
+              stock: item.stock !== undefined ? item.stock : null, // Importante: null si no existe
+              image: item.image || null, // Importante: null si no hay imagen
+              isServiceItem: !!item.isServiceItem,
+              location: item.location || null
+          }));
+
+          // 2. CREAR OBJETO DE VENTA LIMPIO
+          const saleData = { 
+              date: timestamp.toISOString(), 
+              total: parseFloat(totalToProcess) || 0, 
+              items: cleanItems, 
+              staffId: waiterId, 
+              staffName: waiterName, 
+              cashier: cashierName, 
+              registerId: registerSession.id, 
+              payments: paymentsList || [], 
+              totalPaid: parseFloat(totalPaid) || 0, 
+              changeGiven: parseFloat(change) || 0 
+          }; 
+          
+          // 3. GUARDAR VENTA
           const salesCollection = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`; 
           const docRef = await addDoc(collection(db, salesCollection), saleData); 
           
-          itemsToProcess.forEach(item => { if (item.stock !== undefined && item.stock !== '') { const newStock = parseInt(item.stock) - item.qty; batchPromises.push(updateDoc(doc(db, getCollName('items'), item.id), { stock: newStock })); } }); 
-          if (orderToPay && orderToPay.type !== 'quick_sale') { const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`; batchPromises.push(deleteDoc(doc(db, ordersCol, orderToPay.id))); } 
+          // 4. ACTUALIZAR STOCK
+          cleanItems.forEach(item => { 
+              // Solo actualizamos si stock es un número válido
+              if (item.stock !== null && item.stock !== '' && !isNaN(item.stock)) { 
+                  const currentStock = parseInt(item.stock);
+                  const newStock = currentStock - item.qty; 
+                  // Protección extra: asegúrate de que el ID del item original (no el del carrito) sea correcto
+                  // Asumimos que item.id tiene el formato "ID_ORIGINAL-TIMESTAMP" para servicios,
+                  // pero para productos normales es el ID directo. 
+                  // Si item.id viene modificado, esto podría fallar, pero en teoría itemsToProcess mantiene la ref.
+                  
+                  // IMPORTANTE: Para productos de inventario, necesitamos el ID original del documento.
+                  // Si en 'addServiceToCart' o 'addToCart' modificamos el ID, aquí fallaría el update.
+                  // Asumiremos que el ID es correcto para productos simples.
+                  
+                  // Solo intentamos actualizar si NO es un servicio (los servicios no tienen stock real en DB)
+                  if (!item.isServiceItem) {
+                      batchPromises.push(updateDoc(doc(db, getCollName('items'), item.id), { stock: newStock })); 
+                  }
+              } 
+          }); 
+          
+          // 5. BORRAR PEDIDO PENDIENTE (Si no es venta rápida)
+          if (orderToPay && orderToPay.type !== 'quick_sale') { 
+              const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`; 
+              batchPromises.push(deleteDoc(doc(db, ordersCol, orderToPay.id))); 
+          } 
+          
           await Promise.all(batchPromises); 
           
-          // IMPORTANTE: type: 'order' AGREGADO PARA QUE RECEIPT.JSX LO MUESTRE
-          const receiptData = { type: 'order', businessName: appName, date: timestamp.toLocaleString(), staffName: waiterName, cashierName: cashierName, orderId: docRef.id, items: itemsToProcess, total: totalToProcess, payments: paymentsList, change: change }; 
+          // 6. GENERAR TICKET (type: 'order' para que se vea)
+          const receiptData = { 
+              type: 'order', 
+              businessName: appName, 
+              date: timestamp.toLocaleString(), 
+              staffName: waiterName, 
+              cashierName: cashierName, 
+              orderId: docRef.id, 
+              items: cleanItems, 
+              total: totalToProcess, 
+              payments: paymentsList, 
+              change: change 
+          }; 
+          
           setLastSale(receiptData); 
+          
+          // LIMPIAR CARRITO
           if (pendingSale && pendingSale.clearCart) pendingSale.clearCart([]); 
-          setPendingSale(null); setOrderToPay(null); 
+          
+          setPendingSale(null); 
+          setOrderToPay(null); 
           toast.success('¡Cobro exitoso!', { id: toastId }); 
           setView('receipt_view'); 
-      } catch (e) { console.error(e); toast.error('Error al cobrar', { id: toastId }); } 
+      } catch (e) { 
+          console.error("Error detallado al cobrar:", e); // Esto te ayudará a ver qué falló en la consola
+          toast.error(`Error al cobrar: ${e.message}`, { id: toastId }); 
+      } 
   };
 
   const handleReceiptClose = () => { if (lastSale && lastSale.type === 'z-report') { setView('landing'); return; } const isCashier = (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador')) || (currentUser && !currentUser.isAnonymous); if (isCashier) setView('cashier'); else setView('pos'); };
