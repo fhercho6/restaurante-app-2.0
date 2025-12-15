@@ -1,10 +1,10 @@
-// src/components/CashierView.jsx - BLOQUEO DE MESAS DUPLICADAS EN SERVICIOS
+// src/components/CashierView.jsx - CON BOTÓN DE CORTESÍA
 import React, { useState, useEffect } from 'react';
 import { collection, query, orderBy, onSnapshot, writeBatch, doc } from 'firebase/firestore';
 import { db, ROOT_COLLECTION, isPersonalProject } from '../config/firebase';
 import { 
   Clock, CheckCircle, XCircle, Printer, Coffee, DollarSign, 
-  Search, Grid, List, ShoppingCart, Trash2, ChevronRight, Plus, Minus, Tag, ChevronDown, ChevronUp, X, MapPin, CheckSquare, CreditCard, Loader2, AlertCircle
+  Search, Grid, List, ShoppingCart, Trash2, ChevronRight, Plus, Minus, Tag, ChevronDown, ChevronUp, X, MapPin, CheckSquare, CreditCard, Loader2, AlertCircle, Gift
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -52,12 +52,11 @@ const CashierProductCard = ({ item, onClick }) => {
     );
 };
 
-// --- MODAL CÁLCULO DE SERVICIO (CON BLOQUEO DE MESAS OCUPADAS) ---
+// --- MODAL CÁLCULO DE SERVICIO ---
 const ServiceTimeModal = ({ item, onClose, onConfirm, tables, occupiedTables }) => {
     const [startTime, setStartTime] = useState('');
     const [endTime, setEndTime] = useState('');
     
-    // Determinar mesa inicial (primera que no esté ocupada)
     const getInitialTable = () => {
         if (!tables) return 'Barra';
         const freeTable = tables.find(t => !occupiedTables.includes(t));
@@ -115,7 +114,6 @@ const ServiceTimeModal = ({ item, onClose, onConfirm, tables, occupiedTables }) 
                         <p className="text-purple-600 font-bold text-sm">Bs. {item.price} / hora</p>
                     </div>
                     
-                    {/* SELECTOR DE MESA INTELIGENTE */}
                     <div>
                         <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Ubicación / Mesa</label>
                         <div className="relative">
@@ -226,7 +224,7 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
           id: item.id + '-' + Date.now(), 
           price: calculatedPrice,
           name: finalName, 
-          location: locationName, // GUARDAMOS LA MESA PARA VALIDAR DUPLICADOS
+          location: locationName, 
           qty: 1,
           isServiceItem: true 
       };
@@ -262,7 +260,6 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
     }
   };
 
-  // --- LÓGICA COBRO MASIVO (Toast) ---
   const toggleOrderSelection = (orderId) => {
       setSelectedOrders(prev => {
           if (prev.includes(orderId)) return prev.filter(id => id !== orderId);
@@ -278,9 +275,12 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
       toast((t) => (
           <div className="flex flex-col gap-3 min-w-[240px] bg-white p-1">
               <div>
-                  <p className="font-bold text-gray-800 text-sm">¿Confirmar Cobro?</p>
-                  <p className="text-xs text-gray-500">{selectedOrders.length} comandas por <b>{paymentMethod}</b></p>
+                  <p className="font-bold text-gray-800 text-sm">¿Confirmar {paymentMethod}?</p>
+                  <p className="text-xs text-gray-500">{selectedOrders.length} comandas</p>
                   <p className="text-lg font-black text-gray-900 mt-1">Total: Bs. {totalAmount.toFixed(2)}</p>
+                  {paymentMethod === 'Cortesía' && (
+                      <p className="text-[10px] text-red-500 font-bold mt-1">⚠️ No ingresará dinero a caja</p>
+                  )}
               </div>
               <div className="flex gap-2">
                   <button onClick={() => { toast.dismiss(t.id); executeBulkPay(paymentMethod, ordersToPay); }} className="bg-green-600 text-white py-2 rounded-lg text-xs font-bold flex-1 hover:bg-green-700 transition-colors">CONFIRMAR</button>
@@ -308,9 +308,10 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
                       cashier: 'Caja (Masivo)',
                       registerId: 'active-session', 
                       payments: [{ method: paymentMethod, amount: order.total }],
-                      totalPaid: order.total,
+                      totalPaid: paymentMethod === 'Cortesía' ? 0 : order.total, // SI ES CORTESÍA, PAGO ES 0
                       changeGiven: 0,
-                      isBulk: true
+                      isBulk: true,
+                      paymentMethod: paymentMethod // Guardamos el método explícito
                   };
                   const saleRef = doc(collection(db, salesCol)); 
                   batch.set(saleRef, saleData);
@@ -319,7 +320,7 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
               });
 
               await batch.commit();
-              toast.success(`¡Cobro exitoso!`, { icon: '✅' });
+              toast.success(paymentMethod === 'Cortesía' ? 'Cortesía registrada' : 'Cobro exitoso', { icon: paymentMethod === 'Cortesía' ? '🎁' : '✅' });
               setSelectedOrders([]);
               setIsSelectionMode(false); 
           } catch (error) {
@@ -339,24 +340,19 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
 
   const cartTotal = cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
   const totalSelected = orders.filter(o => selectedOrders.includes(o.id)).reduce((acc, o) => acc + o.total, 0);
-
-  // --- CALCULAR MESAS YA OCUPADAS EN EL CARRITO ---
-  const occupiedTablesInCart = cart
-      .filter(i => i.isServiceItem && i.location) // Solo items de servicio con mesa asignada
-      .map(i => i.location);
+  const occupiedTablesInCart = cart.filter(i => i.isServiceItem && i.location).map(i => i.location);
 
   return (
     <div className="flex flex-col h-[calc(100vh-100px)] animate-in fade-in relative">
-      {isPaying && (<div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-[60] flex items-center justify-center rounded-2xl animate-in fade-in duration-200"><div className="bg-white p-4 rounded-2xl shadow-2xl flex flex-col items-center gap-3 border border-gray-100"><Loader2 className="animate-spin text-blue-600" size={32}/><span className="font-bold text-gray-700 text-sm">Procesando pagos...</span></div></div>)}
+      {isPaying && (<div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-[60] flex items-center justify-center rounded-2xl animate-in fade-in duration-200"><div className="bg-white p-4 rounded-2xl shadow-2xl flex flex-col items-center gap-3 border border-gray-100"><Loader2 className="animate-spin text-blue-600" size={32}/><span className="font-bold text-gray-700 text-sm">Procesando...</span></div></div>)}
       
-      {/* PASAMOS occupiedTables AL MODAL */}
       {serviceModalItem && (
           <ServiceTimeModal 
             item={serviceModalItem} 
             onClose={() => setServiceModalItem(null)} 
             onConfirm={addServiceToCart} 
             tables={tables} 
-            occupiedTables={occupiedTablesInCart} // NUEVA PROP
+            occupiedTables={occupiedTablesInCart} 
           />
       )}
 
@@ -408,6 +404,8 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
                      <button onClick={() => requestBulkPay('Efectivo')} disabled={isPaying} className="flex-1 sm:flex-none bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white px-4 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-transform text-xs sm:text-sm flex items-center justify-center gap-2 whitespace-nowrap"><DollarSign size={16}/> EFECTIVO</button>
                      <button onClick={() => requestBulkPay('QR')} disabled={isPaying} className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-4 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-transform text-xs sm:text-sm flex items-center justify-center gap-2 whitespace-nowrap"><Grid size={16}/> QR</button>
                      <button onClick={() => requestBulkPay('Tarjeta')} disabled={isPaying} className="flex-1 sm:flex-none bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white px-4 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-transform text-xs sm:text-sm flex items-center justify-center gap-2 whitespace-nowrap"><CreditCard size={16}/> TARJETA</button>
+                     {/* BOTÓN CORTESÍA AGREGADO */}
+                     <button onClick={() => requestBulkPay('Cortesía')} disabled={isPaying} className="flex-1 sm:flex-none bg-yellow-500 hover:bg-yellow-400 text-black px-4 py-3 rounded-xl font-black shadow-lg active:scale-95 transition-transform text-xs sm:text-sm flex items-center justify-center gap-2 whitespace-nowrap"><Gift size={16}/> CORTESÍA</button>
                  </div>
              </div>
          )}

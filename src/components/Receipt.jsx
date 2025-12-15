@@ -1,4 +1,4 @@
-// src/components/Receipt.jsx - CON REPORTE DE COSTOS Y GANANCIA
+// src/components/Receipt.jsx - CON REPORTE DE CORTESÍAS
 import React from 'react';
 import { X, Printer, DollarSign } from 'lucide-react';
 
@@ -69,11 +69,12 @@ const Receipt = ({ data, onPrint, onClose }) => {
     );
   }
 
-  // --- 3. REPORTE Z (Cierre de Caja con Costos y Ganancia) ---
+  // --- 3. REPORTE Z (Cierre de Caja con Cortesías) ---
   if (data.type === 'z-report') {
     const totalSales = data.stats.cashSales + data.stats.digitalSales;
     const totalCost = data.stats.totalCostOfGoods || 0;
     const grossProfit = totalSales - totalCost;
+    const courtesyCost = data.stats.courtesyCost || 0;
 
     return (
       <div className="fixed inset-0 bg-gray-900/90 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
@@ -108,7 +109,7 @@ const Receipt = ({ data, onPrint, onClose }) => {
                   <div className="flex justify-between"><span>• QR / Transf:</span><span>{data.stats.qrSales.toFixed(2)}</span></div>
                   <div className="flex justify-between"><span>• Tarjeta:</span><span>{data.stats.cardSales.toFixed(2)}</span></div>
               </div>
-              <div className="flex justify-between mt-1 text-red-600 print:text-black"><span>(-) GASTOS:</span><span>{data.stats.totalExpenses.toFixed(2)}</span></div>
+              <div className="flex justify-between mt-1 text-red-600 print:text-black"><span>(-) GASTOS CAJA:</span><span>{data.stats.totalExpenses.toFixed(2)}</span></div>
             </div>
 
             <div className="flex justify-between items-center text-lg font-black border-b-2 border-black pb-2 mb-4">
@@ -118,14 +119,23 @@ const Receipt = ({ data, onPrint, onClose }) => {
 
             {/* SECCIÓN DE RENTABILIDAD */}
             <div className="border border-dashed border-gray-400 p-2 mb-4 bg-gray-50 print:bg-white">
-                <p className="font-bold uppercase mb-1 text-center border-b border-gray-300 pb-1">Análisis de Rentabilidad</p>
+                <p className="font-bold uppercase mb-1 text-center border-b border-gray-300 pb-1">Rentabilidad del Turno</p>
                 <div className="flex justify-between text-[10px]"><span>Total Ventas:</span><span>{totalSales.toFixed(2)}</span></div>
-                <div className="flex justify-between text-[10px]"><span>(-) Costo Mercadería:</span><span>{totalCost.toFixed(2)}</span></div>
+                <div className="flex justify-between text-[10px]"><span>(-) Costo Mercadería Vendida:</span><span>{totalCost.toFixed(2)}</span></div>
                 <div className="flex justify-between font-black mt-1 text-sm border-t border-gray-300 pt-1">
                     <span>(=) GANANCIA BRUTA:</span>
                     <span>Bs. {grossProfit.toFixed(2)}</span>
                 </div>
             </div>
+
+            {/* SECCIÓN CORTESÍAS (NUEVO) */}
+            {data.stats.courtesyTotal > 0 && (
+                <div className="border border-dashed border-gray-400 p-2 mb-4 bg-yellow-50 print:bg-white">
+                    <p className="font-bold uppercase mb-1 text-center border-b border-gray-300 pb-1">Cortesías / Regalos</p>
+                    <div className="flex justify-between text-[10px]"><span>Valor Comercial (Regalado):</span><span>{data.stats.courtesyTotal.toFixed(2)}</span></div>
+                    <div className="flex justify-between text-[10px] font-bold text-red-600 print:text-black"><span>(-) Costo Asumido (Pérdida):</span><span>{courtesyCost.toFixed(2)}</span></div>
+                </div>
+            )}
 
             {data.expensesList && data.expensesList.length > 0 && (
                 <div className="mb-4">
@@ -136,7 +146,6 @@ const Receipt = ({ data, onPrint, onClose }) => {
                 </div>
             )}
 
-            {/* LISTA DE PRODUCTOS VENDIDOS CON COSTOS */}
             {data.soldProducts && data.soldProducts.length > 0 ? (
                 <div className="mt-4">
                     <p className="font-black uppercase border-b-2 border-black mb-2 text-center">PRODUCTOS VENDIDOS</p>
@@ -147,11 +156,11 @@ const Receipt = ({ data, onPrint, onClose }) => {
                         <span className="w-12 text-right">TOTAL</span>
                     </div>
                     {data.soldProducts.map((prod, i) => (
-                        <div key={i} className="flex justify-between py-0.5 border-b border-dotted border-gray-300 text-[10px]">
+                        <div key={i} className={`flex justify-between py-0.5 border-b border-dotted border-gray-300 text-[10px] ${prod.isCourtesy ? 'text-gray-500 italic' : ''}`}>
                             <span className="w-6 text-center font-bold">{prod.qty}</span>
-                            <span className="flex-1 pl-1 truncate">{prod.name}</span>
+                            <span className="flex-1 pl-1 truncate">{prod.name} {prod.isCourtesy ? '(Cortesía)' : ''}</span>
                             <span className="w-10 text-right text-gray-500 print:text-gray-700">{prod.costUnit ? prod.costUnit.toFixed(2) : '0.00'}</span>
-                            <span className="w-12 text-right font-bold">{prod.total.toFixed(2)}</span>
+                            <span className="w-12 text-right font-bold">{prod.isCourtesy ? '0.00' : prod.total.toFixed(2)}</span>
                         </div>
                     ))}
                 </div>
