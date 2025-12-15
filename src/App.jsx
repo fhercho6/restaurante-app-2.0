@@ -1,4 +1,4 @@
-// src/App.jsx - VERSIÓN FINAL (DISEÑO NAVIDAD NEÓN + GESTIÓN COMPLETA)
+// src/App.jsx - VERSIÓN FINAL (DISEÑO NAVIDAD NEÓN + GESTIÓN COMPLETA + BOTÓN VOLVER)
 import React, { useState, useEffect } from 'react';
 import { Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign, ArrowLeft, Lock, Unlock, Wallet, Loader2, LayoutGrid, Gift, Trees } from 'lucide-react';
 import { onAuthStateChanged, signOut, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
@@ -284,7 +284,7 @@ export default function App() {
             {view === 'pos' && (<POSInterface items={items} categories={categories} staffMember={staffMember} onCheckout={handlePOSCheckout} onPrintOrder={handleSendToKitchen} onExit={() => setView('landing')} onOpenServiceModal={() => setIsServiceModalOpen(true)} autoLockTime={autoLockTime} />)}
             {view === 'receipt_view' && <Receipt data={lastSale} onPrint={handlePrint} onClose={handleReceiptClose} />}
             
-            {/* --- SECCIÓN MENÚ CLIENTES (NAVIDAD NEÓN) --- */}
+            {/* --- SECCIÓN MENÚ CLIENTES (NAVIDAD NEÓN + BOTÓN SALIR) --- */}
             {view === 'menu' && (<>
               {/* FONDO GLOBAL FIJO */}
               <div className="fixed inset-0 z-0 pointer-events-none bg-[#0a0a0a]">
@@ -297,6 +297,16 @@ export default function App() {
               {filter === 'Todos' ? (
                 // --- GRID DE CATEGORÍAS ---
                 <div className="animate-in fade-in pb-20 relative z-10 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 pt-6">
+                  
+                  {/* BOTÓN VOLVER/SALIR DISCRETO */}
+                  <button 
+                    onClick={() => setView('landing')}
+                    className="absolute top-4 left-4 z-50 p-3 text-white/50 hover:text-white bg-black/20 hover:bg-black/40 backdrop-blur-md rounded-full transition-all"
+                    title="Salir del Menú"
+                  >
+                    <Home size={24} />
+                  </button>
+
                   <div className="text-center mb-10 mt-4">
                     <div className="flex items-center justify-center gap-3 mb-2">
                         <Trees size={28} className="text-red-500 drop-shadow-[0_0_8px_rgba(220,38,38,0.8)]" />
