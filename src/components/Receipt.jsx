@@ -1,179 +1,150 @@
-// src/components/Receipt.jsx - CON REPORTE DE CORTESÍAS
+// src/components/Receipt.jsx - AJUSTADO PARA IMPRESORAS TÉRMICAS (80mm)
 import React from 'react';
 import { X, Printer, DollarSign } from 'lucide-react';
 
 const Receipt = ({ data, onPrint, onClose }) => {
   if (!data) return null;
 
-  // --- 1. TICKET DE VENTA (Normal) ---
-  if (data.type === 'order' || data.type === 'quick_sale') {
-    return (
-      <div className="fixed inset-0 bg-gray-900/90 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
-        <div className="bg-white w-full max-w-sm shadow-2xl rounded-sm overflow-hidden flex flex-col max-h-[90vh]">
-          <div className="bg-gray-800 p-3 flex justify-between items-center no-print">
-            <h3 className="text-white font-bold text-sm">VISTA PREVIA TICKET</h3>
-            <div className="flex gap-2">
-                <button onClick={onPrint} className="bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-lg transition-colors"><Printer size={18}/></button>
-                <button onClick={onClose} className="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-lg transition-colors"><X size={18}/></button>
-            </div>
-          </div>
-          <div className="p-6 overflow-y-auto font-mono text-sm leading-relaxed text-gray-900 print:p-0 print:overflow-visible print:w-full print:text-black">
-            <div className="text-center mb-4">
-              <h2 className="text-2xl font-black uppercase mb-1">{data.businessName || 'LicoBar'}</h2>
-              <p className="text-xs">Ticket #{data.orderId ? data.orderId.slice(-6) : '---'}</p>
-              <p className="text-xs">{data.date}</p>
-              <p className="text-xs mt-1">Atendido por: {data.staffName}</p>
-            </div>
-            <div className="border-t border-b border-dashed border-gray-400 py-2 my-2">
-              <div className="flex justify-between font-bold text-xs uppercase mb-1"><span>Cant. Producto</span><span>Total</span></div>
-              {data.items.map((item, index) => (
-                <div key={index} className="flex justify-between text-xs py-0.5"><span className="truncate w-3/4">{item.qty} x {item.name}</span><span>{((item.price * item.qty) || 0).toFixed(2)}</span></div>
-              ))}
-            </div>
-            <div className="flex justify-between items-center text-lg font-black mt-2"><span>TOTAL</span><span>Bs. {data.total.toFixed(2)}</span></div>
-            {data.payments && (<div className="mt-2 text-xs border-t border-dashed pt-2">{data.payments.map((p, i) => (<div key={i} className="flex justify-between"><span>{p.method}</span><span>{p.amount.toFixed(2)}</span></div>))}{data.changeGiven > 0 && (<div className="flex justify-between mt-1 font-bold"><span>Cambio:</span><span>{data.changeGiven.toFixed(2)}</span></div>)}</div>)}
-            <div className="text-center mt-6 text-[10px]"><p>¡GRACIAS POR SU PREFERENCIA!</p><p className="mt-1">*** COPIA CLIENTE ***</p></div>
-          </div>
-        </div>
+  // ESTILOS PARA FORZAR TAMAÑO TICKET
+  const printStyles = `
+    @page {
+      size: auto;
+      margin: 0mm;
+    }
+    @media print {
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      /* Ocultamos todo lo que no sea el ticket */
+      .no-print { display: none !important; }
+      
+      /* Configuramos el contenedor del ticket */
+      .printable-area {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 80mm !important; /* ANCHO ESTÁNDAR DE IMPRESORA */
+        padding: 5mm;
+        margin: 0;
+        font-family: 'Courier New', Courier, monospace; /* Fuente tipo ticket */
+        background: white;
+        color: black;
+      }
+    }
+  `;
+
+  // CONTENIDO COMÚN DEL TICKET
+  const ReceiptContent = () => (
+    <div className="printable-area p-6 bg-white w-full max-w-sm mx-auto font-mono text-xs leading-relaxed text-gray-900 print:text-black print:max-w-none print:w-[80mm] print:p-2">
+      
+      {/* CABECERA */}
+      <div className="text-center mb-4 border-b-2 border-black pb-2">
+        <h2 className="text-xl font-black uppercase">{data.type === 'z-report' ? 'REPORTE DE CIERRE' : (data.businessName || 'LicoBar')}</h2>
+        {data.type === 'expense' && <h3 className="text-lg font-bold">VALE DE SALIDA</h3>}
+        
+        <p className="text-xs font-bold mt-1">{data.date}</p>
+        <p className="text-[10px]">Atendido por: {data.staffName}</p>
+        {data.orderId && <p className="text-[10px]">Ticket #{data.orderId.slice(-6)}</p>}
       </div>
-    );
-  }
 
-  // --- 2. VALE DE GASTO ---
-  if (data.type === 'expense') {
-    return (
-      <div className="fixed inset-0 bg-gray-900/90 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
-        <div className="bg-white w-full max-w-sm shadow-2xl rounded-sm overflow-hidden flex flex-col max-h-[90vh]">
-          <div className="bg-red-900 p-3 flex justify-between items-center no-print">
-            <h3 className="text-white font-bold text-sm flex items-center gap-2"><DollarSign size={16}/> VALE DE SALIDA</h3>
-            <div className="flex gap-2">
-                <button onClick={onPrint} className="bg-white/10 hover:bg-white/20 text-white p-2 rounded-lg"><Printer size={18}/></button>
-                <button onClick={onClose} className="bg-red-800 hover:bg-red-700 text-white p-2 rounded-lg"><X size={18}/></button>
-            </div>
-          </div>
-          <div className="p-8 font-mono text-gray-900 print:p-0 print:w-full print:text-black">
-            <div className="text-center border-b-2 border-black pb-4 mb-4">
-              <h2 className="text-2xl font-black uppercase tracking-widest">VALE DE CAJA</h2>
-              <p className="text-xs uppercase mt-1">{data.businessName}</p>
-              <p className="text-xs mt-1">{data.date}</p>
-            </div>
-            <div className="space-y-4 mb-8">
-              <div><p className="text-[10px] uppercase font-bold text-gray-500">Motivo / Concepto:</p><p className="text-lg font-bold leading-tight">{data.description}</p></div>
-              <div><p className="text-[10px] uppercase font-bold text-gray-500">Monto Retirado:</p><p className="text-3xl font-black">Bs. {data.amount.toFixed(2)}</p></div>
-              <div><p className="text-[10px] uppercase font-bold text-gray-500">Autorizado por:</p><p className="text-sm">{data.staffName}</p></div>
-            </div>
-            <div className="mt-12 pt-2 border-t border-black text-center"><p className="text-xs font-bold uppercase">Firma de Recibido</p></div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // --- 3. REPORTE Z (Cierre de Caja con Cortesías) ---
-  if (data.type === 'z-report') {
-    const totalSales = data.stats.cashSales + data.stats.digitalSales;
-    const totalCost = data.stats.totalCostOfGoods || 0;
-    const grossProfit = totalSales - totalCost;
-    const courtesyCost = data.stats.courtesyCost || 0;
-
-    return (
-      <div className="fixed inset-0 bg-gray-900/90 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
-        <div className="bg-white w-full max-w-sm shadow-2xl rounded-sm overflow-hidden flex flex-col max-h-[90vh]">
-          <div className="bg-gray-800 p-3 flex justify-between items-center no-print">
-            <h3 className="text-white font-bold text-sm">REPORTE Z (CIERRE)</h3>
-            <div className="flex gap-2">
-                <button onClick={onPrint} className="bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-lg"><Printer size={18}/></button>
-                <button onClick={onClose} className="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-lg"><X size={18}/></button>
-            </div>
-          </div>
-
-          <div className="p-6 overflow-y-auto font-mono text-xs leading-relaxed text-gray-900 print:p-0 print:w-full print:text-black">
-            <div className="text-center mb-4 border-b-2 border-black pb-2">
-              <h2 className="text-xl font-black uppercase">REPORTE DE CIERRE</h2>
-              <p className="text-sm font-bold">{data.businessName}</p>
-              <p className="mt-1">{data.date}</p>
-              <p>Cajero: {data.staffName}</p>
-            </div>
-
-            <div className="space-y-1 mb-4">
-              <div className="flex justify-between"><span>Apertura:</span><span>{new Date(data.openedAt).toLocaleTimeString()}</span></div>
-              <div className="flex justify-between"><span>Cierre:</span><span>{new Date().toLocaleTimeString()}</span></div>
-            </div>
-
-            <div className="border-b border-black pb-2 mb-2">
-              <p className="font-bold uppercase mb-1">Resumen Financiero</p>
-              <div className="flex justify-between"><span>Fondo Inicial:</span><span>{data.openingAmount.toFixed(2)}</span></div>
-              <div className="flex justify-between font-bold mt-1"><span>(+) VENTAS TOTALES:</span><span>{totalSales.toFixed(2)}</span></div>
-              <div className="pl-2 text-gray-600 print:text-black text-[10px]">
-                  <div className="flex justify-between"><span>• Efectivo:</span><span>{data.stats.cashSales.toFixed(2)}</span></div>
-                  <div className="flex justify-between"><span>• QR / Transf:</span><span>{data.stats.qrSales.toFixed(2)}</span></div>
-                  <div className="flex justify-between"><span>• Tarjeta:</span><span>{data.stats.cardSales.toFixed(2)}</span></div>
+      {/* CUERPO SEGÚN TIPO */}
+      
+      {/* 1. VENTAS */}
+      {(data.type === 'order' || data.type === 'quick_sale') && (
+        <>
+          <div className="border-b border-dashed border-black py-2 mb-2">
+            <div className="flex justify-between font-bold text-[10px] uppercase mb-1"><span>Cant. Producto</span><span>Total</span></div>
+            {data.items.map((item, index) => (
+              <div key={index} className="flex justify-between py-0.5 text-[11px]">
+                <span className="truncate w-3/4">{item.qty} x {item.name}</span>
+                <span>{((item.price * item.qty) || 0).toFixed(2)}</span>
               </div>
-              <div className="flex justify-between mt-1 text-red-600 print:text-black"><span>(-) GASTOS CAJA:</span><span>{data.stats.totalExpenses.toFixed(2)}</span></div>
+            ))}
+          </div>
+          <div className="flex justify-between items-center text-base font-black mt-2"><span>TOTAL</span><span>Bs. {data.total.toFixed(2)}</span></div>
+          {data.payments && (
+            <div className="mt-2 text-[10px] border-t border-dashed border-black pt-2">
+                {data.payments.map((p, i) => (<div key={i} className="flex justify-between"><span>{p.method}</span><span>{p.amount.toFixed(2)}</span></div>))}
+                {data.changeGiven > 0 && (<div className="flex justify-between mt-1 font-bold"><span>Cambio:</span><span>{data.changeGiven.toFixed(2)}</span></div>)}
             </div>
+          )}
+        </>
+      )}
 
-            <div className="flex justify-between items-center text-lg font-black border-b-2 border-black pb-2 mb-4">
-              <span>EFECTIVO EN CAJA</span>
-              <span>Bs. {data.finalCash.toFixed(2)}</span>
+      {/* 2. GASTOS */}
+      {data.type === 'expense' && (
+        <div className="space-y-4 mb-8">
+          <div><p className="text-[10px] uppercase font-bold text-gray-500">Motivo:</p><p className="text-base font-bold">{data.description}</p></div>
+          <div><p className="text-[10px] uppercase font-bold text-gray-500">Monto:</p><p className="text-2xl font-black">Bs. {data.amount.toFixed(2)}</p></div>
+          <div className="mt-8 pt-8 border-t border-black text-center"><p className="text-xs font-bold uppercase">Firma Recibido</p></div>
+        </div>
+      )}
+
+      {/* 3. REPORTE Z */}
+      {data.type === 'z-report' && (
+        <>
+          <div className="space-y-1 mb-2 text-[10px]">
+            <div className="flex justify-between"><span>Apertura:</span><span>{new Date(data.openedAt).toLocaleTimeString()}</span></div>
+            <div className="flex justify-between"><span>Cierre:</span><span>{new Date().toLocaleTimeString()}</span></div>
+          </div>
+          <div className="border-b border-black pb-2 mb-2">
+            <p className="font-bold uppercase mb-1">Resumen</p>
+            <div className="flex justify-between"><span>Fondo Inicial:</span><span>{data.openingAmount.toFixed(2)}</span></div>
+            <div className="flex justify-between font-bold"><span>(+) Ventas Totales:</span><span>{(data.stats.cashSales + data.stats.digitalSales).toFixed(2)}</span></div>
+            <div className="pl-2 text-[10px] italic">
+                <div className="flex justify-between"><span>Efectivo:</span><span>{data.stats.cashSales.toFixed(2)}</span></div>
+                <div className="flex justify-between"><span>Digital:</span><span>{data.stats.digitalSales.toFixed(2)}</span></div>
             </div>
-
-            {/* SECCIÓN DE RENTABILIDAD */}
-            <div className="border border-dashed border-gray-400 p-2 mb-4 bg-gray-50 print:bg-white">
-                <p className="font-bold uppercase mb-1 text-center border-b border-gray-300 pb-1">Rentabilidad del Turno</p>
-                <div className="flex justify-between text-[10px]"><span>Total Ventas:</span><span>{totalSales.toFixed(2)}</span></div>
-                <div className="flex justify-between text-[10px]"><span>(-) Costo Mercadería Vendida:</span><span>{totalCost.toFixed(2)}</span></div>
-                <div className="flex justify-between font-black mt-1 text-sm border-t border-gray-300 pt-1">
-                    <span>(=) GANANCIA BRUTA:</span>
-                    <span>Bs. {grossProfit.toFixed(2)}</span>
-                </div>
-            </div>
-
-            {/* SECCIÓN CORTESÍAS (NUEVO) */}
-            {data.stats.courtesyTotal > 0 && (
-                <div className="border border-dashed border-gray-400 p-2 mb-4 bg-yellow-50 print:bg-white">
-                    <p className="font-bold uppercase mb-1 text-center border-b border-gray-300 pb-1">Cortesías / Regalos</p>
-                    <div className="flex justify-between text-[10px]"><span>Valor Comercial (Regalado):</span><span>{data.stats.courtesyTotal.toFixed(2)}</span></div>
-                    <div className="flex justify-between text-[10px] font-bold text-red-600 print:text-black"><span>(-) Costo Asumido (Pérdida):</span><span>{courtesyCost.toFixed(2)}</span></div>
-                </div>
-            )}
-
-            {data.expensesList && data.expensesList.length > 0 && (
-                <div className="mb-4">
-                    <p className="font-bold uppercase border-b border-dashed border-gray-400 mb-1">Detalle de Gastos</p>
-                    {data.expensesList.map((exp, i) => (
-                        <div key={i} className="flex justify-between py-0.5"><span className="truncate w-2/3">{exp.description}</span><span>{exp.amount.toFixed(2)}</span></div>
-                    ))}
-                </div>
-            )}
-
-            {data.soldProducts && data.soldProducts.length > 0 ? (
-                <div className="mt-4">
-                    <p className="font-black uppercase border-b-2 border-black mb-2 text-center">PRODUCTOS VENDIDOS</p>
-                    <div className="flex justify-between font-bold text-[9px] uppercase border-b border-gray-400 pb-1 mb-1">
-                        <span className="w-6 text-center">CANT</span>
-                        <span className="flex-1 pl-1">DESCRIPCIÓN</span>
-                        <span className="w-10 text-right">C.U.</span>
-                        <span className="w-12 text-right">TOTAL</span>
+            <div className="flex justify-between text-red-600 font-bold print:text-black"><span>(-) Gastos:</span><span>{data.stats.totalExpenses.toFixed(2)}</span></div>
+          </div>
+          <div className="flex justify-between items-center text-lg font-black border-b-2 border-black pb-2 mb-4">
+            <span>EFECTIVO EN CAJA</span>
+            <span>Bs. {data.finalCash.toFixed(2)}</span>
+          </div>
+          {data.stats.courtesyTotal > 0 && (
+             <div className="mb-2 text-[10px] border-b border-dashed border-black pb-2">
+                 <div className="flex justify-between"><span>Cortesías (Valor):</span><span>{data.stats.courtesyTotal.toFixed(2)}</span></div>
+             </div>
+          )}
+          {data.soldProducts && data.soldProducts.length > 0 && (
+            <div className="mt-2">
+                <p className="font-bold uppercase text-center border-b border-black text-[10px]">Productos</p>
+                {data.soldProducts.map((prod, i) => (
+                    <div key={i} className="flex justify-between py-0.5 text-[10px]">
+                        <span>{prod.qty} x {prod.name} {prod.isCourtesy && '(R)'}</span>
+                        <span>{prod.isCourtesy ? '0.00' : prod.total.toFixed(2)}</span>
                     </div>
-                    {data.soldProducts.map((prod, i) => (
-                        <div key={i} className={`flex justify-between py-0.5 border-b border-dotted border-gray-300 text-[10px] ${prod.isCourtesy ? 'text-gray-500 italic' : ''}`}>
-                            <span className="w-6 text-center font-bold">{prod.qty}</span>
-                            <span className="flex-1 pl-1 truncate">{prod.name} {prod.isCourtesy ? '(Cortesía)' : ''}</span>
-                            <span className="w-10 text-right text-gray-500 print:text-gray-700">{prod.costUnit ? prod.costUnit.toFixed(2) : '0.00'}</span>
-                            <span className="w-12 text-right font-bold">{prod.isCourtesy ? '0.00' : prod.total.toFixed(2)}</span>
-                        </div>
-                    ))}
-                </div>
-            ) : (<div className="text-center mt-4 italic text-gray-500">No hubo ventas de productos.</div>)}
+                ))}
+            </div>
+          )}
+        </>
+      )}
 
-            <div className="text-center mt-8 text-[10px] opacity-50"><p>--- FIN DEL REPORTE ---</p></div>
+      <div className="text-center mt-6 text-[10px] opacity-50"><p>--- GRACIAS ---</p></div>
+    </div>
+  );
+
+  return (
+    <div className="fixed inset-0 bg-gray-900/90 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
+      <style>{printStyles}</style> {/* ESTILOS INYECTADOS */}
+      
+      <div className="bg-white w-full max-w-sm shadow-2xl rounded-sm overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="bg-gray-800 p-3 flex justify-between items-center no-print">
+          <h3 className="text-white font-bold text-sm">VISTA PREVIA</h3>
+          <div className="flex gap-2">
+              <button onClick={onPrint} className="bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-lg"><Printer size={18}/></button>
+              <button onClick={onClose} className="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-lg"><X size={18}/></button>
           </div>
         </div>
+        
+        {/* Contenedor con scroll para ver en pantalla */}
+        <div className="overflow-y-auto bg-gray-100 flex justify-center p-4">
+            <ReceiptContent />
+        </div>
       </div>
-    );
-  }
-
-  return null;
+    </div>
+  );
 };
 
 export default Receipt;
