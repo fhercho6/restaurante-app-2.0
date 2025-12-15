@@ -1,4 +1,4 @@
-// src/App.jsx - CON REPORTE DE PRODUCTOS VENDIDOS EN CIERRE
+// src/App.jsx - CON IMPRESIÓN DE VALES DE GASTO
 import React, { useState, useEffect } from 'react';
 import { Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign, ArrowLeft, Lock, Unlock, Wallet, Loader2, LayoutGrid, Gift, Trees } from 'lucide-react';
 import { onAuthStateChanged, signOut, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
@@ -48,7 +48,7 @@ export default function App() {
   const [registerSession, setRegisterSession] = useState(null);
   const [isOpenRegisterModalOpen, setIsOpenRegisterModalOpen] = useState(false);
   
-  // ESTADÍSTICAS DEL TURNO (Incluyendo productos vendidos)
+  // ESTADÍSTICAS DEL TURNO
   const [sessionStats, setSessionStats] = useState({ 
       cashSales: 0, 
       qrSales: 0, 
@@ -56,7 +56,7 @@ export default function App() {
       digitalSales: 0, 
       totalExpenses: 0, 
       expensesList: [],
-      soldProducts: [] // <--- NUEVO CAMPO
+      soldProducts: [] 
   });
   
   // Modales
@@ -149,24 +149,20 @@ export default function App() {
       return () => { itemsUnsub(); staffUnsub(); settingsUnsub(); srvUnsub(); }; 
   }, [currentUser]);
 
-  // --- LÓGICA DE AGREGACIÓN DE VENTAS (PRODUCTOS VENDIDOS) ---
+  // --- LÓGICA DE AGREGACIÓN DE VENTAS ---
   useEffect(() => { 
       if (!db || !registerSession) return; 
-      
       const salesCol = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`; 
       const qSales = query(collection(db, salesCol), where('registerId', '==', registerSession.id)); 
-      
       const expensesCol = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`; 
       const qExpenses = query(collection(db, expensesCol), where('registerId', '==', registerSession.id)); 
       
       const unsubSales = onSnapshot(qSales, (snap) => { 
           let cash = 0, qr = 0, card = 0; 
-          const productMap = {}; // Mapa para agrupar productos
+          const productMap = {}; 
 
           snap.forEach(doc => { 
               const sale = doc.data(); 
-              
-              // 1. Calcular Dinero
               if (sale.payments && Array.isArray(sale.payments)) { 
                   sale.payments.forEach(p => { 
                       const amt = parseFloat(p.amount) || 0; 
@@ -177,7 +173,6 @@ export default function App() {
                   }); 
                   if (sale.changeGiven) cash -= parseFloat(sale.changeGiven); 
               } else { 
-                  // Soporte legacy
                   const total = parseFloat(sale.total); 
                   const method = (sale.paymentMethod || 'efectivo').toLowerCase(); 
                   if (method.includes('efectivo')) { 
@@ -188,31 +183,18 @@ export default function App() {
                   else if (method.includes('tarjeta')) card += total; 
               }
 
-              // 2. Contar Productos Vendidos
               if (sale.items && Array.isArray(sale.items)) {
                   sale.items.forEach(item => {
-                      // Usamos el nombre como clave para agrupar (incluso si tienen IDs distintos como servicios)
                       const key = item.name;
-                      if (!productMap[key]) {
-                          productMap[key] = { name: item.name, qty: 0, total: 0 };
-                      }
+                      if (!productMap[key]) productMap[key] = { name: item.name, qty: 0, total: 0 };
                       productMap[key].qty += (item.qty || 1);
                       productMap[key].total += (item.price * (item.qty || 1));
                   });
               }
           }); 
 
-          // Convertir el mapa a un array ordenado
           const soldProductsList = Object.values(productMap).sort((a, b) => b.qty - a.qty);
-
-          setSessionStats(prev => ({ 
-              ...prev, 
-              cashSales: cash, 
-              qrSales: qr, 
-              cardSales: card, 
-              digitalSales: qr + card,
-              soldProducts: soldProductsList // Guardamos la lista
-          })); 
+          setSessionStats(prev => ({ ...prev, cashSales: cash, qrSales: qr, cardSales: card, digitalSales: qr + card, soldProducts: soldProductsList })); 
       }); 
       
       const unsubExpenses = onSnapshot(qExpenses, (snap) => { 
@@ -234,7 +216,38 @@ export default function App() {
   const handleStartService = async (service, note) => { if (!checkRegisterStatus(false)) return; try { const serviceData = { serviceName: service.name, pricePerHour: service.price, startTime: new Date().toISOString(), note: note, staffName: staffMember ? staffMember.name : 'Admin', registerId: registerSession.id }; const colName = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`; await addDoc(collection(db, colName), serviceData); const orderData = { date: new Date().toISOString(), staffId: staffMember ? staffMember.id : 'anon', staffName: staffMember ? staffMember.name : 'Mesero', orderId: 'INI-' + Math.floor(Math.random() * 1000), items: [{ id: 'start-' + Date.now(), name: `⏱️ INICIO: ${service.name} (${note})`, price: 0, qty: 1, category: 'Servicios' }], total: 0, status: 'pending' }; setIsServiceModalOpen(false); const ticketData = { ...orderData, type: 'order', businessName: appName, date: new Date().toLocaleString() }; setLastSale(ticketData); setView('receipt_view'); toast.success("Servicio iniciado. Imprimiendo ticket..."); } catch (e) { toast.error("Error al iniciar servicio"); } };
   const handleStopService = async (service, cost, timeLabel) => { if (!checkRegisterStatus(true)) return; if (!window.confirm(`¿Detener ${service.serviceName}?\nCosto: Bs. ${cost.toFixed(2)}`)) return; try { const srvCol = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`; await deleteDoc(doc(db, srvCol, service.id)); const orderData = { date: new Date().toISOString(), staffId: staffMember ? staffMember.id : 'anon', staffName: service.staffName || 'Sistema', orderId: 'SRV-' + Math.floor(Math.random() * 1000), items: [{ id: 'srv-' + Date.now(), name: `${service.serviceName} (${timeLabel})`, price: cost, qty: 1, category: 'Servicios' }], total: cost, status: 'pending' }; const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`; await addDoc(collection(db, ordersCol), orderData); toast.success("Servicio detenido. Ticket de inicio borrado."); } catch (e) { console.error(e); toast.error("Error al detener servicio"); } };
   
-  const handleAddExpense = async (description, amount) => { if (!registerSession) return; try { const expenseData = { registerId: registerSession.id, description, amount, date: new Date().toISOString(), createdBy: staffMember ? staffMember.name : 'Admin' }; const colName = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`; await addDoc(collection(db, colName), expenseData); toast.success("Gasto registrado", { icon: '💸' }); } catch (e) { toast.error("Error guardando gasto"); } };
+  // --- MANEJO DE GASTOS CON IMPRESIÓN DE VALE ---
+  const handleAddExpense = async (description, amount) => { 
+      if (!registerSession) return; 
+      try { 
+          const expenseData = { 
+              registerId: registerSession.id, 
+              description, 
+              amount, 
+              date: new Date().toISOString(), 
+              createdBy: staffMember ? staffMember.name : 'Admin' 
+          }; 
+          const colName = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`; 
+          await addDoc(collection(db, colName), expenseData); 
+          
+          // CREAR OBJETO VALE Y MOSTRAR VISTA DE IMPRESIÓN
+          const expenseReceipt = {
+              type: 'expense',
+              businessName: appName,
+              date: new Date().toLocaleString(),
+              staffName: staffMember ? staffMember.name : 'Admin',
+              description: description,
+              amount: amount
+          };
+          setLastSale(expenseReceipt);
+          setView('receipt_view');
+
+          toast.success("Gasto registrado", { icon: '💸' }); 
+      } catch (e) { 
+          toast.error("Error guardando gasto"); 
+      } 
+  };
+
   const handleDeleteExpense = async (id) => { if(!window.confirm("¿Eliminar este gasto?")) return; try { const colName = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`; await deleteDoc(doc(db, colName, id)); toast.success("Gasto eliminado"); } catch (e) { toast.error("Error"); } };
   
   const handleCloseRegister = () => { if (!registerSession) return; const cashFinal = registerSession.openingAmount + sessionStats.cashSales - sessionStats.totalExpenses; toast((t) => ( <div className="flex flex-col gap-3 min-w-[240px]"> <div className="border-b pb-3"> <p className="font-bold text-gray-800 text-lg mb-2">Resumen de Cierre</p> <div className="bg-gray-50 p-2 rounded mb-3 grid grid-cols-2 gap-2 text-xs"> <div className="bg-white p-2 rounded border border-gray-100"><span className="text-gray-500 block uppercase text-[10px]">Total QR</span><span className="font-bold text-blue-600 text-sm">Bs. {sessionStats.qrSales.toFixed(2)}</span></div> <div className="bg-white p-2 rounded border border-gray-100"><span className="text-gray-500 block uppercase text-[10px]">Total Tarjeta</span><span className="font-bold text-purple-600 text-sm">Bs. {sessionStats.cardSales.toFixed(2)}</span></div> </div> <div className="px-2"><p className="text-xs text-gray-500 uppercase font-bold">Efectivo en Caja:</p><p className="text-2xl font-black text-green-600">Bs. {cashFinal.toFixed(2)}</p></div> </div> <div className="flex gap-2"><button onClick={() => { confirmCloseRegister(cashFinal); toast.dismiss(t.id); }} className="bg-red-600 text-white px-4 py-3 rounded-lg text-xs font-bold shadow-sm flex-1 hover:bg-red-700 transition-colors">CERRAR TURNO</button><button onClick={() => toast.dismiss(t.id)} className="bg-gray-200 text-gray-800 px-4 py-3 rounded-lg text-xs font-bold flex-1 hover:bg-gray-300 transition-colors">CANCELAR</button></div> </div> ), { duration: 10000, position: 'top-center', icon: null }); };
@@ -243,7 +256,6 @@ export default function App() {
           const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`; 
           await updateDoc(doc(db, colName, registerSession.id), { status: 'closed', closedAt: new Date().toISOString(), closedBy: staffMember ? staffMember.name : 'Admin', finalCashCalculated: finalCash, finalSalesStats: sessionStats }); 
           
-          // PREPARAMOS DATOS PARA EL TICKET Z (INCLUYENDO PRODUCTOS VENDIDOS)
           const zReportData = { 
               type: 'z-report', 
               businessName: appName, 
@@ -255,7 +267,7 @@ export default function App() {
               finalCash: finalCash, 
               stats: sessionStats, 
               expensesList: sessionStats.expensesList,
-              soldProducts: sessionStats.soldProducts // <--- PASAMOS LA LISTA AQUÍ
+              soldProducts: sessionStats.soldProducts 
           }; 
           
           setRegisterSession(null); 
@@ -266,7 +278,6 @@ export default function App() {
       } catch (error) { toast.error("Error cerrando"); } 
   };
   const handleReprintZReport = (shiftData) => { 
-      // Reconstruimos el reporte Z desde el historial
       const zReportData = { 
           type: 'z-report', 
           businessName: appName, 
@@ -278,7 +289,7 @@ export default function App() {
           finalCash: shiftData.finalCashCalculated, 
           stats: shiftData.finalSalesStats || { cashSales:0, qrSales: 0, cardSales: 0, totalExpenses:0 }, 
           expensesList: shiftData.finalSalesStats?.expensesList || [],
-          soldProducts: shiftData.finalSalesStats?.soldProducts || [] // <--- RECUPERAMOS LA LISTA DEL HISTORIAL
+          soldProducts: shiftData.finalSalesStats?.soldProducts || [] 
       }; 
       setLastSale(zReportData); 
       setView('receipt_view'); 
