@@ -31,50 +31,128 @@ export const MenuCard = ({ item }) => {
 };
 
 // --- 2. PIN LOGIN ---
-export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
-  const [pin, setPin] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+// BUSCA ESTE COMPONENTE EN src/components/Views.jsx Y REEMPLÁZALO
 
-  const handlePinSubmit = (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setTimeout(() => {
-        const member = staffMembers.find(m => m.pin === pin);
-        if (member) { onLoginSuccess(member); } 
-        else { setError('PIN Incorrecto'); setPin(''); setLoading(false); setTimeout(() => setError(''), 2000); }
-    }, 800);
+export const PinLoginView = ({ staffMembers, onLoginSuccess, onCancel }) => {
+  const [selectedStaff, setSelectedStaff] = useState(null);
+  const [pin, setPin] = useState('');
+  
+  // Estado para los números desordenados
+  const [shuffledKeys, setShuffledKeys] = useState(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']);
+
+  // Función para desordenar array (Algoritmo Fisher-Yates)
+  const shuffleArray = (array) => {
+    const newArr = [...array];
+    for (let i = newArr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
+    }
+    return newArr;
   };
 
-  const handleNumClick = (num) => { if (pin.length < 4) setPin(prev => prev + num); };
+  // Cada vez que seleccionamos un usuario, mezclamos el teclado
+  const handleSelectStaff = (member) => {
+    setSelectedStaff(member);
+    setPin('');
+    setShuffledKeys(shuffleArray(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']));
+  };
+
+  const handleNumClick = (num) => {
+    if (pin.length < 4) {
+      const newPin = pin + num;
+      setPin(newPin);
+      if (newPin.length === 4) {
+        if (newPin === selectedStaff.pin) {
+          onLoginSuccess(selectedStaff);
+        } else {
+          toast.error('PIN Incorrecto');
+          setPin('');
+          // Opcional: Mezclar de nuevo tras error para más seguridad
+          setShuffledKeys(shuffleArray(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']));
+        }
+      }
+    }
+  };
+
+  const handleDelete = () => setPin(prev => prev.slice(0, -1));
 
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4 animate-in zoom-in duration-300">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-           <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm shadow-lg ring-4 ring-white/5"><Lock className="text-white" size={32}/></div>
-           <h2 className="text-2xl font-bold text-white mb-1 tracking-tight">Acceso de Personal</h2>
-           <p className="text-gray-400 text-sm font-medium">Sistema de Seguridad ZZIF</p>
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-xl z-50 flex items-center justify-center p-4 animate-in zoom-in duration-300">
+      <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        
+        {/* ENCABEZADO */}
+        <div className="bg-gray-900 p-6 text-center relative">
+            <button onClick={selectedStaff ? () => setSelectedStaff(null) : onCancel} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white p-2">
+                <ArrowLeft size={24}/>
+            </button>
+            <h2 className="text-xl font-black text-white uppercase tracking-widest">
+                {selectedStaff ? `HOLA, ${selectedStaff.name.split(' ')[0]}` : 'IDENTIFÍCATE'}
+            </h2>
+            {selectedStaff && <p className="text-xs text-gray-400 mt-1">Ingresa tu PIN de seguridad</p>}
         </div>
-        <div className="bg-white rounded-3xl p-6 shadow-2xl relative overflow-hidden">
-           {loading && (<div className="absolute inset-0 bg-white/90 backdrop-blur-sm z-10 flex flex-col items-center justify-center animate-in fade-in"><Loader2 size={48} className="text-orange-500 animate-spin mb-4"/><p className="text-xs font-bold text-gray-400 uppercase tracking-widest animate-pulse">Verificando...</p></div>)}
-           <div className="mb-8">
-              <div className="flex justify-center gap-4 mb-2">{[0,1,2,3].map(i => (<div key={i} className={`w-4 h-4 rounded-full transition-all duration-300 ${i < pin.length ? 'bg-orange-500 scale-125 shadow-orange-200 shadow-lg' : 'bg-gray-100 border border-gray-200'}`}></div>))}</div>
-              <div className="h-6 text-center">{error && <p className="text-red-500 text-sm font-bold animate-bounce flex items-center justify-center gap-1"><AlertTriangle size={14}/> {error}</p>}</div>
-           </div>
-           <div className="grid grid-cols-3 gap-3 mb-6">
-              {[1,2,3,4,5,6,7,8,9].map(num => (<button key={num} onClick={() => handleNumClick(String(num))} className="h-16 rounded-2xl bg-gray-50 text-2xl font-bold text-gray-700 hover:bg-white hover:shadow-md hover:scale-[1.02] active:scale-95 transition-all border border-gray-100">{num}</button>))}
-              <button onClick={() => setPin('')} className="h-16 rounded-2xl bg-red-50 text-red-500 font-bold hover:bg-red-100 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center"><Trash2 size={24}/></button>
-              <button onClick={() => handleNumClick('0')} className="h-16 rounded-2xl bg-gray-50 text-2xl font-bold text-gray-700 hover:bg-white hover:shadow-md hover:scale-[1.02] active:scale-95 transition-all border border-gray-100">0</button>
-              <button onClick={handlePinSubmit} className="h-16 rounded-2xl bg-black text-white flex items-center justify-center hover:bg-gray-800 shadow-xl hover:scale-[1.02] active:scale-95 transition-all"><ArrowLeft size={28} className="rotate-180"/></button>
-           </div>
-           <button onClick={onCancel} className="w-full py-4 text-gray-400 font-bold text-xs hover:text-gray-800 uppercase tracking-widest transition-colors">Cancelar y Volver</button>
+
+        {/* CUERPO */}
+        <div className="flex-1 bg-gray-50 flex flex-col p-6">
+            {!selectedStaff ? (
+                // LISTA DE PERSONAL
+                <div className="grid grid-cols-2 gap-4 overflow-y-auto">
+                    {staffMembers.map(member => (
+                        <button 
+                            key={member.id} 
+                            onClick={() => handleSelectStaff(member)}
+                            className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:border-orange-500 hover:shadow-md transition-all flex flex-col items-center gap-2 group"
+                        >
+                            <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 group-hover:bg-orange-50 group-hover:text-orange-600 transition-colors">
+                                <User size={24}/>
+                            </div>
+                            <span className="font-bold text-gray-700 text-sm">{member.name}</span>
+                            <span className="text-[10px] text-gray-400 uppercase">{member.role}</span>
+                        </button>
+                    ))}
+                </div>
+            ) : (
+                // TECLADO NUMÉRICO ALEATORIO
+                <div className="flex flex-col items-center justify-center h-full">
+                    {/* Visualizador de Puntos (Oculto) */}
+                    <div className="flex gap-4 mb-8">
+                        {[...Array(4)].map((_, i) => (
+                            <div key={i} className={`w-4 h-4 rounded-full transition-all duration-300 ${i < pin.length ? 'bg-orange-500 scale-110' : 'bg-gray-300'}`}></div>
+                        ))}
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3 w-full max-w-[280px]">
+                        {shuffledKeys.map((num) => (
+                            <button 
+                                key={num} 
+                                onClick={() => handleNumClick(num)}
+                                className="h-16 rounded-2xl bg-white border border-gray-200 shadow-[0_4px_0_0_rgba(0,0,0,0.1)] active:shadow-none active:translate-y-[4px] transition-all font-black text-2xl text-gray-800 hover:bg-gray-50"
+                            >
+                                {num}
+                            </button>
+                        ))}
+                        
+                        {/* Botón vacío o de cancelar */}
+                        <div className="h-16"></div>
+                        
+                        {/* Botón Borrar */}
+                        <button 
+                            onClick={handleDelete}
+                            className="h-16 rounded-2xl bg-red-50 border border-red-100 text-red-500 flex items-center justify-center shadow-[0_4px_0_0_rgba(220,38,38,0.1)] active:shadow-none active:translate-y-[4px] transition-all"
+                        >
+                            <ArrowLeft size={24} />
+                        </button>
+                    </div>
+                    
+                    <p className="mt-6 text-[10px] text-gray-400 flex items-center gap-1">
+                        <Lock size={10}/> Teclado aleatorio por seguridad
+                    </p>
+                </div>
+            )}
         </div>
       </div>
     </div>
   );
 };
-
 // --- 3. CREDENTIAL PRINT VIEW ---
 export const CredentialPrintView = ({ member, appName }) => (
     <div className="w-[300px] border border-gray-200 bg-white p-6 text-center shadow-lg print:shadow-none print:border-none print:w-full mx-auto mt-8 rounded-xl">
