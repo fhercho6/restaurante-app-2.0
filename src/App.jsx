@@ -1,4 +1,4 @@
-// src/App.jsx - CORRECCIÓN GUARDADO DE STOCK (INTEGERS)
+// src/App.jsx - SOPORTE PARA IMPRESIÓN DE COBRO MASIVO
 import React, { useState, useEffect, useMemo } from 'react';
 import { Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign, ArrowLeft, Lock, Unlock, Wallet, Loader2, LayoutGrid, Gift, Trees, TrendingUp, Package, AlertCircle, Filter, X } from 'lucide-react';
 import { onAuthStateChanged, signOut, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
@@ -66,7 +66,7 @@ export default function App() {
   
   const [currentItem, setCurrentItem] = useState(null);
   const [filter, setFilter] = useState('Todos');
-  const [searchTerm, setSearchTerm] = useState(''); // BUSCADOR DE ADMIN
+  const [searchTerm, setSearchTerm] = useState(''); 
   const [credentialToPrint, setCredentialToPrint] = useState(null);
   const [staffMember, setStaffMember] = useState(null);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -75,7 +75,7 @@ export default function App() {
   const [lastSale, setLastSale] = useState(null);
   const [isQuickEditMode, setIsQuickEditMode] = useState(false); 
 
-  // --- CÁLCULO DE VALOR DE INVENTARIO ---
+  // --- CÁLCULOS Y HANDLERS COMUNES ---
   const inventoryStats = useMemo(() => {
       let totalCost = 0; let totalRetail = 0; let totalItems = 0; let lowStockCount = 0;
       items.forEach(item => {
@@ -121,30 +121,17 @@ export default function App() {
       } catch (error) { console.error(error); toast.error("Error al registrar asistencia"); }
   };
 
-  // --- CORRECCIÓN: GUARDADO ROBUSTO DE EDICIÓN RÁPIDA ---
   const handleQuickUpdate = async (id, field, value) => { 
       try { 
           let valToSave = value;
-          // Si es precio o costo, forzamos decimal
-          if (field === 'price' || field === 'cost') {
-              valToSave = parseFloat(value);
-              if (isNaN(valToSave)) valToSave = 0;
-          }
-          // Si es stock, forzamos ENTERO (importante para que no sea texto)
-          if (field === 'stock') {
-              valToSave = parseInt(value);
-              if (isNaN(valToSave)) valToSave = 0;
-          }
-
+          if (field === 'price' || field === 'cost') { valToSave = parseFloat(value); if (isNaN(valToSave)) valToSave = 0; }
+          if (field === 'stock') { valToSave = parseInt(value); if (isNaN(valToSave)) valToSave = 0; }
           await updateDoc(doc(db, getCollName('items'), id), { [field]: valToSave }); 
           toast.success('Actualizado', { icon: '💾', duration: 1000 }); 
-      } catch (error) { 
-          console.error(error);
-          toast.error('Error al actualizar'); 
-      } 
+      } catch (error) { console.error(error); toast.error('Error al actualizar'); } 
   };
 
-  // --- DATA LOADING ---
+  // --- DATA LOADING & LISTENERS ---
   useEffect(() => { const initAuth = async () => { if (!auth.currentUser) { if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token && !isPersonalProject) { await signInWithCustomToken(auth, __initial_auth_token); } else { await signInAnonymously(auth).catch(() => setDbStatus('warning')); } } }; initAuth(); return onAuthStateChanged(auth, (u) => { setCurrentUser(u); if (u) { setDbStatus('connected'); setDbErrorMsg(''); } }); }, []);
   useEffect(() => { if (!db || !currentUser) return; const checkSession = async () => { const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`; const q = query(collection(db, colName), where('status', '==', 'open'), limit(1)); const snap = await getDocs(q); if (!snap.empty) { const data = snap.docs[0].data(); setRegisterSession({ id: snap.docs[0].id, ...data }); } }; checkSession(); }, [db, currentUser]);
   useEffect(() => { 
@@ -157,7 +144,6 @@ export default function App() {
       return () => { itemsUnsub(); staffUnsub(); settingsUnsub(); srvUnsub(); }; 
   }, [currentUser]);
 
-  // --- LÓGICA DE AGREGACIÓN DE VENTAS ---
   useEffect(() => { 
       if (!db || !registerSession) return; 
       const salesCol = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`; 
@@ -167,219 +153,69 @@ export default function App() {
       
       const unsubSales = onSnapshot(qSales, (snap) => { 
           let cash = 0, qr = 0, card = 0; 
-          let courtesyTotalVal = 0; 
-          let courtesyCostVal = 0; 
-          let totalCostCalc = 0; 
-          
+          let courtesyTotalVal = 0, courtesyCostVal = 0, totalCostCalc = 0; 
           const productMap = {}; 
-
           snap.forEach(doc => { 
               const sale = doc.data(); 
               const isCourtesy = sale.payments && sale.payments.some(p => p.method === 'Cortesía');
-
               if (!isCourtesy) {
-                  if (sale.payments && Array.isArray(sale.payments)) { 
-                      sale.payments.forEach(p => { 
-                          const amt = parseFloat(p.amount) || 0; 
-                          const method = (p.method || '').toLowerCase(); 
-                          if (method.includes('efectivo')) cash += amt; 
-                          else if (method.includes('qr')) qr += amt; 
-                          else if (method.includes('tarjeta')) card += amt; 
-                      }); 
-                      if (sale.changeGiven) cash -= parseFloat(sale.changeGiven); 
-                  } else { 
-                      const total = parseFloat(sale.total); 
-                      const method = (sale.paymentMethod || 'efectivo').toLowerCase(); 
-                      if (method.includes('efectivo')) { const change = parseFloat(sale.changeGiven) || 0; const received = parseFloat(sale.amountReceived) || total; if(sale.amountReceived) cash += (received - change); else cash += total; } else if (method.includes('qr')) qr += total; else if (method.includes('tarjeta')) card += total; 
-                  }
+                  if (sale.payments && Array.isArray(sale.payments)) { sale.payments.forEach(p => { const amt = parseFloat(p.amount) || 0; const method = (p.method || '').toLowerCase(); if (method.includes('efectivo')) cash += amt; else if (method.includes('qr')) qr += amt; else if (method.includes('tarjeta')) card += amt; }); if (sale.changeGiven) cash -= parseFloat(sale.changeGiven); } else { const total = parseFloat(sale.total); const method = (sale.paymentMethod || 'efectivo').toLowerCase(); if (method.includes('efectivo')) { const change = parseFloat(sale.changeGiven) || 0; const received = parseFloat(sale.amountReceived) || total; if(sale.amountReceived) cash += (received - change); else cash += total; } else if (method.includes('qr')) qr += total; else if (method.includes('tarjeta')) card += total; }
               }
-
               if (sale.items && Array.isArray(sale.items)) {
                   sale.items.forEach(item => {
-                      const key = item.name;
-                      const qty = item.qty || 1;
-                      const price = parseFloat(item.price) || 0;
-                      const cost = parseFloat(item.cost) || 0; 
-
-                      if (isCourtesy) {
-                          courtesyTotalVal += (price * qty);
-                          courtesyCostVal += (cost * qty);
-                      } else {
-                          totalCostCalc += (cost * qty);
-                      }
-
-                      if (!productMap[key]) {
-                          productMap[key] = { name: item.name, qty: 0, total: 0, costUnit: cost, totalCost: 0, isCourtesy: isCourtesy };
-                      }
-                      
+                      const key = item.name; const qty = item.qty || 1; const price = parseFloat(item.price) || 0; const cost = parseFloat(item.cost) || 0; 
+                      if (isCourtesy) { courtesyTotalVal += (price * qty); courtesyCostVal += (cost * qty); } else { totalCostCalc += (cost * qty); }
+                      if (!productMap[key]) { productMap[key] = { name: item.name, qty: 0, total: 0, costUnit: cost, totalCost: 0, isCourtesy: isCourtesy }; }
                       productMap[key].qty += qty;
                       if (!isCourtesy) { productMap[key].total += (price * qty); }
                       productMap[key].totalCost += (cost * qty); 
                   });
               }
           }); 
-
           const soldProductsList = Object.values(productMap).sort((a, b) => b.qty - a.qty);
           setSessionStats(prev => ({ ...prev, cashSales: cash, qrSales: qr, cardSales: card, digitalSales: qr + card, totalCostOfGoods: totalCostCalc, courtesyTotal: courtesyTotalVal, courtesyCost: courtesyCostVal, soldProducts: soldProductsList })); 
       }); 
-      
       const unsubExpenses = onSnapshot(qExpenses, (snap) => { let totalExp = 0; const list = []; snap.forEach(doc => { const exp = doc.data(); totalExp += parseFloat(exp.amount); list.push({ id: doc.id, ...exp }); }); setSessionStats(prev => ({ ...prev, totalExpenses: totalExp, expensesList: list })); }); 
       return () => { unsubSales(); unsubExpenses(); }; 
   }, [registerSession]);
 
+  // --- HANDLERS ---
   const checkRegisterStatus = (requireOwnership = false) => { if (registerSession) { const isAdmin = currentUser && !currentUser.isAnonymous; const isOwner = staffMember && registerSession.openedBy === staffMember.name; if (requireOwnership && !isAdmin && !isOwner) { toast.error(`⛔ ACCESO DENEGADO\nTurno de: ${registerSession.openedBy}`, { duration: 5000 }); return false; } return true; } const canOpenRegister = (currentUser && !currentUser.isAnonymous) || (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador')); if (canOpenRegister) setIsOpenRegisterModalOpen(true); else toast.error("⚠️ LA CAJA ESTÁ CERRADA.", { icon: '🔒' }); return false; };
   const handleOpenRegister = async (amount, activeTeam = []) => { try { const sessionData = { status: 'open', openedBy: staffMember ? staffMember.name : (currentUser?.email || 'Admin'), openedAt: new Date().toISOString(), openingAmount: amount, activeTeam: activeTeam, salesTotal: 0 }; const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`; const docRef = await addDoc(collection(db, colName), sessionData); setRegisterSession({ id: docRef.id, ...sessionData }); setIsOpenRegisterModalOpen(false); toast.success(`Turno Abierto`, { icon: '🔓' }); } catch (error) { toast.error("Error al abrir caja"); } };
   
-  // --- INICIAR SERVICIO (AUTO PRINT) ---
   const handleStartService = async (service, note) => { 
       if (!checkRegisterStatus(false)) return; 
       try { 
-          const serviceData = { serviceName: service.name, pricePerHour: service.price, startTime: new Date().toISOString(), note: note, staffName: staffMember ? staffMember.name : 'Admin', registerId: registerSession.id }; 
-          const colName = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`; 
-          await addDoc(collection(db, colName), serviceData); 
+          const serviceData = { serviceName: service.name, pricePerHour: service.price, startTime: new Date().toISOString(), note: note, staffName: staffMember ? staffMember.name : 'Admin', registerId: registerSession.id }; const colName = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`; await addDoc(collection(db, colName), serviceData); 
           const orderData = { date: new Date().toISOString(), staffId: staffMember ? staffMember.id : 'anon', staffName: staffMember ? staffMember.name : 'Mesero', orderId: 'INI-' + Math.floor(Math.random() * 1000), items: [{ id: 'start-' + Date.now(), name: `⏱️ INICIO: ${service.name} (${note})`, price: 0, qty: 1, category: 'Servicios' }], total: 0, status: 'pending' }; 
           setIsServiceModalOpen(false); 
-          
-          const ticketData = { ...orderData, type: 'order', businessName: appName, date: new Date().toLocaleString(), autoPrint: true }; // <--- AUTO PRINT 
-          setLastSale(ticketData); 
-          setView('receipt_view'); 
-          toast.success("Servicio iniciado"); 
+          const ticketData = { ...orderData, type: 'order', businessName: appName, date: new Date().toLocaleString(), autoPrint: true }; 
+          setLastSale(ticketData); setView('receipt_view'); toast.success("Servicio iniciado"); 
       } catch (e) { toast.error("Error al iniciar servicio"); } 
   };
 
-  // --- DETENER SERVICIO (AUTO PRINT) ---
-  const handleStopService = async (service, cost, timeLabel) => { 
-      if (!checkRegisterStatus(true)) return; 
-      if (!window.confirm(`¿Detener ${service.serviceName}?\nCosto: Bs. ${cost.toFixed(2)}`)) return; 
-      try { 
-          const srvCol = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`; 
-          await deleteDoc(doc(db, srvCol, service.id)); 
-          const orderData = { date: new Date().toISOString(), staffId: staffMember ? staffMember.id : 'anon', staffName: service.staffName || 'Sistema', orderId: 'SRV-' + Math.floor(Math.random() * 1000), items: [{ id: 'srv-' + Date.now(), name: `${service.serviceName} (${timeLabel})`, price: cost, qty: 1, category: 'Servicios' }], total: cost, status: 'pending' }; 
-          const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`; 
-          await addDoc(collection(db, ordersCol), orderData); 
-          
-          // Nota: No se imprime ticket automático al parar, se espera que el cajero cobre para imprimir el recibo final.
-          toast.success("Servicio detenido."); 
-      } catch (e) { console.error(e); toast.error("Error al detener servicio"); } 
-  };
-  
+  const handleStopService = async (service, cost, timeLabel) => { if (!checkRegisterStatus(true)) return; if (!window.confirm(`¿Detener ${service.serviceName}?\nCosto: Bs. ${cost.toFixed(2)}`)) return; try { const srvCol = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`; await deleteDoc(doc(db, srvCol, service.id)); const orderData = { date: new Date().toISOString(), staffId: staffMember ? staffMember.id : 'anon', staffName: service.staffName || 'Sistema', orderId: 'SRV-' + Math.floor(Math.random() * 1000), items: [{ id: 'srv-' + Date.now(), name: `${service.serviceName} (${timeLabel})`, price: cost, qty: 1, category: 'Servicios' }], total: cost, status: 'pending' }; const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`; await addDoc(collection(db, ordersCol), orderData); toast.success("Servicio detenido."); } catch (e) { console.error(e); toast.error("Error al detener servicio"); } };
   const handleAddExpense = async (description, amount) => { if (!registerSession) return; try { const expenseData = { registerId: registerSession.id, description, amount, date: new Date().toISOString(), createdBy: staffMember ? staffMember.name : 'Admin' }; const colName = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`; await addDoc(collection(db, colName), expenseData); const expenseReceipt = { type: 'expense', businessName: appName, date: new Date().toLocaleString(), staffName: staffMember ? staffMember.name : 'Admin', description: description, amount: amount, autoPrint: true }; setLastSale(expenseReceipt); setView('receipt_view'); toast.success("Gasto registrado", { icon: '💸' }); } catch (e) { toast.error("Error guardando gasto"); } };
   const handleDeleteExpense = async (id) => { if(!window.confirm("¿Eliminar este gasto?")) return; try { const colName = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`; await deleteDoc(doc(db, colName, id)); toast.success("Gasto eliminado"); } catch (e) { toast.error("Error"); } };
   
   const handleCloseRegister = () => { if (!registerSession) return; const cashFinal = registerSession.openingAmount + sessionStats.cashSales - sessionStats.totalExpenses; toast((t) => ( <div className="flex flex-col gap-3 min-w-[240px]"> <div className="border-b pb-3"> <p className="font-bold text-gray-800 text-lg mb-2">Resumen de Cierre</p> <div className="bg-gray-50 p-2 rounded mb-3 grid grid-cols-2 gap-2 text-xs"> <div className="bg-white p-2 rounded border border-gray-100"><span className="text-gray-500 block uppercase text-[10px]">Total QR</span><span className="font-bold text-blue-600 text-sm">Bs. {sessionStats.qrSales.toFixed(2)}</span></div> <div className="bg-white p-2 rounded border border-gray-100"><span className="text-gray-500 block uppercase text-[10px]">Total Tarjeta</span><span className="font-bold text-purple-600 text-sm">Bs. {sessionStats.cardSales.toFixed(2)}</span></div> </div> <div className="px-2"><p className="text-xs text-gray-500 uppercase font-bold">Efectivo en Caja:</p><p className="text-2xl font-black text-green-600">Bs. {cashFinal.toFixed(2)}</p></div> </div> <div className="flex gap-2"><button onClick={() => { confirmCloseRegister(cashFinal); toast.dismiss(t.id); }} className="bg-red-600 text-white px-4 py-3 rounded-lg text-xs font-bold shadow-sm flex-1 hover:bg-red-700 transition-colors">CERRAR TURNO</button><button onClick={() => toast.dismiss(t.id)} className="bg-gray-200 text-gray-800 px-4 py-3 rounded-lg text-xs font-bold flex-1 hover:bg-gray-300 transition-colors">CANCELAR</button></div> </div> ), { duration: 10000, position: 'top-center', icon: null }); };
+  const confirmCloseRegister = async (finalCash) => { try { const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`; await updateDoc(doc(db, colName, registerSession.id), { status: 'closed', closedAt: new Date().toISOString(), closedBy: staffMember ? staffMember.name : 'Admin', finalCashCalculated: finalCash, finalSalesStats: sessionStats }); const zReportData = { type: 'z-report', businessName: appName, date: new Date().toLocaleString(), staffName: staffMember ? staffMember.name : 'Admin', registerId: registerSession.id, openedAt: registerSession.openedAt, openingAmount: registerSession.openingAmount, finalCash: finalCash, stats: sessionStats, expensesList: sessionStats.expensesList, soldProducts: sessionStats.soldProducts, autoPrint: true }; setRegisterSession(null); setSessionStats({ cashSales: 0, qrSales: 0, cardSales: 0, digitalSales: 0, totalExpenses: 0, totalCostOfGoods: 0, courtesyTotal: 0, courtesyCost: 0, expensesList: [], soldProducts: [] }); setLastSale(zReportData); setView('receipt_view'); toast.success("Cierre exitoso", { icon: '🖨️' }); } catch (error) { toast.error("Error cerrando"); } };
   
-  // --- CERRAR CAJA (AUTO PRINT) ---
-  const confirmCloseRegister = async (finalCash) => { 
-      try { 
-          const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`; 
-          await updateDoc(doc(db, colName, registerSession.id), { status: 'closed', closedAt: new Date().toISOString(), closedBy: staffMember ? staffMember.name : 'Admin', finalCashCalculated: finalCash, finalSalesStats: sessionStats }); 
-          
-          const zReportData = { 
-              type: 'z-report', 
-              businessName: appName, 
-              date: new Date().toLocaleString(), 
-              staffName: staffMember ? staffMember.name : 'Admin', 
-              registerId: registerSession.id, 
-              openedAt: registerSession.openedAt, 
-              openingAmount: registerSession.openingAmount, 
-              finalCash: finalCash, 
-              stats: sessionStats, 
-              expensesList: sessionStats.expensesList, 
-              soldProducts: sessionStats.soldProducts,
-              autoPrint: true // <--- AUTO PRINT REPORTE Z
-          }; 
-          
-          setRegisterSession(null); 
-          setSessionStats({ cashSales: 0, qrSales: 0, cardSales: 0, digitalSales: 0, totalExpenses: 0, totalCostOfGoods: 0, courtesyTotal: 0, courtesyCost: 0, expensesList: [], soldProducts: [] }); 
-          setLastSale(zReportData); 
-          setView('receipt_view'); 
-          toast.success("Cierre exitoso", { icon: '🖨️' }); 
-      } catch (error) { toast.error("Error cerrando"); } 
+  // --- NUEVA FUNCIÓN: RECIBO DE COBRO MASIVO (BRIDGE) ---
+  const handleBulkReceipt = (receiptData) => {
+      // Inyectamos el nombre del negocio si falta
+      const finalReceipt = { ...receiptData, businessName: appName || 'LicoBar' };
+      setLastSale(finalReceipt);
+      setView('receipt_view');
   };
-  
+
   const handleReprintZReport = (shiftData) => { const zReportData = { type: 'z-report', businessName: appName, date: new Date(shiftData.closedAt).toLocaleString(), staffName: shiftData.closedBy || 'Admin', registerId: shiftData.id, openedAt: shiftData.openedAt, openingAmount: shiftData.openingAmount, finalCash: shiftData.finalCashCalculated, stats: shiftData.finalSalesStats || { cashSales:0, qrSales: 0, cardSales: 0, totalExpenses:0, totalCostOfGoods: 0, courtesyTotal: 0, courtesyCost: 0 }, expensesList: shiftData.finalSalesStats?.expensesList || [], soldProducts: shiftData.finalSalesStats?.soldProducts || [] }; setLastSale(zReportData); setView('receipt_view'); toast.success("Cargando copia del reporte..."); };
   const handleStartPaymentFromCashier = (order, clearCartCallback) => { if (!checkRegisterStatus(true)) return; setOrderToPay(order); setPendingSale({ cart: order.items, clearCart: clearCartCallback || (() => {}) }); setIsPaymentModalOpen(true); };
   const handlePOSCheckout = (cart, clearCart) => { if (!checkRegisterStatus(true)) return; setOrderToPay(null); setPendingSale({ cart, clearCart }); setIsPaymentModalOpen(true); };
-  
-  // --- ENVIAR A COCINA (AUTO PRINT COMANDA) ---
-  const handleSendToKitchen = async (cart, clearCart) => { 
-      if (!checkRegisterStatus(false)) return; 
-      if (cart.length === 0) return; 
-      const toastId = toast.loading('Procesando comanda...'); 
-      try { 
-          const totalOrder = cart.reduce((acc, item) => acc + (item.price * item.qty), 0); 
-          const orderData = { date: new Date().toISOString(), staffId: staffMember ? staffMember.id : 'anon', staffName: staffMember ? staffMember.name : 'Mesero', orderId: 'ORD-' + Math.floor(Math.random() * 10000), items: cart, total: totalOrder, status: 'pending' }; 
-          const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`; 
-          await addDoc(collection(db, ordersCol), orderData); 
-          
-          const preCheckData = { 
-              ...orderData, 
-              type: 'order', 
-              date: new Date().toLocaleString(),
-              autoPrint: true // <--- AUTO PRINT COMANDA
-          }; 
-          
-          clearCart([]); 
-          setLastSale(preCheckData); 
-          toast.success('Pedido enviado a caja', { id: toastId }); 
-          setView('receipt_view'); 
-      } catch (error) { toast.error('Error al enviar pedido', { id: toastId }); } 
-  };
-  
+  const handleSendToKitchen = async (cart, clearCart) => { if (!checkRegisterStatus(false)) return; if (cart.length === 0) return; const toastId = toast.loading('Procesando comanda...'); try { const totalOrder = cart.reduce((acc, item) => acc + (item.price * item.qty), 0); const orderData = { date: new Date().toISOString(), staffId: staffMember ? staffMember.id : 'anon', staffName: staffMember ? staffMember.name : 'Mesero', orderId: 'ORD-' + Math.floor(Math.random() * 10000), items: cart, total: totalOrder, status: 'pending' }; const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`; await addDoc(collection(db, ordersCol), orderData); const preCheckData = { ...orderData, type: 'order', date: new Date().toLocaleString(), autoPrint: true }; clearCart([]); setLastSale(preCheckData); toast.success('Pedido enviado a caja', { id: toastId }); setView('receipt_view'); } catch (error) { toast.error('Error al enviar pedido', { id: toastId }); } };
   const handleVoidAndPrint = async (order) => { try { const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`; await deleteDoc(doc(db, ordersCol, order.id)); const voidData = { ...order, type: 'void', businessName: appName, date: new Date().toLocaleString() }; setLastSale(voidData); toast.success("Pedido anulado"); setView('receipt_view'); } catch (error) { toast.error("Error al anular"); } };
   const handleReprintOrder = (order) => { const preCheckData = { ...order, type: 'order', businessName: appName, date: new Date().toLocaleString() }; setLastSale(preCheckData); setView('receipt_view'); toast.success("Reimprimiendo comanda..."); };
-  
-  // --- HANDLE FINALIZAR (AUTO PRINT TICKET) ---
-  const handleFinalizeSale = async (paymentResult) => { 
-      if (!db) return; 
-      if (staffMember && staffMember.role !== 'Cajero' && staffMember.role !== 'Administrador') { toast.error("⛔ ACCESO DENEGADO: Solo Cajeros pueden cobrar."); setIsPaymentModalOpen(false); return; } 
-      if (!registerSession) { toast.error("¡La caja está cerrada!"); return; } 
-      const toastId = toast.loading('Procesando pago...'); 
-      setIsPaymentModalOpen(false); 
-      const itemsToProcess = orderToPay ? orderToPay.items : pendingSale.cart; 
-      const { paymentsList, totalPaid, change } = paymentResult; 
-      const totalToProcess = totalPaid - change; 
-      
-      try { 
-          const batchPromises = []; 
-          const timestamp = new Date(); 
-          let cashierName = 'Caja General'; if (staffMember) cashierName = staffMember.name; else if (currentUser) cashierName = 'Administrador'; 
-          const waiterName = orderToPay ? (orderToPay.staffName || 'Barra') : (staffMember ? staffMember.name : 'Barra'); 
-          const waiterId = orderToPay ? (orderToPay.staffId || 'anon') : (staffMember ? staffMember.id : 'anon'); 
-          
-          const cleanItems = itemsToProcess.map(item => ({ id: item.id || 'unknown', name: item.name || 'Sin nombre', price: parseFloat(item.price) || 0, qty: parseInt(item.qty) || 1, category: item.category || 'General', stock: item.stock !== undefined ? item.stock : null, image: item.image || null, isServiceItem: !!item.isServiceItem, location: item.location || null }));
-          const saleData = { date: timestamp.toISOString(), total: parseFloat(totalToProcess) || 0, items: cleanItems, staffId: waiterId, staffName: waiterName, cashier: cashierName, registerId: registerSession.id, payments: paymentsList || [], totalPaid: parseFloat(totalPaid) || 0, changeGiven: parseFloat(change) || 0 }; 
-          
-          const salesCollection = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`; 
-          const docRef = await addDoc(collection(db, salesCollection), saleData); 
-          
-          cleanItems.forEach(item => { if (item.stock !== null && item.stock !== '' && !isNaN(item.stock) && !item.isServiceItem) { const newStock = parseInt(item.stock) - item.qty; batchPromises.push(updateDoc(doc(db, getCollName('items'), item.id), { stock: newStock })); } }); 
-          if (orderToPay && orderToPay.type !== 'quick_sale') { const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`; batchPromises.push(deleteDoc(doc(db, ordersCol, orderToPay.id))); } 
-          await Promise.all(batchPromises); 
-          
-          // IMPORTANTE: AGREGAMOS autoPrint: true
-          const receiptData = { 
-              type: 'order', 
-              businessName: appName, 
-              date: timestamp.toLocaleString(), 
-              staffName: waiterName, 
-              cashierName: cashierName, 
-              orderId: docRef.id, 
-              items: cleanItems, 
-              total: totalToProcess, 
-              payments: paymentsList, 
-              change: change,
-              autoPrint: true // <--- AUTO PRINT TICKET
-          }; 
-          
-          setLastSale(receiptData); 
-          if (pendingSale && pendingSale.clearCart) pendingSale.clearCart([]); 
-          setPendingSale(null); setOrderToPay(null); 
-          toast.success('¡Cobro exitoso!', { id: toastId }); 
-          setView('receipt_view'); 
-      } catch (e) { console.error("Error detallado al cobrar:", e); toast.error(`Error al cobrar: ${e.message}`, { id: toastId }); } 
-  };
-
+  const handleFinalizeSale = async (paymentResult) => { if (!db) return; if (staffMember && staffMember.role !== 'Cajero' && staffMember.role !== 'Administrador') { toast.error("⛔ ACCESO DENEGADO: Solo Cajeros pueden cobrar."); setIsPaymentModalOpen(false); return; } if (!registerSession) { toast.error("¡La caja está cerrada!"); return; } const toastId = toast.loading('Procesando pago...'); setIsPaymentModalOpen(false); const itemsToProcess = orderToPay ? orderToPay.items : pendingSale.cart; const { paymentsList, totalPaid, change } = paymentResult; const totalToProcess = totalPaid - change; try { const batchPromises = []; const timestamp = new Date(); let cashierName = 'Caja General'; if (staffMember) cashierName = staffMember.name; else if (currentUser) cashierName = 'Administrador'; const waiterName = orderToPay ? (orderToPay.staffName || 'Barra') : (staffMember ? staffMember.name : 'Barra'); const waiterId = orderToPay ? (orderToPay.staffId || 'anon') : (staffMember ? staffMember.id : 'anon'); const cleanItems = itemsToProcess.map(item => ({ id: item.id || 'unknown', name: item.name || 'Sin nombre', price: parseFloat(item.price) || 0, qty: parseInt(item.qty) || 1, category: item.category || 'General', stock: item.stock !== undefined ? item.stock : null, image: item.image || null, isServiceItem: !!item.isServiceItem, location: item.location || null })); const saleData = { date: timestamp.toISOString(), total: parseFloat(totalToProcess) || 0, items: cleanItems, staffId: waiterId, staffName: waiterName, cashier: cashierName, registerId: registerSession.id, payments: paymentsList || [], totalPaid: parseFloat(totalPaid) || 0, changeGiven: parseFloat(change) || 0 }; const salesCollection = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`; const docRef = await addDoc(collection(db, salesCollection), saleData); cleanItems.forEach(item => { if (item.stock !== null && item.stock !== '' && !isNaN(item.stock) && !item.isServiceItem) { const newStock = parseInt(item.stock) - item.qty; batchPromises.push(updateDoc(doc(db, getCollName('items'), item.id), { stock: newStock })); } }); if (orderToPay && orderToPay.type !== 'quick_sale') { const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`; batchPromises.push(deleteDoc(doc(db, ordersCol, orderToPay.id))); } await Promise.all(batchPromises); const receiptData = { type: 'order', businessName: appName, date: timestamp.toLocaleString(), staffName: waiterName, cashierName: cashierName, orderId: docRef.id, items: cleanItems, total: totalToProcess, payments: paymentsList, change: change, autoPrint: true }; setLastSale(receiptData); if (pendingSale && pendingSale.clearCart) pendingSale.clearCart([]); setPendingSale(null); setOrderToPay(null); toast.success('¡Cobro exitoso!', { id: toastId }); setView('receipt_view'); } catch (e) { console.error("Error detallado al cobrar:", e); toast.error(`Error al cobrar: ${e.message}`, { id: toastId }); } };
   const handleReceiptClose = () => { if (lastSale && lastSale.type === 'z-report') { setView('landing'); return; } const isCashier = (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador')) || (currentUser && !currentUser.isAnonymous); if (isCashier) setView('cashier'); else setView('pos'); };
   const handleSave = async (d) => { try { if(currentItem) await setDoc(doc(db, getCollName('items'), currentItem.id), d); else await addDoc(collection(db, getCollName('items')), d); toast.success('Guardado'); setIsModalOpen(false); } catch { toast.error('Error'); } };
   const handleDelete = async (id) => { try { await deleteDoc(doc(db, getCollName('items'), id)); toast.success('Eliminado'); } catch { toast.error('Error'); }};
@@ -441,22 +277,18 @@ export default function App() {
                   </div>
                 </div>
                 {view === 'report' && <div className="animate-in fade-in"><SalesDashboard onReprintZ={handleReprintZReport} /><div className="hidden print:block mt-8"><PrintableView items={items} /></div></div>}
-                {view === 'cashier' && (<CashierView items={items} categories={categories} tables={tables} onProcessPayment={handleStartPaymentFromCashier} onVoidOrder={handleVoidAndPrint} onReprintOrder={handleReprintOrder} onStopService={handleStopService} onOpenExpense={() => setIsExpenseModalOpen(true)} />)}
+                {view === 'cashier' && (<CashierView items={items} categories={categories} tables={tables} onProcessPayment={handleStartPaymentFromCashier} onVoidOrder={handleVoidAndPrint} onReprintOrder={handleReprintOrder} onStopService={handleStopService} onOpenExpense={() => setIsExpenseModalOpen(true)} onPrintReceipt={handleBulkReceipt} />)}
                 {view === 'register_control' && <RegisterControlView session={registerSession} onOpen={handleOpenRegister} onClose={handleCloseRegister} staff={staff} stats={sessionStats} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} />}
                 {view === 'staff_admin' && !isCashierOnly && <StaffManagerView staff={staff} roles={roles} onAddStaff={handleAddStaff} onUpdateStaff={handleUpdateStaff} onDeleteStaff={handleDeleteStaff} onManageRoles={() => setIsRoleModalOpen(true)} onPrintCredential={handlePrintCredential} />}
                 {view === 'credential_print' && credentialToPrint && (<div className="flex flex-col items-center w-full min-h-screen bg-gray-100"><div className="w-full max-w-md p-4 flex justify-start no-print"><button onClick={() => setView('staff_admin')} className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-lg shadow hover:bg-gray-50 font-bold"><ArrowLeft size={20} /> Volver a la Lista</button></div><CredentialPrintView member={credentialToPrint} appName={appName} /></div>)}
                 {view === 'admin' && !isCashierOnly && (
                   <div className="space-y-6">
-                    {/* TARJETAS DE RESUMEN */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="bg-white p-4 rounded-xl border border-blue-100 shadow-sm flex items-center justify-between"><div><p className="text-xs text-gray-500 uppercase font-bold">Inversión (Costo)</p><p className="text-2xl font-black text-blue-600">Bs. {inventoryStats.totalCost.toFixed(2)}</p></div><div className="p-3 bg-blue-50 rounded-full text-blue-600"><DollarSign size={24}/></div></div>
                         <div className="bg-white p-4 rounded-xl border border-green-100 shadow-sm flex items-center justify-between"><div><p className="text-xs text-gray-500 uppercase font-bold">Venta Potencial</p><p className="text-2xl font-black text-green-600">Bs. {inventoryStats.totalRetail.toFixed(2)}</p></div><div className="p-3 bg-green-50 rounded-full text-green-600"><TrendingUp size={24}/></div></div>
                         <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between"><div><p className="text-xs text-gray-500 uppercase font-bold">Total Unidades</p><p className="text-2xl font-black text-gray-800">{inventoryStats.totalItems}</p></div><div className="p-3 bg-gray-100 rounded-full text-gray-600"><Package size={24}/></div></div>
                     </div>
-
-                    {/* BARRA DE HERRAMIENTAS Y BÚSQUEDA */}
                     <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-2 rounded-xl shadow-sm border border-gray-200">
-                        {/* BOTONES DE CONFIGURACIÓN */}
                         <div className="flex gap-2">
                             <button onClick={() => setIsBrandingModalOpen(true)} className="p-2.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors" title="Configuración Global"><Settings size={20}/></button>
                             <button onClick={() => setIsTableModalOpen(true)} className="p-2.5 bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100 border border-purple-100 transition-colors" title="Gestionar Mesas"><LayoutGrid size={20}/></button>
@@ -464,29 +296,21 @@ export default function App() {
                             <button onClick={() => setIsCategoryModalOpen(true)} className="p-2.5 bg-yellow-50 text-yellow-600 rounded-lg hover:bg-yellow-100 border border-yellow-100 transition-colors" title="Gestionar Categorías"><Filter size={20}/></button>
                             <button onClick={() => setIsQuickEditMode(!isQuickEditMode)} className={`px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-all ${isQuickEditMode ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>{isQuickEditMode ? '⚡ EDICIÓN ACTIVA' : '⚡ Edición Rápida'}</button>
                         </div>
-
-                        {/* BUSCADOR */}
                         <div className="relative w-full md:w-64">
                             <Search className="absolute left-3 top-2.5 text-gray-400" size={18}/>
                             <input type="text" placeholder="Buscar producto..." className="w-full pl-10 p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}/>
                             {searchTerm && <button onClick={() => setSearchTerm('')} className="absolute right-3 top-2.5 text-gray-400 hover:text-black"><X size={16}/></button>}
                         </div>
-
                         <button onClick={() => { setCurrentItem(null); setIsModalOpen(true); }} className="px-6 py-2.5 bg-green-600 text-white rounded-lg font-bold shadow hover:bg-green-700 transition-colors flex items-center gap-2"><Plus size={20}/> NUEVO</button>
                     </div>
-
-                    {/* CINTA DE CATEGORÍAS MEJORADA (SCROLLABLE) */}
                     <div className="relative group">
                         <div className="flex overflow-x-auto pb-2 gap-2 scrollbar-hide snap-x">
                             {filterCategories.map(cat => (
                                 <button key={cat} onClick={() => setFilter(cat)} className={`flex-none snap-start px-6 py-2.5 rounded-full text-sm font-bold transition-all shadow-sm border ${filter === cat ? 'bg-black text-white border-black ring-2 ring-offset-2 ring-gray-300' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'}`}>{cat}</button>
                             ))}
                         </div>
-                        {/* Gradientes para indicar scroll */}
                         <div className="absolute top-0 right-0 bottom-2 w-8 bg-gradient-to-l from-gray-50 to-transparent pointer-events-none md:hidden"></div>
                     </div>
-
-                    {/* TABLA DE PRODUCTOS */}
                     <div className="bg-white rounded-xl shadow border overflow-hidden">
                       <table className="w-full text-left">
                         <thead><tr className="bg-gray-50 text-xs uppercase text-gray-500 border-b border-gray-200"><th className="p-4">Producto</th><th className="p-4 text-center">Stock</th><th className="p-4 text-right">Costo</th><th className="p-4 text-right">Precio</th><th className="p-4 text-right">Margen</th><th className="p-4 text-right">Acciones</th></tr></thead>

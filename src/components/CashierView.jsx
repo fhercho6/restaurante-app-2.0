@@ -1,4 +1,4 @@
-// src/components/CashierView.jsx - CORRECCIÓN VENTA RÁPIDA (Impresión y Carrito)
+// src/components/CashierView.jsx - COBRO MASIVO CON TICKET
 import React, { useState, useEffect } from 'react';
 import { collection, query, orderBy, onSnapshot, writeBatch, doc } from 'firebase/firestore';
 import { db, ROOT_COLLECTION, isPersonalProject } from '../config/firebase';
@@ -8,94 +8,44 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-// --- SUB-COMPONENTE: TARJETA DE PRODUCTO ---
+// ... (Subcomponentes CashierProductCard y ServiceTimeModal siguen igual, los omito para brevedad si no cambian, pero aquí te paso el archivo completo para copiar y pegar seguro)
+
 const CashierProductCard = ({ item, onClick }) => {
     const stockNum = Number(item.stock);
     const hasStock = item.stock !== undefined && item.stock !== '';
     const isLowStock = hasStock && stockNum < 5;
     const isOut = hasStock && stockNum <= 0;
     const isService = item.category === 'Servicios';
-  
     return (
-      <button 
-        onClick={!isOut || isService ? onClick : undefined} 
-        disabled={isOut && !isService}
-        className={`relative w-full text-left bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all active:scale-95 flex flex-col h-36 group ${isOut && !isService ? 'opacity-50 grayscale cursor-not-allowed' : 'cursor-pointer'}`}
-      >
+      <button onClick={!isOut || isService ? onClick : undefined} disabled={isOut && !isService} className={`relative w-full text-left bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all active:scale-95 flex flex-col h-36 group ${isOut && !isService ? 'opacity-50 grayscale cursor-not-allowed' : 'cursor-pointer'}`}>
         <div className="h-20 w-full bg-gray-50 flex items-center justify-center overflow-hidden p-2 relative">
-          {item.image ? (
-            <img src={item.image} alt={item.name} className="w-full h-full object-contain mix-blend-multiply" loading="lazy" onError={(e)=>e.target.style.display='none'} />
-          ) : (
-            isService ? <Clock className="text-purple-400" size={32}/> : <Coffee className="text-gray-300" size={24}/>
-          )}
-          <div className={`absolute top-1 right-1 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm z-10 ${isService ? 'bg-purple-600 text-white' : 'bg-black/80 text-white'}`}>
-             Bs. {item.price}{isService ? '/hr' : ''}
-          </div>
+          {item.image ? (<img src={item.image} alt={item.name} className="w-full h-full object-contain mix-blend-multiply" loading="lazy" onError={(e)=>e.target.style.display='none'} />) : (isService ? <Clock className="text-purple-400" size={32}/> : <Coffee className="text-gray-300" size={24}/>)}
+          <div className={`absolute top-1 right-1 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm z-10 ${isService ? 'bg-purple-600 text-white' : 'bg-black/80 text-white'}`}>Bs. {item.price}{isService ? '/hr' : ''}</div>
           {isLowStock && !isOut && !isService && <div className="absolute bottom-0 inset-x-0 bg-red-500 text-white text-[9px] font-black text-center uppercase tracking-wide">Quedan: {stockNum}</div>}
         </div>
-        <div className="p-2 flex-1 flex flex-col justify-between bg-white">
-            <p className="text-[9px] text-gray-500 font-bold uppercase truncate flex items-center gap-1"><Tag size={8}/> {item.category}</p>
-            <h4 className="text-xs font-bold text-gray-800 leading-tight line-clamp-2">{item.name}</h4>
-        </div>
+        <div className="p-2 flex-1 flex flex-col justify-between bg-white"><p className="text-[9px] text-gray-500 font-bold uppercase truncate flex items-center gap-1"><Tag size={8}/> {item.category}</p><h4 className="text-xs font-bold text-gray-800 leading-tight line-clamp-2">{item.name}</h4></div>
         {isOut && !isService && <div className="absolute inset-0 bg-white/60 flex items-center justify-center font-black text-gray-400 text-xs uppercase tracking-widest rotate-[-12deg] border-2 border-gray-200 m-4 rounded-lg">Agotado</div>}
       </button>
     );
 };
 
-// --- MODAL CÁLCULO DE SERVICIO ---
 const ServiceTimeModal = ({ item, onClose, onConfirm, tables, occupiedTables }) => {
     const [startTime, setStartTime] = useState('');
     const [endTime, setEndTime] = useState('');
-    
-    const getInitialTable = () => {
-        if (!tables) return 'Barra';
-        const freeTable = tables.find(t => !occupiedTables.includes(t));
-        return freeTable || tables[0];
-    };
-
+    const getInitialTable = () => { if (!tables) return 'Barra'; const freeTable = tables.find(t => !occupiedTables.includes(t)); return freeTable || tables[0]; };
     const [location, setLocation] = useState(getInitialTable);
     const [duration, setDuration] = useState(0); 
     const [totalCost, setTotalCost] = useState(0);
-
-    useEffect(() => {
-        const now = new Date();
-        const nowStr = now.toTimeString().slice(0, 5);
-        const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-        const startStr = oneHourAgo.toTimeString().slice(0, 5);
-        setEndTime(nowStr);
-        setStartTime(startStr);
-    }, []);
-
-    useEffect(() => {
-        if(startTime && endTime) {
-            const [startH, startM] = startTime.split(':').map(Number);
-            const [endH, endM] = endTime.split(':').map(Number);
-            let startMinutes = startH * 60 + startM;
-            let endMinutes = endH * 60 + endM;
-            if (endMinutes < startMinutes) endMinutes += 24 * 60;
-            const diffMinutes = endMinutes - startMinutes;
-            const diffHours = diffMinutes / 60;
-            setDuration(diffHours);
-            setTotalCost(diffHours * item.price);
-        }
-    }, [startTime, endTime, item.price]);
-
-    const handleConfirm = () => {
-        if (occupiedTables.includes(location)) { toast.error(`La ${location} ya tiene un servicio en esta venta.`); return; }
-        if(totalCost > 0) onConfirm(item, totalCost, `${startTime} - ${endTime}`, duration, location);
-    };
-
+    useEffect(() => { const now = new Date(); const nowStr = now.toTimeString().slice(0, 5); const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000); const startStr = oneHourAgo.toTimeString().slice(0, 5); setEndTime(nowStr); setStartTime(startStr); }, []);
+    useEffect(() => { if(startTime && endTime) { const [startH, startM] = startTime.split(':').map(Number); const [endH, endM] = endTime.split(':').map(Number); let startMinutes = startH * 60 + startM; let endMinutes = endH * 60 + endM; if (endMinutes < startMinutes) endMinutes += 24 * 60; const diffMinutes = endMinutes - startMinutes; const diffHours = diffMinutes / 60; setDuration(diffHours); setTotalCost(diffHours * item.price); } }, [startTime, endTime, item.price]);
+    const handleConfirm = () => { if (occupiedTables.includes(location)) { toast.error(`La ${location} ya tiene un servicio en esta venta.`); return; } if(totalCost > 0) onConfirm(item, totalCost, `${startTime} - ${endTime}`, duration, location); };
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
             <div className="bg-white rounded-2xl w-full max-w-xs overflow-hidden shadow-2xl">
                 <div className="bg-purple-600 p-4 text-white flex justify-between items-center"><h3 className="font-bold flex items-center gap-2"><Clock size={18}/> Calcular Servicio</h3><button onClick={onClose}><X size={18}/></button></div>
                 <div className="p-6 space-y-4">
                     <div className="text-center mb-2"><p className="text-xs text-gray-500 uppercase font-bold">Servicio</p><h4 className="text-lg font-black text-gray-800">{item.name}</h4><p className="text-purple-600 font-bold text-sm">Bs. {item.price} / hora</p></div>
-                    <div>
-                        <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Ubicación / Mesa</label>
-                        <div className="relative"><MapPin size={14} className="absolute left-3 top-3 text-purple-500"/><select className={`w-full pl-9 p-2 border rounded-lg font-bold outline-none appearance-none uppercase transition-colors ${occupiedTables.includes(location) ? 'border-red-300 bg-red-50 text-red-600' : 'text-gray-800 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500'}`} value={location} onChange={e => setLocation(e.target.value)}>{tables && tables.map(loc => { const isOccupied = occupiedTables.includes(loc); return (<option key={loc} value={loc} disabled={isOccupied} className={isOccupied ? 'text-gray-300' : ''}>{loc} {isOccupied ? '(En Carrito)' : ''}</option>); })}</select><ChevronDown size={14} className="absolute right-3 top-3 text-gray-400 pointer-events-none"/></div>
-                        {occupiedTables.includes(location) && (<p className="text-[10px] text-red-500 font-bold mt-1 flex items-center gap-1"><AlertCircle size={10}/> Mesa ocupada en esta orden</p>)}
-                    </div>
+                    <div><label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Ubicación / Mesa</label><div className="relative"><MapPin size={14} className="absolute left-3 top-3 text-purple-500"/><select className={`w-full pl-9 p-2 border rounded-lg font-bold outline-none appearance-none uppercase transition-colors ${occupiedTables.includes(location) ? 'border-red-300 bg-red-50 text-red-600' : 'text-gray-800 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500'}`} value={location} onChange={e => setLocation(e.target.value)}>{tables && tables.map(loc => { const isOccupied = occupiedTables.includes(loc); return (<option key={loc} value={loc} disabled={isOccupied} className={isOccupied ? 'text-gray-300' : ''}>{loc} {isOccupied ? '(En Carrito)' : ''}</option>); })}</select><ChevronDown size={14} className="absolute right-3 top-3 text-gray-400 pointer-events-none"/></div>{occupiedTables.includes(location) && (<p className="text-[10px] text-red-500 font-bold mt-1 flex items-center gap-1"><AlertCircle size={10}/> Mesa ocupada en esta orden</p>)}</div>
                     <div className="grid grid-cols-2 gap-4"><div><label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Inicio</label><input type="time" className="w-full p-2 border rounded-lg font-bold text-gray-800 text-center bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none" value={startTime} onChange={e => setStartTime(e.target.value)} /></div><div><label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Fin</label><input type="time" className="w-full p-2 border rounded-lg font-bold text-gray-800 text-center bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none" value={endTime} onChange={e => setEndTime(e.target.value)} /></div></div>
                     <div className="bg-gray-100 p-3 rounded-xl flex justify-between items-center border border-gray-200"><div><p className="text-xs text-gray-500">Tiempo Total</p><p className="font-bold text-gray-800">{Math.floor(duration)}h {Math.round((duration % 1) * 60)}min</p></div><div className="text-right"><p className="text-xs text-gray-500">A Cobrar</p><p className="font-black text-xl text-purple-600">Bs. {totalCost.toFixed(2)}</p></div></div>
                     <button onClick={handleConfirm} disabled={occupiedTables.includes(location)} className="w-full py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2"><Plus size={18}/> {occupiedTables.includes(location) ? 'MESA OCUPADA' : 'AGREGAR'}</button>
@@ -105,7 +55,7 @@ const ServiceTimeModal = ({ item, onClose, onConfirm, tables, occupiedTables }) 
     );
 };
 
-export default function CashierView({ items, categories, tables, onProcessPayment, onVoidOrder, onReprintOrder, onStopService, onOpenExpense }) {
+export default function CashierView({ items, categories, tables, onProcessPayment, onVoidOrder, onReprintOrder, onStopService, onOpenExpense, onPrintReceipt }) {
   const [activeTab, setActiveTab] = useState('orders'); 
   const [orders, setOrders] = useState([]);
   const [cart, setCart] = useState([]);
@@ -153,25 +103,12 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
   const updateQty = (id, delta, isServiceItem) => { if (isServiceItem) return; setCart(prev => prev.map(i => i.id === id ? {...i, qty: Math.max(1, i.qty + delta)} : i)); };
   const removeFromCart = (id) => setCart(prev => prev.filter(i => i.id !== id));
 
-  // --- LÓGICA CORREGIDA VENTA RÁPIDA ---
   const handleQuickCheckout = () => {
     if (cart.length === 0) return;
     const total = cart.reduce((acc, i) => acc + (i.price * i.qty), 0);
     const locationName = quickTable;
-
-    const quickOrder = {
-        id: 'QUICK-' + Date.now(),
-        items: cart,
-        total: total,
-        staffName: `Caja - ${locationName}`, 
-        staffId: 'cashier',
-        type: 'quick_sale', // IMPORTANTE: Identifica que no está en Firestore
-        table: locationName 
-    };
-    
-    // ENVIAMOS LA ORDEN Y LA FUNCIÓN PARA LIMPIAR EL CARRITO (Solo si se paga)
+    const quickOrder = { id: 'QUICK-' + Date.now(), items: cart, total: total, staffName: `Caja - ${locationName}`, staffId: 'cashier', type: 'quick_sale', table: locationName };
     onProcessPayment(quickOrder, () => setCart([])); 
-    
     if (tables && tables.includes('LICOBAR')) setQuickTable('LICOBAR');
   };
 
@@ -198,6 +135,7 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
       ), { duration: 8000, position: 'bottom-center', style: { borderRadius: '16px', boxShadow: '0 10px 30px -10px rgba(0,0,0,0.3)' } });
   };
 
+  // --- LÓGICA DE COBRO MASIVO + IMPRESIÓN ---
   const executeBulkPay = async (paymentMethod, ordersToPay) => {
       setIsPaying(true); 
       setTimeout(async () => {
@@ -206,7 +144,13 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
               const salesCol = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`;
               const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
               
+              let totalAmount = 0;
+              let allItems = [];
+
               ordersToPay.forEach(order => {
+                  totalAmount += order.total;
+                  allItems = [...allItems, ...order.items]; // Unir productos
+
                   const saleData = {
                       date: new Date().toISOString(),
                       total: order.total,
@@ -228,6 +172,24 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
               });
 
               await batch.commit();
+              
+              // --- GENERAR TICKET CONSOLIDADO ---
+              if (onPrintReceipt) {
+                  const receiptData = {
+                      type: 'order',
+                      // businessName se inyecta en App.jsx
+                      date: new Date().toLocaleString(),
+                      staffName: 'Caja (Cobro Masivo)',
+                      cashierName: 'Caja',
+                      items: allItems, // Lista de todos los productos de todas las mesas
+                      total: totalAmount,
+                      payments: [{ method: paymentMethod, amount: totalAmount }],
+                      change: 0,
+                      autoPrint: true // AUTO PRINT ACTIVADO
+                  };
+                  onPrintReceipt(receiptData);
+              }
+
               toast.success(paymentMethod === 'Cortesía' ? 'Cortesía registrada' : 'Cobro exitoso', { icon: paymentMethod === 'Cortesía' ? '🎁' : '✅' });
               setSelectedOrders([]);
               setIsSelectionMode(false); 
