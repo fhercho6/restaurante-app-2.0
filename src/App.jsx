@@ -1,4 +1,4 @@
-// src/App.jsx - CORREGIDO (ERROR ReferenceError: isAdminMode)
+// src/App.jsx - VERSIÓN FINAL CORREGIDA (TODAS LAS FUNCIONES RESTAURADAS)
 import React, { useState, useEffect, useMemo } from 'react';
 import { Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign, ArrowLeft, Lock, Unlock, Wallet, Loader2, LayoutGrid, Gift, Trees, TrendingUp, Package, AlertCircle } from 'lucide-react';
 import { onAuthStateChanged, signOut, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
@@ -114,6 +114,7 @@ export default function App() {
   
   const handleQuickUpdate = async (id, field, value) => { try { const valToSave = (field === 'price' || field === 'cost') ? parseFloat(value) : value; await updateDoc(doc(db, getCollName('items'), id), { [field]: valToSave }); toast.success(`${field === 'stock' ? 'Stock' : field === 'price' ? 'Precio' : 'Costo'} actualizado`, { duration: 1000, icon: '⚡' }); } catch (error) { toast.error('Error al actualizar'); } };
 
+  // --- DATA LOADING ---
   useEffect(() => { const initAuth = async () => { if (!auth.currentUser) { if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token && !isPersonalProject) { await signInWithCustomToken(auth, __initial_auth_token); } else { await signInAnonymously(auth).catch(() => setDbStatus('warning')); } } }; initAuth(); return onAuthStateChanged(auth, (u) => { setCurrentUser(u); if (u) { setDbStatus('connected'); setDbErrorMsg(''); } }); }, []);
   useEffect(() => { if (!db || !currentUser) return; const checkSession = async () => { const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`; const q = query(collection(db, colName), where('status', '==', 'open'), limit(1)); const snap = await getDocs(q); if (!snap.empty) { const data = snap.docs[0].data(); setRegisterSession({ id: snap.docs[0].id, ...data }); } }; checkSession(); }, [db, currentUser]);
   useEffect(() => { 
@@ -126,6 +127,7 @@ export default function App() {
       return () => { itemsUnsub(); staffUnsub(); settingsUnsub(); srvUnsub(); }; 
   }, [currentUser]);
 
+  // --- LÓGICA DE AGREGACIÓN DE VENTAS (PRODUCTOS, COSTOS Y GANANCIA) ---
   useEffect(() => { 
       if (!db || !registerSession) return; 
       const salesCol = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`; 
@@ -165,27 +167,16 @@ export default function App() {
                       if (!productMap[key]) {
                           productMap[key] = { name: item.name, qty: 0, total: 0, costUnit: cost, totalCost: 0 };
                       }
-                      
                       productMap[key].qty += qty;
                       productMap[key].total += (price * qty);
                       productMap[key].totalCost += (cost * qty); 
-                      
                       totalCostCalc += (cost * qty); 
                   });
               }
           }); 
 
           const soldProductsList = Object.values(productMap).sort((a, b) => b.qty - a.qty);
-
-          setSessionStats(prev => ({ 
-              ...prev, 
-              cashSales: cash, 
-              qrSales: qr, 
-              cardSales: card, 
-              digitalSales: qr + card,
-              totalCostOfGoods: totalCostCalc, 
-              soldProducts: soldProductsList 
-          })); 
+          setSessionStats(prev => ({ ...prev, cashSales: cash, qrSales: qr, cardSales: card, digitalSales: qr + card, totalCostOfGoods: totalCostCalc, soldProducts: soldProductsList })); 
       }); 
       
       const unsubExpenses = onSnapshot(qExpenses, (snap) => { let totalExp = 0; const list = []; snap.forEach(doc => { const exp = doc.data(); totalExp += parseFloat(exp.amount); list.push({ id: doc.id, ...exp }); }); setSessionStats(prev => ({ ...prev, totalExpenses: totalExp, expensesList: list })); }); 
@@ -210,9 +201,28 @@ export default function App() {
   const handleReprintOrder = (order) => { const preCheckData = { ...order, type: 'order', businessName: appName, date: new Date().toLocaleString() }; setLastSale(preCheckData); setView('receipt_view'); toast.success("Reimprimiendo comanda..."); };
   const handleFinalizeSale = async (paymentResult) => { if (!db) return; if (staffMember && staffMember.role !== 'Cajero' && staffMember.role !== 'Administrador') { toast.error("⛔ ACCESO DENEGADO: Solo Cajeros pueden cobrar."); setIsPaymentModalOpen(false); return; } if (!registerSession) { toast.error("¡La caja está cerrada!"); return; } const toastId = toast.loading('Procesando pago...'); setIsPaymentModalOpen(false); const itemsToProcess = orderToPay ? orderToPay.items : pendingSale.cart; const { paymentsList, totalPaid, change } = paymentResult; const totalToProcess = totalPaid - change; try { const batchPromises = []; const timestamp = new Date(); let cashierName = 'Caja General'; if (staffMember) cashierName = staffMember.name; else if (currentUser) cashierName = 'Administrador'; const waiterName = orderToPay ? orderToPay.staffName : (staffMember ? staffMember.name : 'Barra'); const waiterId = orderToPay ? orderToPay.staffId : (staffMember ? staffMember.id : 'anon'); const saleData = { date: timestamp.toISOString(), total: totalToProcess, items: itemsToProcess, staffId: waiterId, staffName: waiterName, cashier: cashierName, registerId: registerSession.id, payments: paymentsList, totalPaid: totalPaid, changeGiven: change }; const salesCollection = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`; const docRef = await addDoc(collection(db, salesCollection), saleData); itemsToProcess.forEach(item => { if (item.stock !== undefined && item.stock !== '') { const newStock = parseInt(item.stock) - item.qty; batchPromises.push(updateDoc(doc(db, getCollName('items'), item.id), { stock: newStock })); } }); if (orderToPay) { const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`; batchPromises.push(deleteDoc(doc(db, ordersCol, orderToPay.id))); } await Promise.all(batchPromises); const receiptData = { businessName: appName, date: timestamp.toLocaleString(), staffName: waiterName, cashierName: cashierName, orderId: docRef.id, items: itemsToProcess, total: totalToProcess, payments: paymentsList, change: change }; setLastSale(receiptData); if (pendingSale && pendingSale.clearCart) pendingSale.clearCart([]); setPendingSale(null); setOrderToPay(null); toast.success('¡Cobro exitoso!', { id: toastId }); setView('receipt_view'); } catch (e) { console.error(e); toast.error('Error al cobrar', { id: toastId }); } };
   const handleReceiptClose = () => { if (lastSale && lastSale.type === 'z-report') { setView('landing'); return; } const isCashier = (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador')) || (currentUser && !currentUser.isAnonymous); if (isCashier) setView('cashier'); else setView('pos'); };
+  
+  // --- HANDLERS CRUD RESTAURADOS ---
+  const handleSave = async (d) => { try { if(currentItem) await setDoc(doc(db, getCollName('items'), currentItem.id), d); else await addDoc(collection(db, getCollName('items')), d); toast.success('Guardado'); setIsModalOpen(false); } catch { toast.error('Error'); } };
+  const handleDelete = async (id) => { try { await deleteDoc(doc(db, getCollName('items'), id)); toast.success('Eliminado'); } catch { toast.error('Error'); }};
+  const handleAddStaff = async (d) => { await addDoc(collection(db, getCollName('staff')), d); toast.success('Personal creado'); };
+  const handleUpdateStaff = async (id, d) => { await updateDoc(doc(db, getCollName('staff'), id), d); toast.success('Personal actualizado'); };
+  const handleDeleteStaff = async (id) => { if(window.confirm("¿Eliminar?")) { await deleteDoc(doc(db, getCollName('staff'), id)); toast.success('Borrado'); } };
+  const handleAddCategory = (n) => setDoc(doc(db, getCollName('settings'), 'categories'), { list: [...categories, n] });
+  const handleRenameCategory = (i, n) => { const l = [...categories]; l[i] = n; setDoc(doc(db, getCollName('settings'), 'categories'), { list: l }); };
+  const handleDeleteCategory = (i) => { const l = categories.filter((_, x) => x !== i); setDoc(doc(db, getCollName('settings'), 'categories'), { list: l }); };
+  const handleAddRole = (n) => setDoc(doc(db, getCollName('settings'), 'roles'), { list: [...roles, n] });
+  const handleRenameRole = (i, n) => { const l = [...roles]; l[i] = n; setDoc(doc(db, getCollName('settings'), 'roles'), { list: l }); };
+  const handleDeleteRole = (i) => { const l = roles.filter((_, x) => x !== i); setDoc(doc(db, getCollName('settings'), 'roles'), { list: l }); };
+  const handleAddTable = (n) => setDoc(doc(db, getCollName('settings'), 'tables'), { list: [...tables, n] });
+  const handleRenameTable = (i, n) => { const l = [...tables]; l[i] = n; setDoc(doc(db, getCollName('settings'), 'tables'), { list: l }); };
+  const handleDeleteTable = (i) => { const l = tables.filter((_, x) => x !== i); setDoc(doc(db, getCollName('settings'), 'tables'), { list: l }); };
+  const handleAddExpenseType = (n) => setDoc(doc(db, getCollName('settings'), 'expenses'), { list: [...expenseTypes, n] });
+  const handleRenameExpenseType = (i, n) => { const l = [...expenseTypes]; l[i] = n; setDoc(doc(db, getCollName('settings'), 'expenses'), { list: l }); };
+  const handleDeleteExpenseType = (i) => { const l = expenseTypes.filter((_, x) => x !== i); setDoc(doc(db, getCollName('settings'), 'expenses'), { list: l }); };
   const handleSaveBranding = (l, n, t) => { setDoc(doc(db, getCollName('settings'), 'branding'), { logo: l, appName: n, autoLockTime: t }, { merge: true }); setLogo(l); setAppName(n); setAutoLockTime(t); toast.success('Marca y Configuración actualizadas'); };
 
-  // --- VARIABLES FALTANTES (Corrección) ---
+  // --- VARIABLES DE VISTA (Restauradas) ---
   const filterCategories = ['Todos', ...categories];
   const filteredItems = filter === 'Todos' ? items : items.filter(i => i.category === filter);
   const isAdminMode = view === 'admin' || view === 'report' || view === 'staff_admin' || view === 'cashier' || view === 'register_control';
