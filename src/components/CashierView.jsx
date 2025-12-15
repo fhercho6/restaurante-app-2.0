@@ -1,4 +1,4 @@
-// src/components/CashierView.jsx - VERSIÓN OPTIMIZADA (SOLUCIÓN INP ISSUE)
+// src/components/CashierView.jsx - VERSIÓN FINAL: CERO BLOQUEOS (TOAST CONFIRMATION)
 import React, { useState, useEffect } from 'react';
 import { collection, query, orderBy, onSnapshot, writeBatch, doc } from 'firebase/firestore';
 import { db, ROOT_COLLECTION, isPersonalProject } from '../config/firebase';
@@ -151,7 +151,7 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
   // Estados Cobro Masivo
   const [selectedOrders, setSelectedOrders] = useState([]); 
   const [isSelectionMode, setIsSelectionMode] = useState(false);
-  const [isPaying, setIsPaying] = useState(false); // ESTADO PARA CONTROLAR EL "FREEZE"
+  const [isPaying, setIsPaying] = useState(false);
 
   useEffect(() => {
       if (tables && tables.length > 0 && !tables.includes(quickTable)) {
@@ -168,7 +168,6 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
     return () => unsubscribe();
   }, []);
 
-  // --- LÓGICA VENTA RÁPIDA ---
   const handleItemClick = (item) => {
       if (item.category === 'Servicios') {
           setServiceModalItem(item);
@@ -227,7 +226,7 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
     setCart([]); 
   };
 
-  // --- LÓGICA DE COBRO MASIVO OPTIMIZADA ---
+  // --- LÓGICA DE COBRO MASIVO: SIN WINDOW.CONFIRM (TOAST MODERNO) ---
   const toggleOrderSelection = (orderId) => {
       setSelectedOrders(prev => {
           if (prev.includes(orderId)) return prev.filter(id => id !== orderId);
@@ -235,20 +234,41 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
       });
   };
 
-  const handleBulkPay = async (paymentMethod) => {
+  // 1. Solicitud de Cobro (Muestra el Toast)
+  const requestBulkPay = (paymentMethod) => {
       if(selectedOrders.length === 0) return;
       
       const ordersToPay = orders.filter(o => selectedOrders.includes(o.id));
       const totalAmount = ordersToPay.reduce((sum, o) => sum + o.total, 0);
 
-      // Confirmación
-      if(!window.confirm(`¿COBRAR ${selectedOrders.length} COMANDAS CON ${paymentMethod.toUpperCase()}?\n\nTotal: Bs. ${totalAmount.toFixed(2)}`)) return;
+      toast((t) => (
+          <div className="flex flex-col gap-2 min-w-[200px]">
+              <p className="font-bold text-sm">¿Cobrar {selectedOrders.length} pedidos?</p>
+              <div className="text-xs text-gray-500 mb-2">Total: <b>Bs. {totalAmount.toFixed(2)}</b> ({paymentMethod})</div>
+              <div className="flex gap-2">
+                  <button 
+                      onClick={() => { toast.dismiss(t.id); executeBulkPay(paymentMethod, ordersToPay); }}
+                      className="bg-green-600 text-white px-3 py-2 rounded text-xs font-bold flex-1 hover:bg-green-700"
+                  >
+                      CONFIRMAR
+                  </button>
+                  <button 
+                      onClick={() => toast.dismiss(t.id)}
+                      className="bg-gray-200 text-gray-800 px-3 py-2 rounded text-xs font-bold hover:bg-gray-300"
+                  >
+                      CANCELAR
+                  </button>
+              </div>
+          </div>
+      ), { duration: 5000, position: 'bottom-center' });
+  };
 
-      // 1. Mostrar estado de carga (Bloquear UI)
+  // 2. Ejecución Real (En Background)
+  const executeBulkPay = async (paymentMethod, ordersToPay) => {
       setIsPaying(true);
-      const toastId = toast.loading('Procesando cobro masivo...');
+      const toastId = toast.loading('Procesando...');
 
-      // 2. Usar setTimeout para dar tiempo al navegador de pintar el Loader antes de procesar
+      // Pequeño delay para asegurar que el UI muestre el loader antes de congelarse
       setTimeout(async () => {
           try {
               const batch = writeBatch(db);
@@ -278,17 +298,17 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
 
               await batch.commit();
               
-              toast.success(`¡${selectedOrders.length} cobros registrados!`, { id: toastId });
+              toast.success(`¡Listo!`, { id: toastId });
               setSelectedOrders([]);
               setIsSelectionMode(false); 
 
           } catch (error) {
               console.error(error);
-              toast.error('Error al procesar cobros', { id: toastId });
+              toast.error('Error', { id: toastId });
           } finally {
-              setIsPaying(false); // Liberar UI
+              setIsPaying(false);
           }
-      }, 100); // 100ms de respiro para la UI
+      }, 50);
   };
 
   // --- RENDERS ---
@@ -309,7 +329,7 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
           <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-[60] flex items-center justify-center rounded-2xl">
               <div className="bg-white p-4 rounded-xl shadow-xl flex items-center gap-3 border border-gray-100">
                   <Loader2 className="animate-spin text-blue-600" size={24}/>
-                  <span className="font-bold text-gray-700">Procesando pagos...</span>
+                  <span className="font-bold text-gray-700">Guardando...</span>
               </div>
           </div>
       )}
@@ -399,7 +419,7 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
             </div>
          )}
 
-         {/* --- BARRA FLOTANTE DE COBRO MASIVO --- */}
+         {/* --- BARRA FLOTANTE DE COBRO MASIVO (SIN BLOQUEO INP) --- */}
          {isSelectionMode && selectedOrders.length > 0 && (
              <div className="absolute bottom-4 left-2 right-2 bg-gray-900 text-white p-3 rounded-2xl shadow-2xl flex flex-col sm:flex-row justify-between items-center animate-in slide-in-from-bottom duration-300 z-50 gap-3">
                  <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
@@ -408,9 +428,29 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
                  </div>
                  
                  <div className="flex gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0 justify-center">
-                     <button onClick={() => handleBulkPay('Efectivo')} disabled={isPaying} className="flex-1 sm:flex-none bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white px-4 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-transform text-xs sm:text-sm flex items-center justify-center gap-2 whitespace-nowrap"><DollarSign size={16}/> EFECTIVO</button>
-                     <button onClick={() => handleBulkPay('QR')} disabled={isPaying} className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-4 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-transform text-xs sm:text-sm flex items-center justify-center gap-2 whitespace-nowrap"><Grid size={16}/> QR</button>
-                     <button onClick={() => handleBulkPay('Tarjeta')} disabled={isPaying} className="flex-1 sm:flex-none bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white px-4 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-transform text-xs sm:text-sm flex items-center justify-center gap-2 whitespace-nowrap"><CreditCard size={16}/> TARJETA</button>
+                     <button 
+                        onClick={() => requestBulkPay('Efectivo')} 
+                        disabled={isPaying}
+                        className="flex-1 sm:flex-none bg-green-600 hover:bg-green-500 disabled:bg-green-800 disabled:opacity-50 text-white px-4 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-transform text-xs sm:text-sm flex items-center justify-center gap-2 whitespace-nowrap"
+                     >
+                         <DollarSign size={16}/> EFECTIVO
+                     </button>
+                     
+                     <button 
+                        onClick={() => requestBulkPay('QR')} 
+                        disabled={isPaying}
+                        className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:opacity-50 text-white px-4 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-transform text-xs sm:text-sm flex items-center justify-center gap-2 whitespace-nowrap"
+                     >
+                         <Grid size={16}/> QR
+                     </button>
+
+                     <button 
+                        onClick={() => requestBulkPay('Tarjeta')} 
+                        disabled={isPaying}
+                        className="flex-1 sm:flex-none bg-purple-600 hover:bg-purple-500 disabled:bg-purple-800 disabled:opacity-50 text-white px-4 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-transform text-xs sm:text-sm flex items-center justify-center gap-2 whitespace-nowrap"
+                     >
+                         <CreditCard size={16}/> TARJETA
+                     </button>
                  </div>
              </div>
          )}
