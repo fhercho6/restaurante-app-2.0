@@ -1,6 +1,6 @@
-// src/App.jsx - VERSIÓN MAESTRA (Con Configuración de Tiempo, Mesas y Gastos)
+// src/App.jsx - VERSIÓN FINAL (DISEÑO NAVIDAD NEÓN + GESTIÓN COMPLETA)
 import React, { useState, useEffect } from 'react';
-import { Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, Printer, Settings, Plus, Edit2, Search, Gift, Trees, ChefHat, DollarSign, ArrowLeft, Lock, Unlock, Wallet, Loader2, LayoutGrid } from 'lucide-react';
+import { Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign, ArrowLeft, Lock, Unlock, Wallet, Loader2, LayoutGrid, Gift, Trees } from 'lucide-react';
 import { onAuthStateChanged, signOut, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
 import { collection, doc, setDoc, addDoc, deleteDoc, onSnapshot, updateDoc, query, where, limit, getDocs } from 'firebase/firestore';
 import toast, { Toaster } from 'react-hot-toast';
@@ -16,7 +16,7 @@ import CashierView from './components/CashierView';
 import OpenRegisterModal from './components/OpenRegisterModal';
 import RegisterControlView from './components/RegisterControlView';
 
-// IMPORTANTE: Importamos todos los nuevos modales
+// Modales
 import { AuthModal, BrandingModal, ProductModal, CategoryManager, RoleManager, TableManager, ExpenseTypeManager, ServiceStartModal, ExpenseModal } from './components/Modals';
 import { MenuCard, PinLoginView, CredentialPrintView, PrintableView, AdminRow } from './components/Views';
 
@@ -35,10 +35,10 @@ export default function App() {
   const [categories, setCategories] = useState(INITIAL_CATEGORIES);
   const [roles, setRoles] = useState(INITIAL_ROLES);
   
-  // --- NUEVOS ESTADOS ---
+  // Estados de Configuración
   const [tables, setTables] = useState(INITIAL_TABLES);
   const [expenseTypes, setExpenseTypes] = useState(INITIAL_EXPENSE_TYPES);
-  const [autoLockTime, setAutoLockTime] = useState(45); // Tiempo por defecto
+  const [autoLockTime, setAutoLockTime] = useState(45); 
 
   const [activeServices, setActiveServices] = useState([]); 
   const [dbStatus, setDbStatus] = useState('connecting');
@@ -49,7 +49,7 @@ export default function App() {
   const [isOpenRegisterModalOpen, setIsOpenRegisterModalOpen] = useState(false);
   const [sessionStats, setSessionStats] = useState({ cashSales: 0, qrSales: 0, cardSales: 0, digitalSales: 0, totalExpenses: 0, expensesList: [] });
   
-  // MODALES
+  // Modales
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
@@ -110,17 +110,14 @@ export default function App() {
       }
   };
 
-  // --- CARGA INICIAL DE DATOS ---
+  // --- DATA LOADING ---
   useEffect(() => { const initAuth = async () => { if (!auth.currentUser) { if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token && !isPersonalProject) { await signInWithCustomToken(auth, __initial_auth_token); } else { await signInAnonymously(auth).catch(() => setDbStatus('warning')); } } }; initAuth(); return onAuthStateChanged(auth, (u) => { setCurrentUser(u); if (u) { setDbStatus('connected'); setDbErrorMsg(''); } }); }, []);
-  
   useEffect(() => { if (!db || !currentUser) return; const checkSession = async () => { const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`; const q = query(collection(db, colName), where('status', '==', 'open'), limit(1)); const snap = await getDocs(q); if (!snap.empty) { const data = snap.docs[0].data(); setRegisterSession({ id: snap.docs[0].id, ...data }); } }; checkSession(); }, [db, currentUser]);
-  
   useEffect(() => { 
       if (!db || !currentUser) return; 
       const itemsUnsub = onSnapshot(collection(db, getCollName('items')), (s) => { const rawItems = s.docs.map(doc => ({ id: doc.id, ...doc.data() })); const uniqueItems = Array.from(new Map(rawItems.map(item => [item.id, item])).values()); setItems(uniqueItems); }, (e) => { console.warn("Esperando permisos..."); }); 
       const staffUnsub = onSnapshot(collection(db, getCollName('staff')), (s) => setStaff(s.docs.map(d => ({id: d.id, ...d.data()})))); 
       
-      // CARGA DE CONFIGURACIÓN (Incluye Mesas, Gastos y Tiempo)
       const settingsUnsub = onSnapshot(collection(db, getCollName('settings')), (s) => { 
           s.docs.forEach(d => { 
               const data = d.data(); 
@@ -128,11 +125,10 @@ export default function App() {
               if (d.id === 'roles') setRoles(data.list || INITIAL_ROLES); 
               if (d.id === 'tables') setTables(data.list || INITIAL_TABLES); 
               if (d.id === 'expenses') setExpenseTypes(data.list || INITIAL_EXPENSE_TYPES);
-              
               if (d.id === 'branding') { 
                   setLogo(data.logo); 
                   if(data.appName) setAppName(data.appName); 
-                  if(data.autoLockTime) setAutoLockTime(data.autoLockTime); // CARGAMOS EL TIEMPO
+                  if(data.autoLockTime) setAutoLockTime(data.autoLockTime); 
               } 
           }); 
           setIsLoadingApp(false); 
@@ -163,29 +159,28 @@ export default function App() {
   const handleReprintOrder = (order) => { const preCheckData = { ...order, type: 'order', businessName: appName, date: new Date().toLocaleString() }; setLastSale(preCheckData); setView('receipt_view'); toast.success("Reimprimiendo comanda..."); };
   const handleFinalizeSale = async (paymentResult) => { if (!db) return; if (staffMember && staffMember.role !== 'Cajero' && staffMember.role !== 'Administrador') { toast.error("⛔ ACCESO DENEGADO: Solo Cajeros pueden cobrar."); setIsPaymentModalOpen(false); return; } if (!registerSession) { toast.error("¡La caja está cerrada!"); return; } const toastId = toast.loading('Procesando pago...'); setIsPaymentModalOpen(false); const itemsToProcess = orderToPay ? orderToPay.items : pendingSale.cart; const { paymentsList, totalPaid, change } = paymentResult; const totalToProcess = totalPaid - change; try { const batchPromises = []; const timestamp = new Date(); let cashierName = 'Caja General'; if (staffMember) cashierName = staffMember.name; else if (currentUser) cashierName = 'Administrador'; const waiterName = orderToPay ? orderToPay.staffName : (staffMember ? staffMember.name : 'Barra'); const waiterId = orderToPay ? orderToPay.staffId : (staffMember ? staffMember.id : 'anon'); const saleData = { date: timestamp.toISOString(), total: totalToProcess, items: itemsToProcess, staffId: waiterId, staffName: waiterName, cashier: cashierName, registerId: registerSession.id, payments: paymentsList, totalPaid: totalPaid, changeGiven: change }; const salesCollection = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`; const docRef = await addDoc(collection(db, salesCollection), saleData); itemsToProcess.forEach(item => { if (item.stock !== undefined && item.stock !== '') { const newStock = parseInt(item.stock) - item.qty; batchPromises.push(updateDoc(doc(db, getCollName('items'), item.id), { stock: newStock })); } }); if (orderToPay) { const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`; batchPromises.push(deleteDoc(doc(db, ordersCol, orderToPay.id))); } await Promise.all(batchPromises); const receiptData = { businessName: appName, date: timestamp.toLocaleString(), staffName: waiterName, cashierName: cashierName, orderId: docRef.id, items: itemsToProcess, total: totalToProcess, payments: paymentsList, change: change }; setLastSale(receiptData); if (pendingSale && pendingSale.clearCart) pendingSale.clearCart([]); setPendingSale(null); setOrderToPay(null); toast.success('¡Cobro exitoso!', { id: toastId }); setView('receipt_view'); } catch (e) { console.error(e); toast.error('Error al cobrar', { id: toastId }); } };
   const handleReceiptClose = () => { if (lastSale && lastSale.type === 'z-report') { setView('landing'); return; } const isCashier = (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador')) || (currentUser && !currentUser.isAnonymous); if (isCashier) setView('cashier'); else setView('pos'); };
+  
+  // Handlers CRUD
   const handleSave = async (d) => { try { if(currentItem) await setDoc(doc(db, getCollName('items'), currentItem.id), d); else await addDoc(collection(db, getCollName('items')), d); toast.success('Guardado'); setIsModalOpen(false); } catch { toast.error('Error'); } };
   const handleDelete = async (id) => { try { await deleteDoc(doc(db, getCollName('items'), id)); toast.success('Eliminado'); } catch { toast.error('Error'); }};
   const handleAddStaff = async (d) => { await addDoc(collection(db, getCollName('staff')), d); toast.success('Personal creado'); };
   const handleUpdateStaff = async (id, d) => { await updateDoc(doc(db, getCollName('staff'), id), d); toast.success('Personal actualizado'); };
   const handleDeleteStaff = async (id) => { if(window.confirm("¿Eliminar?")) { await deleteDoc(doc(db, getCollName('staff'), id)); toast.success('Borrado'); } };
+  
+  // Settings Handlers
   const handleAddCategory = (n) => setDoc(doc(db, getCollName('settings'), 'categories'), { list: [...categories, n] });
   const handleRenameCategory = (i, n) => { const l = [...categories]; l[i] = n; setDoc(doc(db, getCollName('settings'), 'categories'), { list: l }); };
   const handleDeleteCategory = (i) => { const l = categories.filter((_, x) => x !== i); setDoc(doc(db, getCollName('settings'), 'categories'), { list: l }); };
   const handleAddRole = (n) => setDoc(doc(db, getCollName('settings'), 'roles'), { list: [...roles, n] });
   const handleRenameRole = (i, n) => { const l = [...roles]; l[i] = n; setDoc(doc(db, getCollName('settings'), 'roles'), { list: l }); };
   const handleDeleteRole = (i) => { const l = roles.filter((_, x) => x !== i); setDoc(doc(db, getCollName('settings'), 'roles'), { list: l }); };
-  
-  // FUNCIONES PARA GESTIONAR MESAS
   const handleAddTable = (n) => setDoc(doc(db, getCollName('settings'), 'tables'), { list: [...tables, n] });
   const handleRenameTable = (i, n) => { const l = [...tables]; l[i] = n; setDoc(doc(db, getCollName('settings'), 'tables'), { list: l }); };
   const handleDeleteTable = (i) => { const l = tables.filter((_, x) => x !== i); setDoc(doc(db, getCollName('settings'), 'tables'), { list: l }); };
-  
-  // FUNCIONES PARA TIPOS DE GASTO
   const handleAddExpenseType = (n) => setDoc(doc(db, getCollName('settings'), 'expenses'), { list: [...expenseTypes, n] });
   const handleRenameExpenseType = (i, n) => { const l = [...expenseTypes]; l[i] = n; setDoc(doc(db, getCollName('settings'), 'expenses'), { list: l }); };
   const handleDeleteExpenseType = (i) => { const l = expenseTypes.filter((_, x) => x !== i); setDoc(doc(db, getCollName('settings'), 'expenses'), { list: l }); };
 
-  // GUARDAR CONFIGURACIÓN GENERAL (Incluyendo tiempo de auto-lock)
   const handleSaveBranding = (l, n, t) => { 
       setDoc(doc(db, getCollName('settings'), 'branding'), { logo: l, appName: n, autoLockTime: t }, { merge: true }); 
       setLogo(l); 
@@ -249,7 +244,7 @@ export default function App() {
                 </div>
                 {view === 'report' && <div className="animate-in fade-in"><SalesDashboard onReprintZ={handleReprintZReport} /><div className="hidden print:block mt-8"><PrintableView items={items} /></div></div>}
                 
-                {/* PÁSAMOS TABLES A CASHIER VIEW */}
+                {/* --- CASHIER VIEW --- */}
                 {view === 'cashier' && (<CashierView items={items} categories={categories} tables={tables} onProcessPayment={handleStartPaymentFromCashier} onVoidOrder={handleVoidAndPrint} onReprintOrder={handleReprintOrder} onStopService={handleStopService} onOpenExpense={() => setIsExpenseModalOpen(true)} />)}
                 
                 {view === 'register_control' && <RegisterControlView session={registerSession} onOpen={handleOpenRegister} onClose={handleCloseRegister} staff={staff} stats={sessionStats} onAddExpense={handleAddExpense} onDeleteExpense={handleDeleteExpense} />}
@@ -284,93 +279,56 @@ export default function App() {
                 )}
               </>
             )}
-            {/* PASAMOS "autoLockTime" A POS INTERFACE */}
+            
             {view === 'pin_login' && <PinLoginView staffMembers={staff} onLoginSuccess={handleStaffPinLogin} onCancel={() => setView('landing')} />}
             {view === 'pos' && (<POSInterface items={items} categories={categories} staffMember={staffMember} onCheckout={handlePOSCheckout} onPrintOrder={handleSendToKitchen} onExit={() => setView('landing')} onOpenServiceModal={() => setIsServiceModalOpen(true)} autoLockTime={autoLockTime} />)}
             {view === 'receipt_view' && <Receipt data={lastSale} onPrint={handlePrint} onClose={handleReceiptClose} />}
+            
+            {/* --- SECCIÓN MENÚ CLIENTES (NAVIDAD NEÓN) --- */}
             {view === 'menu' && (<>
-              {filter === 'Todos' ? (
-                <div className="animate-in fade-in pb-20 relative min-h-screen bg-[#0a0a0a] -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 pt-6 overflow-hidden">
-                  
-                  {/* --- FONDO NAVIDEÑO (Igual que Landing) --- */}
-                  <div className="absolute inset-0 z-0">
-                    <div className="absolute top-[-20%] left-[-20%] w-[50%] h-[50%] bg-red-600/20 blur-[100px] rotate-45 animate-pulse"></div>
-                    <div className="absolute bottom-[-20%] right-[-20%] w-[50%] h-[50%] bg-green-600/20 blur-[100px] rotate-[-45] animate-pulse delay-500"></div>
-                  </div>
-                  {/* Copos de nieve simples (CSS inline para no crear componente extra aquí) */}
-                  <div className="absolute inset-0 pointer-events-none z-10" style={{backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '30px 30px', animation: 'snowfallNative 10s linear infinite', opacity: 0.4}}></div>
-                  <style jsx>{`@keyframes snowfallNative { from {background-position: 0 0;} to {background-position: 20px 100vh;} }`}</style>
+              {/* FONDO GLOBAL FIJO */}
+              <div className="fixed inset-0 z-0 pointer-events-none bg-[#0a0a0a]">
+                 <div className="absolute top-[-20%] left-[-20%] w-[50%] h-[50%] bg-red-600/20 blur-[100px] rotate-45 animate-pulse"></div>
+                 <div className="absolute bottom-[-20%] right-[-20%] w-[50%] h-[50%] bg-green-600/20 blur-[100px] rotate-[-45] animate-pulse delay-500"></div>
+                 <div className="absolute inset-0" style={{backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '30px 30px', animation: 'snowfallNative 10s linear infinite', opacity: 0.3}}></div>
+                 <style jsx>{`@keyframes snowfallNative { from {background-position: 0 0;} to {background-position: 20px 100vh;} }`}</style>
+              </div>
 
-                  {/* --- CONTENIDO DEL MENÚ --- */}
-                  <div className="relative z-20 text-center mb-10 mt-4">
-                    {/* Título Decorado */}
+              {filter === 'Todos' ? (
+                // --- GRID DE CATEGORÍAS ---
+                <div className="animate-in fade-in pb-20 relative z-10 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 pt-6">
+                  <div className="text-center mb-10 mt-4">
                     <div className="flex items-center justify-center gap-3 mb-2">
                         <Trees size={28} className="text-red-500 drop-shadow-[0_0_8px_rgba(220,38,38,0.8)]" />
-                        <h2 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-white to-green-400 tracking-tight drop-shadow-[0_0_10px_rgba(255,255,255,0.5)] uppercase">
-                          NUESTRO MENÚ
-                        </h2>
+                        <h2 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-white to-green-400 tracking-tight drop-shadow-[0_0_10px_rgba(255,255,255,0.5)] uppercase">NUESTRO MENÚ</h2>
                         <Trees size={28} className="text-green-500 drop-shadow-[0_0_8px_rgba(34,197,94,0.8)] scale-x-[-1]" />
                     </div>
-                    <p className="text-gray-400 font-bold uppercase tracking-widest text-sm flex justify-center items-center gap-2 before:h-px before:w-6 before:bg-red-500 after:h-px after:w-6 after:bg-green-500 opacity-80">
-                      <Gift size={14} className="text-red-400"/> Selecciona una categoría <Gift size={14} className="text-green-400"/>
-                    </p>
+                    <p className="text-gray-400 font-bold uppercase tracking-widest text-sm flex justify-center items-center gap-2 before:h-px before:w-6 before:bg-red-500 after:h-px after:w-6 after:bg-green-500 opacity-80"><Gift size={14} className="text-red-400"/> Selecciona una categoría <Gift size={14} className="text-green-400"/></p>
                   </div>
-
-                  {/* --- GRID DE CATEGORÍAS (Estilo Luces Navideñas) --- */}
-                  <div className="relative z-20 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 px-2 max-w-5xl mx-auto">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 px-2 max-w-5xl mx-auto">
                     {categories.map((cat, index) => {
-                      // Colores alternados estilo navidad (Rojo, Verde, Dorado/Naranja, Morado)
-                      const borderColors = [
-                        'border-red-500/70 shadow-[0_0_15px_-3px_rgba(220,38,38,0.6),inset_0_0_10px_-5px_rgba(220,38,38,0.4)] text-red-100',
-                        'border-green-500/70 shadow-[0_0_15px_-3px_rgba(34,197,94,0.6),inset_0_0_10px_-5px_rgba(34,197,94,0.4)] text-green-100',
-                        'border-yellow-500/70 shadow-[0_0_15px_-3px_rgba(234,179,8,0.6),inset_0_0_10px_-5px_rgba(234,179,8,0.4)] text-yellow-100',
-                        'border-purple-500/70 shadow-[0_0_15px_-3px_rgba(168,85,247,0.6),inset_0_0_10px_-5px_rgba(168,85,247,0.4)] text-purple-100',
-                        'border-orange-500/70 shadow-[0_0_15px_-3px_rgba(249,115,22,0.6),inset_0_0_10px_-5px_rgba(249,115,22,0.4)] text-orange-100',
-                      ];
+                      const borderColors = ['border-red-500/60 shadow-[0_0_15px_-3px_rgba(220,38,38,0.5)] text-red-100', 'border-green-500/60 shadow-[0_0_15px_-3px_rgba(34,197,94,0.5)] text-green-100', 'border-yellow-500/60 shadow-[0_0_15px_-3px_rgba(234,179,8,0.5)] text-yellow-100', 'border-purple-500/60 shadow-[0_0_15px_-3px_rgba(168,85,247,0.5)] text-purple-100'];
                       const currentStyle = borderColors[index % borderColors.length];
-
                       return (
-                        <button 
-                          aria-label={`Categoría ${cat}`} 
-                          key={cat} 
-                          onClick={() => setFilter(cat)} 
-                          className={`relative h-40 rounded-3xl overflow-hidden bg-black/50 backdrop-blur-md group
-                                     border-2 border-dashed transition-all duration-500 hover:scale-[1.03] active:scale-95
-                                     hover:shadow-[0_0_30px_-5px_rgba(255,255,255,0.3)] ${currentStyle}`}
-                        >
-                          {/* Decoración de esquinas (Luces) */}
-                          <div className={`absolute top-2 left-2 w-2 h-2 rounded-full animate-pulse ${index%2 ? 'bg-red-500 shadow-[0_0_5px_red]' : 'bg-green-500 shadow-[0_0_5px_green]'}`}></div>
-                          <div className={`absolute top-2 right-2 w-2 h-2 rounded-full animate-pulse delay-300 ${index%3 ? 'bg-yellow-500 shadow-[0_0_5px_yellow]' : 'bg-blue-500 shadow-[0_0_5px_blue]'}`}></div>
-                          <div className={`absolute bottom-2 left-2 w-2 h-2 rounded-full animate-pulse delay-700 ${index%2 ? 'bg-green-500 shadow-[0_0_5px_green]' : 'bg-red-500 shadow-[0_0_5px_red]'}`}></div>
-                          <div className={`absolute bottom-2 right-2 w-2 h-2 rounded-full animate-pulse delay-500 ${index%3 ? 'bg-blue-500 shadow-[0_0_5px_blue]' : 'bg-yellow-500 shadow-[0_0_5px_yellow]'}`}></div>
-
-                          {logo && (<div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden"><img src={logo} alt="" className="w-[70%] h-[70%] object-contain opacity-10 mix-blend-overlay rotate-12 scale-125 transition-transform duration-700 group-hover:scale-110 group-hover:rotate-6" /></div>)}
-                          
-                          <div className="absolute inset-0 flex flex-col items-center justify-center z-10 p-4">
-                            <Gift size={20} className={`mb-2 opacity-50 group-hover:opacity-100 transition-opacity drop-shadow-[0_0_5px_currentColor] ${index%2 ? 'text-green-400' : 'text-red-400'}`}/>
-                            <span className="font-black text-2xl uppercase tracking-wider drop-shadow-md text-center">{cat}</span>
-                          </div>
+                        <button key={cat} onClick={() => setFilter(cat)} className={`relative h-40 rounded-3xl overflow-hidden bg-black/60 backdrop-blur-md group border-2 border-dashed transition-all duration-500 hover:scale-[1.03] active:scale-95 hover:shadow-[0_0_30px_-5px_rgba(255,255,255,0.3)] ${currentStyle}`}>
+                          <div className={`absolute top-2 left-2 w-2 h-2 rounded-full animate-pulse ${index%2 ? 'bg-red-500 shadow-[0_0_5px_red]' : 'bg-green-500 shadow-[0_0_5px_green]'}`}></div><div className={`absolute bottom-2 right-2 w-2 h-2 rounded-full animate-pulse delay-500 ${index%3 ? 'bg-blue-500 shadow-[0_0_5px_blue]' : 'bg-yellow-500 shadow-[0_0_5px_yellow]'}`}></div>
+                          <div className="absolute inset-0 flex flex-col items-center justify-center z-10 p-4"><Gift size={20} className={`mb-2 opacity-50 group-hover:opacity-100 transition-opacity drop-shadow-[0_0_5px_currentColor] ${index%2 ? 'text-green-400' : 'text-red-400'}`}/><span className="font-black text-2xl uppercase tracking-wider drop-shadow-md text-center">{cat}</span></div>
                         </button>
                       )
                     })}
                   </div>
                 </div>
               ) : (
-                // VISTA DE PRODUCTOS (Mantenemos simple pero oscuro)
-                <div className="animate-in slide-in-from-right duration-300 bg-gray-50 min-h-screen -mx-4 sm:-mx-6 lg:-mx-8">
-                  <div className="sticky top-16 z-20 bg-white/95 backdrop-blur py-4 mb-6 border-b border-gray-200 shadow-sm px-4 sm:px-6 lg:px-8">
+                // --- LISTA DE PRODUCTOS ---
+                <div className="animate-in slide-in-from-right duration-300 relative z-10 min-h-screen -mx-4 sm:-mx-6 lg:-mx-8">
+                  <div className="sticky top-16 z-20 bg-black/70 backdrop-blur-xl py-4 mb-6 border-b border-white/10 shadow-[0_4px_20px_-5px_rgba(0,0,0,0.5)] px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center gap-4 max-w-7xl mx-auto">
-                      <button aria-label="Volver al menú" onClick={() => setFilter('Todos')} className="p-3 bg-black text-white rounded-full hover:bg-gray-800 shadow-lg transition-transform active:scale-90 group">
-                        <ArrowLeft size={24} className="group-hover:-translate-x-1 transition-transform"/>
-                      </button>
-                      <div>
-                          <h2 className="text-3xl font-black text-gray-900 uppercase tracking-wide leading-none">{filter}</h2>
-                          <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">Explora nuestros productos</p>
-                      </div>
+                      <button aria-label="Volver al menú" onClick={() => setFilter('Todos')} className="p-3 bg-white/10 text-white rounded-full hover:bg-white/20 border border-white/10 shadow-lg transition-transform active:scale-90 group backdrop-blur-md"><ArrowLeft size={24} className="group-hover:-translate-x-1 transition-transform"/></button>
+                      <div><h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-400 uppercase tracking-wide leading-none drop-shadow-[0_0_5px_rgba(249,115,22,0.5)]">{filter}</h2><p className="text-xs text-gray-400 font-bold uppercase tracking-widest flex items-center gap-1"><Trees size={10} className="text-green-500"/> Explora nuestros productos</p></div>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6 pb-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-                    {filteredItems.length > 0 ? (filteredItems.map(item => (<MenuCard key={item.id} item={item} />))) : (<div className="col-span-full text-center py-20 text-gray-400 flex flex-col items-center"><Search size={48} className="mb-2 opacity-20"/><p>No hay productos en esta categoría.</p></div>)}
+                    {filteredItems.length > 0 ? (filteredItems.map(item => (<div key={item.id} className="rounded-2xl overflow-hidden p-1 bg-gradient-to-br from-white/10 to-transparent border border-white/5 shadow-lg"><MenuCard item={item} /></div>))) : (<div className="col-span-full text-center py-20 text-gray-500 flex flex-col items-center"><Search size={48} className="mb-2 opacity-20 text-white"/><p className="text-gray-400">No hay productos en esta categoría.</p></div>)}
                   </div>
                 </div>
               )}
@@ -389,7 +347,6 @@ export default function App() {
       
       <ExpenseTypeManager isOpen={isExpenseTypeModalOpen} onClose={() => setIsExpenseTypeModalOpen(false)} expenseTypes={expenseTypes} onAdd={handleAddExpenseType} onRename={handleRenameExpenseType} onDelete={handleDeleteExpenseType} />
 
-      {/* PASAMOS "autoLockTime" COMO "currentAutoLock" */}
       <BrandingModal isOpen={isBrandingModalOpen} onClose={() => setIsBrandingModalOpen(false)} onSave={handleSaveBranding} currentLogo={logo} currentName={appName} currentAutoLock={autoLockTime} />
       
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onLogin={handleLogin} />
