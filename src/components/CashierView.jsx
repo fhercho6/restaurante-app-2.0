@@ -1,10 +1,10 @@
-// src/components/CashierView.jsx - VERSIÓN FINAL: COBRO MASIVO + MESAS DINÁMICAS + SERVICIOS
+// src/components/CashierView.jsx - OPTIMIZADO PARA INP (RENDIMIENTO)
 import React, { useState, useEffect } from 'react';
 import { collection, query, orderBy, onSnapshot, writeBatch, doc } from 'firebase/firestore';
 import { db, ROOT_COLLECTION, isPersonalProject } from '../config/firebase';
 import { 
   Clock, CheckCircle, XCircle, Printer, Coffee, DollarSign, 
-  Search, Grid, List, ShoppingCart, Trash2, ChevronRight, Plus, Minus, Tag, ChevronDown, ChevronUp, X, MapPin, CheckSquare, CreditCard
+  Search, Grid, List, ShoppingCart, Trash2, ChevronRight, Plus, Minus, Tag, ChevronDown, ChevronUp, X, MapPin, CheckSquare, CreditCard, Loader2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -52,7 +52,7 @@ const CashierProductCard = ({ item, onClick }) => {
     );
 };
 
-// --- MODAL CÁLCULO DE SERVICIO (CON SELECTOR DE MESAS) ---
+// --- MODAL CÁLCULO DE SERVICIO ---
 const ServiceTimeModal = ({ item, onClose, onConfirm, tables }) => {
     const [startTime, setStartTime] = useState('');
     const [endTime, setEndTime] = useState('');
@@ -94,7 +94,7 @@ const ServiceTimeModal = ({ item, onClose, onConfirm, tables }) => {
             <div className="bg-white rounded-2xl w-full max-w-xs overflow-hidden shadow-2xl">
                 <div className="bg-purple-600 p-4 text-white flex justify-between items-center">
                     <h3 className="font-bold flex items-center gap-2"><Clock size={18}/> Calcular Servicio</h3>
-                    <button onClick={onClose} className="hover:bg-purple-700 p-1 rounded-full"><X size={18}/></button>
+                    <button onClick={onClose}><X size={18}/></button>
                 </div>
                 <div className="p-6 space-y-4">
                     <div className="text-center mb-2">
@@ -103,7 +103,6 @@ const ServiceTimeModal = ({ item, onClose, onConfirm, tables }) => {
                         <p className="text-purple-600 font-bold text-sm">Bs. {item.price} / hora</p>
                     </div>
                     
-                    {/* SELECTOR DE MESA */}
                     <div>
                         <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Ubicación / Mesa</label>
                         <div className="relative">
@@ -141,7 +140,6 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
   const [activeTab, setActiveTab] = useState('orders'); 
   const [orders, setOrders] = useState([]);
   
-  // --- ESTADOS VENTA RÁPIDA ---
   const [cart, setCart] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [catFilter, setCatFilter] = useState('Todos');
@@ -149,11 +147,11 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
   const [serviceModalItem, setServiceModalItem] = useState(null);
   const [quickTable, setQuickTable] = useState(tables && tables.length > 0 ? tables[0] : 'Barra'); 
 
-  // --- ESTADOS COBRO MASIVO ---
-  const [selectedOrders, setSelectedOrders] = useState([]); // ID de las comandas seleccionadas
+  // Estados Cobro Masivo
+  const [selectedOrders, setSelectedOrders] = useState([]); 
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [isPaying, setIsPaying] = useState(false); // Estado para evitar doble clic y bloqueo UI
 
-  // Actualizar quickTable si cambia la lista de mesas
   useEffect(() => {
       if (tables && tables.length > 0 && !tables.includes(quickTable)) {
           setQuickTable(tables[0]);
@@ -169,7 +167,6 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
     return () => unsubscribe();
   }, []);
 
-  // --- LÓGICA VENTA RÁPIDA ---
   const handleItemClick = (item) => {
       if (item.category === 'Servicios') {
           setServiceModalItem(item);
@@ -190,9 +187,7 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
   const addServiceToCart = (item, calculatedPrice, timeRange, durationHours, locationName) => {
       setServiceModalItem(null); 
       let finalName = `${item.name} (${timeRange})`;
-      if (locationName) {
-          finalName += ` - ${locationName}`;
-      }
+      if (locationName) finalName += ` - ${locationName}`;
 
       const serviceItem = {
           ...item,
@@ -230,7 +225,7 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
     setCart([]); 
   };
 
-  // --- LÓGICA DE COBRO MASIVO (BULK PAY) ---
+  // --- LÓGICA DE COBRO MASIVO OPTIMIZADA (SOLUCIÓN INP) ---
   const toggleOrderSelection = (orderId) => {
       setSelectedOrders(prev => {
           if (prev.includes(orderId)) return prev.filter(id => id !== orderId);
@@ -244,48 +239,56 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
       const ordersToPay = orders.filter(o => selectedOrders.includes(o.id));
       const totalAmount = ordersToPay.reduce((sum, o) => sum + o.total, 0);
 
+      // 1. Confirmación del Usuario (Bloqueante, pero necesario)
       if(!window.confirm(`¿COBRAR ${selectedOrders.length} COMANDAS CON ${paymentMethod.toUpperCase()}?\n\nTotal: Bs. ${totalAmount.toFixed(2)}`)) return;
 
+      // 2. Activamos estado de carga para bloquear UI y dar feedback visual inmediato
+      setIsPaying(true);
       const toastId = toast.loading('Procesando cobro masivo...');
-      
-      try {
-          const batch = writeBatch(db);
-          const salesCol = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`;
-          const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
-          
-          ordersToPay.forEach(order => {
-              // 1. Crear Venta en Historial
-              const saleData = {
-                  date: new Date().toISOString(),
-                  total: order.total,
-                  items: order.items,
-                  staffId: order.staffId || 'anon',
-                  staffName: order.staffName,
-                  cashier: 'Caja (Masivo)',
-                  registerId: 'active-session', // Idealmente pasar ID real de sesión, pero para simplificar
-                  payments: [{ method: paymentMethod, amount: order.total }], // MÉTODO CORRECTO AQUÍ
-                  totalPaid: order.total,
-                  changeGiven: 0,
-                  isBulk: true
-              };
-              const saleRef = doc(collection(db, salesCol)); 
-              batch.set(saleRef, saleData);
 
-              // 2. Borrar Comanda Pendiente
-              const orderRef = doc(db, ordersCol, order.id);
-              batch.delete(orderRef);
-          });
+      // 3. Usamos setTimeout para "ceder" el hilo principal al navegador y permitir que pinte el loader
+      setTimeout(async () => {
+          try {
+              const batch = writeBatch(db);
+              const salesCol = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`;
+              const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
+              
+              // Preparamos el batch (esto es rápido, pero si son muchos items puede tomar unos ms)
+              ordersToPay.forEach(order => {
+                  const saleData = {
+                      date: new Date().toISOString(),
+                      total: order.total,
+                      items: order.items,
+                      staffId: order.staffId || 'anon',
+                      staffName: order.staffName,
+                      cashier: 'Caja (Masivo)',
+                      registerId: 'active-session', 
+                      payments: [{ method: paymentMethod, amount: order.total }],
+                      totalPaid: order.total,
+                      changeGiven: 0,
+                      isBulk: true
+                  };
+                  const saleRef = doc(collection(db, salesCol)); 
+                  batch.set(saleRef, saleData);
 
-          await batch.commit();
-          
-          toast.success(`¡${selectedOrders.length} cobros registrados!`, { id: toastId });
-          setSelectedOrders([]);
-          setIsSelectionMode(false); // Salir del modo selección
+                  const orderRef = doc(db, ordersCol, order.id);
+                  batch.delete(orderRef);
+              });
 
-      } catch (error) {
-          console.error(error);
-          toast.error('Error al procesar cobros', { id: toastId });
-      }
+              // Enviamos a Firebase
+              await batch.commit();
+              
+              toast.success(`¡${selectedOrders.length} cobros registrados!`, { id: toastId });
+              setSelectedOrders([]);
+              setIsSelectionMode(false); 
+
+          } catch (error) {
+              console.error(error);
+              toast.error('Error al procesar cobros', { id: toastId });
+          } finally {
+              setIsPaying(false); // Liberamos la UI
+          }
+      }, 50); // Pequeño retardo para asegurar que el UI se actualice primero
   };
 
   // --- RENDERS ---
@@ -301,6 +304,16 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
   return (
     <div className="flex flex-col h-[calc(100vh-100px)] animate-in fade-in relative">
       
+      {/* Overlay de carga cuando se está pagando masivamente */}
+      {isPaying && (
+          <div className="absolute inset-0 bg-black/20 backdrop-blur-sm z-[60] flex items-center justify-center rounded-2xl">
+              <div className="bg-white p-4 rounded-xl shadow-xl flex items-center gap-3">
+                  <Loader2 className="animate-spin text-blue-600" size={24}/>
+                  <span className="font-bold text-gray-700">Procesando pagos...</span>
+              </div>
+          </div>
+      )}
+
       {serviceModalItem && (
           <ServiceTimeModal item={serviceModalItem} onClose={() => setServiceModalItem(null)} onConfirm={addServiceToCart} tables={tables} />
       )}
@@ -316,7 +329,6 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
              </button>
          </div>
          <div className="flex gap-2">
-            {/* BOTÓN MODO SELECCIÓN */}
             {activeTab === 'orders' && orders.length > 0 && (
                 <button 
                     onClick={() => { setIsSelectionMode(!isSelectionMode); setSelectedOrders([]); }} 
@@ -372,7 +384,6 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
                                         {order.items?.map((item, idx) => (<div key={idx} className="flex justify-between text-xs items-center border-b border-gray-50 pb-1 last:border-0"><div className="flex gap-2 items-center"><span className="font-bold text-gray-800 w-5 text-center bg-gray-100 rounded text-[10px]">{item.qty}</span><span className="text-gray-600 truncate max-w-[120px]">{item.name}</span></div><span className="font-mono text-gray-400">{(item.price * item.qty).toFixed(2)}</span></div>))}
                                     </div>
                                     
-                                    {/* SOLO MOSTRAR BOTONES SI NO ESTAMOS EN MODO SELECCIÓN */}
                                     {!isSelectionMode && (
                                         <div className="p-2 bg-gray-50 border-t border-gray-100 grid grid-cols-3 gap-2">
                                             <button onClick={(e) => {e.stopPropagation(); onReprintOrder(order)}} className="p-2 text-gray-400 hover:text-black hover:bg-white rounded-lg flex items-center justify-center border border-transparent hover:border-gray-200"><Printer size={16}/></button>
@@ -399,21 +410,24 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
                  <div className="flex gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0 justify-center">
                      <button 
                         onClick={() => handleBulkPay('Efectivo')} 
-                        className="flex-1 sm:flex-none bg-green-600 hover:bg-green-500 text-white px-4 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-transform text-xs sm:text-sm flex items-center justify-center gap-2 whitespace-nowrap"
+                        disabled={isPaying}
+                        className="flex-1 sm:flex-none bg-green-600 hover:bg-green-500 disabled:bg-green-800 disabled:opacity-50 text-white px-4 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-transform text-xs sm:text-sm flex items-center justify-center gap-2 whitespace-nowrap"
                      >
                          <DollarSign size={16}/> EFECTIVO
                      </button>
                      
                      <button 
                         onClick={() => handleBulkPay('QR')} 
-                        className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-500 text-white px-4 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-transform text-xs sm:text-sm flex items-center justify-center gap-2 whitespace-nowrap"
+                        disabled={isPaying}
+                        className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:opacity-50 text-white px-4 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-transform text-xs sm:text-sm flex items-center justify-center gap-2 whitespace-nowrap"
                      >
                          <Grid size={16}/> QR
                      </button>
 
                      <button 
                         onClick={() => handleBulkPay('Tarjeta')} 
-                        className="flex-1 sm:flex-none bg-purple-600 hover:bg-purple-500 text-white px-4 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-transform text-xs sm:text-sm flex items-center justify-center gap-2 whitespace-nowrap"
+                        disabled={isPaying}
+                        className="flex-1 sm:flex-none bg-purple-600 hover:bg-purple-500 disabled:bg-purple-800 disabled:opacity-50 text-white px-4 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition-transform text-xs sm:text-sm flex items-center justify-center gap-2 whitespace-nowrap"
                      >
                          <CreditCard size={16}/> TARJETA
                      </button>
