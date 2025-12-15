@@ -1,66 +1,51 @@
-// src/components/Receipt.jsx - VERSIÓN FINAL AJUSTADA (ESTILOS AGRESIVOS)
 import React from 'react';
 import { X, Printer, DollarSign } from 'lucide-react';
 
 const Receipt = ({ data, onPrint, onClose }) => {
   if (!data) return null;
 
-  // ESTILOS AGRESIVOS PARA IMPRESORA TÉRMICA
+  // ESTILOS SEGUROS PARA IMPRESIÓN (VISIBILITY vs DISPLAY)
   const printStyles = `
-    @page {
-      size: 80mm auto; /* Fuerza al navegador a reconocer el ancho */
-      margin: 0mm; /* Elimina márgenes del sistema */
-    }
     @media print {
-      body, html {
-        margin: 0 !important;
-        padding: 0 !important;
-        width: 100% !important;
-        height: auto !important;
-      }
-      /* Ocultar todo lo que no sea el ticket */
-      .no-print, nav, header, footer { 
-        display: none !important; 
-      }
-      
-      /* Contenedor principal del ticket */
-      .printable-area {
-        display: block !important;
-        position: relative !important;
-        width: 100% !important; /* Ocupa todo el ancho del papel configurado */
-        max-width: 80mm; /* Límite para seguridad */
-        margin: 0 !important;
-        padding: 5px !important; /* Pequeño respiro interno */
-        font-family: 'Courier New', Courier, monospace !important; 
-        font-size: 12px !important; /* Tamaño legible estándar */
-        color: black !important;
-        background: white !important;
-        overflow: hidden;
+      /* 1. Ocultar TODO visualmente, pero mantenerlo en el DOM */
+      body * {
+        visibility: hidden;
       }
 
-      /* Ajustes para textos largos */
-      .truncate {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+      /* 2. Hacer visible SOLO el área de impresión y sus hijos */
+      #printable-content, #printable-content * {
+        visibility: visible;
       }
-      
-      /* Asegurar que las líneas divisoras se vean */
-      .border-b {
-        border-bottom: 1px dashed black !important;
+
+      /* 3. Posicionar el ticket en la esquina superior absoluta del papel */
+      #printable-content {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 80mm !important; /* Ancho forzado para térmica */
+        max-width: 100%;
+        margin: 0;
+        padding: 0;
+        background: white;
+        color: black;
       }
-      
-      /* Espacio final para que el corte de papel no rompa el texto */
-      .cut-space {
-        height: 10mm; 
-        width: 100%;
+
+      /* 4. Ocultar elementos de la interfaz (botones, modales, scrollbars) */
+      .no-print {
+        display: none !important;
+      }
+
+      /* 5. Ajustes de página */
+      @page {
+        size: auto; 
+        margin: 0mm; /* Sin márgenes */
       }
     }
   `;
 
   // CONTENIDO DEL TICKET
   const ReceiptContent = () => (
-    <div className="printable-area p-4 bg-white w-full max-w-sm mx-auto font-mono text-xs leading-tight text-gray-900">
+    <div id="printable-content" className="p-2 bg-white w-[80mm] font-mono text-xs leading-tight text-black mx-auto">
       
       {/* CABECERA */}
       <div className="text-center mb-2 pb-2 border-b border-black">
@@ -74,7 +59,7 @@ const Receipt = ({ data, onPrint, onClose }) => {
         </div>
       </div>
 
-      {/* CUERPO: VENTAS */}
+      {/* CUERPO: VENTAS (Order / Quick Sale) */}
       {(data.type === 'order' || data.type === 'quick_sale') && (
         <>
           <div className="border-b border-black py-1 mb-1">
@@ -88,10 +73,10 @@ const Receipt = ({ data, onPrint, onClose }) => {
           </div>
           <div className="flex justify-between items-center text-sm font-black mt-2 mb-1"><span>TOTAL A PAGAR</span><span className="text-lg">Bs. {data.total.toFixed(2)}</span></div>
           
-          {/* MÉTODOS DE PAGO */}
+          {/* PAGOS Y CAMBIO */}
           {data.payments && (
             <div className="mt-1 text-[10px] border-t border-dotted border-black pt-1">
-                {data.payments.map((p, i) => (<div key={i} className="flex justify-between"><span>Pagado ({p.method}):</span><span>{p.amount.toFixed(2)}</span></div>))}
+                {data.payments.map((p, i) => (<div key={i} className="flex justify-between"><span>Pago ({p.method}):</span><span>{p.amount.toFixed(2)}</span></div>))}
                 {data.changeGiven > 0 && (<div className="flex justify-between font-bold mt-1"><span>Cambio:</span><span>{data.changeGiven.toFixed(2)}</span></div>)}
             </div>
           )}
@@ -160,9 +145,8 @@ const Receipt = ({ data, onPrint, onClose }) => {
         </>
       )}
 
-      <div className="text-center mt-4 text-[10px]">
-          <p>*** GRACIAS ***</p>
-          <div className="cut-space"></div> {/* ESPACIO PARA CORTE */}
+      <div className="text-center mt-4 text-[10px] pb-4">
+          <p>*** GRACIAS POR SU PREFERENCIA ***</p>
       </div>
     </div>
   );
@@ -170,7 +154,9 @@ const Receipt = ({ data, onPrint, onClose }) => {
   return (
     <div className="fixed inset-0 bg-gray-900/90 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
       <style>{printStyles}</style>
+      
       <div className="bg-white w-full max-w-sm shadow-2xl rounded-sm overflow-hidden flex flex-col max-h-[90vh]">
+        {/* BARRA SUPERIOR (NO SE IMPRIME) */}
         <div className="bg-gray-800 p-3 flex justify-between items-center no-print">
           <h3 className="text-white font-bold text-sm">VISTA PREVIA</h3>
           <div className="flex gap-2">
@@ -178,9 +164,11 @@ const Receipt = ({ data, onPrint, onClose }) => {
               <button onClick={onClose} className="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-lg"><X size={18}/></button>
           </div>
         </div>
+        
+        {/* VISUALIZADOR EN PANTALLA (CON SCROLL) */}
         <div className="overflow-y-auto bg-gray-200 flex justify-center p-4">
-            {/* El contenedor que se verá en pantalla */}
-            <div className="bg-white shadow-lg w-[80mm] min-h-[100mm]">
+            {/* Este div wrapper simula el papel en pantalla pero no afecta la impresión */}
+            <div className="bg-white shadow-lg">
                 <ReceiptContent />
             </div>
         </div>
