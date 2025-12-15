@@ -1,6 +1,6 @@
-// src/components/Views.jsx - CORRECCIÓN INPUTS ADMIN (TECLA ENTER)
+// src/components/Views.jsx - CORRECCIÓN DE REBOTE (BLOQUEO DE TECLADO)
 import React, { useState } from 'react';
-import { Clock, User, ArrowLeft, Trash2, Edit2, Plus, Minus, Lock, LogIn, LogOut, Briefcase } from 'lucide-react';
+import { Clock, User, ArrowLeft, Trash2, Edit2, Plus, Minus, Lock, LogIn, LogOut, Briefcase, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 // --- TARJETA DE MENÚ (CLIENTE) ---
@@ -34,13 +34,16 @@ export const MenuCard = ({ item }) => {
   );
 };
 
-// --- PANTALLA DE LOGIN CON PIN ---
+// --- PANTALLA DE LOGIN CON PIN (PROTECCIÓN ANTI-REBOTE) ---
 export const PinLoginView = ({ staffMembers, onLoginSuccess, onClockAction, onCancel }) => {
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [pin, setPin] = useState('');
-  const [mode, setMode] = useState('system'); // 'system' | 'attendance'
+  const [mode, setMode] = useState('system'); 
   const [showAttendanceOptions, setShowAttendanceOptions] = useState(false); 
   const [shuffledKeys, setShuffledKeys] = useState(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']);
+  
+  // NUEVO ESTADO: PROCESANDO
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const shuffleArray = (array) => {
     const newArr = [...array];
@@ -59,37 +62,61 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onClockAction, onCa
   };
 
   const handleNumClick = (num) => {
+    // Si ya estamos procesando, ignorar clics (ANTI-REBOTE)
+    if (isProcessing) return;
+
     if (pin.length < 4) {
       const newPin = pin + num;
       setPin(newPin);
+      
+      // Si llegamos a 4 dígitos
       if (newPin.length === 4) {
-        if (newPin === selectedStaff.pin) {
-          if (mode === 'system') {
-             onLoginSuccess(selectedStaff); 
-          } else {
-             setShowAttendanceOptions(true); 
-          }
-        } else {
-          toast.error('PIN Incorrecto');
-          setPin('');
-          setShuffledKeys(shuffleArray(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']));
-        }
+        setIsProcessing(true); // BLOQUEAR INMEDIATAMENTE
+
+        // Pequeño delay para que la UI se actualice antes de validar
+        setTimeout(() => {
+            if (newPin === selectedStaff.pin) {
+              if (mode === 'system') {
+                 onLoginSuccess(selectedStaff); 
+                 // No desbloqueamos isProcessing porque el componente se desmontará
+              } else {
+                 setShowAttendanceOptions(true); 
+                 setIsProcessing(false); // Desbloquear para que elija entrada/salida
+              }
+            } else {
+              toast.error('PIN Incorrecto');
+              setPin('');
+              setShuffledKeys(shuffleArray(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']));
+              setIsProcessing(false); // Desbloquear para intentar de nuevo
+            }
+        }, 100);
       }
     }
   };
 
   const handleClock = (type) => {
+      if (isProcessing) return;
+      setIsProcessing(true); // Bloquear botón para evitar doble registro
       onClockAction(selectedStaff, type);
-      setSelectedStaff(null);
-      setPin('');
-      setShowAttendanceOptions(false);
+      
+      // Reset después de un tiempo si no se desmonta
+      setTimeout(() => {
+          setSelectedStaff(null);
+          setPin('');
+          setShowAttendanceOptions(false);
+          setIsProcessing(false);
+      }, 500);
   };
 
-  const handleDelete = () => setPin(prev => prev.slice(0, -1));
+  const handleDelete = () => {
+      if (!isProcessing) setPin(prev => prev.slice(0, -1));
+  };
 
   return (
     <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 animate-in zoom-in duration-300 transition-colors ${mode === 'attendance' ? 'bg-blue-900/95 backdrop-blur-xl' : 'bg-black/90 backdrop-blur-xl'}`}>
       <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[85vh]">
+        
+        {/* ENCABEZADO */}
         <div className={`p-4 text-center relative shrink-0 transition-colors ${mode === 'attendance' ? 'bg-blue-600' : 'bg-gray-900'}`}>
             {!selectedStaff && (
                 <div className="flex bg-black/20 p-1 rounded-xl mb-4 relative z-10">
@@ -101,45 +128,101 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onClockAction, onCa
                     </button>
                 </div>
             )}
+
             {selectedStaff && (
-                <button onClick={() => setSelectedStaff(null)} className="absolute left-4 top-6 text-white/50 hover:text-white p-2 z-20"><ArrowLeft size={24}/></button>
+                <button onClick={() => !isProcessing && setSelectedStaff(null)} className="absolute left-4 top-6 text-white/50 hover:text-white p-2 z-20">
+                    <ArrowLeft size={24}/>
+                </button>
             )}
-            <h2 className="text-xl font-black text-white uppercase tracking-widest mt-2">{selectedStaff ? `HOLA, ${selectedStaff.name.split(' ')[0]}` : (mode === 'attendance' ? 'RELOJ CONTROL' : 'IDENTIFÍCATE')}</h2>
+            
+            <h2 className="text-xl font-black text-white uppercase tracking-widest mt-2">
+                {selectedStaff ? `HOLA, ${selectedStaff.name.split(' ')[0]}` : (mode === 'attendance' ? 'RELOJ CONTROL' : 'IDENTIFÍCATE')}
+            </h2>
             {selectedStaff && !showAttendanceOptions && <p className="text-xs text-white/60 mt-1">Ingresa tu PIN</p>}
         </div>
+
+        {/* CUERPO FLEXIBLE */}
         <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden relative">
             {!selectedStaff ? (
                 <>
                     <div className="flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-gray-300">
                         <div className="grid grid-cols-2 gap-3 pb-4">
                             {staffMembers.map(member => (
-                                <button key={member.id} onClick={() => handleSelectStaff(member)} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:border-current hover:text-orange-600 hover:shadow-md transition-all flex flex-col items-center gap-2 group shrink-0">
-                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${mode === 'attendance' ? 'bg-blue-50 text-blue-400 group-hover:bg-blue-100 group-hover:text-blue-600' : 'bg-gray-100 text-gray-400 group-hover:bg-orange-50 group-hover:text-orange-600'}`}><User size={24}/></div>
+                                <button 
+                                    key={member.id} 
+                                    onClick={() => handleSelectStaff(member)}
+                                    className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:border-current hover:text-orange-600 hover:shadow-md transition-all flex flex-col items-center gap-2 group shrink-0"
+                                >
+                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${mode === 'attendance' ? 'bg-blue-50 text-blue-400 group-hover:bg-blue-100 group-hover:text-blue-600' : 'bg-gray-100 text-gray-400 group-hover:bg-orange-50 group-hover:text-orange-600'}`}>
+                                        <User size={24}/>
+                                    </div>
                                     <span className="font-bold text-gray-700 text-sm truncate w-full text-center">{member.name}</span>
                                     <span className="text-[10px] text-gray-400 uppercase">{member.role}</span>
                                 </button>
                             ))}
                         </div>
                     </div>
+                    
                     <div className="p-4 bg-white border-t border-gray-100 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-                        <button onClick={onCancel} className="w-full py-3 rounded-xl font-bold bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 uppercase text-xs tracking-wider"><ArrowLeft size={16}/> Volver al Inicio</button>
+                        <button onClick={onCancel} className="w-full py-3 rounded-xl font-bold bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 uppercase text-xs tracking-wider">
+                            <ArrowLeft size={16}/> Volver al Inicio
+                        </button>
                     </div>
                 </>
             ) : showAttendanceOptions ? (
+                // OPCIONES DE ENTRADA / SALIDA (BLOQUEADAS SI PROCESANDO)
                 <div className="flex flex-col gap-4 h-full justify-center p-6 animate-in fade-in slide-in-from-bottom-4">
-                    <p className="text-center text-gray-500 font-bold mb-2">¿Qué deseas registrar?</p>
-                    <button onClick={() => handleClock('entry')} className="bg-green-500 hover:bg-green-600 text-white p-6 rounded-2xl shadow-lg flex items-center justify-center gap-4 transition-transform active:scale-95 group"><div className="bg-white/20 p-3 rounded-full"><LogIn size={32} className="text-white"/></div><div className="text-left"><span className="block text-2xl font-black">ENTRADA</span><span className="text-sm opacity-80">Iniciar Turno</span></div></button>
-                    <button onClick={() => handleClock('exit')} className="bg-red-500 hover:bg-red-600 text-white p-6 rounded-2xl shadow-lg flex items-center justify-center gap-4 transition-transform active:scale-95 group"><div className="text-right"><span className="block text-2xl font-black">SALIDA</span><span className="text-sm opacity-80">Terminar Turno</span></div><div className="bg-white/20 p-3 rounded-full"><LogOut size={32} className="text-white"/></div></button>
+                    {isProcessing ? (
+                        <div className="flex flex-col items-center justify-center text-gray-500">
+                            <Loader2 size={48} className="animate-spin text-blue-500 mb-4"/>
+                            <p className="font-bold">Registrando...</p>
+                        </div>
+                    ) : (
+                        <>
+                            <p className="text-center text-gray-500 font-bold mb-2">¿Qué deseas registrar?</p>
+                            <button onClick={() => handleClock('entry')} className="bg-green-500 hover:bg-green-600 text-white p-6 rounded-2xl shadow-lg flex items-center justify-center gap-4 transition-transform active:scale-95 group">
+                                <div className="bg-white/20 p-3 rounded-full"><LogIn size={32} className="text-white"/></div>
+                                <div className="text-left"><span className="block text-2xl font-black">ENTRADA</span><span className="text-sm opacity-80">Iniciar Turno</span></div>
+                            </button>
+                            <button onClick={() => handleClock('exit')} className="bg-red-500 hover:bg-red-600 text-white p-6 rounded-2xl shadow-lg flex items-center justify-center gap-4 transition-transform active:scale-95 group">
+                                <div className="text-right"><span className="block text-2xl font-black">SALIDA</span><span className="text-sm opacity-80">Terminar Turno</span></div>
+                                <div className="bg-white/20 p-3 rounded-full"><LogOut size={32} className="text-white"/></div>
+                            </button>
+                        </>
+                    )}
                 </div>
             ) : (
+                // TECLADO NUMÉRICO (SE BLOQUEA AL COMPLETAR 4 DÍGITOS)
                 <div className="flex flex-col items-center justify-center h-full p-4">
-                    <div className="flex gap-4 mb-6">{[...Array(4)].map((_, i) => (<div key={i} className={`w-4 h-4 rounded-full transition-all duration-300 ${i < pin.length ? (mode === 'attendance' ? 'bg-blue-500 scale-110' : 'bg-orange-500 scale-110') : 'bg-gray-300'}`}></div>))}</div>
-                    <div className="grid grid-cols-3 gap-3 w-full max-w-[260px]">
-                        {shuffledKeys.map((num) => (<button key={num} onClick={() => handleNumClick(num)} className="h-16 rounded-2xl bg-white border border-gray-200 shadow-[0_4px_0_0_rgba(0,0,0,0.1)] active:shadow-none active:translate-y-[4px] transition-all font-black text-2xl text-gray-800 hover:bg-gray-50">{num}</button>))}
-                        <div className="h-16"></div>
-                        <button onClick={handleDelete} className="h-16 rounded-2xl bg-red-50 border border-red-100 text-red-500 flex items-center justify-center shadow-[0_4px_0_0_rgba(220,38,38,0.1)] active:shadow-none active:translate-y-[4px] transition-all"><ArrowLeft size={24} /></button>
+                    <div className="flex gap-4 mb-6">
+                        {[...Array(4)].map((_, i) => (
+                            <div key={i} className={`w-4 h-4 rounded-full transition-all duration-300 ${i < pin.length ? (mode === 'attendance' ? 'bg-blue-500 scale-110' : 'bg-orange-500 scale-110') : 'bg-gray-300'}`}></div>
+                        ))}
                     </div>
-                    <p className="mt-6 text-[10px] text-gray-400 flex items-center gap-1"><Lock size={10}/> Teclado seguro</p>
+
+                    <div className="grid grid-cols-3 gap-3 w-full max-w-[260px]">
+                        {shuffledKeys.map((num) => (
+                            <button 
+                                key={num} 
+                                onClick={() => handleNumClick(num)} 
+                                disabled={isProcessing} // <--- BLOQUEO
+                                className="h-16 rounded-2xl bg-white border border-gray-200 shadow-[0_4px_0_0_rgba(0,0,0,0.1)] active:shadow-none active:translate-y-[4px] transition-all font-black text-2xl text-gray-800 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {num}
+                            </button>
+                        ))}
+                        <div className="h-16"></div>
+                        <button 
+                            onClick={handleDelete} 
+                            disabled={isProcessing} // <--- BLOQUEO
+                            className="h-16 rounded-2xl bg-red-50 border border-red-100 text-red-500 flex items-center justify-center shadow-[0_4px_0_0_rgba(220,38,38,0.1)] active:shadow-none active:translate-y-[4px] transition-all disabled:opacity-50"
+                        >
+                            <ArrowLeft size={24} />
+                        </button>
+                    </div>
+                    <p className="mt-6 text-[10px] text-gray-400 flex items-center gap-1">
+                        {isProcessing ? <><Loader2 size={10} className="animate-spin"/> Verificando...</> : <><Lock size={10}/> Teclado seguro</>}
+                    </p>
                 </div>
             )}
         </div>
@@ -148,34 +231,44 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onClockAction, onCa
   );
 };
 
-// --- CREDENCIAL ---
+// --- CREDENCIAL PARA IMPRIMIR ---
 export const CredentialPrintView = ({ member, appName }) => (
-  <div className="w-[350px] h-[200px] bg-white border border-gray-300 p-4 m-4 flex rounded-xl shadow-lg relative overflow-hidden print:shadow-none print:border-black print:m-0"><div className="absolute top-0 right-0 w-20 h-20 bg-orange-500 transform rotate-45 translate-x-10 -translate-y-10"></div><div className="z-10 flex flex-col justify-between w-full"><div className="flex gap-4"><div className="w-24 h-24 bg-gray-100 rounded-lg border-2 border-gray-200 flex items-center justify-center overflow-hidden"><User size={48} className="text-gray-300" /></div><div><h3 className="font-black text-xl uppercase leading-none text-gray-900 mb-1">{appName || 'LicoBar'}</h3><p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-4">Credencial Personal</p><p className="font-bold text-lg leading-tight">{member.name}</p><p className="text-sm text-gray-600 uppercase">{member.role}</p></div></div><div className="flex justify-between items-end mt-2"><div className="text-[10px] text-gray-400">ID: {member.id.slice(0,8)}</div><div className="text-right"><p className="text-[10px] uppercase font-bold text-orange-600">PIN DE ACCESO</p><p className="font-black text-2xl tracking-widest">****</p></div></div></div></div>
+  <div className="w-[350px] h-[200px] bg-white border border-gray-300 p-4 m-4 flex rounded-xl shadow-lg relative overflow-hidden print:shadow-none print:border-black print:m-0">
+    <div className="absolute top-0 right-0 w-20 h-20 bg-orange-500 transform rotate-45 translate-x-10 -translate-y-10"></div>
+    <div className="z-10 flex flex-col justify-between w-full">
+        <div className="flex gap-4">
+            <div className="w-24 h-24 bg-gray-100 rounded-lg border-2 border-gray-200 flex items-center justify-center overflow-hidden">
+                <User size={48} className="text-gray-300" />
+            </div>
+            <div>
+                <h3 className="font-black text-xl uppercase leading-none text-gray-900 mb-1">{appName || 'LicoBar'}</h3>
+                <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-4">Credencial Personal</p>
+                <p className="font-bold text-lg leading-tight">{member.name}</p>
+                <p className="text-sm text-gray-600 uppercase">{member.role}</p>
+            </div>
+        </div>
+        <div className="flex justify-between items-end mt-2">
+            <div className="text-[10px] text-gray-400">ID: {member.id.slice(0,8)}</div>
+            <div className="text-right">
+                <p className="text-[10px] uppercase font-bold text-orange-600">PIN DE ACCESO</p>
+                <p className="font-black text-2xl tracking-widest">****</p>
+            </div>
+        </div>
+    </div>
+  </div>
 );
 
 // --- TABLA DE ADMIN (FILA MEJORADA CON ENTER) ---
 export const AdminRow = ({ item, onEdit, onDelete, isQuickEdit, onQuickUpdate }) => {
     const stockNum = parseFloat(item.stock);
-    
-    // Función auxiliar para detectar Enter
-    const handleKeyDown = (e, field) => {
-        if (e.key === 'Enter') {
-            e.target.blur(); // Simula click afuera para guardar
-        }
-    };
+    const handleKeyDown = (e, field) => { if (e.key === 'Enter') e.target.blur(); };
 
     return (
         <tr className="hover:bg-gray-50 transition-colors group">
             <td className="p-4"><div className="font-bold text-gray-900">{item.name}</div><div className="text-xs text-gray-500 uppercase">{item.category}</div></td>
             <td className="p-4 text-center">
                 {isQuickEdit && item.category !== 'Servicios' ? (
-                    <input 
-                        type="number" 
-                        defaultValue={item.stock} 
-                        onBlur={(e) => onQuickUpdate(item.id, 'stock', e.target.value)} 
-                        onKeyDown={(e) => handleKeyDown(e, 'stock')} // <--- AQUÍ ESTÁ LA MAGIA
-                        className="w-16 p-1 border rounded text-center font-bold bg-white focus:ring-2 ring-blue-500 outline-none" 
-                    />
+                    <input type="number" defaultValue={item.stock} onBlur={(e) => onQuickUpdate(item.id, 'stock', e.target.value)} onKeyDown={(e) => handleKeyDown(e, 'stock')} className="w-16 p-1 border rounded text-center font-bold bg-white focus:ring-2 ring-blue-500 outline-none" />
                 ) : (
                     <span className={`px-2 py-1 rounded-full text-xs font-black ${item.category === 'Servicios' ? 'bg-purple-100 text-purple-700' : (stockNum <= 5 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700')}`}>{item.category === 'Servicios' ? '∞' : item.stock}</span>
                 )}
