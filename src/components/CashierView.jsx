@@ -1,10 +1,10 @@
-// src/components/CashierView.jsx - INICIO POR DEFECTO EN "LICOBAR"
+// src/components/CashierView.jsx - BLOQUEO DE MESAS DUPLICADAS EN SERVICIOS
 import React, { useState, useEffect } from 'react';
 import { collection, query, orderBy, onSnapshot, writeBatch, doc } from 'firebase/firestore';
 import { db, ROOT_COLLECTION, isPersonalProject } from '../config/firebase';
 import { 
   Clock, CheckCircle, XCircle, Printer, Coffee, DollarSign, 
-  Search, Grid, List, ShoppingCart, Trash2, ChevronRight, Plus, Minus, Tag, ChevronDown, ChevronUp, X, MapPin, CheckSquare, CreditCard, Loader2
+  Search, Grid, List, ShoppingCart, Trash2, ChevronRight, Plus, Minus, Tag, ChevronDown, ChevronUp, X, MapPin, CheckSquare, CreditCard, Loader2, AlertCircle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -52,11 +52,19 @@ const CashierProductCard = ({ item, onClick }) => {
     );
 };
 
-// --- MODAL CÁLCULO DE SERVICIO ---
-const ServiceTimeModal = ({ item, onClose, onConfirm, tables }) => {
+// --- MODAL CÁLCULO DE SERVICIO (CON BLOQUEO DE MESAS OCUPADAS) ---
+const ServiceTimeModal = ({ item, onClose, onConfirm, tables, occupiedTables }) => {
     const [startTime, setStartTime] = useState('');
     const [endTime, setEndTime] = useState('');
-    const [location, setLocation] = useState(tables && tables.length > 0 ? tables[0] : 'Barra'); 
+    
+    // Determinar mesa inicial (primera que no esté ocupada)
+    const getInitialTable = () => {
+        if (!tables) return 'Barra';
+        const freeTable = tables.find(t => !occupiedTables.includes(t));
+        return freeTable || tables[0];
+    };
+
+    const [location, setLocation] = useState(getInitialTable);
     const [duration, setDuration] = useState(0); 
     const [totalCost, setTotalCost] = useState(0);
 
@@ -84,6 +92,10 @@ const ServiceTimeModal = ({ item, onClose, onConfirm, tables }) => {
     }, [startTime, endTime, item.price]);
 
     const handleConfirm = () => {
+        if (occupiedTables.includes(location)) {
+            toast.error(`La ${location} ya tiene un servicio en esta venta.`);
+            return;
+        }
         if(totalCost > 0) {
             onConfirm(item, totalCost, `${startTime} - ${endTime}`, duration, location);
         }
@@ -103,21 +115,30 @@ const ServiceTimeModal = ({ item, onClose, onConfirm, tables }) => {
                         <p className="text-purple-600 font-bold text-sm">Bs. {item.price} / hora</p>
                     </div>
                     
+                    {/* SELECTOR DE MESA INTELIGENTE */}
                     <div>
                         <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Ubicación / Mesa</label>
                         <div className="relative">
                             <MapPin size={14} className="absolute left-3 top-3 text-purple-500"/>
                             <select 
-                                className="w-full pl-9 p-2 border rounded-lg font-bold text-gray-800 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none appearance-none uppercase"
+                                className={`w-full pl-9 p-2 border rounded-lg font-bold outline-none appearance-none uppercase transition-colors ${occupiedTables.includes(location) ? 'border-red-300 bg-red-50 text-red-600' : 'text-gray-800 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500'}`}
                                 value={location} 
                                 onChange={e => setLocation(e.target.value)}
                             >
-                                {tables && tables.map(loc => (
-                                    <option key={loc} value={loc}>{loc}</option>
-                                ))}
+                                {tables && tables.map(loc => {
+                                    const isOccupied = occupiedTables.includes(loc);
+                                    return (
+                                        <option key={loc} value={loc} disabled={isOccupied} className={isOccupied ? 'text-gray-300' : ''}>
+                                            {loc} {isOccupied ? '(En Carrito)' : ''}
+                                        </option>
+                                    );
+                                })}
                             </select>
                             <ChevronDown size={14} className="absolute right-3 top-3 text-gray-400 pointer-events-none"/>
                         </div>
+                        {occupiedTables.includes(location) && (
+                            <p className="text-[10px] text-red-500 font-bold mt-1 flex items-center gap-1"><AlertCircle size={10}/> Mesa ocupada en esta orden</p>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
@@ -129,7 +150,13 @@ const ServiceTimeModal = ({ item, onClose, onConfirm, tables }) => {
                         <div><p className="text-xs text-gray-500">Tiempo Total</p><p className="font-bold text-gray-800">{Math.floor(duration)}h {Math.round((duration % 1) * 60)}min</p></div>
                         <div className="text-right"><p className="text-xs text-gray-500">A Cobrar</p><p className="font-black text-xl text-purple-600">Bs. {totalCost.toFixed(2)}</p></div>
                     </div>
-                    <button onClick={handleConfirm} className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2"><Plus size={18}/> AGREGAR</button>
+                    <button 
+                        onClick={handleConfirm} 
+                        disabled={occupiedTables.includes(location)}
+                        className="w-full py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2"
+                    >
+                        <Plus size={18}/> {occupiedTables.includes(location) ? 'MESA OCUPADA' : 'AGREGAR'}
+                    </button>
                 </div>
             </div>
         </div>
@@ -146,26 +173,20 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
   const [catFilter, setCatFilter] = useState('Todos');
   const [expandCategories, setExpandCategories] = useState(false); 
   const [serviceModalItem, setServiceModalItem] = useState(null);
-  const [quickTable, setQuickTable] = useState('LICOBAR'); // Default inicial
+  const [quickTable, setQuickTable] = useState('LICOBAR'); 
 
   // Estados Cobro Masivo
   const [selectedOrders, setSelectedOrders] = useState([]); 
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
 
-  // --- LÓGICA DE PRIORIDAD "LICOBAR" ---
+  // Lógica de prioridad "LICOBAR"
   useEffect(() => {
       if (tables && tables.length > 0) {
-          // Si existe una mesa llamada "LICOBAR", la seleccionamos por defecto
           if (tables.includes('LICOBAR')) {
-              if (quickTable !== 'LICOBAR' && !tables.includes(quickTable)) {
-                  setQuickTable('LICOBAR');
-              }
+              if (quickTable !== 'LICOBAR' && !tables.includes(quickTable)) setQuickTable('LICOBAR');
           } 
-          // Si no existe LICOBAR, o si la mesa actual ya no existe, usamos la primera de la lista
-          else if (!tables.includes(quickTable)) {
-              setQuickTable(tables[0]);
-          }
+          else if (!tables.includes(quickTable)) setQuickTable(tables[0]);
       }
   }, [tables, quickTable]);
 
@@ -205,6 +226,7 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
           id: item.id + '-' + Date.now(), 
           price: calculatedPrice,
           name: finalName, 
+          location: locationName, // GUARDAMOS LA MESA PARA VALIDAR DUPLICADOS
           qty: 1,
           isServiceItem: true 
       };
@@ -235,13 +257,12 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
     onProcessPayment(quickOrder); 
     setCart([]); 
     
-    // --- RESET AUTOMÁTICO A LICOBAR DESPUÉS DE VENDER ---
     if (tables && tables.includes('LICOBAR')) {
         setQuickTable('LICOBAR');
     }
   };
 
-  // --- LÓGICA DE COBRO MASIVO (SIN BLOQUEOS) ---
+  // --- LÓGICA COBRO MASIVO (Toast) ---
   const toggleOrderSelection = (orderId) => {
       setSelectedOrders(prev => {
           if (prev.includes(orderId)) return prev.filter(id => id !== orderId);
@@ -251,7 +272,6 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
 
   const requestBulkPay = (paymentMethod) => {
       if(selectedOrders.length === 0) return;
-      
       const ordersToPay = orders.filter(o => selectedOrders.includes(o.id));
       const totalAmount = ordersToPay.reduce((sum, o) => sum + o.total, 0);
 
@@ -320,10 +340,25 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
   const cartTotal = cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
   const totalSelected = orders.filter(o => selectedOrders.includes(o.id)).reduce((acc, o) => acc + o.total, 0);
 
+  // --- CALCULAR MESAS YA OCUPADAS EN EL CARRITO ---
+  const occupiedTablesInCart = cart
+      .filter(i => i.isServiceItem && i.location) // Solo items de servicio con mesa asignada
+      .map(i => i.location);
+
   return (
     <div className="flex flex-col h-[calc(100vh-100px)] animate-in fade-in relative">
       {isPaying && (<div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-[60] flex items-center justify-center rounded-2xl animate-in fade-in duration-200"><div className="bg-white p-4 rounded-2xl shadow-2xl flex flex-col items-center gap-3 border border-gray-100"><Loader2 className="animate-spin text-blue-600" size={32}/><span className="font-bold text-gray-700 text-sm">Procesando pagos...</span></div></div>)}
-      {serviceModalItem && (<ServiceTimeModal item={serviceModalItem} onClose={() => setServiceModalItem(null)} onConfirm={addServiceToCart} tables={tables} />)}
+      
+      {/* PASAMOS occupiedTables AL MODAL */}
+      {serviceModalItem && (
+          <ServiceTimeModal 
+            item={serviceModalItem} 
+            onClose={() => setServiceModalItem(null)} 
+            onConfirm={addServiceToCart} 
+            tables={tables} 
+            occupiedTables={occupiedTablesInCart} // NUEVA PROP
+          />
+      )}
 
       <div className="flex justify-between items-center mb-3 px-1 flex-wrap gap-2">
          <div className="flex bg-white p-1 rounded-xl shadow-sm border border-gray-200">
