@@ -1,4 +1,4 @@
-// src/App.jsx - CORRECCIÓN DE ERROR DE IMPRESIÓN EN VENTA RÁPIDA
+// src/App.jsx - CORRECCIÓN DEFINITIVA: TICKET VENTA RÁPIDA VISIBLE
 import React, { useState, useEffect, useMemo } from 'react';
 import { Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign, ArrowLeft, Lock, Unlock, Wallet, Loader2, LayoutGrid, Gift, Trees, TrendingUp, Package, AlertCircle } from 'lucide-react';
 import { onAuthStateChanged, signOut, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
@@ -223,35 +223,19 @@ export default function App() {
   const handleCloseRegister = () => { if (!registerSession) return; const cashFinal = registerSession.openingAmount + sessionStats.cashSales - sessionStats.totalExpenses; toast((t) => ( <div className="flex flex-col gap-3 min-w-[240px]"> <div className="border-b pb-3"> <p className="font-bold text-gray-800 text-lg mb-2">Resumen de Cierre</p> <div className="bg-gray-50 p-2 rounded mb-3 grid grid-cols-2 gap-2 text-xs"> <div className="bg-white p-2 rounded border border-gray-100"><span className="text-gray-500 block uppercase text-[10px]">Total QR</span><span className="font-bold text-blue-600 text-sm">Bs. {sessionStats.qrSales.toFixed(2)}</span></div> <div className="bg-white p-2 rounded border border-gray-100"><span className="text-gray-500 block uppercase text-[10px]">Total Tarjeta</span><span className="font-bold text-purple-600 text-sm">Bs. {sessionStats.cardSales.toFixed(2)}</span></div> </div> <div className="px-2"><p className="text-xs text-gray-500 uppercase font-bold">Efectivo en Caja:</p><p className="text-2xl font-black text-green-600">Bs. {cashFinal.toFixed(2)}</p></div> </div> <div className="flex gap-2"><button onClick={() => { confirmCloseRegister(cashFinal); toast.dismiss(t.id); }} className="bg-red-600 text-white px-4 py-3 rounded-lg text-xs font-bold shadow-sm flex-1 hover:bg-red-700 transition-colors">CERRAR TURNO</button><button onClick={() => toast.dismiss(t.id)} className="bg-gray-200 text-gray-800 px-4 py-3 rounded-lg text-xs font-bold flex-1 hover:bg-gray-300 transition-colors">CANCELAR</button></div> </div> ), { duration: 10000, position: 'top-center', icon: null }); };
   const confirmCloseRegister = async (finalCash) => { try { const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`; await updateDoc(doc(db, colName, registerSession.id), { status: 'closed', closedAt: new Date().toISOString(), closedBy: staffMember ? staffMember.name : 'Admin', finalCashCalculated: finalCash, finalSalesStats: sessionStats }); const zReportData = { type: 'z-report', businessName: appName, date: new Date().toLocaleString(), staffName: staffMember ? staffMember.name : 'Admin', registerId: registerSession.id, openedAt: registerSession.openedAt, openingAmount: registerSession.openingAmount, finalCash: finalCash, stats: sessionStats, expensesList: sessionStats.expensesList, soldProducts: sessionStats.soldProducts }; setRegisterSession(null); setSessionStats({ cashSales: 0, qrSales: 0, cardSales: 0, digitalSales: 0, totalExpenses: 0, totalCostOfGoods: 0, courtesyTotal: 0, courtesyCost: 0, expensesList: [], soldProducts: [] }); setLastSale(zReportData); setView('receipt_view'); toast.success("Cierre exitoso", { icon: '🖨️' }); } catch (error) { toast.error("Error cerrando"); } };
   const handleReprintZReport = (shiftData) => { const zReportData = { type: 'z-report', businessName: appName, date: new Date(shiftData.closedAt).toLocaleString(), staffName: shiftData.closedBy || 'Admin', registerId: shiftData.id, openedAt: shiftData.openedAt, openingAmount: shiftData.openingAmount, finalCash: shiftData.finalCashCalculated, stats: shiftData.finalSalesStats || { cashSales:0, qrSales: 0, cardSales: 0, totalExpenses:0, totalCostOfGoods: 0, courtesyTotal: 0, courtesyCost: 0 }, expensesList: shiftData.finalSalesStats?.expensesList || [], soldProducts: shiftData.finalSalesStats?.soldProducts || [] }; setLastSale(zReportData); setView('receipt_view'); toast.success("Cargando copia del reporte..."); };
-  
-  // --- HANDLE MODIFICADO PARA SOPORTAR VENTA RÁPIDA CORRECTAMENTE ---
-  const handleStartPaymentFromCashier = (order, clearCartCallback) => { 
-      if (!checkRegisterStatus(true)) return; 
-      setOrderToPay(order); 
-      // Aquí guardamos el callback para limpiar el carrito DESPUÉS del cobro
-      setPendingSale({ 
-          cart: order.items, 
-          clearCart: clearCartCallback || (() => {}) 
-      }); 
-      setIsPaymentModalOpen(true); 
-  };
-
+  const handleStartPaymentFromCashier = (order, clearCartCallback) => { if (!checkRegisterStatus(true)) return; setOrderToPay(order); setPendingSale({ cart: order.items, clearCart: clearCartCallback || (() => {}) }); setIsPaymentModalOpen(true); };
   const handlePOSCheckout = (cart, clearCart) => { if (!checkRegisterStatus(true)) return; setOrderToPay(null); setPendingSale({ cart, clearCart }); setIsPaymentModalOpen(true); };
   const handleSendToKitchen = async (cart, clearCart) => { if (!checkRegisterStatus(false)) return; if (cart.length === 0) return; const toastId = toast.loading('Procesando comanda...'); try { const totalOrder = cart.reduce((acc, item) => acc + (item.price * item.qty), 0); const orderData = { date: new Date().toISOString(), staffId: staffMember ? staffMember.id : 'anon', staffName: staffMember ? staffMember.name : 'Mesero', orderId: 'ORD-' + Math.floor(Math.random() * 10000), items: cart, total: totalOrder, status: 'pending' }; const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`; await addDoc(collection(db, ordersCol), orderData); const preCheckData = { ...orderData, type: 'order', date: new Date().toLocaleString() }; clearCart([]); setLastSale(preCheckData); toast.success('Pedido enviado a caja', { id: toastId }); setView('receipt_view'); } catch (error) { toast.error('Error al enviar pedido', { id: toastId }); } };
   const handleVoidAndPrint = async (order) => { try { const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`; await deleteDoc(doc(db, ordersCol, order.id)); const voidData = { ...order, type: 'void', businessName: appName, date: new Date().toLocaleString() }; setLastSale(voidData); toast.success("Pedido anulado"); setView('receipt_view'); } catch (error) { toast.error("Error al anular"); } };
   const handleReprintOrder = (order) => { const preCheckData = { ...order, type: 'order', businessName: appName, date: new Date().toLocaleString() }; setLastSale(preCheckData); setView('receipt_view'); toast.success("Reimprimiendo comanda..."); };
   
-  // --- HANDLE FINALIZAR (CORREGIDO ERROR DELETE PHANTOM DOC) ---
+  // --- HANDLE FINALIZAR (CORREGIDO PARA MOSTRAR RECIBO) ---
   const handleFinalizeSale = async (paymentResult) => { 
       if (!db) return; 
-      if (staffMember && staffMember.role !== 'Cajero' && staffMember.role !== 'Administrador') { 
-          toast.error("⛔ ACCESO DENEGADO: Solo Cajeros pueden cobrar."); setIsPaymentModalOpen(false); return; 
-      } 
+      if (staffMember && staffMember.role !== 'Cajero' && staffMember.role !== 'Administrador') { toast.error("⛔ ACCESO DENEGADO: Solo Cajeros pueden cobrar."); setIsPaymentModalOpen(false); return; } 
       if (!registerSession) { toast.error("¡La caja está cerrada!"); return; } 
-      
       const toastId = toast.loading('Procesando pago...'); 
       setIsPaymentModalOpen(false); 
-      
       const itemsToProcess = orderToPay ? orderToPay.items : pendingSale.cart; 
       const { paymentsList, totalPaid, change } = paymentResult; 
       const totalToProcess = totalPaid - change; 
@@ -259,56 +243,25 @@ export default function App() {
       try { 
           const batchPromises = []; 
           const timestamp = new Date(); 
-          let cashierName = 'Caja General'; 
-          if (staffMember) cashierName = staffMember.name; else if (currentUser) cashierName = 'Administrador'; 
+          let cashierName = 'Caja General'; if (staffMember) cashierName = staffMember.name; else if (currentUser) cashierName = 'Administrador'; 
           const waiterName = orderToPay ? orderToPay.staffName : (staffMember ? staffMember.name : 'Barra'); 
           const waiterId = orderToPay ? orderToPay.staffId : (staffMember ? staffMember.id : 'anon'); 
-          
-          const saleData = { 
-              date: timestamp.toISOString(), 
-              total: totalToProcess, 
-              items: itemsToProcess, 
-              staffId: waiterId, 
-              staffName: waiterName, 
-              cashier: cashierName, 
-              registerId: registerSession.id, 
-              payments: paymentsList, 
-              totalPaid: totalPaid, 
-              changeGiven: change 
-          }; 
-          
+          const saleData = { date: timestamp.toISOString(), total: totalToProcess, items: itemsToProcess, staffId: waiterId, staffName: waiterName, cashier: cashierName, registerId: registerSession.id, payments: paymentsList, totalPaid: totalPaid, changeGiven: change }; 
           const salesCollection = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`; 
           const docRef = await addDoc(collection(db, salesCollection), saleData); 
           
-          itemsToProcess.forEach(item => { 
-              if (item.stock !== undefined && item.stock !== '') { 
-                  const newStock = parseInt(item.stock) - item.qty; 
-                  batchPromises.push(updateDoc(doc(db, getCollName('items'), item.id), { stock: newStock })); 
-              } 
-          }); 
-          
-          // CORRECCIÓN CLAVE: Solo borramos de Firestore si NO es venta rápida
-          if (orderToPay && orderToPay.type !== 'quick_sale') { 
-              const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`; 
-              batchPromises.push(deleteDoc(doc(db, ordersCol, orderToPay.id))); 
-          } 
-          
+          itemsToProcess.forEach(item => { if (item.stock !== undefined && item.stock !== '') { const newStock = parseInt(item.stock) - item.qty; batchPromises.push(updateDoc(doc(db, getCollName('items'), item.id), { stock: newStock })); } }); 
+          if (orderToPay && orderToPay.type !== 'quick_sale') { const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`; batchPromises.push(deleteDoc(doc(db, ordersCol, orderToPay.id))); } 
           await Promise.all(batchPromises); 
           
-          const receiptData = { businessName: appName, date: timestamp.toLocaleString(), staffName: waiterName, cashierName: cashierName, orderId: docRef.id, items: itemsToProcess, total: totalToProcess, payments: paymentsList, change: change }; 
+          // IMPORTANTE: type: 'order' AGREGADO PARA QUE RECEIPT.JSX LO MUESTRE
+          const receiptData = { type: 'order', businessName: appName, date: timestamp.toLocaleString(), staffName: waiterName, cashierName: cashierName, orderId: docRef.id, items: itemsToProcess, total: totalToProcess, payments: paymentsList, change: change }; 
           setLastSale(receiptData); 
-          
-          // LIMPIAMOS EL CARRITO DE VENTA RÁPIDA AQUÍ
           if (pendingSale && pendingSale.clearCart) pendingSale.clearCart([]); 
-          
-          setPendingSale(null); 
-          setOrderToPay(null); 
+          setPendingSale(null); setOrderToPay(null); 
           toast.success('¡Cobro exitoso!', { id: toastId }); 
           setView('receipt_view'); 
-      } catch (e) { 
-          console.error(e); 
-          toast.error('Error al cobrar', { id: toastId }); 
-      } 
+      } catch (e) { console.error(e); toast.error('Error al cobrar', { id: toastId }); } 
   };
 
   const handleReceiptClose = () => { if (lastSale && lastSale.type === 'z-report') { setView('landing'); return; } const isCashier = (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador')) || (currentUser && !currentUser.isAnonymous); if (isCashier) setView('cashier'); else setView('pos'); };
