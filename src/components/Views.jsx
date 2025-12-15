@@ -1,7 +1,7 @@
-// src/components/Views.jsx - CORREGIDO (IMPORT TOAST AGREGADO)
+// src/components/Views.jsx - LOGIN CON SCROLL Y BOTÓN VOLVER
 import React, { useState } from 'react';
 import { Clock, User, ArrowLeft, Trash2, Edit2, Plus, Minus, Lock, LogIn, LogOut, Briefcase } from 'lucide-react';
-import toast from 'react-hot-toast'; // <--- ESTA LÍNEA FALTABA
+import toast from 'react-hot-toast';
 
 // --- TARJETA DE MENÚ (CLIENTE) ---
 export const MenuCard = ({ item }) => {
@@ -34,7 +34,7 @@ export const MenuCard = ({ item }) => {
   );
 };
 
-// --- PANTALLA DE LOGIN CON PIN (CON RELOJ CONTROL) ---
+// --- PANTALLA DE LOGIN CON PIN (SCROLLABLE + VOLVER) ---
 export const PinLoginView = ({ staffMembers, onLoginSuccess, onClockAction, onCancel }) => {
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [pin, setPin] = useState('');
@@ -64,14 +64,13 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onClockAction, onCa
       setPin(newPin);
       if (newPin.length === 4) {
         if (newPin === selectedStaff.pin) {
-          // PIN CORRECTO
           if (mode === 'system') {
              onLoginSuccess(selectedStaff); 
           } else {
              setShowAttendanceOptions(true); 
           }
         } else {
-          toast.error('PIN Incorrecto'); // <--- AQUÍ OCURRÍA EL ERROR ANTES
+          toast.error('PIN Incorrecto');
           setPin('');
           setShuffledKeys(shuffleArray(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']));
         }
@@ -90,10 +89,10 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onClockAction, onCa
 
   return (
     <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 animate-in zoom-in duration-300 transition-colors ${mode === 'attendance' ? 'bg-blue-900/95 backdrop-blur-xl' : 'bg-black/90 backdrop-blur-xl'}`}>
-      <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[85vh]"> {/* Altura fija para permitir scroll */}
         
-        {/* ENCABEZADO CON TOGGLE */}
-        <div className={`p-4 text-center relative transition-colors ${mode === 'attendance' ? 'bg-blue-600' : 'bg-gray-900'}`}>
+        {/* ENCABEZADO */}
+        <div className={`p-4 text-center relative shrink-0 transition-colors ${mode === 'attendance' ? 'bg-blue-600' : 'bg-gray-900'}`}>
             {!selectedStaff && (
                 <div className="flex bg-black/20 p-1 rounded-xl mb-4 relative z-10">
                     <button onClick={() => setMode('system')} className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all ${mode === 'system' ? 'bg-white text-black shadow-md' : 'text-white/60 hover:text-white'}`}>
@@ -105,9 +104,12 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onClockAction, onCa
                 </div>
             )}
 
-            <button onClick={selectedStaff ? () => setSelectedStaff(null) : onCancel} className="absolute left-4 top-6 text-white/50 hover:text-white p-2 z-20">
-                <ArrowLeft size={24}/>
-            </button>
+            {/* Flecha solo si hay usuario seleccionado (para volver a la lista) */}
+            {selectedStaff && (
+                <button onClick={() => setSelectedStaff(null)} className="absolute left-4 top-6 text-white/50 hover:text-white p-2 z-20">
+                    <ArrowLeft size={24}/>
+                </button>
+            )}
             
             <h2 className="text-xl font-black text-white uppercase tracking-widest mt-2">
                 {selectedStaff ? `HOLA, ${selectedStaff.name.split(' ')[0]}` : (mode === 'attendance' ? 'RELOJ CONTROL' : 'IDENTIFÍCATE')}
@@ -115,28 +117,39 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onClockAction, onCa
             {selectedStaff && !showAttendanceOptions && <p className="text-xs text-white/60 mt-1">Ingresa tu PIN</p>}
         </div>
 
-        {/* CUERPO */}
-        <div className="flex-1 bg-gray-50 flex flex-col p-6">
+        {/* CUERPO FLEXIBLE */}
+        <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden relative">
             {!selectedStaff ? (
-                // LISTA DE PERSONAL
-                <div className="grid grid-cols-2 gap-4 overflow-y-auto">
-                    {staffMembers.map(member => (
-                        <button 
-                            key={member.id} 
-                            onClick={() => handleSelectStaff(member)}
-                            className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:border-current hover:text-orange-600 hover:shadow-md transition-all flex flex-col items-center gap-2 group"
-                        >
-                            <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${mode === 'attendance' ? 'bg-blue-50 text-blue-400 group-hover:bg-blue-100 group-hover:text-blue-600' : 'bg-gray-100 text-gray-400 group-hover:bg-orange-50 group-hover:text-orange-600'}`}>
-                                <User size={24}/>
-                            </div>
-                            <span className="font-bold text-gray-700 text-sm">{member.name}</span>
-                            <span className="text-[10px] text-gray-400 uppercase">{member.role}</span>
+                <>
+                    {/* LISTA DE PERSONAL CON SCROLL */}
+                    <div className="flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-gray-300">
+                        <div className="grid grid-cols-2 gap-3 pb-4">
+                            {staffMembers.map(member => (
+                                <button 
+                                    key={member.id} 
+                                    onClick={() => handleSelectStaff(member)}
+                                    className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:border-current hover:text-orange-600 hover:shadow-md transition-all flex flex-col items-center gap-2 group shrink-0"
+                                >
+                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${mode === 'attendance' ? 'bg-blue-50 text-blue-400 group-hover:bg-blue-100 group-hover:text-blue-600' : 'bg-gray-100 text-gray-400 group-hover:bg-orange-50 group-hover:text-orange-600'}`}>
+                                        <User size={24}/>
+                                    </div>
+                                    <span className="font-bold text-gray-700 text-sm truncate w-full text-center">{member.name}</span>
+                                    <span className="text-[10px] text-gray-400 uppercase">{member.role}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    
+                    {/* BOTÓN VOLVER INFERIOR (FIJO) */}
+                    <div className="p-4 bg-white border-t border-gray-100 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                        <button onClick={onCancel} className="w-full py-3 rounded-xl font-bold bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 uppercase text-xs tracking-wider">
+                            <ArrowLeft size={16}/> Volver al Inicio
                         </button>
-                    ))}
-                </div>
+                    </div>
+                </>
             ) : showAttendanceOptions ? (
                 // OPCIONES DE ENTRADA / SALIDA
-                <div className="flex flex-col gap-4 h-full justify-center animate-in fade-in slide-in-from-bottom-4">
+                <div className="flex flex-col gap-4 h-full justify-center p-6 animate-in fade-in slide-in-from-bottom-4">
                     <p className="text-center text-gray-500 font-bold mb-2">¿Qué deseas registrar?</p>
                     <button onClick={() => handleClock('entry')} className="bg-green-500 hover:bg-green-600 text-white p-6 rounded-2xl shadow-lg flex items-center justify-center gap-4 transition-transform active:scale-95 group">
                         <div className="bg-white/20 p-3 rounded-full"><LogIn size={32} className="text-white"/></div>
@@ -149,21 +162,21 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onClockAction, onCa
                 </div>
             ) : (
                 // TECLADO NUMÉRICO ALEATORIO
-                <div className="flex flex-col items-center justify-center h-full">
-                    <div className="flex gap-4 mb-8">
+                <div className="flex flex-col items-center justify-center h-full p-4">
+                    <div className="flex gap-4 mb-6">
                         {[...Array(4)].map((_, i) => (
                             <div key={i} className={`w-4 h-4 rounded-full transition-all duration-300 ${i < pin.length ? (mode === 'attendance' ? 'bg-blue-500 scale-110' : 'bg-orange-500 scale-110') : 'bg-gray-300'}`}></div>
                         ))}
                     </div>
 
-                    <div className="grid grid-cols-3 gap-3 w-full max-w-[280px]">
+                    <div className="grid grid-cols-3 gap-3 w-full max-w-[260px]">
                         {shuffledKeys.map((num) => (
                             <button key={num} onClick={() => handleNumClick(num)} className="h-16 rounded-2xl bg-white border border-gray-200 shadow-[0_4px_0_0_rgba(0,0,0,0.1)] active:shadow-none active:translate-y-[4px] transition-all font-black text-2xl text-gray-800 hover:bg-gray-50">{num}</button>
                         ))}
                         <div className="h-16"></div>
                         <button onClick={handleDelete} className="h-16 rounded-2xl bg-red-50 border border-red-100 text-red-500 flex items-center justify-center shadow-[0_4px_0_0_rgba(220,38,38,0.1)] active:shadow-none active:translate-y-[4px] transition-all"><ArrowLeft size={24} /></button>
                     </div>
-                    <p className="mt-6 text-[10px] text-gray-400 flex items-center gap-1"><Lock size={10}/> Teclado aleatorio por seguridad</p>
+                    <p className="mt-6 text-[10px] text-gray-400 flex items-center gap-1"><Lock size={10}/> Teclado seguro</p>
                 </div>
             )}
         </div>
