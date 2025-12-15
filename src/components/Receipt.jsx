@@ -1,169 +1,166 @@
-// src/components/Receipt.jsx - VERSIÓN AUTO-PRINT (Sin botón azul)
-import React, { useEffect, useState } from 'react';
-import { ChefHat, Printer, ArrowLeft, CheckCircle, ClipboardList, XCircle, Lock, RefreshCw } from 'lucide-react';
+// src/components/Receipt.jsx - CON LISTA DE PRODUCTOS VENDIDOS
+import React from 'react';
+import { X, Printer } from 'lucide-react';
 
-const Receipt = ({ data, onClose }) => {
-  const [status, setStatus] = useState('Preparando...');
-
+const Receipt = ({ data, onPrint, onClose }) => {
   if (!data) return null;
 
-  const isPreCheck = data.type === 'order';
-  const isVoid = data.type === 'void';
-  const isZReport = data.type === 'z-report';
-
-  let borderClass = 'border-green-600'; 
-  let icon = <CheckCircle size={32} className="text-gray-800"/>;
-  let title = 'TICKET DE VENTA';
-  let bgLabel = 'bg-green-600';
-
-  if (isPreCheck) { borderClass = 'border-yellow-400'; icon = <ClipboardList size={32} className="text-gray-800"/>; title = 'COMANDA'; bgLabel = 'bg-black'; }
-  if (isVoid) { borderClass = 'border-red-500'; icon = <XCircle size={32} className="text-red-600"/>; title = 'ANULACIÓN'; bgLabel = 'bg-red-600'; }
-  if (isZReport) { borderClass = 'border-gray-800'; icon = <Lock size={32} className="text-gray-800"/>; title = 'CIERRE DE CAJA'; bgLabel = 'bg-gray-800'; }
-
-  const handleAutoPrint = () => {
-    setStatus('Imprimiendo...');
-    
-    // 1. Obtener HTML
-    const ticketContent = document.getElementById('printable-ticket');
-    if (!ticketContent) return;
-
-    // 2. Crear Popup
-    const win = window.open('', '', 'width=340,height=600');
-    if (!win) {
-        setStatus('⚠️ Pop-up bloqueado. Habilítalo.');
-        return;
-    }
-
-    // 3. Escribir Ticket
-    win.document.write(`
-      <html>
-        <head>
-          <title>Imprimir</title>
-          <style>
-            body { font-family: monospace; margin: 0; padding: 5px; width: 100%; font-size: 12px; }
-            .text-center { text-align: center; }
-            .text-right { text-align: right; }
-            .flex { display: flex; justify-content: space-between; }
-            .font-bold { font-weight: bold; }
-            .text-xs { font-size: 11px; }
-            .border-b { border-bottom: 1px dashed #000; padding-bottom: 5px; margin-bottom: 5px; }
-            .uppercase { text-transform: uppercase; }
-            img { max-width: 100px; height: auto; display: block; margin: 0 auto; }
-            svg { display: none; } 
-          </style>
-        </head>
-        <body>${ticketContent.innerHTML}</body>
-      </html>
-    `);
-    
-    win.document.close();
-    win.focus();
-    
-    // 4. Imprimir y CERRAR AUTOMÁTICAMENTE
-    setTimeout(() => {
-        win.print();
-        win.close();
-        onClose(); // <--- ESTO CIERRA LA VISTA EN TU APP Y VUELVE AL CAJERO
-    }, 800); // Pequeña espera para asegurar carga
-  };
-
-  // Disparar al cargar
-  useEffect(() => {
-      handleAutoPrint();
-  }, []);
-
-  return (
-    <div className="flex flex-col items-center min-h-screen bg-gray-100 p-4 animate-in zoom-in duration-300">
-      
-      {/* MENSAJE DE ESTADO (Reemplaza al botón azul) */}
-      <div className="flex flex-col items-center gap-4 mb-6 sticky top-4 z-50 bg-white/90 p-4 rounded-xl shadow-lg backdrop-blur-sm border border-gray-200">
-        <div className="flex items-center gap-3 text-gray-800 font-bold animate-pulse">
-           <Printer size={24} className="text-blue-600"/>
-           {status}
-        </div>
-        
-        {/* Botón pequeño por si falla el automático */}
-        <div className="flex gap-2">
-            <button onClick={handleAutoPrint} className="text-xs text-blue-600 underline">Reintentar</button>
-            <span className="text-gray-300">|</span>
-            <button onClick={onClose} className="text-xs text-gray-500 hover:text-gray-800">Cerrar ventana</button>
-        </div>
-      </div>
-
-      {/* --- TICKET (Visible pero en segundo plano visual) --- */}
-      <div id="printable-ticket" className={`bg-white p-4 shadow-2xl w-[300px] text-gray-900 font-mono text-sm leading-tight relative border-t-8 ${borderClass} opacity-50`}>
-        {/* ... (El contenido del ticket es IDÉNTICO al anterior, no cambia) ... */}
-        {/* ... COPIA EL MISMO CONTENIDO DEL TICKET DE LA RESPUESTA ANTERIOR ... */}
-        {/* Para ahorrar espacio aquí, asumo que mantienes el interior del ticket igual */}
-        <div className="text-center border-b pb-4 mb-3">
-          <div className="flex justify-center mb-2">{icon}</div>
-          <h2 className="text-xl font-black uppercase tracking-widest mb-1">{data.businessName || 'LICOBAR'}</h2>
-          <div className={`text-xs font-bold text-white px-2 py-1 inline-block rounded uppercase ${bgLabel}`}>{title}</div>
-          <p className="text-[10px] text-gray-500 mt-2">{data.date}</p>
-        </div>
-
-        {isZReport ? (
-            <div className="text-xs">
-                <div className="mb-3 pb-3 border-b">
-                    <div className="flex justify-between"><span className="text-gray-500">Cajero:</span><span className="font-bold uppercase">{data.staffName}</span></div>
-                    <div className="flex justify-between mt-1"><span className="text-gray-500">ID:</span><span>#{data.registerId ? data.registerId.slice(-6) : '---'}</span></div>
-                </div>
-                <div className="mb-3 pb-3 border-b">
-                    <p className="font-bold mb-2 uppercase border-b pb-1">Efectivo</p>
-                    <div className="flex justify-between mb-1"><span>Fondo Inicial:</span><span>Bs. {(data.openingAmount || 0).toFixed(2)}</span></div>
-                    <div className="flex justify-between mb-1"><span>(+) Ventas Efec.:</span><span>Bs. {(data.stats?.cashSales || 0).toFixed(2)}</span></div>
-                    <div className="flex justify-between mb-1 text-red-500"><span>(-) Gastos:</span><span>- Bs. {(data.stats?.totalExpenses || 0).toFixed(2)}</span></div>
-                    <div className="flex justify-between mt-2 pt-1 border-t font-black text-sm"><span>= EN CAJA:</span><span>Bs. {(data.finalCash || 0).toFixed(2)}</span></div>
-                </div>
-                <div className="mb-3 pb-3 border-b">
-                    <p className="font-bold mb-2 uppercase border-b pb-1">Bancos</p>
-                    <div className="flex justify-between mb-1"><span>QR:</span><span>Bs. {(data.stats?.qrSales || 0).toFixed(2)}</span></div>
-                    <div className="flex justify-between mb-1"><span>Tarjeta:</span><span>Bs. {(data.stats?.cardSales || 0).toFixed(2)}</span></div>
-                </div>
-                {data.expensesList?.length > 0 && (
-                    <div className="mb-3 pt-2">
-                        <p className="font-bold mb-1 uppercase text-[10px]">Gastos:</p>
-                        {data.expensesList.map((ex, i) => (<div key={i} className="flex justify-between text-[10px] text-gray-500"><span>{ex.description}</span><span>-{(Number(ex.amount)).toFixed(2)}</span></div>))}
-                    </div>
-                )}
-                <div className="text-center mt-8 mb-4"><br/>_______________________<br/><span className="text-[10px] uppercase">Firma Cajero</span></div>
+  // --- 1. DISEÑO TICKET DE VENTA (Normal) ---
+  if (data.type === 'order' || data.type === 'quick_sale') {
+    return (
+      <div className="fixed inset-0 bg-gray-900/90 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
+        <div className="bg-white w-full max-w-sm shadow-2xl rounded-sm overflow-hidden flex flex-col max-h-[90vh]">
+          {/* Botones de Acción (No se imprimen) */}
+          <div className="bg-gray-800 p-3 flex justify-between items-center no-print">
+            <h3 className="text-white font-bold text-sm">VISTA PREVIA TICKET</h3>
+            <div className="flex gap-2">
+                <button onClick={onPrint} className="bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-lg transition-colors"><Printer size={18}/></button>
+                <button onClick={onClose} className="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-lg transition-colors"><X size={18}/></button>
             </div>
-        ) : (
-            <>
-                <div className="mb-3 pb-3 border-b text-xs">
-                    <div className="flex justify-between"><span className="text-gray-500">{isVoid ? 'Anulado:' : 'Atendido:'}</span><span className="font-bold uppercase">{data.staffName}</span></div>
-                    {!isPreCheck && !isVoid && data.cashierName && (<div className="flex justify-between mt-1"><span className="text-gray-500">Cajero:</span><span className="font-bold uppercase">{data.cashierName}</span></div>)}
-                    {data.orderId && (<div className="flex justify-between mt-1 text-[10px] text-gray-400"><span>Ref:</span><span>#{data.orderId.slice(-6).toUpperCase()}</span></div>)}
+          </div>
+
+          {/* Área Imprimible */}
+          <div className="p-6 overflow-y-auto font-mono text-sm leading-relaxed text-gray-900 print:p-0 print:overflow-visible print:w-full print:text-black">
+            <div className="text-center mb-4">
+              <h2 className="text-2xl font-black uppercase mb-1">{data.businessName || 'LicoBar'}</h2>
+              <p className="text-xs">Ticket #{data.orderId ? data.orderId.slice(-6) : '---'}</p>
+              <p className="text-xs">{data.date}</p>
+              <p className="text-xs mt-1">Atendido por: {data.staffName}</p>
+            </div>
+
+            <div className="border-t border-b border-dashed border-gray-400 py-2 my-2">
+              <div className="flex justify-between font-bold text-xs uppercase mb-1">
+                <span>Cant. Producto</span>
+                <span>Total</span>
+              </div>
+              {data.items.map((item, index) => (
+                <div key={index} className="flex justify-between text-xs py-0.5">
+                  <span className="truncate w-3/4">{item.qty} x {item.name}</span>
+                  <span>{((item.price * item.qty) || 0).toFixed(2)}</span>
                 </div>
-                <div className="border-b pb-3 mb-3">
-                <table style={{width: '100%'}}>
-                    <thead><tr className="text-[10px] uppercase text-gray-400 border-b"><th className="text-left">Cant</th><th className="text-left">Prod</th><th className="text-right">Total</th></tr></thead>
-                    <tbody className="text-xs font-medium">
-                    {data.items.map((item, index) => (
-                        <tr key={index}>
-                        <td style={{paddingRight:'5px'}}>{item.qty}</td><td style={{paddingRight:'5px'}}>{item.name}</td><td className="text-right">{(item.price * item.qty).toFixed(2)}</td>
-                        </tr>
+              ))}
+            </div>
+
+            <div className="flex justify-between items-center text-lg font-black mt-2">
+              <span>TOTAL</span>
+              <span>Bs. {data.total.toFixed(2)}</span>
+            </div>
+            
+            {/* Detalles de Pago */}
+            {data.payments && (
+                <div className="mt-2 text-xs border-t border-dashed pt-2">
+                    {data.payments.map((p, i) => (
+                        <div key={i} className="flex justify-between">
+                            <span>{p.method}</span>
+                            <span>{p.amount.toFixed(2)}</span>
+                        </div>
                     ))}
-                    </tbody>
-                </table>
+                    {data.changeGiven > 0 && (
+                        <div className="flex justify-between mt-1 font-bold">
+                            <span>Cambio:</span>
+                            <span>{data.changeGiven.toFixed(2)}</span>
+                        </div>
+                    )}
                 </div>
-                {!isPreCheck && !isVoid && (
-                <div className="mb-3 pt-1 text-xs">
-                    <div className="text-[10px] font-bold uppercase text-gray-400 mb-1">Pago:</div>
-                    {data.payments && data.payments.length > 0 ? (data.payments.map((p, idx) => (<div key={idx} className="flex justify-between"><span>{p.method}</span><span>{p.amount.toFixed(2)}</span></div>))) : (<div className="flex justify-between"><span>Efectivo</span><span>{(data.received || data.total).toFixed(2)}</span></div>)}
-                    {data.change > 0 && (<div className="flex justify-between mt-1 pt-1 border-t font-bold"><span>Cambio:</span><span>{data.change.toFixed(2)}</span></div>)}
-                </div>
-                )}
-                <div className="flex justify-between items-end mb-6 border-t-2 border-black pt-2">
-                <span className="text-sm font-bold">TOTAL {isVoid ? 'CANCELADO' : ''}</span>
-                <span className={`text-2xl font-black ${isVoid ? 'text-red-600 line-through' : 'text-black'}`}>Bs. {data.total.toFixed(2)}</span>
-                </div>
-                <div className="text-center text-[10px] text-gray-400 mt-4">{isVoid ? 'OPERACIÓN ANULADA' : 'GRACIAS POR SU VISITA'}</div>
-            </>
-        )}
+            )}
+
+            <div className="text-center mt-6 text-[10px]">
+              <p>¡GRACIAS POR SU PREFERENCIA!</p>
+              <p className="mt-1">*** COPIA CLIENTE ***</p>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  // --- 2. DISEÑO REPORTE Z (Cierre de Caja con Productos) ---
+  if (data.type === 'z-report') {
+    return (
+      <div className="fixed inset-0 bg-gray-900/90 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
+        <div className="bg-white w-full max-w-sm shadow-2xl rounded-sm overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="bg-gray-800 p-3 flex justify-between items-center no-print">
+            <h3 className="text-white font-bold text-sm">REPORTE Z (CIERRE)</h3>
+            <div className="flex gap-2">
+                <button onClick={onPrint} className="bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-lg"><Printer size={18}/></button>
+                <button onClick={onClose} className="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-lg"><X size={18}/></button>
+            </div>
+          </div>
+
+          <div className="p-6 overflow-y-auto font-mono text-xs leading-relaxed text-gray-900 print:p-0 print:w-full print:text-black">
+            <div className="text-center mb-4 border-b-2 border-black pb-2">
+              <h2 className="text-xl font-black uppercase">REPORTE DE CIERRE</h2>
+              <p className="text-sm font-bold">{data.businessName}</p>
+              <p className="mt-1">{data.date}</p>
+              <p>Cajero: {data.staffName}</p>
+            </div>
+
+            <div className="space-y-1 mb-4">
+              <div className="flex justify-between"><span>Apertura:</span><span>{new Date(data.openedAt).toLocaleTimeString()}</span></div>
+              <div className="flex justify-between"><span>Cierre:</span><span>{new Date().toLocaleTimeString()}</span></div>
+            </div>
+
+            <div className="border-b border-black pb-2 mb-2">
+              <p className="font-bold uppercase mb-1">Resumen Financiero</p>
+              <div className="flex justify-between"><span>Fondo Inicial:</span><span>{data.openingAmount.toFixed(2)}</span></div>
+              <div className="flex justify-between font-bold mt-1"><span>(+) VENTAS TOTALES:</span><span>{(data.stats.cashSales + data.stats.digitalSales).toFixed(2)}</span></div>
+              <div className="pl-2 text-gray-600 print:text-black text-[10px]">
+                  <div className="flex justify-between"><span>• Efectivo:</span><span>{data.stats.cashSales.toFixed(2)}</span></div>
+                  <div className="flex justify-between"><span>• QR / Transf:</span><span>{data.stats.qrSales.toFixed(2)}</span></div>
+                  <div className="flex justify-between"><span>• Tarjeta:</span><span>{data.stats.cardSales.toFixed(2)}</span></div>
+              </div>
+              <div className="flex justify-between mt-1 text-red-600 print:text-black"><span>(-) GASTOS:</span><span>{data.stats.totalExpenses.toFixed(2)}</span></div>
+            </div>
+
+            <div className="flex justify-between items-center text-lg font-black border-b-2 border-black pb-2 mb-4">
+              <span>EFECTIVO EN CAJA</span>
+              <span>Bs. {data.finalCash.toFixed(2)}</span>
+            </div>
+
+            {/* LISTA DE GASTOS */}
+            {data.expensesList && data.expensesList.length > 0 && (
+                <div className="mb-4">
+                    <p className="font-bold uppercase border-b border-dashed border-gray-400 mb-1">Detalle de Gastos</p>
+                    {data.expensesList.map((exp, i) => (
+                        <div key={i} className="flex justify-between py-0.5">
+                            <span className="truncate w-2/3">{exp.description}</span>
+                            <span>{exp.amount.toFixed(2)}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* --- LISTA DE PRODUCTOS VENDIDOS (INVENTARIO) --- */}
+            {data.soldProducts && data.soldProducts.length > 0 ? (
+                <div className="mt-4">
+                    <p className="font-black uppercase border-b-2 border-black mb-2 text-center">PRODUCTOS VENDIDOS</p>
+                    <div className="flex justify-between font-bold text-[10px] uppercase border-b border-gray-400 pb-1 mb-1">
+                        <span className="w-8 text-center">CANT</span>
+                        <span className="flex-1 pl-2">DESCRIPCIÓN</span>
+                        <span className="w-12 text-right">TOTAL</span>
+                    </div>
+                    {data.soldProducts.map((prod, i) => (
+                        <div key={i} className="flex justify-between py-0.5 border-b border-dotted border-gray-300">
+                            <span className="w-8 text-center font-bold">{prod.qty}</span>
+                            <span className="flex-1 pl-2 truncate">{prod.name}</span>
+                            <span className="w-12 text-right">{prod.total.toFixed(2)}</span>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <div className="text-center mt-4 italic text-gray-500">No hubo ventas de productos.</div>
+            )}
+
+            <div className="text-center mt-8 text-[10px] opacity-50">
+              <p>--- FIN DEL REPORTE ---</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
 };
 
 export default Receipt;
