@@ -1,6 +1,6 @@
 // src/App.jsx - VERSIÓN MAESTRA (Con Configuración de Tiempo, Mesas y Gastos)
 import React, { useState, useEffect } from 'react';
-import { Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign, ArrowLeft, Lock, Unlock, Wallet, Loader2, LayoutGrid } from 'lucide-react';
+import { Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, Printer, Settings, Plus, Edit2, Search, Gift, Trees, ChefHat, DollarSign, ArrowLeft, Lock, Unlock, Wallet, Loader2, LayoutGrid } from 'lucide-react';
 import { onAuthStateChanged, signOut, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
 import { collection, doc, setDoc, addDoc, deleteDoc, onSnapshot, updateDoc, query, where, limit, getDocs } from 'firebase/firestore';
 import toast, { Toaster } from 'react-hot-toast';
@@ -288,7 +288,93 @@ export default function App() {
             {view === 'pin_login' && <PinLoginView staffMembers={staff} onLoginSuccess={handleStaffPinLogin} onCancel={() => setView('landing')} />}
             {view === 'pos' && (<POSInterface items={items} categories={categories} staffMember={staffMember} onCheckout={handlePOSCheckout} onPrintOrder={handleSendToKitchen} onExit={() => setView('landing')} onOpenServiceModal={() => setIsServiceModalOpen(true)} autoLockTime={autoLockTime} />)}
             {view === 'receipt_view' && <Receipt data={lastSale} onPrint={handlePrint} onClose={handleReceiptClose} />}
-            {view === 'menu' && (<>{filter === 'Todos' ? (<div className="animate-in fade-in pb-20"><div className="text-center mb-8 mt-6"><div className="inline-block p-3 rounded-full bg-black mb-3 shadow-lg shadow-purple-500/20">{logo ? <img src={logo} alt="Logo del Negocio" className="w-12 h-12 object-contain" alt="Logo"/> : <ChefHat className="text-white" size={32}/>}</div><h2 className="text-3xl font-black text-gray-900 tracking-tight">NUESTRO MENÚ</h2><p className="text-gray-500 font-medium">Selecciona una categoría</p></div><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 px-2">{categories.map((cat, index) => { const gradients = ['from-orange-500 to-purple-600', 'from-pink-500 to-blue-500', 'from-purple-500 to-pink-500', 'from-yellow-400 to-green-500', 'from-green-400 to-blue-600', 'from-orange-400 to-yellow-500']; const currentGradient = gradients[index % gradients.length]; return (<button aria-label={`Categoría ${cat}`} key={cat} onClick={() => setFilter(cat)} className={`relative h-40 rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl active:scale-95 transition-all group bg-gradient-to-br ${currentGradient}`}>{logo && (<div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden"><img src={logo} alt="" className="w-[80%] h-[80%] object-contain opacity-20 mix-blend-overlay rotate-12 scale-125 transition-transform duration-700 group-hover:scale-110 group-hover:rotate-6" /></div>)}<div className="absolute inset-0 flex items-center justify-center z-10"><span className="text-white font-black text-3xl uppercase tracking-wide drop-shadow-md text-center px-4">{cat}</span></div></button>)})}</div></div>) : (<div className="animate-in slide-in-from-right duration-300"><div className="sticky top-20 z-20 bg-gray-50/95 backdrop-blur py-2 mb-4 border-b border-gray-200"><div className="flex items-center gap-3"><button aria-label="Volver al menú" onClick={() => setFilter('Todos')} className="p-2 bg-black text-white rounded-full hover:bg-gray-800 shadow-lg transition-transform active:scale-90"><ArrowLeft size={24} /></button><h2 className="text-2xl font-black text-gray-800 uppercase tracking-wide">{filter}</h2></div></div><div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 pb-20 px-2">{filteredItems.length > 0 ? (filteredItems.map(item => (<MenuCard key={item.id} item={item} />))) : (<div className="col-span-full text-center py-20 text-gray-400 flex flex-col items-center"><Search size={48} className="mb-2 opacity-20"/><p>No hay productos en esta categoría.</p></div>)}</div></div>)}</>)}
+            {view === 'menu' && (<>
+              {filter === 'Todos' ? (
+                <div className="animate-in fade-in pb-20 relative min-h-screen bg-[#0a0a0a] -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 pt-6 overflow-hidden">
+                  
+                  {/* --- FONDO NAVIDEÑO (Igual que Landing) --- */}
+                  <div className="absolute inset-0 z-0">
+                    <div className="absolute top-[-20%] left-[-20%] w-[50%] h-[50%] bg-red-600/20 blur-[100px] rotate-45 animate-pulse"></div>
+                    <div className="absolute bottom-[-20%] right-[-20%] w-[50%] h-[50%] bg-green-600/20 blur-[100px] rotate-[-45] animate-pulse delay-500"></div>
+                  </div>
+                  {/* Copos de nieve simples (CSS inline para no crear componente extra aquí) */}
+                  <div className="absolute inset-0 pointer-events-none z-10" style={{backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '30px 30px', animation: 'snowfallNative 10s linear infinite', opacity: 0.4}}></div>
+                  <style jsx>{`@keyframes snowfallNative { from {background-position: 0 0;} to {background-position: 20px 100vh;} }`}</style>
+
+                  {/* --- CONTENIDO DEL MENÚ --- */}
+                  <div className="relative z-20 text-center mb-10 mt-4">
+                    {/* Título Decorado */}
+                    <div className="flex items-center justify-center gap-3 mb-2">
+                        <Trees size={28} className="text-red-500 drop-shadow-[0_0_8px_rgba(220,38,38,0.8)]" />
+                        <h2 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-white to-green-400 tracking-tight drop-shadow-[0_0_10px_rgba(255,255,255,0.5)] uppercase">
+                          NUESTRO MENÚ
+                        </h2>
+                        <Trees size={28} className="text-green-500 drop-shadow-[0_0_8px_rgba(34,197,94,0.8)] scale-x-[-1]" />
+                    </div>
+                    <p className="text-gray-400 font-bold uppercase tracking-widest text-sm flex justify-center items-center gap-2 before:h-px before:w-6 before:bg-red-500 after:h-px after:w-6 after:bg-green-500 opacity-80">
+                      <Gift size={14} className="text-red-400"/> Selecciona una categoría <Gift size={14} className="text-green-400"/>
+                    </p>
+                  </div>
+
+                  {/* --- GRID DE CATEGORÍAS (Estilo Luces Navideñas) --- */}
+                  <div className="relative z-20 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 px-2 max-w-5xl mx-auto">
+                    {categories.map((cat, index) => {
+                      // Colores alternados estilo navidad (Rojo, Verde, Dorado/Naranja, Morado)
+                      const borderColors = [
+                        'border-red-500/70 shadow-[0_0_15px_-3px_rgba(220,38,38,0.6),inset_0_0_10px_-5px_rgba(220,38,38,0.4)] text-red-100',
+                        'border-green-500/70 shadow-[0_0_15px_-3px_rgba(34,197,94,0.6),inset_0_0_10px_-5px_rgba(34,197,94,0.4)] text-green-100',
+                        'border-yellow-500/70 shadow-[0_0_15px_-3px_rgba(234,179,8,0.6),inset_0_0_10px_-5px_rgba(234,179,8,0.4)] text-yellow-100',
+                        'border-purple-500/70 shadow-[0_0_15px_-3px_rgba(168,85,247,0.6),inset_0_0_10px_-5px_rgba(168,85,247,0.4)] text-purple-100',
+                        'border-orange-500/70 shadow-[0_0_15px_-3px_rgba(249,115,22,0.6),inset_0_0_10px_-5px_rgba(249,115,22,0.4)] text-orange-100',
+                      ];
+                      const currentStyle = borderColors[index % borderColors.length];
+
+                      return (
+                        <button 
+                          aria-label={`Categoría ${cat}`} 
+                          key={cat} 
+                          onClick={() => setFilter(cat)} 
+                          className={`relative h-40 rounded-3xl overflow-hidden bg-black/50 backdrop-blur-md group
+                                     border-2 border-dashed transition-all duration-500 hover:scale-[1.03] active:scale-95
+                                     hover:shadow-[0_0_30px_-5px_rgba(255,255,255,0.3)] ${currentStyle}`}
+                        >
+                          {/* Decoración de esquinas (Luces) */}
+                          <div className={`absolute top-2 left-2 w-2 h-2 rounded-full animate-pulse ${index%2 ? 'bg-red-500 shadow-[0_0_5px_red]' : 'bg-green-500 shadow-[0_0_5px_green]'}`}></div>
+                          <div className={`absolute top-2 right-2 w-2 h-2 rounded-full animate-pulse delay-300 ${index%3 ? 'bg-yellow-500 shadow-[0_0_5px_yellow]' : 'bg-blue-500 shadow-[0_0_5px_blue]'}`}></div>
+                          <div className={`absolute bottom-2 left-2 w-2 h-2 rounded-full animate-pulse delay-700 ${index%2 ? 'bg-green-500 shadow-[0_0_5px_green]' : 'bg-red-500 shadow-[0_0_5px_red]'}`}></div>
+                          <div className={`absolute bottom-2 right-2 w-2 h-2 rounded-full animate-pulse delay-500 ${index%3 ? 'bg-blue-500 shadow-[0_0_5px_blue]' : 'bg-yellow-500 shadow-[0_0_5px_yellow]'}`}></div>
+
+                          {logo && (<div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden"><img src={logo} alt="" className="w-[70%] h-[70%] object-contain opacity-10 mix-blend-overlay rotate-12 scale-125 transition-transform duration-700 group-hover:scale-110 group-hover:rotate-6" /></div>)}
+                          
+                          <div className="absolute inset-0 flex flex-col items-center justify-center z-10 p-4">
+                            <Gift size={20} className={`mb-2 opacity-50 group-hover:opacity-100 transition-opacity drop-shadow-[0_0_5px_currentColor] ${index%2 ? 'text-green-400' : 'text-red-400'}`}/>
+                            <span className="font-black text-2xl uppercase tracking-wider drop-shadow-md text-center">{cat}</span>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              ) : (
+                // VISTA DE PRODUCTOS (Mantenemos simple pero oscuro)
+                <div className="animate-in slide-in-from-right duration-300 bg-gray-50 min-h-screen -mx-4 sm:-mx-6 lg:-mx-8">
+                  <div className="sticky top-16 z-20 bg-white/95 backdrop-blur py-4 mb-6 border-b border-gray-200 shadow-sm px-4 sm:px-6 lg:px-8">
+                    <div className="flex items-center gap-4 max-w-7xl mx-auto">
+                      <button aria-label="Volver al menú" onClick={() => setFilter('Todos')} className="p-3 bg-black text-white rounded-full hover:bg-gray-800 shadow-lg transition-transform active:scale-90 group">
+                        <ArrowLeft size={24} className="group-hover:-translate-x-1 transition-transform"/>
+                      </button>
+                      <div>
+                          <h2 className="text-3xl font-black text-gray-900 uppercase tracking-wide leading-none">{filter}</h2>
+                          <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">Explora nuestros productos</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6 pb-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+                    {filteredItems.length > 0 ? (filteredItems.map(item => (<MenuCard key={item.id} item={item} />))) : (<div className="col-span-full text-center py-20 text-gray-400 flex flex-col items-center"><Search size={48} className="mb-2 opacity-20"/><p>No hay productos en esta categoría.</p></div>)}
+                  </div>
+                </div>
+              )}
+            </>)}
           </main>
           <div className={`fixed bottom-0 w-full p-1 text-[10px] text-center text-white ${dbStatus === 'connected' ? 'bg-green-600' : 'bg-red-600'}`}> {dbStatus === 'connected' ? 'Sistema Online' : 'Desconectado'} </div>
         </>
