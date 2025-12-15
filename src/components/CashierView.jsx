@@ -1,4 +1,4 @@
-// src/components/CashierView.jsx - VERSIÓN FINAL: CERO BLOQUEOS (TOAST CONFIRMATION)
+// src/components/CashierView.jsx - CORRECCIÓN INP (Cero Bloqueos)
 import React, { useState, useEffect } from 'react';
 import { collection, query, orderBy, onSnapshot, writeBatch, doc } from 'firebase/firestore';
 import { db, ROOT_COLLECTION, isPersonalProject } from '../config/firebase';
@@ -151,7 +151,7 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
   // Estados Cobro Masivo
   const [selectedOrders, setSelectedOrders] = useState([]); 
   const [isSelectionMode, setIsSelectionMode] = useState(false);
-  const [isPaying, setIsPaying] = useState(false);
+  const [isPaying, setIsPaying] = useState(false); // Estado para evitar doble clic y bloquear UI
 
   useEffect(() => {
       if (tables && tables.length > 0 && !tables.includes(quickTable)) {
@@ -226,7 +226,7 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
     setCart([]); 
   };
 
-  // --- LÓGICA DE COBRO MASIVO: SIN WINDOW.CONFIRM (TOAST MODERNO) ---
+  // --- LÓGICA DE COBRO MASIVO: TOAST (CERO BLOQUEOS) ---
   const toggleOrderSelection = (orderId) => {
       setSelectedOrders(prev => {
           if (prev.includes(orderId)) return prev.filter(id => id !== orderId);
@@ -234,7 +234,7 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
       });
   };
 
-  // 1. Solicitud de Cobro (Muestra el Toast)
+  // 1. Solicitud: Muestra Toast (No bloquea el navegador)
   const requestBulkPay = (paymentMethod) => {
       if(selectedOrders.length === 0) return;
       
@@ -242,33 +242,39 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
       const totalAmount = ordersToPay.reduce((sum, o) => sum + o.total, 0);
 
       toast((t) => (
-          <div className="flex flex-col gap-2 min-w-[200px]">
-              <p className="font-bold text-sm">¿Cobrar {selectedOrders.length} pedidos?</p>
-              <div className="text-xs text-gray-500 mb-2">Total: <b>Bs. {totalAmount.toFixed(2)}</b> ({paymentMethod})</div>
+          <div className="flex flex-col gap-3 min-w-[240px] bg-white p-1">
+              <div>
+                  <p className="font-bold text-gray-800 text-sm">¿Confirmar Cobro?</p>
+                  <p className="text-xs text-gray-500">
+                      {selectedOrders.length} comandas por <b>{paymentMethod}</b>
+                  </p>
+                  <p className="text-lg font-black text-gray-900 mt-1">
+                      Total: Bs. {totalAmount.toFixed(2)}
+                  </p>
+              </div>
               <div className="flex gap-2">
                   <button 
                       onClick={() => { toast.dismiss(t.id); executeBulkPay(paymentMethod, ordersToPay); }}
-                      className="bg-green-600 text-white px-3 py-2 rounded text-xs font-bold flex-1 hover:bg-green-700"
+                      className="bg-green-600 text-white py-2 rounded-lg text-xs font-bold flex-1 hover:bg-green-700 transition-colors"
                   >
                       CONFIRMAR
                   </button>
                   <button 
                       onClick={() => toast.dismiss(t.id)}
-                      className="bg-gray-200 text-gray-800 px-3 py-2 rounded text-xs font-bold hover:bg-gray-300"
+                      className="bg-gray-100 text-gray-600 py-2 rounded-lg text-xs font-bold flex-1 hover:bg-gray-200 transition-colors"
                   >
                       CANCELAR
                   </button>
               </div>
           </div>
-      ), { duration: 5000, position: 'bottom-center' });
+      ), { duration: 8000, position: 'bottom-center', style: { borderRadius: '16px', boxShadow: '0 10px 30px -10px rgba(0,0,0,0.3)' } });
   };
 
-  // 2. Ejecución Real (En Background)
+  // 2. Ejecución: En Background con Spinner
   const executeBulkPay = async (paymentMethod, ordersToPay) => {
-      setIsPaying(true);
-      const toastId = toast.loading('Procesando...');
-
-      // Pequeño delay para asegurar que el UI muestre el loader antes de congelarse
+      setIsPaying(true); // Activa el overlay de carga
+      
+      // setTimeout permite que React pinte el overlay antes de procesar
       setTimeout(async () => {
           try {
               const batch = writeBatch(db);
@@ -298,17 +304,17 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
 
               await batch.commit();
               
-              toast.success(`¡Listo!`, { id: toastId });
+              toast.success(`¡Cobro exitoso!`, { icon: '✅' });
               setSelectedOrders([]);
               setIsSelectionMode(false); 
 
           } catch (error) {
               console.error(error);
-              toast.error('Error', { id: toastId });
+              toast.error('Error al procesar', { icon: '❌' });
           } finally {
-              setIsPaying(false);
+              setIsPaying(false); // Quita el overlay
           }
-      }, 50);
+      }, 100);
   };
 
   // --- RENDERS ---
@@ -324,12 +330,12 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
   return (
     <div className="flex flex-col h-[calc(100vh-100px)] animate-in fade-in relative">
       
-      {/* Overlay de carga */}
+      {/* Overlay de carga (Solo aparece al confirmar el Toast) */}
       {isPaying && (
-          <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-[60] flex items-center justify-center rounded-2xl">
-              <div className="bg-white p-4 rounded-xl shadow-xl flex items-center gap-3 border border-gray-100">
-                  <Loader2 className="animate-spin text-blue-600" size={24}/>
-                  <span className="font-bold text-gray-700">Guardando...</span>
+          <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-[60] flex items-center justify-center rounded-2xl animate-in fade-in duration-200">
+              <div className="bg-white p-4 rounded-2xl shadow-2xl flex flex-col items-center gap-3 border border-gray-100">
+                  <Loader2 className="animate-spin text-blue-600" size={32}/>
+                  <span className="font-bold text-gray-700 text-sm">Procesando pagos...</span>
               </div>
           </div>
       )}
@@ -428,6 +434,7 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
                  </div>
                  
                  <div className="flex gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0 justify-center">
+                     {/* BOTONES DE PAGO (Llaman a requestBulkPay en vez de ejecutar directo) */}
                      <button 
                         onClick={() => requestBulkPay('Efectivo')} 
                         disabled={isPaying}
