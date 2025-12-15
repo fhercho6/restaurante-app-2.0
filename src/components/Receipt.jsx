@@ -1,10 +1,11 @@
-// src/components/Receipt.jsx - COMANDA vs VENTA
-import React from 'react';
+// src/components/Receipt.jsx - AUTO IMPRESIÓN HABILITADA
+import React, { useEffect } from 'react';
 import { X, Printer } from 'lucide-react';
 
 const Receipt = ({ data, onPrint, onClose }) => {
   if (!data) return null;
 
+  // --- FUNCIÓN DE IMPRESIÓN ---
   const handlePrintInNewWindow = () => {
     const printWindow = window.open('', 'PRINT', 'height=600,width=400');
 
@@ -13,7 +14,7 @@ const Receipt = ({ data, onPrint, onClose }) => {
       return;
     }
 
-    // --- LÓGICA INTELIGENTE DE TÍTULOS ---
+    // LÓGICA INTELIGENTE DE TÍTULOS
     let title = data.businessName || 'LicoBar';
     let subTitle = '';
 
@@ -22,7 +23,6 @@ const Receipt = ({ data, onPrint, onClose }) => {
     } else if (data.type === 'expense') {
         title = 'VALE DE CAJA';
     } else if (data.type === 'order' || data.type === 'quick_sale') {
-        // SI TIENE PAGOS, ES VENTA FINAL. SI NO, ES COMANDA DE GARZÓN.
         if (data.payments && data.payments.length > 0) {
             title = data.businessName || 'LicoBar'; // Venta oficial
         } else {
@@ -31,9 +31,7 @@ const Receipt = ({ data, onPrint, onClose }) => {
         }
     }
 
-    // --- CONSTRUCCIÓN DEL HTML ---
-    
-    // 1. Filas de productos
+    // CONSTRUCCIÓN DEL HTML
     let itemsHtml = '';
     if (data.items) {
         itemsHtml = data.items.map(item => `
@@ -45,7 +43,6 @@ const Receipt = ({ data, onPrint, onClose }) => {
         `).join('');
     }
 
-    // 2. Filas de Reporte Z
     let zReportProductsHtml = '';
     if (data.soldProducts) {
         zReportProductsHtml = data.soldProducts.map(prod => `
@@ -92,11 +89,9 @@ const Receipt = ({ data, onPrint, onClose }) => {
           </style>
         </head>
         <body>
-          
           <div class="text-center border-b">
             <div class="bold text-lg uppercase">${title}</div>
             ${subTitle ? `<div class="text-xs bold">${subTitle}</div>` : ''}
-            
             <div class="text-xs" style="margin-top: 2px;">${data.date}</div>
             <div class="text-xs uppercase">Atiende: ${data.staffName}</div>
             ${data.orderId ? `<div class="text-xs">Orden: #${data.orderId.slice(-6)}</div>` : ''}
@@ -108,22 +103,17 @@ const Receipt = ({ data, onPrint, onClose }) => {
                 <div class="col-name">DESCRIPCION</div>
                 <div class="col-price">TOTAL</div>
             </div>
-            
             <div>${itemsHtml}</div>
-            
             <div class="divider"></div>
-            
             <div class="flex-between extra-bold">
                 <span>TOTAL:</span>
                 <span>Bs. ${data.total.toFixed(2)}</span>
             </div>
-            
             ${data.payments ? `
                 <div class="text-xs" style="margin-top: 4px;">
                     ${data.payments.map(p => `<div class="flex-between"><span>Pago ${p.method}:</span><span>${p.amount.toFixed(2)}</span></div>`).join('')}
                 </div>
             ` : ''}
-            
             ${data.changeGiven > 0 ? `<div class="text-right bold text-xs" style="margin-top:4px;">CAMBIO: ${data.changeGiven.toFixed(2)}</div>` : ''}
           ` : ''}
 
@@ -186,6 +176,13 @@ const Receipt = ({ data, onPrint, onClose }) => {
       printWindow.close();
     }, 500);
   };
+
+  // --- EFECTO DE AUTO-IMPRESIÓN ---
+  useEffect(() => {
+      if (data && data.autoPrint) {
+          handlePrintInNewWindow();
+      }
+  }, [data]); // Se ejecuta cada vez que cambia la 'data' (nuevo recibo)
 
   return (
     <div className="fixed inset-0 bg-gray-900/90 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">

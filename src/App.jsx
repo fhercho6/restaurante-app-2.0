@@ -1,4 +1,4 @@
-// src/App.jsx - VISTA ADMINISTRADOR MEJORADA (CATEGORÍAS LIMPIAS)
+// src/App.jsx - CON AUTO-IMPRESIÓN ACTIVADA
 import React, { useState, useEffect, useMemo } from 'react';
 import { Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign, ArrowLeft, Lock, Unlock, Wallet, Loader2, LayoutGrid, Gift, Trees, TrendingUp, Package, AlertCircle, Filter, X } from 'lucide-react';
 import { onAuthStateChanged, signOut, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
@@ -208,22 +208,107 @@ export default function App() {
 
   const checkRegisterStatus = (requireOwnership = false) => { if (registerSession) { const isAdmin = currentUser && !currentUser.isAnonymous; const isOwner = staffMember && registerSession.openedBy === staffMember.name; if (requireOwnership && !isAdmin && !isOwner) { toast.error(`⛔ ACCESO DENEGADO\nTurno de: ${registerSession.openedBy}`, { duration: 5000 }); return false; } return true; } const canOpenRegister = (currentUser && !currentUser.isAnonymous) || (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador')); if (canOpenRegister) setIsOpenRegisterModalOpen(true); else toast.error("⚠️ LA CAJA ESTÁ CERRADA.", { icon: '🔒' }); return false; };
   const handleOpenRegister = async (amount, activeTeam = []) => { try { const sessionData = { status: 'open', openedBy: staffMember ? staffMember.name : (currentUser?.email || 'Admin'), openedAt: new Date().toISOString(), openingAmount: amount, activeTeam: activeTeam, salesTotal: 0 }; const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`; const docRef = await addDoc(collection(db, colName), sessionData); setRegisterSession({ id: docRef.id, ...sessionData }); setIsOpenRegisterModalOpen(false); toast.success(`Turno Abierto`, { icon: '🔓' }); } catch (error) { toast.error("Error al abrir caja"); } };
-  const handleStartService = async (service, note) => { if (!checkRegisterStatus(false)) return; try { const serviceData = { serviceName: service.name, pricePerHour: service.price, startTime: new Date().toISOString(), note: note, staffName: staffMember ? staffMember.name : 'Admin', registerId: registerSession.id }; const colName = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`; await addDoc(collection(db, colName), serviceData); const orderData = { date: new Date().toISOString(), staffId: staffMember ? staffMember.id : 'anon', staffName: staffMember ? staffMember.name : 'Mesero', orderId: 'INI-' + Math.floor(Math.random() * 1000), items: [{ id: 'start-' + Date.now(), name: `⏱️ INICIO: ${service.name} (${note})`, price: 0, qty: 1, category: 'Servicios' }], total: 0, status: 'pending' }; setIsServiceModalOpen(false); const ticketData = { ...orderData, type: 'order', businessName: appName, date: new Date().toLocaleString() }; setLastSale(ticketData); setView('receipt_view'); toast.success("Servicio iniciado. Imprimiendo ticket..."); } catch (e) { toast.error("Error al iniciar servicio"); } };
-  const handleStopService = async (service, cost, timeLabel) => { if (!checkRegisterStatus(true)) return; if (!window.confirm(`¿Detener ${service.serviceName}?\nCosto: Bs. ${cost.toFixed(2)}`)) return; try { const srvCol = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`; await deleteDoc(doc(db, srvCol, service.id)); const orderData = { date: new Date().toISOString(), staffId: staffMember ? staffMember.id : 'anon', staffName: service.staffName || 'Sistema', orderId: 'SRV-' + Math.floor(Math.random() * 1000), items: [{ id: 'srv-' + Date.now(), name: `${service.serviceName} (${timeLabel})`, price: cost, qty: 1, category: 'Servicios' }], total: cost, status: 'pending' }; const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`; await addDoc(collection(db, ordersCol), orderData); toast.success("Servicio detenido. Ticket de inicio borrado."); } catch (e) { console.error(e); toast.error("Error al detener servicio"); } };
   
-  const handleAddExpense = async (description, amount) => { if (!registerSession) return; try { const expenseData = { registerId: registerSession.id, description, amount, date: new Date().toISOString(), createdBy: staffMember ? staffMember.name : 'Admin' }; const colName = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`; await addDoc(collection(db, colName), expenseData); const expenseReceipt = { type: 'expense', businessName: appName, date: new Date().toLocaleString(), staffName: staffMember ? staffMember.name : 'Admin', description: description, amount: amount }; setLastSale(expenseReceipt); setView('receipt_view'); toast.success("Gasto registrado", { icon: '💸' }); } catch (e) { toast.error("Error guardando gasto"); } };
+  // --- INICIAR SERVICIO (AUTO PRINT) ---
+  const handleStartService = async (service, note) => { 
+      if (!checkRegisterStatus(false)) return; 
+      try { 
+          const serviceData = { serviceName: service.name, pricePerHour: service.price, startTime: new Date().toISOString(), note: note, staffName: staffMember ? staffMember.name : 'Admin', registerId: registerSession.id }; 
+          const colName = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`; 
+          await addDoc(collection(db, colName), serviceData); 
+          const orderData = { date: new Date().toISOString(), staffId: staffMember ? staffMember.id : 'anon', staffName: staffMember ? staffMember.name : 'Mesero', orderId: 'INI-' + Math.floor(Math.random() * 1000), items: [{ id: 'start-' + Date.now(), name: `⏱️ INICIO: ${service.name} (${note})`, price: 0, qty: 1, category: 'Servicios' }], total: 0, status: 'pending' }; 
+          setIsServiceModalOpen(false); 
+          
+          const ticketData = { ...orderData, type: 'order', businessName: appName, date: new Date().toLocaleString(), autoPrint: true }; // <--- AUTO PRINT 
+          setLastSale(ticketData); 
+          setView('receipt_view'); 
+          toast.success("Servicio iniciado"); 
+      } catch (e) { toast.error("Error al iniciar servicio"); } 
+  };
+
+  // --- DETENER SERVICIO (AUTO PRINT) ---
+  const handleStopService = async (service, cost, timeLabel) => { 
+      if (!checkRegisterStatus(true)) return; 
+      if (!window.confirm(`¿Detener ${service.serviceName}?\nCosto: Bs. ${cost.toFixed(2)}`)) return; 
+      try { 
+          const srvCol = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`; 
+          await deleteDoc(doc(db, srvCol, service.id)); 
+          const orderData = { date: new Date().toISOString(), staffId: staffMember ? staffMember.id : 'anon', staffName: service.staffName || 'Sistema', orderId: 'SRV-' + Math.floor(Math.random() * 1000), items: [{ id: 'srv-' + Date.now(), name: `${service.serviceName} (${timeLabel})`, price: cost, qty: 1, category: 'Servicios' }], total: cost, status: 'pending' }; 
+          const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`; 
+          await addDoc(collection(db, ordersCol), orderData); 
+          
+          // Nota: No se imprime ticket automático al parar, se espera que el cajero cobre para imprimir el recibo final.
+          toast.success("Servicio detenido."); 
+      } catch (e) { console.error(e); toast.error("Error al detener servicio"); } 
+  };
+  
+  const handleAddExpense = async (description, amount) => { if (!registerSession) return; try { const expenseData = { registerId: registerSession.id, description, amount, date: new Date().toISOString(), createdBy: staffMember ? staffMember.name : 'Admin' }; const colName = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`; await addDoc(collection(db, colName), expenseData); const expenseReceipt = { type: 'expense', businessName: appName, date: new Date().toLocaleString(), staffName: staffMember ? staffMember.name : 'Admin', description: description, amount: amount, autoPrint: true }; setLastSale(expenseReceipt); setView('receipt_view'); toast.success("Gasto registrado", { icon: '💸' }); } catch (e) { toast.error("Error guardando gasto"); } };
   const handleDeleteExpense = async (id) => { if(!window.confirm("¿Eliminar este gasto?")) return; try { const colName = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`; await deleteDoc(doc(db, colName, id)); toast.success("Gasto eliminado"); } catch (e) { toast.error("Error"); } };
   
   const handleCloseRegister = () => { if (!registerSession) return; const cashFinal = registerSession.openingAmount + sessionStats.cashSales - sessionStats.totalExpenses; toast((t) => ( <div className="flex flex-col gap-3 min-w-[240px]"> <div className="border-b pb-3"> <p className="font-bold text-gray-800 text-lg mb-2">Resumen de Cierre</p> <div className="bg-gray-50 p-2 rounded mb-3 grid grid-cols-2 gap-2 text-xs"> <div className="bg-white p-2 rounded border border-gray-100"><span className="text-gray-500 block uppercase text-[10px]">Total QR</span><span className="font-bold text-blue-600 text-sm">Bs. {sessionStats.qrSales.toFixed(2)}</span></div> <div className="bg-white p-2 rounded border border-gray-100"><span className="text-gray-500 block uppercase text-[10px]">Total Tarjeta</span><span className="font-bold text-purple-600 text-sm">Bs. {sessionStats.cardSales.toFixed(2)}</span></div> </div> <div className="px-2"><p className="text-xs text-gray-500 uppercase font-bold">Efectivo en Caja:</p><p className="text-2xl font-black text-green-600">Bs. {cashFinal.toFixed(2)}</p></div> </div> <div className="flex gap-2"><button onClick={() => { confirmCloseRegister(cashFinal); toast.dismiss(t.id); }} className="bg-red-600 text-white px-4 py-3 rounded-lg text-xs font-bold shadow-sm flex-1 hover:bg-red-700 transition-colors">CERRAR TURNO</button><button onClick={() => toast.dismiss(t.id)} className="bg-gray-200 text-gray-800 px-4 py-3 rounded-lg text-xs font-bold flex-1 hover:bg-gray-300 transition-colors">CANCELAR</button></div> </div> ), { duration: 10000, position: 'top-center', icon: null }); };
-  const confirmCloseRegister = async (finalCash) => { try { const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`; await updateDoc(doc(db, colName, registerSession.id), { status: 'closed', closedAt: new Date().toISOString(), closedBy: staffMember ? staffMember.name : 'Admin', finalCashCalculated: finalCash, finalSalesStats: sessionStats }); const zReportData = { type: 'z-report', businessName: appName, date: new Date().toLocaleString(), staffName: staffMember ? staffMember.name : 'Admin', registerId: registerSession.id, openedAt: registerSession.openedAt, openingAmount: registerSession.openingAmount, finalCash: finalCash, stats: sessionStats, expensesList: sessionStats.expensesList, soldProducts: sessionStats.soldProducts }; setRegisterSession(null); setSessionStats({ cashSales: 0, qrSales: 0, cardSales: 0, digitalSales: 0, totalExpenses: 0, totalCostOfGoods: 0, courtesyTotal: 0, courtesyCost: 0, expensesList: [], soldProducts: [] }); setLastSale(zReportData); setView('receipt_view'); toast.success("Cierre exitoso", { icon: '🖨️' }); } catch (error) { toast.error("Error cerrando"); } };
+  
+  // --- CERRAR CAJA (AUTO PRINT) ---
+  const confirmCloseRegister = async (finalCash) => { 
+      try { 
+          const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`; 
+          await updateDoc(doc(db, colName, registerSession.id), { status: 'closed', closedAt: new Date().toISOString(), closedBy: staffMember ? staffMember.name : 'Admin', finalCashCalculated: finalCash, finalSalesStats: sessionStats }); 
+          
+          const zReportData = { 
+              type: 'z-report', 
+              businessName: appName, 
+              date: new Date().toLocaleString(), 
+              staffName: staffMember ? staffMember.name : 'Admin', 
+              registerId: registerSession.id, 
+              openedAt: registerSession.openedAt, 
+              openingAmount: registerSession.openingAmount, 
+              finalCash: finalCash, 
+              stats: sessionStats, 
+              expensesList: sessionStats.expensesList, 
+              soldProducts: sessionStats.soldProducts,
+              autoPrint: true // <--- AUTO PRINT REPORTE Z
+          }; 
+          
+          setRegisterSession(null); 
+          setSessionStats({ cashSales: 0, qrSales: 0, cardSales: 0, digitalSales: 0, totalExpenses: 0, totalCostOfGoods: 0, courtesyTotal: 0, courtesyCost: 0, expensesList: [], soldProducts: [] }); 
+          setLastSale(zReportData); 
+          setView('receipt_view'); 
+          toast.success("Cierre exitoso", { icon: '🖨️' }); 
+      } catch (error) { toast.error("Error cerrando"); } 
+  };
+  
   const handleReprintZReport = (shiftData) => { const zReportData = { type: 'z-report', businessName: appName, date: new Date(shiftData.closedAt).toLocaleString(), staffName: shiftData.closedBy || 'Admin', registerId: shiftData.id, openedAt: shiftData.openedAt, openingAmount: shiftData.openingAmount, finalCash: shiftData.finalCashCalculated, stats: shiftData.finalSalesStats || { cashSales:0, qrSales: 0, cardSales: 0, totalExpenses:0, totalCostOfGoods: 0, courtesyTotal: 0, courtesyCost: 0 }, expensesList: shiftData.finalSalesStats?.expensesList || [], soldProducts: shiftData.finalSalesStats?.soldProducts || [] }; setLastSale(zReportData); setView('receipt_view'); toast.success("Cargando copia del reporte..."); };
   const handleStartPaymentFromCashier = (order, clearCartCallback) => { if (!checkRegisterStatus(true)) return; setOrderToPay(order); setPendingSale({ cart: order.items, clearCart: clearCartCallback || (() => {}) }); setIsPaymentModalOpen(true); };
   const handlePOSCheckout = (cart, clearCart) => { if (!checkRegisterStatus(true)) return; setOrderToPay(null); setPendingSale({ cart, clearCart }); setIsPaymentModalOpen(true); };
-  const handleSendToKitchen = async (cart, clearCart) => { if (!checkRegisterStatus(false)) return; if (cart.length === 0) return; const toastId = toast.loading('Procesando comanda...'); try { const totalOrder = cart.reduce((acc, item) => acc + (item.price * item.qty), 0); const orderData = { date: new Date().toISOString(), staffId: staffMember ? staffMember.id : 'anon', staffName: staffMember ? staffMember.name : 'Mesero', orderId: 'ORD-' + Math.floor(Math.random() * 10000), items: cart, total: totalOrder, status: 'pending' }; const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`; await addDoc(collection(db, ordersCol), orderData); const preCheckData = { ...orderData, type: 'order', date: new Date().toLocaleString() }; clearCart([]); setLastSale(preCheckData); toast.success('Pedido enviado a caja', { id: toastId }); setView('receipt_view'); } catch (error) { toast.error('Error al enviar pedido', { id: toastId }); } };
+  
+  // --- ENVIAR A COCINA (AUTO PRINT COMANDA) ---
+  const handleSendToKitchen = async (cart, clearCart) => { 
+      if (!checkRegisterStatus(false)) return; 
+      if (cart.length === 0) return; 
+      const toastId = toast.loading('Procesando comanda...'); 
+      try { 
+          const totalOrder = cart.reduce((acc, item) => acc + (item.price * item.qty), 0); 
+          const orderData = { date: new Date().toISOString(), staffId: staffMember ? staffMember.id : 'anon', staffName: staffMember ? staffMember.name : 'Mesero', orderId: 'ORD-' + Math.floor(Math.random() * 10000), items: cart, total: totalOrder, status: 'pending' }; 
+          const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`; 
+          await addDoc(collection(db, ordersCol), orderData); 
+          
+          const preCheckData = { 
+              ...orderData, 
+              type: 'order', 
+              date: new Date().toLocaleString(),
+              autoPrint: true // <--- AUTO PRINT COMANDA
+          }; 
+          
+          clearCart([]); 
+          setLastSale(preCheckData); 
+          toast.success('Pedido enviado a caja', { id: toastId }); 
+          setView('receipt_view'); 
+      } catch (error) { toast.error('Error al enviar pedido', { id: toastId }); } 
+  };
+  
   const handleVoidAndPrint = async (order) => { try { const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`; await deleteDoc(doc(db, ordersCol, order.id)); const voidData = { ...order, type: 'void', businessName: appName, date: new Date().toLocaleString() }; setLastSale(voidData); toast.success("Pedido anulado"); setView('receipt_view'); } catch (error) { toast.error("Error al anular"); } };
   const handleReprintOrder = (order) => { const preCheckData = { ...order, type: 'order', businessName: appName, date: new Date().toLocaleString() }; setLastSale(preCheckData); setView('receipt_view'); toast.success("Reimprimiendo comanda..."); };
   
-  // --- HANDLE FINALIZAR (CORREGIDO) ---
+  // --- HANDLE FINALIZAR (AUTO PRINT TICKET) ---
   const handleFinalizeSale = async (paymentResult) => { 
       if (!db) return; 
       if (staffMember && staffMember.role !== 'Cajero' && staffMember.role !== 'Administrador') { toast.error("⛔ ACCESO DENEGADO: Solo Cajeros pueden cobrar."); setIsPaymentModalOpen(false); return; } 
@@ -251,7 +336,21 @@ export default function App() {
           if (orderToPay && orderToPay.type !== 'quick_sale') { const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`; batchPromises.push(deleteDoc(doc(db, ordersCol, orderToPay.id))); } 
           await Promise.all(batchPromises); 
           
-          const receiptData = { type: 'order', businessName: appName, date: timestamp.toLocaleString(), staffName: waiterName, cashierName: cashierName, orderId: docRef.id, items: cleanItems, total: totalToProcess, payments: paymentsList, change: change }; 
+          // IMPORTANTE: AGREGAMOS autoPrint: true
+          const receiptData = { 
+              type: 'order', 
+              businessName: appName, 
+              date: timestamp.toLocaleString(), 
+              staffName: waiterName, 
+              cashierName: cashierName, 
+              orderId: docRef.id, 
+              items: cleanItems, 
+              total: totalToProcess, 
+              payments: paymentsList, 
+              change: change,
+              autoPrint: true // <--- AUTO PRINT TICKET
+          }; 
+          
           setLastSale(receiptData); 
           if (pendingSale && pendingSale.clearCart) pendingSale.clearCart([]); 
           setPendingSale(null); setOrderToPay(null); 
