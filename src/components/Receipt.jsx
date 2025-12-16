@@ -1,9 +1,9 @@
-// src/components/Receipt.jsx - VELOCIDAD Y FORMATO CORREGIDO
+// src/components/Receipt.jsx - VELOCIDAD, AUTO-CIERRE Y FORMATO CORRECTO
 import React, { useEffect, useState } from 'react';
-import { X, Printer, Loader2 } from 'lucide-react';
+import { X, Printer, Loader2, CheckCircle } from 'lucide-react';
 
 const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
-  const [status, setStatus] = useState('preview'); // 'preview', 'printing', 'done'
+  const [status, setStatus] = useState('preview'); // Estados: 'preview', 'printing', 'done'
 
   if (!data) return null;
 
@@ -12,19 +12,20 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
       return isNaN(num) ? '0.00' : num.toFixed(2); 
   };
 
-  // 1. REGLA DE ORO: FORMATO TÉRMICO O CARTA
-  // Si NO es un Cierre Z, SIEMPRE es térmico (para ventas, comandas, gastos, cortesías)
+  // --- LÓGICA DE FORMATO INTELIGENTE ---
+  // 1. ¿Es un reporte Z? Solo el reporte Z respeta la configuración 'Carta'.
+  // 2. ¿Es cualquier otra cosa (Venta, Gasto, Cortesía)? SIEMPRE es Térmico.
   const isZReport = data.type === 'z-report';
   const useThermalFormat = !isZReport || printerType === 'thermal';
 
-  // Detectar cortesía
+  // Datos auxiliares
   const isCourtesySale = data.payments && data.payments.some(p => p.method === 'Cortesía');
   const staffName = data.staffName || 'General';
   const cashierName = data.cashierName || 'Caja';
-  // Código para emparejar (solo números)
+  // Solo números para el código grande
   const displayCode = data.orderId ? data.orderId.replace(/[^0-9]/g, '').slice(-4) : '----';
 
-  // --- PLANTILLA CARTA (SOLO PARA CIERRES) ---
+  // --- PLANTILLA CARTA (SOLO PARA CIERRES DE CAJA) ---
   const renderLetterReport = () => {
       const stats = data.stats || {};
       const productRows = data.soldProducts ? data.soldProducts.map(p => `<tr><td style="text-align:left;padding:5px;border-bottom:1px solid #eee;">${p.name}</td><td style="text-align:center;padding:5px;border-bottom:1px solid #eee;">${p.qtySold || 0}</td><td style="text-align:center;padding:5px;border-bottom:1px solid #eee; background-color:#fffbea;">${p.qtyCourtesy || 0}</td><td style="text-align:right;padding:5px;border-bottom:1px solid #eee;">${fmt(p.totalCost)}</td><td style="text-align:right;padding:5px;border-bottom:1px solid #eee; color:#d97706;">${(p.qtyCourtesy > 0 && p.total === 0) ? '(Regalo)' : (p.qtyCourtesy > 0 ? 'Mixto' : '-')}</td><td style="text-align:right;padding:5px;border-bottom:1px solid #eee;">${fmt(p.total)}</td></tr>`).join('') : '';
@@ -36,7 +37,7 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
             <div class="page-break"></div><div style="font-weight:900;font-size:14px;margin-bottom:10px;border-bottom:1px solid #000;">III. DETALLE PRODUCTOS</div><table class="product-table"><thead><tr><th>PRODUCTO</th><th class="text-center">VEND</th><th class="text-center">CORT</th><th class="text-right">T.COSTO</th><th class="text-right">T.VENTA</th></tr></thead><tbody>${productRows}</tbody></table></body></html>`;
   };
 
-  // --- MODO 2: TICKET TÉRMICO (VENTAS, GASTOS, CORTESIAS) ---
+  // --- MODO 2: TICKET TÉRMICO (VENTAS, CORTESÍAS, GASTOS) ---
   const renderThermalReport = () => {
       const stats = data.stats || {};
       let title = (data.businessName || 'LicoBar').toUpperCase();
@@ -46,7 +47,7 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
       let itemsHtml = data.items ? data.items.map(item => `<div class="row" style="margin-bottom:2px;"><div class="col-qty">${item.qty}</div><div class="col-name">${item.name}</div><div class="col-price">${isCourtesySale ? '0.00' : fmt(item.price * item.qty)}</div></div>`).join('') : '';
       let zReportRows = data.soldProducts ? data.soldProducts.map(p => `<div class="row"><div class="col-qty">${p.qtySold + (p.qtyCourtesy||0)}</div><div class="col-name">${p.name}</div><div class="col-price">${fmt(p.total)}</div></div>`).join('') : '';
 
-      return `<html><head><style>*{box-sizing:border-box}body{font-family:'Arial',sans-serif;margin:0;padding:5px 0;width:72mm;font-size:12px}.text-center{text-align:center}.text-right{text-align:right}.bold{font-weight:700}.border-b{border-bottom:1px solid #000;padding-bottom:5px;margin-bottom:5px}.flex-between{display:flex;justify-content:space-between}.row{display:flex;width:100%;font-size:11px}.col-qty{width:10%;text-align:center}.col-name{width:65%;padding-left:5px}.col-price{width:25%;text-align:right}.code-box{font-size:24px;font-weight:900;text-align:center;margin:5px 0;border:2px solid #000;padding:2px;}</style></head><body>
+      return `<html><head><style>*{box-sizing:border-box}body{font-family:'Arial',sans-serif;margin:0;padding:5px 0;width:72mm;font-size:12px}.text-center{text-align:center}.text-right{text-align:right}.bold{font-weight:700}.border-b{border-bottom:1px solid #000;padding-bottom:5px;margin-bottom:5px}.flex-between{display:flex;justify-content:space-between}.row{display:flex;width:100%;font-size:11px}.col-qty{width:10%;text-align:center}.col-name{width:65%;padding-left:5px}.col-price{width:25%;text-align:right}.code-box{font-size:24px;font-weight:900;text-align:center;margin:5px 0;border:2px solid #000;padding:2px;}.courtesy-box{border:2px dashed #000;padding:5px;margin:10px 0;text-align:center}</style></head><body>
             <div class="text-center border-b">
                 <div class="bold" style="font-size:16px;">${data.type==='z-report'?'CIERRE DE CAJA':title}</div>
                 <div style="font-size:10px;">${data.date}</div>
@@ -55,87 +56,104 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
             </div>
             ${data.type === 'z-report' ? `<div class="flex-between"><span>Fondo Inicial:</span><span>${fmt(data.openingAmount)}</span></div><div class="flex-between bold"><span>(+) Ventas:</span><span>${fmt((stats.cashSales||0)+(stats.digitalSales||0))}</span></div><div class="flex-between"><span>(-) Gastos:</span><span>${fmt(stats.totalExpenses)}</span></div><div class="border-b" style="margin:5px 0;"></div><div class="flex-between bold" style="font-size:18px;"><span>CAJA:</span><span>Bs. ${fmt(data.finalCash)}</span></div><br/><div class="bold text-center border-b">PRODUCTOS</div>${zReportRows}` : data.type === 'expense' ? `<div style="margin-top:10px;"><span style="font-size:10px;">CONCEPTO:</span><br/><span class="bold uppercase" style="font-size:14px;">${data.description}</span><div class="border-b" style="margin:5px 0;"></div><div class="flex-between bold" style="font-size:18px;"><span>RETIRO:</span><span>Bs. ${fmt(data.amount)}</span></div><br/><br/><div class="text-center" style="font-size:10px;border-top:1px solid #000;padding-top:5px;">FIRMA</div></div>` : `
                 <div class="row bold" style="font-size:10px;border-bottom:1px solid #000;margin-bottom:2px;"><div class="col-qty">C</div><div class="col-name">DESCRIPCION</div><div class="col-price">TOTAL</div></div>${itemsHtml}<div class="border-b" style="margin:5px 0;"></div>
-                ${isCourtesySale?`<div style="text-align:center;font-weight:bold;margin:10px 0;border:2px dashed #000;">CORTESÍA / REGALO</div><div class="flex-between bold" style="font-size:16px;"><span>A PAGAR:</span><span>Bs. 0.00</span></div>`:`<div class="flex-between bold" style="font-size:18px;"><span>TOTAL:</span><span>Bs. ${fmt(data.total)}</span></div>${data.payments?`<div style="margin-top:5px;font-size:10px;">${data.payments.map(p=>`<div class="flex-between"><span>PAGO ${p.method.toUpperCase()}:</span><span>${fmt(p.amount)}</span></div>`).join('')}</div>`:''}${data.changeGiven>0?`<div class="text-right bold" style="margin-top:2px;">CAMBIO: ${fmt(data.changeGiven)}</div>`:''}`}
+                ${isCourtesySale?`<div class="courtesy-box"><div class="bold" style="font-size:14px;">CORTESÍA AUTORIZADA</div><div style="font-size:10px;">Total Bonificado: Bs. ${fmt(data.total)}</div></div><div class="flex-between bold" style="font-size:16px;"><span>A PAGAR:</span><span>Bs. 0.00</span></div>`:`<div class="flex-between bold" style="font-size:18px;"><span>TOTAL:</span><span>Bs. ${fmt(data.total)}</span></div>${data.payments?`<div style="margin-top:5px;font-size:10px;">${data.payments.map(p=>`<div class="flex-between"><span>PAGO ${p.method.toUpperCase()}:</span><span>${fmt(p.amount)}</span></div>`).join('')}</div>`:''}${data.changeGiven>0?`<div class="text-right bold" style="margin-top:2px;">CAMBIO: ${fmt(data.changeGiven)}</div>`:''}`}
             `}
-            <div style="margin-top:15px;text-align:center;font-size:10px;">*** GRACIAS ***</div></body></html>`;
+            <div style="margin-top:15px;text-align:center;font-size:10px;">*** GRACIAS POR SU VISITA ***</div></body></html>`;
   };
 
   const handlePrintInNewWindow = () => {
-    // Configuración de ventana (Más rápido)
+    // Definir tamaño de ventana
     const isThermal = useThermalFormat;
-    const printWindow = window.open('', 'PRINT', `height=${isThermal?600:800},width=${isThermal?400:1000}`);
+    const width = isThermal ? 400 : 1000;
+    const height = isThermal ? 600 : 800;
     
-    if (!printWindow) { alert("Permite las ventanas emergentes."); return; }
+    // Abrir ventana (puede ser bloqueada por el navegador la primera vez)
+    const printWindow = window.open('', 'PRINT', `height=${height},width=${width}`);
+    
+    if (!printWindow) { 
+        alert("⚠️ Por favor permite las ventanas emergentes para imprimir."); 
+        setStatus('preview'); // Regresar a modo manual si falló
+        return; 
+    }
     
     const htmlContent = isThermal ? renderThermalReport() : renderLetterReport();
     printWindow.document.write(htmlContent);
     printWindow.document.close();
     printWindow.focus();
     
-    // TIEMPO DE ESPERA REDUCIDO AL MÍNIMO (10ms en vez de 500ms)
+    // EJECUCIÓN RÁPIDA DE IMPRESIÓN
     setTimeout(() => { 
         printWindow.print(); 
         printWindow.close(); 
         
-        // Si es impresión automática, marcamos como 'done' para cerrar el modal
+        // Si es automático, cerramos el modal azul después de un momento
         if (data.autoPrint) {
             setStatus('done');
-            setTimeout(onClose, 2000); // Cierra el modal azul automáticamente después de 2 segundos
+            setTimeout(onClose, 2000); // 2 segundos para ver el check verde
         }
-    }, 50); 
+    }, 100); 
   };
 
+  // INICIO AUTOMÁTICO
   useEffect(() => { 
       if (data && data.autoPrint) {
           setStatus('printing');
-          handlePrintInNewWindow(); 
+          // Pequeño delay para asegurar que el DOM cargó
+          setTimeout(handlePrintInNewWindow, 300);
       }
   }, [data]);
 
   const previewAmount = data.type === 'expense' ? data.amount : (data.type === 'z-report' ? data.finalCash : data.total);
 
-  // SI SE ESTÁ IMPRIMIENDO AUTOMÁTICAMENTE, MOSTRAR "IMPRIMIENDO..." EN LUGAR DEL BOTÓN
-  // Esto reduce la sensación de "retraso" visual
   return (
     <div className="fixed inset-0 bg-gray-900/90 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
       <div className="bg-white w-full max-w-sm shadow-2xl rounded-xl overflow-hidden flex flex-col max-h-[90vh]">
         
-        {status === 'printing' || status === 'done' ? (
-            <div className="p-8 flex flex-col items-center justify-center text-center">
-                {status === 'printing' ? (
-                    <>
-                        <Loader2 size={48} className="text-blue-600 animate-spin mb-4"/>
-                        <h3 className="text-lg font-bold text-gray-800">Imprimiendo...</h3>
-                        <p className="text-sm text-gray-500">Por favor espere</p>
-                    </>
-                ) : (
-                    <>
-                        <Printer size={48} className="text-green-600 mb-4"/>
-                        <h3 className="text-lg font-bold text-gray-800">¡Impreso!</h3>
-                        <p className="text-sm text-gray-500">Cerrando ventana...</p>
-                    </>
-                )}
-            </div>
-        ) : (
-            <>
-                <div className="bg-gray-800 p-3 flex justify-between items-center">
-                  <h3 className="text-white font-bold text-sm">VISTA PREVIA</h3>
-                  <div className="flex gap-2">
-                      <button onClick={handlePrintInNewWindow} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 shadow-lg"><Printer size={18}/> IMPRIMIR</button>
-                      <button onClick={onClose} className="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-lg"><X size={18}/></button>
-                  </div>
+        {/* CABECERA (Oculta si está imprimiendo solo) */}
+        {status === 'preview' && (
+            <div className="bg-gray-800 p-3 flex justify-between items-center">
+                <h3 className="text-white font-bold text-sm">{useThermalFormat ? 'TICKET' : 'REPORTE CARTA'}</h3>
+                <div className="flex gap-2">
+                    <button onClick={handlePrintInNewWindow} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 shadow-lg"><Printer size={18}/> IMPRIMIR</button>
+                    <button onClick={onClose} className="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-lg"><X size={18}/></button>
                 </div>
-                <div className="p-6 bg-gray-100 flex justify-center">
-                    <div className={`bg-white p-4 shadow text-center w-full border-t-4 ${isCourtesySale ? 'border-yellow-500' : 'border-blue-500'}`}>
-                        <p className="font-bold text-lg mb-2">{isCourtesySale ? 'RECIBO CORTESÍA' : (data.businessName || 'LicoBar')}</p>
-                        <p className="text-3xl font-black text-gray-800">Bs. {isCourtesySale ? '0.00' : fmt(previewAmount)}</p>
-                        <p className="text-xs text-gray-400 mt-4 uppercase font-bold border-t pt-2">
-                            Formato: {useThermalFormat ? 'TÉRMICO (80mm)' : 'CARTA (A4)'}
-                        </p>
+            </div>
+        )}
+
+        {/* CUERPO DEL MODAL */}
+        <div className="p-8 flex flex-col items-center justify-center text-center bg-gray-50 min-h-[200px]">
+            
+            {status === 'printing' ? (
+                <>
+                    <Loader2 size={64} className="text-blue-600 animate-spin mb-4"/>
+                    <h3 className="text-xl font-bold text-gray-800">Imprimiendo...</h3>
+                    <p className="text-sm text-gray-500">Por favor espere, no cierre la ventana.</p>
+                </>
+            ) : status === 'done' ? (
+                <>
+                    <CheckCircle size={64} className="text-green-500 mb-4 animate-in zoom-in"/>
+                    <h3 className="text-xl font-bold text-gray-800">¡Listo!</h3>
+                    <p className="text-sm text-gray-500">Impresión enviada correctamente.</p>
+                </>
+            ) : (
+                /* MODO VISTA PREVIA (MANUAL) */
+                <div className={`w-full p-4 border-t-4 bg-white shadow-sm ${isCourtesySale ? 'border-yellow-500' : 'border-blue-500'}`}>
+                    <p className="font-bold text-lg mb-2">{isCourtesySale ? 'RECIBO CORTESÍA' : (data.businessName || 'LicoBar')}</p>
+                    <p className="text-4xl font-black text-gray-800">Bs. {isCourtesySale ? '0.00' : fmt(previewAmount)}</p>
+                    
+                    <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-2 gap-4 text-xs text-left">
+                        <div>
+                            <span className="block text-gray-400 font-bold uppercase">Formato</span>
+                            <span className="font-bold text-gray-700">{useThermalFormat ? 'TÉRMICO (80mm)' : 'CARTA (A4)'}</span>
+                        </div>
+                        <div>
+                            <span className="block text-gray-400 font-bold uppercase">Tipo</span>
+                            <span className="font-bold text-gray-700 uppercase">{data.type === 'z-report' ? 'Cierre Caja' : (isCourtesySale ? 'Cortesía' : 'Venta')}</span>
+                        </div>
                     </div>
                 </div>
-            </>
-        )}
+            )}
+        </div>
       </div>
     </div>
   );
