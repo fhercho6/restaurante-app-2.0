@@ -1,23 +1,24 @@
-// src/components/Receipt.jsx - REPORTE Z (ESTILO CONTABLE EXACTO)
+// src/components/Receipt.jsx - FINAL CON TOTALES DE COSTOS
 import React, { useEffect } from 'react';
 import { X, Printer } from 'lucide-react';
 
 const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
   if (!data) return null;
 
-  // --- MODO 1: REPORTE CARTA (A4/OFICIO) - DISEÑO EXCEL/CONTABLE ---
+  // --- MODO 1: REPORTE CARTA (A4/OFICIO) ---
   const renderLetterReport = () => {
-      // 1. Filas de productos con el formato de la Imagen 2
+      // FILAS DE PRODUCTOS
       const productRows = data.soldProducts ? data.soldProducts.map(p => `
         <tr>
             <td style="text-align: left; padding: 5px; border-bottom: 1px solid #ddd;">${p.name}</td>
             <td style="text-align: center; padding: 5px; border-bottom: 1px solid #ddd;">${p.qty}</td>
-            <td style="text-align: center; padding: 5px; border-bottom: 1px solid #ddd;">0</td> <td style="text-align: right; padding: 5px; border-bottom: 1px solid #ddd;">${(p.totalCost || 0).toFixed(2)}</td>
+            <td style="text-align: center; padding: 5px; border-bottom: 1px solid #ddd;">0</td>
+            <td style="text-align: right; padding: 5px; border-bottom: 1px solid #ddd;">${(p.totalCost || 0).toFixed(2)}</td>
             <td style="text-align: right; padding: 5px; border-bottom: 1px solid #ddd;">${p.total.toFixed(2)}</td>
         </tr>
       `).join('') : '';
 
-      // 2. Filas de gastos (para la sección financiera)
+      // FILAS DE GASTOS
       const expensesRows = data.stats && data.stats.expensesList ? data.stats.expensesList.map(e => `
         <tr>
             <td style="padding:4px;">GASTOS OPERATIVOS</td>
@@ -36,27 +37,23 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                 .report-title { font-size: 18px; font-weight: bold; text-decoration: underline; margin-bottom: 5px; text-transform: uppercase; }
                 .report-meta { font-size: 12px; margin-bottom: 20px; }
                 
-                /* TABLAS */
                 table { width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 11px; }
                 th { border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 6px; font-weight: bold; text-transform: uppercase; background-color: #f9f9f9; }
                 td { padding: 6px; vertical-align: top; }
                 
-                /* FINANCIERO (Imagen 1) */
                 .financial-table td { border-bottom: 1px dotted #ccc; }
                 .financial-table th { text-align: left; }
                 
-                /* PRODUCTOS (Imagen 2 - Estilo Exacto) */
                 .product-table th.left { text-align: left; }
                 .product-table th.center { text-align: center; }
                 .product-table th.right { text-align: right; }
-                .product-table td { font-family: 'Courier New', monospace; font-size: 12px; } /* Fuente tipo reporte sistema */
+                .product-table td { font-family: 'Courier New', monospace; font-size: 12px; }
 
                 .footer-total { font-size: 14px; font-weight: bold; text-align: right; border-top: 2px solid #000; padding-top: 5px; margin-top: -20px; }
                 .text-right { text-align: right; }
             </style>
         </head>
         <body>
-            
             <div class="header-section">
                 <div class="report-title">REPORTE POR JORNADA</div>
                 <div class="report-meta">
@@ -67,30 +64,18 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
 
             <div style="font-weight:bold; margin-bottom:5px;">I. MOVIMIENTO DE CAJA</div>
             <table class="financial-table">
-                <thead>
-                    <tr>
-                        <th style="width: 25%;">TIPO CUENTA</th>
-                        <th style="width: 55%;">DETALLE / SUB-CUENTA</th>
-                        <th style="width: 20%; text-align: right;">MONTO (Bs)</th>
-                    </tr>
-                </thead>
+                <thead><tr><th style="width: 25%;">TIPO CUENTA</th><th style="width: 55%;">DETALLE / SUB-CUENTA</th><th style="width: 20%; text-align: right;">MONTO (Bs)</th></tr></thead>
                 <tbody>
                     <tr><td>INGRESOS</td><td>FONDO INICIAL (APERTURA)</td><td class="text-right">${data.openingAmount.toFixed(2)}</td></tr>
                     <tr><td>INGRESOS</td><td>VENTAS EFECTIVO</td><td class="text-right">${data.stats.cashSales.toFixed(2)}</td></tr>
                     <tr><td>INGRESOS</td><td>VENTAS QR / TRANSFERENCIA</td><td class="text-right">${data.stats.qrSales.toFixed(2)}</td></tr>
                     <tr><td>INGRESOS</td><td>VENTAS TARJETA</td><td class="text-right">${data.stats.cardSales.toFixed(2)}</td></tr>
-                    
                     ${expensesRows}
-
-                    ${data.stats.courtesyTotal > 0 ? `
-                    <tr><td style="color:red;">CONTROL</td><td>CORTESÍAS ENTREGADAS (NO SUMA)</td><td class="text-right">(${data.stats.courtesyTotal.toFixed(2)})</td></tr>
-                    ` : ''}
+                    ${data.stats.courtesyTotal > 0 ? `<tr><td style="color:red;">CONTROL</td><td>CORTESÍAS ENTREGADAS</td><td class="text-right">(${data.stats.courtesyTotal.toFixed(2)})</td></tr>` : ''}
                 </tbody>
             </table>
 
-            <div class="footer-total">
-                SALDO FINAL EN CAJA (EFECTIVO) = Bs. ${data.finalCash.toFixed(2)}
-            </div>
+            <div class="footer-total">SALDO FINAL EN CAJA (EFECTIVO) = Bs. ${data.finalCash.toFixed(2)}</div>
 
             <br/><br/>
 
@@ -109,7 +94,7 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                 </thead>
                 <tbody>
                     ${productRows}
-                    <tr style="font-weight:bold; background-color:#eee;">
+                    <tr style="font-weight:bold; background-color:#eee; border-top: 2px solid black;">
                         <td>TOTAL GENERAL</td>
                         <td style="text-align:center;">${data.soldProducts ? data.soldProducts.reduce((a,b)=>a+b.qty,0) : 0}</td>
                         <td style="text-align:center;">0</td>
@@ -118,66 +103,23 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                     </tr>
                 </tbody>
             </table>
-
         </body>
         </html>
       `;
   };
 
-  // --- MODO 2: TICKET TÉRMICO (80mm) ---
-  const renderThermalReport = () => {
+  const renderThermalReport = () => { /* ... Lógica Térmica (sin cambios) ... */
       let itemsHtml = data.items ? data.items.map(item => `<div class="row" style="margin-bottom:2px;"><div class="col-qty">${item.qty}</div><div class="col-name">${item.name}</div><div class="col-price">${(item.price * item.qty).toFixed(2)}</div></div>`).join('') : '';
       let zReportRows = data.soldProducts ? data.soldProducts.map(p => `<div class="row"><div class="col-qty">${p.qty}</div><div class="col-name">${p.name}</div><div class="col-price">${p.total.toFixed(2)}</div></div>`).join('') : '';
-
-      return `
-        <html>
-        <head>
-            <style>
-                * { box-sizing: border-box; }
-                body { font-family: 'Arial', sans-serif; margin: 0; padding: 10px 5px; width: 72mm; font-size: 12px; }
-                .text-center { text-align: center; }
-                .text-right { text-align: right; }
-                .bold { font-weight: 700; }
-                .border-b { border-bottom: 1px solid #000; padding-bottom: 5px; margin-bottom: 5px; }
-                .flex-between { display: flex; justify-content: space-between; }
-                .row { display: flex; width: 100%; font-size: 11px; }
-                .col-qty { width: 10%; } .col-name { width: 65%; } .col-price { width: 25%; text-align: right; }
-            </style>
-        </head>
-        <body>
-            <div class="text-center border-b">
-                <div class="bold" style="font-size:16px;">${data.type === 'z-report' ? 'CIERRE DE CAJA' : (data.businessName || 'LicoBar')}</div>
-                <div>${data.date}</div>
-            </div>
-            ${data.type === 'z-report' ? `
-                <div class="flex-between"><span>Fondo Inicial:</span><span>${data.openingAmount.toFixed(2)}</span></div>
-                <div class="flex-between bold"><span>(+) Ventas Totales:</span><span>${(data.stats.cashSales + data.stats.digitalSales).toFixed(2)}</span></div>
-                <div style="font-size:10px; margin-left:10px; font-style:italic;">
-                    <div class="flex-between"><span>• Efvo: ${data.stats.cashSales.toFixed(2)}</span> <span>• Dig: ${data.stats.digitalSales.toFixed(2)}</span></div>
-                </div>
-                <div class="flex-between"><span>(-) Gastos:</span><span>${data.stats.totalExpenses.toFixed(2)}</span></div>
-                <div class="border-b" style="margin:5px 0;"></div>
-                <div class="flex-between bold" style="font-size:18px;"><span>CAJA FINAL:</span><span>Bs. ${data.finalCash.toFixed(2)}</span></div>
-                <br/><div class="bold text-center border-b">RESUMEN PRODUCTOS</div>${zReportRows}
-            ` : `
-                ${itemsHtml}
-                <div class="border-b" style="margin:5px 0;"></div>
-                <div class="flex-between bold" style="font-size:18px;"><span>TOTAL:</span><span>Bs. ${data.total.toFixed(2)}</span></div>
-            `}
-        </body>
-        </html>
-      `;
+      return `<html><head><style>*{box-sizing:border-box}body{font-family:'Arial',sans-serif;margin:0;padding:10px 5px;width:72mm;font-size:12px}.text-center{text-align:center}.text-right{text-align:right}.bold{font-weight:700}.border-b{border-bottom:1px solid #000;padding-bottom:5px;margin-bottom:5px}.flex-between{display:flex;justify-content:space-between}.row{display:flex;width:100%;font-size:11px}.col-qty{width:10%}.col-name{width:65%}.col-price{width:25%;text-align:right}</style></head><body><div class="text-center border-b"><div class="bold" style="font-size:16px;">${data.type==='z-report'?'CIERRE DE CAJA':(data.businessName||'LicoBar')}</div><div>${data.date}</div></div>${data.type==='z-report'?`<div class="flex-between"><span>Fondo Inicial:</span><span>${data.openingAmount.toFixed(2)}</span></div><div class="flex-between bold"><span>(+) Ventas:</span><span>${(data.stats.cashSales+data.stats.digitalSales).toFixed(2)}</span></div><div style="font-size:10px;margin-left:10px;"><div class="flex-between"><span>Efvo: ${data.stats.cashSales.toFixed(2)}</span><span>Dig: ${data.stats.digitalSales.toFixed(2)}</span></div></div><div class="flex-between"><span>(-) Gastos:</span><span>${data.stats.totalExpenses.toFixed(2)}</span></div><div class="border-b" style="margin:5px 0;"></div><div class="flex-between bold" style="font-size:18px;"><span>CAJA:</span><span>Bs. ${data.finalCash.toFixed(2)}</span></div><br/><div>DETALLE PRODUCTOS</div>${zReportRows}`:`${itemsHtml}<div class="border-b" style="margin:5px 0;"></div><div class="flex-between bold" style="font-size:18px;"><span>TOTAL:</span><span>Bs. ${data.total.toFixed(2)}</span></div>`}</body></html>`;
   };
 
   const handlePrintInNewWindow = () => {
     const width = printerType === 'letter' ? 1000 : 400;
     const height = printerType === 'letter' ? 800 : 600;
     const printWindow = window.open('', 'PRINT', `height=${height},width=${width}`);
-
     if (!printWindow) { alert("Permite las ventanas emergentes."); return; }
-
     const htmlContent = printerType === 'letter' ? renderLetterReport() : renderThermalReport();
-    
     printWindow.document.write(htmlContent);
     printWindow.document.close();
     printWindow.focus();

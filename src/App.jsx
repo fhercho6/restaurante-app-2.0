@@ -1,4 +1,4 @@
-// src/App.jsx - VERSIÓN FINAL CORREGIDA (CON HANDLESAVEBRANDING)
+// src/App.jsx - CORRECCIÓN: GUARDADO DE COSTOS PARA REPORTES
 import React, { useState, useEffect, useMemo } from 'react';
 import { Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign, ArrowLeft, Lock, Unlock, Wallet, Loader2, LayoutGrid, Gift, Trees, TrendingUp, Package, AlertCircle, Filter, X, FileSpreadsheet } from 'lucide-react';
 import { onAuthStateChanged, signOut, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
@@ -103,37 +103,13 @@ export default function App() {
   
   const handleStaffPinLogin = async (member) => { 
       const newSessionId = Date.now().toString() + Math.floor(Math.random() * 1000); 
-      try { 
-          await updateDoc(doc(db, getCollName('staff'), member.id), { activeSessionId: newSessionId }); 
-          const memberWithSession = { ...member, activeSessionId: newSessionId }; 
-          setStaffMember(memberWithSession); 
-          if (member.role === 'Cajero' || member.role === 'Administrador') { setView('cashier'); toast.success(`Caja abierta: ${member.name}`); } 
-          else { setView('pos'); toast.success(`Turno iniciado: ${member.name}`); } 
-      } catch (error) { 
-          console.error(error); 
-          toast.error("Error de conexión al iniciar sesión"); 
-      } 
+      try { await updateDoc(doc(db, getCollName('staff'), member.id), { activeSessionId: newSessionId }); const memberWithSession = { ...member, activeSessionId: newSessionId }; setStaffMember(memberWithSession); if (member.role === 'Cajero' || member.role === 'Administrador') { setView('cashier'); toast.success(`Caja abierta: ${member.name}`); } else { setView('pos'); toast.success(`Turno iniciado: ${member.name}`); } } catch (error) { toast.error("Error de conexión al iniciar sesión"); } 
   };
   
   const handleClockAction = async (member, type) => { try { const timestamp = new Date(); const logData = { staffId: member.id, staffName: member.name, type: type, timestamp: timestamp.toISOString(), dateStr: timestamp.toLocaleDateString() }; await addDoc(collection(db, isPersonalProject ? 'attendance_logs' : `${ROOT_COLLECTION}attendance_logs`), logData); toast.success(type === 'entry' ? 'Bienvenido' : 'Hasta luego', { icon: type === 'entry' ? '⏰' : '👋' }); if (type === 'exit') setView('landing'); } catch (error) { toast.error("Error al registrar"); } };
   const handleQuickUpdate = async (id, field, value) => { try { let valToSave = value; if (field === 'price' || field === 'cost') { valToSave = parseFloat(value); if (isNaN(valToSave)) valToSave = 0; } if (field === 'stock') { valToSave = parseInt(value); if (isNaN(valToSave)) valToSave = 0; } await updateDoc(doc(db, getCollName('items'), id), { [field]: valToSave }); toast.success('Actualizado', { icon: '💾', duration: 1000 }); } catch (error) { console.error(error); toast.error('Error al actualizar'); } };
-  
-  // --- ¡AQUÍ ESTÁ LA FUNCIÓN QUE FALTABA! ---
-  const handleSaveBranding = (l, n, t) => { 
-      setPrinterType(printerType); // Mantiene el tipo actual o se actualiza
-      setDoc(doc(db, getCollName('settings'), 'branding'), { 
-          logo: l, 
-          appName: n, 
-          autoLockTime: t, 
-          printerType: printerType 
-      }, { merge: true }); 
-      setLogo(l); 
-      setAppName(n); 
-      setAutoLockTime(t); 
-      toast.success('Marca y Configuración actualizadas'); 
-  };
-
   const handleSavePrinterType = (type) => { setPrinterType(type); setDoc(doc(db, getCollName('settings'), 'branding'), { printerType: type }, { merge: true }); setIsPrinterSettingsOpen(false); toast.success(`Formato: ${type === 'thermal' ? 'Ticket' : 'Carta'}`); };
+  const handleSaveBranding = (l, n, t) => { setPrinterType(printerType); setDoc(doc(db, getCollName('settings'), 'branding'), { logo: l, appName: n, autoLockTime: t, printerType: printerType }, { merge: true }); setLogo(l); setAppName(n); setAutoLockTime(t); toast.success('Marca y Configuración actualizadas'); };
 
   // --- EFECTOS ---
   useEffect(() => { const initAuth = async () => { if (!auth.currentUser) await signInAnonymously(auth); }; initAuth(); return onAuthStateChanged(auth, (u) => { setCurrentUser(u); if (u) setDbStatus('connected'); }); }, []);
@@ -148,13 +124,48 @@ export default function App() {
       return () => { itemsUnsub(); staffUnsub(); settingsUnsub(); srvUnsub(); }; 
   }, [currentUser]);
 
+  // --- LÓGICA DE AGREGACIÓN DE VENTAS (CORREGIDA PARA SUMAR COSTOS) ---
   useEffect(() => { 
       if (!db || !registerSession) return; 
       const salesCol = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`; 
       const qSales = query(collection(db, salesCol), where('registerId', '==', registerSession.id)); 
       const expensesCol = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`; 
       const qExpenses = query(collection(db, expensesCol), where('registerId', '==', registerSession.id)); 
-      const unsubSales = onSnapshot(qSales, (snap) => { let cash = 0, qr = 0, card = 0; let courtesyTotalVal = 0, courtesyCostVal = 0, totalCostCalc = 0; const productMap = {}; snap.forEach(doc => { const sale = doc.data(); const isCourtesy = sale.payments && sale.payments.some(p => p.method === 'Cortesía'); if (!isCourtesy) { if (sale.payments && Array.isArray(sale.payments)) { sale.payments.forEach(p => { const amt = parseFloat(p.amount) || 0; const method = (p.method || '').toLowerCase(); if (method.includes('efectivo')) cash += amt; else if (method.includes('qr')) qr += amt; else if (method.includes('tarjeta')) card += amt; }); if (sale.changeGiven) cash -= parseFloat(sale.changeGiven); } else { const total = parseFloat(sale.total); const method = (sale.paymentMethod || 'efectivo').toLowerCase(); if (method.includes('efectivo')) { const change = parseFloat(sale.changeGiven) || 0; const received = parseFloat(sale.amountReceived) || total; if(sale.amountReceived) cash += (received - change); else cash += total; } else if (method.includes('qr')) qr += total; else if (method.includes('tarjeta')) card += total; } } if (sale.items && Array.isArray(sale.items)) { sale.items.forEach(item => { const key = item.name; const qty = item.qty || 1; const price = parseFloat(item.price) || 0; const cost = parseFloat(item.cost) || 0; if (isCourtesy) { courtesyTotalVal += (price * qty); courtesyCostVal += (cost * qty); } else { totalCostCalc += (cost * qty); } if (!productMap[key]) { productMap[key] = { name: item.name, qty: 0, total: 0, costUnit: cost, totalCost: 0, isCourtesy: isCourtesy }; } productMap[key].qty += qty; if (!isCourtesy) { productMap[key].total += (price * qty); } productMap[key].totalCost += (cost * qty); }); } }); const soldProductsList = Object.values(productMap).sort((a, b) => b.qty - a.qty); setSessionStats(prev => ({ ...prev, cashSales: cash, qrSales: qr, cardSales: card, digitalSales: qr + card, totalCostOfGoods: totalCostCalc, courtesyTotal: courtesyTotalVal, courtesyCost: courtesyCostVal, soldProducts: soldProductsList })); }); 
+      
+      const unsubSales = onSnapshot(qSales, (snap) => { 
+          let cash = 0, qr = 0, card = 0; 
+          let courtesyTotalVal = 0, courtesyCostVal = 0, totalCostCalc = 0; 
+          const productMap = {}; 
+          
+          snap.forEach(doc => { 
+              const sale = doc.data(); 
+              const isCourtesy = sale.payments && sale.payments.some(p => p.method === 'Cortesía');
+              
+              if (!isCourtesy) { 
+                  if (sale.payments && Array.isArray(sale.payments)) { sale.payments.forEach(p => { const amt = parseFloat(p.amount) || 0; const method = (p.method || '').toLowerCase(); if (method.includes('efectivo')) cash += amt; else if (method.includes('qr')) qr += amt; else if (method.includes('tarjeta')) card += amt; }); if (sale.changeGiven) cash -= parseFloat(sale.changeGiven); } else { const total = parseFloat(sale.total); const method = (sale.paymentMethod || 'efectivo').toLowerCase(); if (method.includes('efectivo')) { const change = parseFloat(sale.changeGiven) || 0; const received = parseFloat(sale.amountReceived) || total; if(sale.amountReceived) cash += (received - change); else cash += total; } else if (method.includes('qr')) qr += total; else if (method.includes('tarjeta')) card += total; } 
+              }
+              
+              // SUMA DE PRODUCTOS Y COSTOS
+              if (sale.items && Array.isArray(sale.items)) {
+                  sale.items.forEach(item => {
+                      const key = item.name; 
+                      const qty = item.qty || 1; 
+                      const price = parseFloat(item.price) || 0; 
+                      const cost = parseFloat(item.cost) || 0; // <--- OJO AQUÍ: Si el item no tiene costo guardado, esto será 0
+                      
+                      if (isCourtesy) { courtesyTotalVal += (price * qty); courtesyCostVal += (cost * qty); } else { totalCostCalc += (cost * qty); }
+                      
+                      if (!productMap[key]) { productMap[key] = { name: item.name, qty: 0, total: 0, totalCost: 0, isCourtesy: isCourtesy }; }
+                      productMap[key].qty += qty;
+                      if (!isCourtesy) productMap[key].total += (price * qty); 
+                      productMap[key].totalCost += (cost * qty); 
+                  });
+              }
+          }); 
+          const soldProductsList = Object.values(productMap).sort((a, b) => b.qty - a.qty);
+          setSessionStats(prev => ({ ...prev, cashSales: cash, qrSales: qr, cardSales: card, digitalSales: qr + card, totalCostOfGoods: totalCostCalc, courtesyTotal: courtesyTotalVal, courtesyCost: courtesyCostVal, soldProducts: soldProductsList })); 
+      }); 
+      
       const unsubExpenses = onSnapshot(qExpenses, (snap) => { let totalExp = 0; const list = []; snap.forEach(doc => { const exp = doc.data(); totalExp += parseFloat(exp.amount); list.push({ id: doc.id, ...exp }); }); setSessionStats(prev => ({ ...prev, totalExpenses: totalExp, expensesList: list })); }); 
       return () => { unsubSales(); unsubExpenses(); }; 
   }, [registerSession]);
@@ -175,7 +186,54 @@ export default function App() {
   const handleSendToKitchen = async (cart, clearCart) => { if (!checkRegisterStatus(false)) return; if (cart.length === 0) return; const toastId = toast.loading('Procesando comanda...'); try { const totalOrder = cart.reduce((acc, item) => acc + (item.price * item.qty), 0); const orderData = { date: new Date().toISOString(), staffId: staffMember ? staffMember.id : 'anon', staffName: staffMember ? staffMember.name : 'Mesero', orderId: 'ORD-' + Math.floor(Math.random() * 10000), items: cart, total: totalOrder, status: 'pending' }; await addDoc(collection(db, isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`), orderData); const preCheckData = { ...orderData, type: 'order', date: new Date().toLocaleString(), autoPrint: true }; clearCart([]); setLastSale(preCheckData); toast.success('Pedido enviado a caja', { id: toastId }); setView('receipt_view'); } catch (error) { toast.error('Error al enviar pedido', { id: toastId }); } };
   const handleVoidAndPrint = async (order) => { try { await deleteDoc(doc(db, isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`, order.id)); setLastSale({ ...order, type: 'void', businessName: appName, date: new Date().toLocaleString() }); toast.success("Pedido anulado"); setView('receipt_view'); } catch (error) { toast.error("Error al anular"); } };
   const handleReprintOrder = (order) => { const preCheckData = { ...order, type: 'order', businessName: appName, date: new Date().toLocaleString() }; setLastSale(preCheckData); setView('receipt_view'); toast.success("Reimprimiendo comanda..."); };
-  const handleFinalizeSale = async (paymentResult) => { if (!db) return; if (staffMember && staffMember.role !== 'Cajero' && staffMember.role !== 'Administrador') { toast.error("Solo Cajeros pueden cobrar."); setIsPaymentModalOpen(false); return; } if (!registerSession) { toast.error("La caja está cerrada"); return; } const toastId = toast.loading('Procesando pago...'); setIsPaymentModalOpen(false); const itemsToProcess = orderToPay ? orderToPay.items : pendingSale.cart; const { paymentsList, totalPaid, change } = paymentResult; const totalToProcess = totalPaid - change; try { const batchPromises = []; const timestamp = new Date(); let cashierName = staffMember ? staffMember.name : 'Administrador'; const waiterName = orderToPay ? (orderToPay.staffName || 'Barra') : (staffMember ? staffMember.name : 'Barra'); const waiterId = orderToPay ? (orderToPay.staffId || 'anon') : (staffMember ? staffMember.id : 'anon'); const cleanItems = itemsToProcess.map(item => ({ id: item.id || 'unknown', name: item.name || 'Sin nombre', price: parseFloat(item.price) || 0, qty: parseInt(item.qty) || 1, category: item.category || 'General', stock: item.stock !== undefined ? item.stock : null, image: item.image || null, isServiceItem: !!item.isServiceItem, location: item.location || null })); const saleData = { date: timestamp.toISOString(), total: parseFloat(totalToProcess) || 0, items: cleanItems, staffId: waiterId, staffName: waiterName, cashier: cashierName, registerId: registerSession.id, payments: paymentsList || [], totalPaid: parseFloat(totalPaid) || 0, changeGiven: parseFloat(change) || 0 }; const docRef = await addDoc(collection(db, isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`), saleData); cleanItems.forEach(item => { if (item.stock !== null && item.stock !== '' && !isNaN(item.stock) && !item.isServiceItem) { const newStock = parseInt(item.stock) - item.qty; batchPromises.push(updateDoc(doc(db, getCollName('items'), item.id), { stock: newStock })); } }); if (orderToPay && orderToPay.type !== 'quick_sale') { batchPromises.push(deleteDoc(doc(db, isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`, orderToPay.id))); } await Promise.all(batchPromises); const receiptData = { type: 'order', businessName: appName, date: timestamp.toLocaleString(), staffName: waiterName, cashierName: cashierName, orderId: docRef.id, items: cleanItems, total: totalToProcess, payments: paymentsList, change: change, autoPrint: true }; setLastSale(receiptData); if (pendingSale && pendingSale.clearCart) pendingSale.clearCart([]); setPendingSale(null); setOrderToPay(null); toast.success('Cobro exitoso', { id: toastId }); setView('receipt_view'); } catch (e) { console.error(e); toast.error('Error al cobrar', { id: toastId }); } };
+  
+  // --- HANDLE FINALIZAR (CORRECCIÓN IMPORTANTE: AGREGAR COSTO A LA VENTA) ---
+  const handleFinalizeSale = async (paymentResult) => { 
+      if (!db) return; 
+      if (staffMember && staffMember.role !== 'Cajero' && staffMember.role !== 'Administrador') { toast.error("Solo Cajeros pueden cobrar."); setIsPaymentModalOpen(false); return; } 
+      if (!registerSession) { toast.error("La caja está cerrada"); return; } 
+      const toastId = toast.loading('Procesando pago...'); 
+      setIsPaymentModalOpen(false); 
+      const itemsToProcess = orderToPay ? orderToPay.items : pendingSale.cart; 
+      const { paymentsList, totalPaid, change } = paymentResult; 
+      const totalToProcess = totalPaid - change; 
+      try { 
+          const batchPromises = []; 
+          const timestamp = new Date(); 
+          let cashierName = staffMember ? staffMember.name : 'Administrador'; 
+          const waiterName = orderToPay ? (orderToPay.staffName || 'Barra') : (staffMember ? staffMember.name : 'Barra'); 
+          const waiterId = orderToPay ? (orderToPay.staffId || 'anon') : (staffMember ? staffMember.id : 'anon'); 
+          
+          // AQUÍ ESTABA EL ERROR: AGREGAR 'cost'
+          const cleanItems = itemsToProcess.map(item => ({ 
+              id: item.id || 'unknown', 
+              name: item.name || 'Sin nombre', 
+              price: parseFloat(item.price) || 0, 
+              cost: parseFloat(item.cost) || 0, // <--- SE AGREGA COSTO AQUÍ
+              qty: parseInt(item.qty) || 1, 
+              category: item.category || 'General', 
+              stock: item.stock !== undefined ? item.stock : null, 
+              image: item.image || null, 
+              isServiceItem: !!item.isServiceItem, 
+              location: item.location || null 
+          })); 
+          
+          const saleData = { date: timestamp.toISOString(), total: parseFloat(totalToProcess) || 0, items: cleanItems, staffId: waiterId, staffName: waiterName, cashier: cashierName, registerId: registerSession.id, payments: paymentsList || [], totalPaid: parseFloat(totalPaid) || 0, changeGiven: parseFloat(change) || 0 }; 
+          const docRef = await addDoc(collection(db, isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`), saleData); 
+          
+          cleanItems.forEach(item => { if (item.stock !== null && item.stock !== '' && !isNaN(item.stock) && !item.isServiceItem) { const newStock = parseInt(item.stock) - item.qty; batchPromises.push(updateDoc(doc(db, getCollName('items'), item.id), { stock: newStock })); } }); 
+          if (orderToPay && orderToPay.type !== 'quick_sale') { batchPromises.push(deleteDoc(doc(db, isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`, orderToPay.id))); } 
+          await Promise.all(batchPromises); 
+          
+          const receiptData = { type: 'order', businessName: appName, date: timestamp.toLocaleString(), staffName: waiterName, cashierName: cashierName, orderId: docRef.id, items: cleanItems, total: totalToProcess, payments: paymentsList, change: change, autoPrint: true }; 
+          setLastSale(receiptData); 
+          if (pendingSale && pendingSale.clearCart) pendingSale.clearCart([]); 
+          setPendingSale(null); setOrderToPay(null); 
+          toast.success('Cobro exitoso', { id: toastId }); 
+          setView('receipt_view'); 
+      } catch (e) { console.error(e); toast.error('Error al cobrar', { id: toastId }); } 
+  };
+
   const handleReceiptClose = () => { if (lastSale && lastSale.type === 'z-report') { setView('landing'); return; } const isCashier = (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador')) || (currentUser && !currentUser.isAnonymous); if (isCashier) setView('cashier'); else setView('pos'); };
   const handleSave = async (d) => { try { if(currentItem) await setDoc(doc(db, getCollName('items'), currentItem.id), d); else await addDoc(collection(db, getCollName('items')), d); toast.success('Guardado'); setIsModalOpen(false); } catch { toast.error('Error'); } };
   const handleDelete = async (id) => { try { await deleteDoc(doc(db, getCollName('items'), id)); toast.success('Eliminado'); } catch { toast.error('Error'); }};
