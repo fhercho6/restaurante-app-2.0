@@ -1,165 +1,199 @@
-// src/components/PaymentModal.jsx
+// src/components/PaymentModal.jsx - CON OPCIÓN DE CORTESÍA
 import React, { useState, useEffect } from 'react';
-import { X, Banknote, CreditCard, QrCode, ArrowRight, Plus, Trash2 } from 'lucide-react';
+import { X, DollarSign, CreditCard, Grid, Gift, ArrowRight } from 'lucide-react';
+import toast from 'react-hot-toast';
 
-const PaymentModal = ({ isOpen, onClose, total, onConfirm }) => {
-  const [payments, setPayments] = useState([]); // Lista de pagos agregados
-  const [currentMethod, setCurrentMethod] = useState('Efectivo');
-  const [currentAmount, setCurrentAmount] = useState('');
+export default function PaymentModal({ isOpen, onClose, total, onConfirm }) {
+  const [amountReceived, setAmountReceived] = useState('');
+  const [change, setChange] = useState(0);
+  const [method, setMethod] = useState('Efectivo'); // 'Efectivo', 'QR', 'Tarjeta', 'Cortesía'
 
-  // Reiniciar cuando se abre
   useEffect(() => {
     if (isOpen) {
-      setPayments([]);
-      setCurrentAmount('');
-      setCurrentMethod('Efectivo');
+        setAmountReceived('');
+        setChange(0);
+        setMethod('Efectivo');
     }
-  }, [isOpen]);
+  }, [isOpen, total]);
+
+  useEffect(() => {
+    if (method === 'Efectivo') {
+        const received = parseFloat(amountReceived) || 0;
+        setChange(Math.max(0, received - total));
+    } else {
+        setChange(0);
+    }
+  }, [amountReceived, total, method]);
+
+  const handleQuickAmount = (val) => {
+      setAmountReceived((parseFloat(val)).toString());
+  };
+
+  const handleSubmit = () => {
+      // Validaciones
+      if (method === 'Efectivo') {
+          const received = parseFloat(amountReceived) || 0;
+          if (received < total) {
+              toast.error('El monto recibido es menor al total');
+              return;
+          }
+      }
+
+      // Si es Cortesía, confirmamos por seguridad
+      if (method === 'Cortesía') {
+          if(!window.confirm('¿Seguro que deseas registrar esto como CORTESÍA? (No ingresará dinero)')) return;
+      }
+
+      // Preparamos el objeto de pago
+      const paymentData = {
+          paymentsList: [{
+              method: method,
+              amount: total // Asumimos pago total por simplicidad
+          }],
+          totalPaid: method === 'Cortesía' ? 0 : total,
+          change: method === 'Efectivo' ? change : 0,
+          amountReceived: parseFloat(amountReceived) || total
+      };
+
+      onConfirm(paymentData);
+  };
 
   if (!isOpen) return null;
 
-  // Cálculos matemáticos
-  const totalPaid = payments.reduce((acc, p) => acc + p.amount, 0);
-  const remaining = total - totalPaid;
-  const change = remaining < 0 ? Math.abs(remaining) : 0;
-  const isCovered = remaining <= 0;
-
-  const handleAddPayment = () => {
-    const val = parseFloat(currentAmount);
-    if (!val || val <= 0) return;
-
-    setPayments([...payments, { method: currentMethod, amount: val }]);
-    setCurrentAmount(''); // Limpiar input para el siguiente pago
-  };
-
-  const removePayment = (index) => {
-    setPayments(payments.filter((_, i) => i !== index));
-  };
-
-  const handleConfirm = () => {
-    if (!isCovered) {
-      alert(`Faltan Bs. ${remaining.toFixed(2)} por pagar.`);
-      return;
-    }
-    // Enviamos la lista completa de pagos
-    onConfirm({
-      paymentsList: payments,
-      totalPaid: totalPaid,
-      change: change
-    });
-  };
-
-  // Autocompletar el monto restante al cambiar de método (para agilizar)
-  const selectMethod = (method) => {
-    setCurrentMethod(method);
-    if (remaining > 0) {
-      setCurrentAmount(remaining.toFixed(2));
-    }
-  };
-
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
+      <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
         
-        {/* Encabezado: Totales Dinámicos */}
-        <div className="bg-gray-900 text-white p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold">Dividir Cuenta</h2>
-            <button onClick={onClose} className="bg-white/10 hover:bg-white/20 p-2 rounded-full"><X size={20} /></button>
-          </div>
-          <div className="flex justify-between items-end">
+        {/* ENCABEZADO */}
+        <div className="bg-gray-900 p-4 text-white flex justify-between items-center shrink-0">
             <div>
-              <p className="text-gray-400 text-xs uppercase font-bold">Total a Pagar</p>
-              <div className="text-2xl font-bold">Bs. {total.toFixed(2)}</div>
+                <h3 className="font-black text-lg uppercase tracking-wider">Cobrar Orden</h3>
+                <p className="text-xs text-gray-400">Selecciona método de pago</p>
             </div>
-            <div className="text-right">
-              <p className="text-gray-400 text-xs uppercase font-bold">
-                {isCovered ? 'Cambio' : 'Falta'}
-              </p>
-              <div className={`text-3xl font-black ${isCovered ? 'text-green-400' : 'text-red-400'}`}>
-                Bs. {isCovered ? change.toFixed(2) : remaining.toFixed(2)}
-              </div>
-            </div>
-          </div>
+            <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X size={24}/></button>
         </div>
 
         <div className="p-6 flex-1 overflow-y-auto">
-          {/* 1. Selector de Método para el siguiente pago */}
-          {!isCovered && (
-            <div className="mb-6 border-b pb-6 border-gray-100">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Agregar Pago</label>
-              <div className="flex gap-2 mb-3">
-                {['Efectivo', 'QR', 'Tarjeta'].map(m => (
-                  <button 
-                    key={m}
-                    onClick={() => selectMethod(m)}
-                    className={`flex-1 py-2 px-1 rounded-lg text-xs font-bold border transition-all flex flex-col items-center gap-1 ${currentMethod === m ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'}`}
-                  >
-                    {m === 'Efectivo' && <Banknote size={16}/>}
-                    {m === 'QR' && <QrCode size={16}/>}
-                    {m === 'Tarjeta' && <CreditCard size={16}/>}
-                    {m}
-                  </button>
-                ))}
-              </div>
-              <div className="flex gap-2">
-                <input 
-                  type="number" 
-                  autoFocus
-                  value={currentAmount}
-                  onChange={(e) => setCurrentAmount(e.target.value)}
-                  placeholder={`Monto en ${currentMethod}...`}
-                  className="flex-1 p-3 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-lg"
-                  onKeyPress={(e) => e.key === 'Enter' && handleAddPayment()}
-                />
-                <button 
-                  onClick={handleAddPayment}
-                  disabled={!currentAmount}
-                  className="bg-gray-800 text-white p-3 rounded-xl hover:bg-black disabled:opacity-50"
-                >
-                  <Plus size={24}/>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* 2. Lista de Pagos Agregados */}
-          <div className="space-y-2">
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Pagos Registrados</p>
-            {payments.length === 0 ? (
-              <p className="text-center text-gray-400 text-sm py-4 italic">Aún no hay pagos registrados</p>
-            ) : (
-              payments.map((p, idx) => (
-                <div key={idx} className="flex justify-between items-center bg-gray-50 p-3 rounded-lg border border-gray-100">
-                  <div className="flex items-center gap-2">
-                    {p.method === 'Efectivo' && <div className="p-1.5 bg-green-100 text-green-700 rounded"><Banknote size={16}/></div>}
-                    {p.method === 'Tarjeta' && <div className="p-1.5 bg-purple-100 text-purple-700 rounded"><CreditCard size={16}/></div>}
-                    {p.method === 'QR' && <div className="p-1.5 bg-blue-100 text-blue-700 rounded"><QrCode size={16}/></div>}
-                    <span className="font-medium text-gray-700">{p.method}</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="font-bold text-gray-900">Bs. {p.amount.toFixed(2)}</span>
-                    <button onClick={() => removePayment(idx)} className="text-red-400 hover:text-red-600"><Trash2 size={16}/></button>
-                  </div>
+            
+            {/* TOTAL A PAGAR */}
+            <div className="text-center mb-8">
+                <p className="text-sm font-bold text-gray-500 uppercase mb-1">Total a Pagar</p>
+                <div className="text-5xl font-black text-gray-900 tracking-tighter">
+                    Bs. {total.toFixed(2)}
                 </div>
-              ))
+            </div>
+
+            {/* SELECCIÓN DE MÉTODO */}
+            <p className="text-xs font-bold text-gray-400 uppercase mb-3">Método de Pago</p>
+            <div className="grid grid-cols-2 gap-3 mb-6">
+                <button 
+                    onClick={() => setMethod('Efectivo')}
+                    className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${method === 'Efectivo' ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-200 hover:border-gray-300 text-gray-600'}`}
+                >
+                    <DollarSign size={24}/>
+                    <span className="font-bold text-xs">EFECTIVO</span>
+                </button>
+
+                <button 
+                    onClick={() => setMethod('QR')}
+                    className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${method === 'QR' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 hover:border-gray-300 text-gray-600'}`}
+                >
+                    <Grid size={24}/>
+                    <span className="font-bold text-xs">QR / TRANSF.</span>
+                </button>
+
+                <button 
+                    onClick={() => setMethod('Tarjeta')}
+                    className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${method === 'Tarjeta' ? 'border-purple-500 bg-purple-50 text-purple-700' : 'border-gray-200 hover:border-gray-300 text-gray-600'}`}
+                >
+                    <CreditCard size={24}/>
+                    <span className="font-bold text-xs">TARJETA</span>
+                </button>
+
+                {/* AQUÍ ESTÁ EL BOTÓN DE CORTESÍA QUE FALTABA */}
+                <button 
+                    onClick={() => setMethod('Cortesía')}
+                    className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${method === 'Cortesía' ? 'border-yellow-500 bg-yellow-50 text-yellow-700' : 'border-gray-200 hover:border-gray-300 text-gray-600'}`}
+                >
+                    <Gift size={24}/>
+                    <span className="font-bold text-xs">CORTESÍA</span>
+                </button>
+            </div>
+
+            {/* INPUT EFECTIVO (Solo visible si es Efectivo) */}
+            {method === 'Efectivo' && (
+                <div className="animate-in slide-in-from-top-2 fade-in">
+                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Monto Recibido</label>
+                    <div className="relative mb-4">
+                        <span className="absolute left-4 top-4 text-gray-400 font-bold">Bs.</span>
+                        <input 
+                            type="number" 
+                            inputMode="decimal"
+                            value={amountReceived}
+                            onChange={(e) => setAmountReceived(e.target.value)}
+                            className="w-full pl-12 pr-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl text-xl font-bold focus:border-green-500 focus:bg-white outline-none transition-all"
+                            placeholder="0.00"
+                            autoFocus
+                        />
+                    </div>
+
+                    {/* Botones rápidos de billetes */}
+                    <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+                        {[10, 20, 50, 100, 200].map(bill => (
+                            bill >= total && (
+                                <button 
+                                    key={bill} 
+                                    onClick={() => handleQuickAmount(bill)}
+                                    className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-100 hover:border-gray-300 whitespace-nowrap"
+                                >
+                                    Bs. {bill}
+                                </button>
+                            )
+                        ))}
+                        <button 
+                            onClick={() => handleQuickAmount(total)}
+                            className="px-4 py-2 bg-blue-50 border border-blue-100 rounded-lg text-sm font-bold text-blue-600 hover:bg-blue-100 whitespace-nowrap"
+                        >
+                            Exacto
+                        </button>
+                    </div>
+
+                    {/* CAMBIO */}
+                    {change > 0 && (
+                        <div className="bg-green-100 p-4 rounded-xl text-center border border-green-200 mb-4 animate-bounce">
+                            <p className="text-green-600 text-xs font-bold uppercase mb-1">Entregar Cambio</p>
+                            <p className="text-3xl font-black text-green-700">Bs. {change.toFixed(2)}</p>
+                        </div>
+                    )}
+                </div>
             )}
-          </div>
+
+            {/* MENSAJE CORTESÍA */}
+            {method === 'Cortesía' && (
+                <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200 mb-4 text-center">
+                    <p className="font-bold text-yellow-800 text-sm">⚠️ Este pedido no sumará efectivo a la caja.</p>
+                    <p className="text-xs text-yellow-600 mt-1">Se registrará como gasto/promoción en el reporte.</p>
+                </div>
+            )}
+
         </div>
 
-        {/* Botón Final */}
-        <div className="p-4 border-t bg-gray-50">
-          <button 
-            onClick={handleConfirm}
-            disabled={!isCovered}
-            className={`w-full py-4 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all ${isCovered ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
-          >
-            {isCovered ? 'FINALIZAR VENTA' : `Faltan Bs. ${remaining.toFixed(2)}`} <ArrowRight size={20} />
-          </button>
+        {/* BOTÓN CONFIRMAR */}
+        <div className="p-4 bg-gray-50 border-t border-gray-100">
+            <button 
+                onClick={handleSubmit}
+                className={`w-full py-4 rounded-xl font-black text-lg flex items-center justify-center gap-2 transition-transform active:scale-95 shadow-lg ${
+                    method === 'Cortesía' ? 'bg-yellow-500 hover:bg-yellow-600 text-black' :
+                    method === 'Efectivo' && (parseFloat(amountReceived) < total) ? 'bg-gray-300 text-gray-500 cursor-not-allowed' :
+                    'bg-green-600 hover:bg-green-700 text-white'
+                }`}
+                disabled={method === 'Efectivo' && (parseFloat(amountReceived) < total)}
+            >
+                {method === 'Cortesía' ? 'REGISTRAR CORTESÍA' : 'CONFIRMAR PAGO'} <ArrowRight size={24}/>
+            </button>
         </div>
+
       </div>
     </div>
   );
-};
-
-export default PaymentModal;
+}
