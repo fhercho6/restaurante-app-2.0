@@ -1,4 +1,4 @@
-// src/App.jsx - SOPORTE PARA MÚLTIPLES IDs DE PEDIDO
+// src/App.jsx - CORRECCIÓN: BORRADO DE COMANDAS Y SERVICIOS FANTASMA
 import React, { useState, useEffect, useMemo } from 'react';
 import { Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign, ArrowLeft, Lock, Unlock, Wallet, Loader2, LayoutGrid, Gift, Trees, TrendingUp, Package, AlertCircle, Filter, X, FileSpreadsheet } from 'lucide-react';
 import { onAuthStateChanged, signOut, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
@@ -106,7 +106,37 @@ export default function App() {
 
   const checkRegisterStatus = (requireOwnership = false) => { if (registerSession) { const isAdmin = currentUser && !currentUser.isAnonymous; const isOwner = staffMember && registerSession.openedBy === staffMember.name; if (requireOwnership && !isAdmin && !isOwner) { toast.error(`⛔ ACCESO DENEGADO\nTurno de: ${registerSession.openedBy}`, { duration: 5000 }); return false; } return true; } const canOpenRegister = (currentUser && !currentUser.isAnonymous) || (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador')); if (canOpenRegister) setIsOpenRegisterModalOpen(true); else toast.error("⚠️ LA CAJA ESTÁ CERRADA.", { icon: '🔒' }); return false; };
   const handleOpenRegister = async (amount, activeTeam = []) => { try { const sessionData = { status: 'open', openedBy: staffMember ? staffMember.name : (currentUser?.email || 'Admin'), openedAt: new Date().toISOString(), openingAmount: amount, activeTeam: activeTeam, salesTotal: 0 }; const docRef = await addDoc(collection(db, isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`), sessionData); setRegisterSession({ id: docRef.id, ...sessionData }); setIsOpenRegisterModalOpen(false); toast.success(`Turno Abierto`); } catch (error) { toast.error("Error al abrir caja"); } };
-  const handleStartService = async (service, note) => { if (!checkRegisterStatus(false)) return; try { await addDoc(collection(db, isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`), { serviceName: service.name, pricePerHour: service.price, startTime: new Date().toISOString(), note: note, staffName: staffMember ? staffMember.name : 'Admin', registerId: registerSession.id }); await addDoc(collection(db, isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`), { date: new Date().toISOString(), staffId: staffMember ? staffMember.id : 'anon', staffName: staffMember ? staffMember.name : 'Mesero', orderId: 'INI-' + Math.floor(Math.random() * 1000), items: [{ id: 'start-' + Date.now(), name: `⏱️ INICIO: ${service.name} (${note})`, price: 0, qty: 1, category: 'Servicios' }], total: 0, status: 'pending' }); setIsServiceModalOpen(false); toast.success("Servicio iniciado"); } catch (e) { toast.error("Error al iniciar servicio"); } };
+  
+  // --- CORRECCIÓN 1: INICIO DE SERVICIO SIN GENERAR DEUDA FANTASMA ---
+  const handleStartService = async (service, note) => { 
+      if (!checkRegisterStatus(false)) return; 
+      try { 
+          // 1. Guardar en Active Services (Esto SÍ es necesario para que el reloj corra)
+          await addDoc(collection(db, isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`), { serviceName: service.name, pricePerHour: service.price, startTime: new Date().toISOString(), note: note, staffName: staffMember ? staffMember.name : 'Admin', registerId: registerSession.id }); 
+          
+          // 2. NO GUARDAR en 'pending_orders'. (Eliminada la línea que causaba el error).
+          // El ticket de inicio es solo papel, no deuda.
+          
+          setIsServiceModalOpen(false); 
+          
+          // 3. Imprimir ticket informativo (sin ID de base de datos)
+          const infoTicket = { 
+              type: 'order', 
+              businessName: appName, 
+              date: new Date().toLocaleString(), 
+              staffName: staffMember ? staffMember.name : 'Mesero',
+              orderId: 'INI-SRV', // ID ficticio para el papel
+              items: [{ id: 'srv-start', name: `⏱️ INICIO: ${service.name} (${note})`, price: 0, qty: 1 }], 
+              total: 0, 
+              autoPrint: true 
+          };
+          
+          setLastSale(infoTicket); 
+          setView('receipt_view'); 
+          toast.success("Servicio iniciado"); 
+      } catch (e) { toast.error("Error al iniciar servicio"); } 
+  };
+
   const handleStopService = async (service, cost, timeLabel) => { if (!checkRegisterStatus(true)) return; if (!window.confirm(`¿Detener ${service.serviceName}?\nCosto: Bs. ${cost.toFixed(2)}`)) return; try { await deleteDoc(doc(db, isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`, service.id)); await addDoc(collection(db, isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`), { date: new Date().toISOString(), staffId: staffMember ? staffMember.id : 'anon', staffName: service.staffName || 'Sistema', orderId: 'SRV-' + Math.floor(Math.random() * 1000), items: [{ id: 'srv-' + Date.now(), name: `${service.serviceName} (${timeLabel})`, price: cost, qty: 1, category: 'Servicios' }], total: cost, status: 'pending' }); toast.success("Servicio detenido."); } catch (e) { toast.error("Error al detener servicio"); } };
   const handleAddExpense = async (description, amount) => { if (!registerSession) return; try { const expenseData = { registerId: registerSession.id, description, amount, date: new Date().toISOString(), createdBy: staffMember ? staffMember.name : 'Admin' }; await addDoc(collection(db, isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`), expenseData); const expenseReceipt = { type: 'expense', businessName: appName, date: new Date().toLocaleString(), staffName: staffMember ? staffMember.name : 'Admin', description: description, amount: amount, autoPrint: true }; setLastSale(expenseReceipt); setView('receipt_view'); toast.success("Gasto registrado"); } catch (e) { toast.error("Error guardando gasto"); } };
   const handleDeleteExpense = async (id) => { if(!window.confirm("¿Eliminar?")) return; try { await deleteDoc(doc(db, isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`, id)); toast.success("Eliminado"); } catch (e) { toast.error("Error"); } };
@@ -120,7 +150,7 @@ export default function App() {
   const handleVoidAndPrint = async (order) => { try { await deleteDoc(doc(db, isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`, order.id)); setLastSale({ ...order, type: 'void', businessName: appName, date: new Date().toLocaleString() }); toast.success("Pedido anulado"); setView('receipt_view'); } catch (error) { toast.error("Error al anular"); } };
   const handleReprintOrder = (order) => { const preCheckData = { ...order, type: 'order', businessName: appName, date: new Date().toLocaleString() }; setLastSale(preCheckData); setView('receipt_view'); toast.success("Reimprimiendo comanda..."); };
   
-  // --- HANDLE FINALIZAR (CORRECCIÓN: SOPORTE MÚLTIPLES IDS) ---
+  // --- CORRECCIÓN 2: BORRADO DE COMANDAS MÚLTIPLES ---
   const handleFinalizeSale = async (paymentResult) => { 
       if (!db) return; 
       if (staffMember && staffMember.role !== 'Cajero' && staffMember.role !== 'Administrador') { toast.error("Solo Cajeros pueden cobrar."); setIsPaymentModalOpen(false); return; } 
@@ -137,78 +167,35 @@ export default function App() {
           const waiterName = orderToPay ? (orderToPay.staffName || 'Barra') : (staffMember ? staffMember.name : 'Barra'); 
           const waiterId = orderToPay ? (orderToPay.staffId || 'anon') : (staffMember ? staffMember.id : 'anon'); 
           
-          // --- DETECTAR SI HAY MÚLTIPLES PEDIDOS ---
           let originalOrderId = 'ORD-' + Math.floor(Math.random() * 10000);
-          
           if (orderToPay) {
-              if (orderToPay.orderIds && Array.isArray(orderToPay.orderIds)) {
-                  // Si viene una lista de IDs (multi-selección)
-                  originalOrderId = orderToPay.orderIds.join(', ');
-              } else if (orderToPay.orderId) {
-                  // Si es un solo pedido
-                  originalOrderId = orderToPay.orderId;
-              }
+              if (orderToPay.orderIds && Array.isArray(orderToPay.orderIds)) { originalOrderId = orderToPay.orderIds.join(', '); } 
+              else if (orderToPay.orderId) { originalOrderId = orderToPay.orderId; }
           }
 
-          const cleanItems = itemsToProcess.map(item => ({ 
-              id: item.id || 'unknown', 
-              name: item.name || 'Sin nombre', 
-              price: parseFloat(item.price) || 0, 
-              cost: parseFloat(item.cost) || 0, 
-              qty: parseInt(item.qty) || 1, 
-              category: item.category || 'General', 
-              stock: item.stock !== undefined ? item.stock : null, 
-              image: item.image || null, 
-              isServiceItem: !!item.isServiceItem, 
-              location: item.location || null 
-          })); 
-          
-          const saleData = { 
-              date: timestamp.toISOString(), 
-              total: parseFloat(totalToProcess) || 0, 
-              items: cleanItems, 
-              staffId: waiterId, 
-              staffName: waiterName, 
-              cashier: cashierName, 
-              registerId: registerSession.id, 
-              payments: paymentsList || [], 
-              totalPaid: parseFloat(totalPaid) || 0, 
-              changeGiven: parseFloat(change) || 0,
-              orderId: originalOrderId 
-          }; 
-          
+          const cleanItems = itemsToProcess.map(item => ({ id: item.id || 'unknown', name: item.name || 'Sin nombre', price: parseFloat(item.price) || 0, cost: parseFloat(item.cost) || 0, qty: parseInt(item.qty) || 1, category: item.category || 'General', stock: item.stock !== undefined ? item.stock : null, image: item.image || null, isServiceItem: !!item.isServiceItem, location: item.location || null })); 
+          const saleData = { date: timestamp.toISOString(), total: parseFloat(totalToProcess) || 0, items: cleanItems, staffId: waiterId, staffName: waiterName, cashier: cashierName, registerId: registerSession.id, payments: paymentsList || [], totalPaid: parseFloat(totalPaid) || 0, changeGiven: parseFloat(change) || 0, orderId: originalOrderId }; 
           const docRef = await addDoc(collection(db, isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`), saleData); 
           
           cleanItems.forEach(item => { if (item.stock !== null && item.stock !== '' && !isNaN(item.stock) && !item.isServiceItem) { const newStock = parseInt(item.stock) - item.qty; batchPromises.push(updateDoc(doc(db, getCollName('items'), item.id), { stock: newStock })); } }); 
           
-          // Borrar pedidos pendientes
+          // --- AQUÍ ESTÁ LA SOLUCIÓN AL PROBLEMA DE "COMANDAS QUE NO SE BORRAN" ---
           if (orderToPay && orderToPay.type !== 'quick_sale') { 
-              if (orderToPay.id) {
-                  // Single delete
-                  batchPromises.push(deleteDoc(doc(db, isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`, orderToPay.id))); 
-              } else if (orderToPay.ids && Array.isArray(orderToPay.ids)) {
-                  // Multi delete (si se implementa selección múltiple)
+              // Prioridad 1: Si es una lista de IDs (Bulk Payment)
+              if (orderToPay.ids && Array.isArray(orderToPay.ids) && orderToPay.ids.length > 0) {
                   orderToPay.ids.forEach(id => {
                       batchPromises.push(deleteDoc(doc(db, isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`, id)));
                   });
+              } 
+              // Prioridad 2: Si es un ID único y NO es "BULK_PAYMENT"
+              else if (orderToPay.id && orderToPay.id !== 'BULK_PAYMENT') {
+                  batchPromises.push(deleteDoc(doc(db, isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`, orderToPay.id))); 
               }
           } 
           
           await Promise.all(batchPromises); 
           
-          const receiptData = { 
-              type: 'order', 
-              businessName: appName, 
-              date: timestamp.toLocaleString(), 
-              staffName: waiterName, 
-              cashierName: cashierName, 
-              orderId: originalOrderId, 
-              items: cleanItems, 
-              total: totalToProcess, 
-              payments: paymentsList, 
-              change: change, 
-              autoPrint: true 
-          }; 
+          const receiptData = { type: 'order', businessName: appName, date: timestamp.toLocaleString(), staffName: waiterName, cashierName: cashierName, orderId: originalOrderId, items: cleanItems, total: totalToProcess, payments: paymentsList, change: change, autoPrint: true }; 
           setLastSale(receiptData); 
           if (pendingSale && pendingSale.clearCart) pendingSale.clearCart([]); 
           setPendingSale(null); setOrderToPay(null); 
