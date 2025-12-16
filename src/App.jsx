@@ -1,6 +1,6 @@
-// src/App.jsx - CORRECCIÓN: BORRADO DE COMANDAS Y SERVICIOS FANTASMA
+// src/App.jsx - VENTA RÁPIDA RECUPERADA PARA CAJEROS
 import React, { useState, useEffect, useMemo } from 'react';
-import { Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign, ArrowLeft, Lock, Unlock, Wallet, Loader2, LayoutGrid, Gift, Trees, TrendingUp, Package, AlertCircle, Filter, X, FileSpreadsheet } from 'lucide-react';
+import { Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign, ArrowLeft, Lock, Unlock, Wallet, Loader2, LayoutGrid, Gift, Trees, TrendingUp, Package, AlertCircle, Filter, X, FileSpreadsheet, Zap } from 'lucide-react';
 import { onAuthStateChanged, signOut, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
 import { collection, doc, setDoc, addDoc, deleteDoc, onSnapshot, updateDoc, query, where, limit, getDocs } from 'firebase/firestore';
 import toast, { Toaster } from 'react-hot-toast';
@@ -106,37 +106,15 @@ export default function App() {
 
   const checkRegisterStatus = (requireOwnership = false) => { if (registerSession) { const isAdmin = currentUser && !currentUser.isAnonymous; const isOwner = staffMember && registerSession.openedBy === staffMember.name; if (requireOwnership && !isAdmin && !isOwner) { toast.error(`⛔ ACCESO DENEGADO\nTurno de: ${registerSession.openedBy}`, { duration: 5000 }); return false; } return true; } const canOpenRegister = (currentUser && !currentUser.isAnonymous) || (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador')); if (canOpenRegister) setIsOpenRegisterModalOpen(true); else toast.error("⚠️ LA CAJA ESTÁ CERRADA.", { icon: '🔒' }); return false; };
   const handleOpenRegister = async (amount, activeTeam = []) => { try { const sessionData = { status: 'open', openedBy: staffMember ? staffMember.name : (currentUser?.email || 'Admin'), openedAt: new Date().toISOString(), openingAmount: amount, activeTeam: activeTeam, salesTotal: 0 }; const docRef = await addDoc(collection(db, isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`), sessionData); setRegisterSession({ id: docRef.id, ...sessionData }); setIsOpenRegisterModalOpen(false); toast.success(`Turno Abierto`); } catch (error) { toast.error("Error al abrir caja"); } };
-  
-  // --- CORRECCIÓN 1: INICIO DE SERVICIO SIN GENERAR DEUDA FANTASMA ---
   const handleStartService = async (service, note) => { 
       if (!checkRegisterStatus(false)) return; 
       try { 
-          // 1. Guardar en Active Services (Esto SÍ es necesario para que el reloj corra)
           await addDoc(collection(db, isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`), { serviceName: service.name, pricePerHour: service.price, startTime: new Date().toISOString(), note: note, staffName: staffMember ? staffMember.name : 'Admin', registerId: registerSession.id }); 
-          
-          // 2. NO GUARDAR en 'pending_orders'. (Eliminada la línea que causaba el error).
-          // El ticket de inicio es solo papel, no deuda.
-          
           setIsServiceModalOpen(false); 
-          
-          // 3. Imprimir ticket informativo (sin ID de base de datos)
-          const infoTicket = { 
-              type: 'order', 
-              businessName: appName, 
-              date: new Date().toLocaleString(), 
-              staffName: staffMember ? staffMember.name : 'Mesero',
-              orderId: 'INI-SRV', // ID ficticio para el papel
-              items: [{ id: 'srv-start', name: `⏱️ INICIO: ${service.name} (${note})`, price: 0, qty: 1 }], 
-              total: 0, 
-              autoPrint: true 
-          };
-          
-          setLastSale(infoTicket); 
-          setView('receipt_view'); 
-          toast.success("Servicio iniciado"); 
+          const infoTicket = { type: 'order', businessName: appName, date: new Date().toLocaleString(), staffName: staffMember ? staffMember.name : 'Mesero', orderId: 'INI-SRV', items: [{ id: 'srv-start', name: `⏱️ INICIO: ${service.name} (${note})`, price: 0, qty: 1 }], total: 0, autoPrint: true };
+          setLastSale(infoTicket); setView('receipt_view'); toast.success("Servicio iniciado"); 
       } catch (e) { toast.error("Error al iniciar servicio"); } 
   };
-
   const handleStopService = async (service, cost, timeLabel) => { if (!checkRegisterStatus(true)) return; if (!window.confirm(`¿Detener ${service.serviceName}?\nCosto: Bs. ${cost.toFixed(2)}`)) return; try { await deleteDoc(doc(db, isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`, service.id)); await addDoc(collection(db, isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`), { date: new Date().toISOString(), staffId: staffMember ? staffMember.id : 'anon', staffName: service.staffName || 'Sistema', orderId: 'SRV-' + Math.floor(Math.random() * 1000), items: [{ id: 'srv-' + Date.now(), name: `${service.serviceName} (${timeLabel})`, price: cost, qty: 1, category: 'Servicios' }], total: cost, status: 'pending' }); toast.success("Servicio detenido."); } catch (e) { toast.error("Error al detener servicio"); } };
   const handleAddExpense = async (description, amount) => { if (!registerSession) return; try { const expenseData = { registerId: registerSession.id, description, amount, date: new Date().toISOString(), createdBy: staffMember ? staffMember.name : 'Admin' }; await addDoc(collection(db, isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`), expenseData); const expenseReceipt = { type: 'expense', businessName: appName, date: new Date().toLocaleString(), staffName: staffMember ? staffMember.name : 'Admin', description: description, amount: amount, autoPrint: true }; setLastSale(expenseReceipt); setView('receipt_view'); toast.success("Gasto registrado"); } catch (e) { toast.error("Error guardando gasto"); } };
   const handleDeleteExpense = async (id) => { if(!window.confirm("¿Eliminar?")) return; try { await deleteDoc(doc(db, isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`, id)); toast.success("Eliminado"); } catch (e) { toast.error("Error"); } };
@@ -149,64 +127,12 @@ export default function App() {
   const handleSendToKitchen = async (cart, clearCart) => { if (!checkRegisterStatus(false)) return; if (cart.length === 0) return; const toastId = toast.loading('Procesando comanda...'); try { const totalOrder = cart.reduce((acc, item) => acc + (item.price * item.qty), 0); const orderData = { date: new Date().toISOString(), staffId: staffMember ? staffMember.id : 'anon', staffName: staffMember ? staffMember.name : 'Mesero', orderId: 'ORD-' + Math.floor(Math.random() * 10000), items: cart, total: totalOrder, status: 'pending' }; await addDoc(collection(db, isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`), orderData); const preCheckData = { ...orderData, type: 'order', date: new Date().toLocaleString(), autoPrint: true }; clearCart([]); setLastSale(preCheckData); toast.success('Pedido enviado a caja', { id: toastId }); setView('receipt_view'); } catch (error) { toast.error('Error al enviar pedido', { id: toastId }); } };
   const handleVoidAndPrint = async (order) => { try { await deleteDoc(doc(db, isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`, order.id)); setLastSale({ ...order, type: 'void', businessName: appName, date: new Date().toLocaleString() }); toast.success("Pedido anulado"); setView('receipt_view'); } catch (error) { toast.error("Error al anular"); } };
   const handleReprintOrder = (order) => { const preCheckData = { ...order, type: 'order', businessName: appName, date: new Date().toLocaleString() }; setLastSale(preCheckData); setView('receipt_view'); toast.success("Reimprimiendo comanda..."); };
+  const handleFinalizeSale = async (paymentResult) => { if (!db) return; if (staffMember && staffMember.role !== 'Cajero' && staffMember.role !== 'Administrador') { toast.error("Solo Cajeros pueden cobrar."); setIsPaymentModalOpen(false); return; } if (!registerSession) { toast.error("La caja está cerrada"); return; } const toastId = toast.loading('Procesando pago...'); setIsPaymentModalOpen(false); const itemsToProcess = orderToPay ? orderToPay.items : pendingSale.cart; const { paymentsList, totalPaid, change } = paymentResult; const totalToProcess = totalPaid - change; try { const batchPromises = []; const timestamp = new Date(); let cashierName = staffMember ? staffMember.name : 'Administrador'; const waiterName = orderToPay ? (orderToPay.staffName || 'Barra') : (staffMember ? staffMember.name : 'Barra'); const waiterId = orderToPay ? (orderToPay.staffId || 'anon') : (staffMember ? staffMember.id : 'anon'); let originalOrderId = 'ORD-' + Math.floor(Math.random() * 10000); if (orderToPay) { if (orderToPay.orderIds && Array.isArray(orderToPay.orderIds)) { originalOrderId = orderToPay.orderIds.join(', '); } else if (orderToPay.orderId) { originalOrderId = orderToPay.orderId; } } const cleanItems = itemsToProcess.map(item => ({ id: item.id || 'unknown', name: item.name || 'Sin nombre', price: parseFloat(item.price) || 0, cost: parseFloat(item.cost) || 0, qty: parseInt(item.qty) || 1, category: item.category || 'General', stock: item.stock !== undefined ? item.stock : null, image: item.image || null, isServiceItem: !!item.isServiceItem, location: item.location || null })); const saleData = { date: timestamp.toISOString(), total: parseFloat(totalToProcess) || 0, items: cleanItems, staffId: waiterId, staffName: waiterName, cashier: cashierName, registerId: registerSession.id, payments: paymentsList || [], totalPaid: parseFloat(totalPaid) || 0, changeGiven: parseFloat(change) || 0, orderId: originalOrderId }; const docRef = await addDoc(collection(db, isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`), saleData); cleanItems.forEach(item => { if (item.stock !== null && item.stock !== '' && !isNaN(item.stock) && !item.isServiceItem) { const newStock = parseInt(item.stock) - item.qty; batchPromises.push(updateDoc(doc(db, getCollName('items'), item.id), { stock: newStock })); } }); if (orderToPay && orderToPay.type !== 'quick_sale') { if (orderToPay.ids && Array.isArray(orderToPay.ids) && orderToPay.ids.length > 0) { orderToPay.ids.forEach(id => { batchPromises.push(deleteDoc(doc(db, isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`, id))); }); } else if (orderToPay.id && orderToPay.id !== 'BULK_PAYMENT') { batchPromises.push(deleteDoc(doc(db, isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`, orderToPay.id))); } } await Promise.all(batchPromises); const receiptData = { type: 'order', businessName: appName, date: timestamp.toLocaleString(), staffName: waiterName, cashierName: cashierName, orderId: originalOrderId, items: cleanItems, total: totalToProcess, payments: paymentsList, change: change, autoPrint: true }; setLastSale(receiptData); if (pendingSale && pendingSale.clearCart) pendingSale.clearCart([]); setPendingSale(null); setOrderToPay(null); toast.success('Cobro exitoso', { id: toastId }); setView('receipt_view'); } catch (e) { console.error(e); toast.error('Error al cobrar', { id: toastId }); } };
   
-  // --- CORRECCIÓN 2: BORRADO DE COMANDAS MÚLTIPLES ---
-  const handleFinalizeSale = async (paymentResult) => { 
-      if (!db) return; 
-      if (staffMember && staffMember.role !== 'Cajero' && staffMember.role !== 'Administrador') { toast.error("Solo Cajeros pueden cobrar."); setIsPaymentModalOpen(false); return; } 
-      if (!registerSession) { toast.error("La caja está cerrada"); return; } 
-      const toastId = toast.loading('Procesando pago...'); 
-      setIsPaymentModalOpen(false); 
-      const itemsToProcess = orderToPay ? orderToPay.items : pendingSale.cart; 
-      const { paymentsList, totalPaid, change } = paymentResult; 
-      const totalToProcess = totalPaid - change; 
-      try { 
-          const batchPromises = []; 
-          const timestamp = new Date(); 
-          let cashierName = staffMember ? staffMember.name : 'Administrador'; 
-          const waiterName = orderToPay ? (orderToPay.staffName || 'Barra') : (staffMember ? staffMember.name : 'Barra'); 
-          const waiterId = orderToPay ? (orderToPay.staffId || 'anon') : (staffMember ? staffMember.id : 'anon'); 
-          
-          let originalOrderId = 'ORD-' + Math.floor(Math.random() * 10000);
-          if (orderToPay) {
-              if (orderToPay.orderIds && Array.isArray(orderToPay.orderIds)) { originalOrderId = orderToPay.orderIds.join(', '); } 
-              else if (orderToPay.orderId) { originalOrderId = orderToPay.orderId; }
-          }
-
-          const cleanItems = itemsToProcess.map(item => ({ id: item.id || 'unknown', name: item.name || 'Sin nombre', price: parseFloat(item.price) || 0, cost: parseFloat(item.cost) || 0, qty: parseInt(item.qty) || 1, category: item.category || 'General', stock: item.stock !== undefined ? item.stock : null, image: item.image || null, isServiceItem: !!item.isServiceItem, location: item.location || null })); 
-          const saleData = { date: timestamp.toISOString(), total: parseFloat(totalToProcess) || 0, items: cleanItems, staffId: waiterId, staffName: waiterName, cashier: cashierName, registerId: registerSession.id, payments: paymentsList || [], totalPaid: parseFloat(totalPaid) || 0, changeGiven: parseFloat(change) || 0, orderId: originalOrderId }; 
-          const docRef = await addDoc(collection(db, isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`), saleData); 
-          
-          cleanItems.forEach(item => { if (item.stock !== null && item.stock !== '' && !isNaN(item.stock) && !item.isServiceItem) { const newStock = parseInt(item.stock) - item.qty; batchPromises.push(updateDoc(doc(db, getCollName('items'), item.id), { stock: newStock })); } }); 
-          
-          // --- AQUÍ ESTÁ LA SOLUCIÓN AL PROBLEMA DE "COMANDAS QUE NO SE BORRAN" ---
-          if (orderToPay && orderToPay.type !== 'quick_sale') { 
-              // Prioridad 1: Si es una lista de IDs (Bulk Payment)
-              if (orderToPay.ids && Array.isArray(orderToPay.ids) && orderToPay.ids.length > 0) {
-                  orderToPay.ids.forEach(id => {
-                      batchPromises.push(deleteDoc(doc(db, isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`, id)));
-                  });
-              } 
-              // Prioridad 2: Si es un ID único y NO es "BULK_PAYMENT"
-              else if (orderToPay.id && orderToPay.id !== 'BULK_PAYMENT') {
-                  batchPromises.push(deleteDoc(doc(db, isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`, orderToPay.id))); 
-              }
-          } 
-          
-          await Promise.all(batchPromises); 
-          
-          const receiptData = { type: 'order', businessName: appName, date: timestamp.toLocaleString(), staffName: waiterName, cashierName: cashierName, orderId: originalOrderId, items: cleanItems, total: totalToProcess, payments: paymentsList, change: change, autoPrint: true }; 
-          setLastSale(receiptData); 
-          if (pendingSale && pendingSale.clearCart) pendingSale.clearCart([]); 
-          setPendingSale(null); setOrderToPay(null); 
-          toast.success('Cobro exitoso', { id: toastId }); 
-          setView('receipt_view'); 
-      } catch (e) { console.error(e); toast.error('Error al cobrar', { id: toastId }); } 
-  };
-
   const handleReceiptClose = () => { 
       if (lastSale && lastSale.type === 'z-report') { setView('landing'); return; } 
       const isCashier = (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador')) || (currentUser && !currentUser.isAnonymous); 
+      // SI ES CAJERO, VUELVE A CAJA. SI ES OTRO, VUELVE A LANDING Y CIERRA.
       if (isCashier) { setView('cashier'); } else { setStaffMember(null); setView('landing'); }
   };
 
@@ -260,9 +186,21 @@ export default function App() {
             {isAdminMode && (
               <>
                 <div className="mb-6 no-print overflow-x-auto">
-                  <div className="flex border-b border-gray-200 min-w-max">
+                  <div className="flex border-b border-gray-200 min-w-max items-center">
+                    
+                    {/* BOTONES DE NAVEGACIÓN NORMALES */}
                     {!isCashierOnly && <button onClick={() => setView('admin')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'admin' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><ClipboardList size={18}/> Inventario</button>}
                     <button onClick={() => setView('cashier')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'cashier' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><DollarSign size={18}/> Caja</button>
+                    
+                    {/* --- BOTÓN DE VENTA RÁPIDA (NUEVO) --- */}
+                    <button onClick={() => {
+                        // Al hacer clic, forzamos que vaya al POS, pero mantenemos el rol de cajero
+                        if(!registerSession) { toast.error("Abre la caja primero"); return; }
+                        setView('pos');
+                    }} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 border-transparent text-green-600 hover:bg-green-50`}>
+                        <Zap size={18}/> Venta Rápida
+                    </button>
+
                     <button onClick={() => setView('register_control')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'register_control' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><Wallet size={18}/> Control Caja</button>
                     {!isCashierOnly && <button onClick={() => setView('staff_admin')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'staff_admin' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><Users size={18}/> Personal</button>}
                     <button onClick={() => setView('report')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'report' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><FileText size={18}/> Reporte</button>
@@ -321,7 +259,12 @@ export default function App() {
               </>
             )}
             {view === 'pin_login' && <PinLoginView staffMembers={staff} onLoginSuccess={handleStaffPinLogin} onClockAction={handleClockAction} onCancel={() => setView('landing')} />}
-            {view === 'pos' && (<POSInterface items={items} categories={categories} staffMember={staffMember} onCheckout={handlePOSCheckout} onPrintOrder={handleSendToKitchen} onExit={() => setView('landing')} onOpenServiceModal={() => setIsServiceModalOpen(true)} autoLockTime={autoLockTime} />)}
+            {/* AQUÍ ESTÁ LA MAGIA: Al salir del POS, si es cajero, vuelve a 'cashier' */}
+            {view === 'pos' && (<POSInterface items={items} categories={categories} staffMember={staffMember} onCheckout={handlePOSCheckout} onPrintOrder={handleSendToKitchen} onExit={() => {
+                const isCashier = (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador')) || (currentUser && !currentUser.isAnonymous);
+                if(isCashier) setView('cashier'); else setView('landing');
+            }} onOpenServiceModal={() => setIsServiceModalOpen(true)} autoLockTime={autoLockTime} />)}
+            
             {view === 'receipt_view' && <Receipt data={lastSale} onPrint={handlePrint} onClose={handleReceiptClose} printerType={printerType} />}
             {view === 'menu' && (<>{/* ... MENÚ CLIENTES ... */}<div className="fixed inset-0 z-0 pointer-events-none bg-[#0a0a0a]"><div className="absolute top-[-20%] left-[-20%] w-[50%] h-[50%] bg-red-600/20 blur-[100px] rotate-45 animate-pulse"></div><div className="absolute bottom-[-20%] right-[-20%] w-[50%] h-[50%] bg-green-600/20 blur-[100px] rotate-[-45] animate-pulse delay-500"></div><div className="absolute inset-0" style={{backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '30px 30px', animation: 'snowfallNative 10s linear infinite', opacity: 0.3}}></div><style jsx>{`@keyframes snowfallNative { from {background-position: 0 0;} to {background-position: 20px 100vh;} }`}</style></div>{filter === 'Todos' ? (<div className="animate-in fade-in pb-20 relative z-10 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 pt-6"><button onClick={() => setView('landing')} className="absolute top-4 left-4 z-50 p-3 text-white/50 hover:text-white bg-black/20 hover:bg-black/40 backdrop-blur-md rounded-full transition-all" title="Salir del Menú"><Home size={24} /></button><div className="text-center mb-10 mt-4"><div className="flex items-center justify-center gap-3 mb-2"><Trees size={28} className="text-red-500 drop-shadow-[0_0_8px_rgba(220,38,38,0.8)]" /><h2 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-white to-green-400 tracking-tight drop-shadow-[0_0_10px_rgba(255,255,255,0.5)] uppercase">NUESTRO MENÚ</h2><Trees size={28} className="text-green-500 drop-shadow-[0_0_8px_rgba(34,197,94,0.8)] scale-x-[-1]" /></div><p className="text-gray-400 font-bold uppercase tracking-widest text-sm flex justify-center items-center gap-2 before:h-px before:w-6 before:bg-red-500 after:h-px after:w-6 after:bg-green-500 opacity-80"><Gift size={14} className="text-red-400"/> Selecciona una categoría <Gift size={14} className="text-green-400"/></p></div><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 px-2 max-w-5xl mx-auto">{categories.map((cat, index) => { const borderColors = ['border-red-500/60 shadow-[0_0_15px_-3px_rgba(220,38,38,0.5)] text-red-100', 'border-green-500/60 shadow-[0_0_15px_-3px_rgba(34,197,94,0.5)] text-green-100', 'border-yellow-500/60 shadow-[0_0_15px_-3px_rgba(234,179,8,0.5)] text-yellow-100', 'border-purple-500/60 shadow-[0_0_15px_-3px_rgba(168,85,247,0.5)] text-purple-100']; const currentStyle = borderColors[index % borderColors.length]; return (<button key={cat} onClick={() => setFilter(cat)} className={`relative h-40 rounded-3xl overflow-hidden bg-black/60 backdrop-blur-md group border-2 border-dashed transition-all duration-500 hover:scale-[1.03] active:scale-95 hover:shadow-[0_0_30px_-5px_rgba(255,255,255,0.3)] ${currentStyle}`}><div className={`absolute top-2 left-2 w-2 h-2 rounded-full animate-pulse ${index%2 ? 'bg-red-500 shadow-[0_0_5px_red]' : 'bg-green-500 shadow-[0_0_5px_green]'}`}></div><div className={`absolute bottom-2 right-2 w-2 h-2 rounded-full animate-pulse delay-500 ${index%3 ? 'bg-blue-500 shadow-[0_0_5px_blue]' : 'bg-yellow-500 shadow-[0_0_5px_yellow]'}`}></div><div className="absolute inset-0 flex flex-col items-center justify-center z-10 p-4"><Gift size={20} className={`mb-2 opacity-50 group-hover:opacity-100 transition-opacity drop-shadow-[0_0_5px_currentColor] ${index%2 ? 'text-green-400' : 'text-red-400'}`}/><span className="font-black text-2xl uppercase tracking-wider drop-shadow-md text-center">{cat}</span></div></button>)})}</div></div>) : (<div className="animate-in slide-in-from-right duration-300 relative z-10 min-h-screen -mx-4 sm:-mx-6 lg:-mx-8"><div className="sticky top-16 z-20 bg-black/70 backdrop-blur-xl py-4 mb-6 border-b border-white/10 shadow-[0_4px_20px_-5px_rgba(0,0,0,0.5)] px-4 sm:px-6 lg:px-8"><div className="flex items-center gap-4 max-w-7xl mx-auto"><button aria-label="Volver al menú" onClick={() => setFilter('Todos')} className="p-3 bg-white/10 text-white rounded-full hover:bg-white/20 border border-white/10 shadow-lg transition-transform active:scale-90 group backdrop-blur-md"><ArrowLeft size={24} className="group-hover:-translate-x-1 transition-transform"/></button><div><h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-400 uppercase tracking-wide leading-none drop-shadow-[0_0_5px_rgba(249,115,22,0.5)]">{filter}</h2><p className="text-xs text-gray-400 font-bold uppercase tracking-widest flex items-center gap-1"><Trees size={10} className="text-green-500"/> Explora nuestros productos</p></div></div></div><div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6 pb-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">{filteredItems.length > 0 ? (filteredItems.map(item => (<div key={item.id} className="rounded-2xl overflow-hidden p-1 bg-gradient-to-br from-white/10 to-transparent border border-white/5 shadow-lg"><MenuCard item={item} /></div>))) : (<div className="col-span-full text-center py-20 text-gray-500 flex flex-col items-center"><Search size={48} className="mb-2 opacity-20 text-white"/><p className="text-gray-400">No hay productos en esta categoría.</p></div>)}</div></div>)}</>)}
           </main>
