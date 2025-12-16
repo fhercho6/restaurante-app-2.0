@@ -1,4 +1,4 @@
-// src/components/Receipt.jsx - MODO ECO (AHORRO TINTA Y CABEZAL)
+// src/components/Receipt.jsx - SOPORTE MÚLTIPLES CÓDIGOS (SIN ERRORES)
 import React, { useEffect, useState } from 'react';
 import { X, Printer, Loader2, CheckCircle } from 'lucide-react';
 
@@ -17,11 +17,14 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
   const isCourtesySale = data.payments && data.payments.some(p => p.method === 'Cortesía');
   const staffName = data.staffName || 'General';
   const cashierName = data.cashierName || 'Caja';
-  const displayCode = data.orderId ? data.orderId.replace(/[^0-9]/g, '').slice(-4) : '----';
 
-  // --- CONFIGURACIÓN DE COLOR "ECO" ---
-  // Usamos #404040 (Gris oscuro) en lugar de Negro.
-  // Bordes más claros #888888.
+  // --- CORRECCIÓN CLAVE: LIMPIEZA DE CÓDIGO ---
+  // Antes: Borraba todo lo que no fuera número (rompía las comas).
+  // Ahora: Solo quita el prefijo "ORD-", manteniendo comas y espacios.
+  const displayCode = data.orderId 
+      ? data.orderId.replace(/ORD-/g, '').replace(/,/g, ' -') 
+      : '----';
+
   const INK_COLOR = '#404040'; 
   const BORDER_COLOR = '#999999';
 
@@ -50,7 +53,7 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
             <div class="page-break"></div><div style="font-weight:bold;font-size:14px;margin-bottom:10px;border-bottom:1px solid ${INK_COLOR};">III. DETALLE PRODUCTOS</div><table class="product-table"><thead><tr><th>PRODUCTO</th><th class="text-center">VEND</th><th class="text-center">CORT</th><th class="text-right">T.COSTO</th><th class="text-right">T.VENTA</th></tr></thead><tbody>${productRows}</tbody></table></body></html>`;
   };
 
-  // --- MODO 2: TICKET TÉRMICO (ULTRA LIGERO) ---
+  // --- MODO 2: TICKET TÉRMICO ---
   const renderThermalReport = () => {
       const stats = data.stats || {};
       let title = (data.businessName || 'LicoBar').toUpperCase();
@@ -60,23 +63,23 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
       let itemsHtml = data.items ? data.items.map(item => `<div class="row" style="margin-bottom:2px;"><div class="col-qty">${item.qty}</div><div class="col-name">${item.name}</div><div class="col-price">${isCourtesySale ? '0.00' : fmt(item.price * item.qty)}</div></div>`).join('') : '';
       let zReportRows = data.soldProducts ? data.soldProducts.map(p => `<div class="row"><div class="col-qty">${p.qtySold + (p.qtyCourtesy||0)}</div><div class="col-name">${p.name}</div><div class="col-price">${fmt(p.total)}</div></div>`).join('') : '';
 
+      // AJUSTAR TAMAÑO DE FUENTE SI HAY MUCHOS CÓDIGOS
+      const isMultiCode = displayCode.length > 8;
+      const codeFontSize = isMultiCode ? '14px' : '24px';
+
       return `<html><head><style>
             * { box-sizing: border-box; }
-            /* COLOR GRIS SUAVE #404040 */
             body { font-family: 'Arial', sans-serif; margin: 0; padding: 5px 0; width: 72mm; font-size: 12px; color: ${INK_COLOR}; }
             .text-center { text-align: center; }
             .text-right { text-align: right; }
-            /* FUENTE MENOS GRUESA (600 en vez de 900) */
             .bold { font-weight: 600; } 
-            /* BORDES FINOS Y PUNTEADOS */
             .border-b { border-bottom: 1px dashed ${BORDER_COLOR}; padding-bottom: 5px; margin-bottom: 5px; }
             .flex-between { display: flex; justify-content: space-between; }
             .row { display: flex; width: 100%; font-size: 11px; }
             .col-qty { width: 10%; text-align: center; } 
             .col-name { width: 65%; padding-left: 5px; } 
             .col-price { width: 25%; text-align: right; }
-            /* CODIGO GRANDE PERO FINO */
-            .code-box { font-size: 20px; font-weight: 600; text-align: center; margin: 5px 0; border: 1px solid ${BORDER_COLOR}; padding: 4px; color: ${INK_COLOR}; letter-spacing: 1px; }
+            .code-box { font-size: ${codeFontSize}; font-weight: 600; text-align: center; margin: 5px 0; border: 1px solid ${BORDER_COLOR}; padding: 4px; color: ${INK_COLOR}; word-wrap: break-word; }
             .courtesy-box { border: 1px dashed ${BORDER_COLOR}; padding: 5px; margin: 10px 0; text-align: center; }
             </style></head><body>
             <div class="text-center border-b">
@@ -126,7 +129,6 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
   return (
     <div className="fixed inset-0 bg-gray-900/90 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
       <div className="bg-white w-full max-w-sm shadow-2xl rounded-xl overflow-hidden flex flex-col max-h-[90vh]">
-        
         {status === 'preview' && (
             <div className="bg-gray-800 p-3 flex justify-between items-center">
                 <h3 className="text-white font-bold text-sm">{useThermalFormat ? 'TICKET' : 'REPORTE'}</h3>
@@ -136,7 +138,6 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                 </div>
             </div>
         )}
-
         <div className="p-8 flex flex-col items-center justify-center text-center bg-gray-50 min-h-[200px]">
             {status === 'printing' ? (
                 <>

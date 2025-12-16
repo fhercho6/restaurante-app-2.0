@@ -1,4 +1,4 @@
-// src/App.jsx - GARZÓN VUELVE AL INICIO AUTOMÁTICAMENTE
+// src/App.jsx - SOPORTE PARA MÚLTIPLES IDs DE PEDIDO
 import React, { useState, useEffect, useMemo } from 'react';
 import { Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign, ArrowLeft, Lock, Unlock, Wallet, Loader2, LayoutGrid, Gift, Trees, TrendingUp, Package, AlertCircle, Filter, X, FileSpreadsheet } from 'lucide-react';
 import { onAuthStateChanged, signOut, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
@@ -119,23 +119,108 @@ export default function App() {
   const handleSendToKitchen = async (cart, clearCart) => { if (!checkRegisterStatus(false)) return; if (cart.length === 0) return; const toastId = toast.loading('Procesando comanda...'); try { const totalOrder = cart.reduce((acc, item) => acc + (item.price * item.qty), 0); const orderData = { date: new Date().toISOString(), staffId: staffMember ? staffMember.id : 'anon', staffName: staffMember ? staffMember.name : 'Mesero', orderId: 'ORD-' + Math.floor(Math.random() * 10000), items: cart, total: totalOrder, status: 'pending' }; await addDoc(collection(db, isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`), orderData); const preCheckData = { ...orderData, type: 'order', date: new Date().toLocaleString(), autoPrint: true }; clearCart([]); setLastSale(preCheckData); toast.success('Pedido enviado a caja', { id: toastId }); setView('receipt_view'); } catch (error) { toast.error('Error al enviar pedido', { id: toastId }); } };
   const handleVoidAndPrint = async (order) => { try { await deleteDoc(doc(db, isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`, order.id)); setLastSale({ ...order, type: 'void', businessName: appName, date: new Date().toLocaleString() }); toast.success("Pedido anulado"); setView('receipt_view'); } catch (error) { toast.error("Error al anular"); } };
   const handleReprintOrder = (order) => { const preCheckData = { ...order, type: 'order', businessName: appName, date: new Date().toLocaleString() }; setLastSale(preCheckData); setView('receipt_view'); toast.success("Reimprimiendo comanda..."); };
-  const handleFinalizeSale = async (paymentResult) => { if (!db) return; if (staffMember && staffMember.role !== 'Cajero' && staffMember.role !== 'Administrador') { toast.error("Solo Cajeros pueden cobrar."); setIsPaymentModalOpen(false); return; } if (!registerSession) { toast.error("La caja está cerrada"); return; } const toastId = toast.loading('Procesando pago...'); setIsPaymentModalOpen(false); const itemsToProcess = orderToPay ? orderToPay.items : pendingSale.cart; const { paymentsList, totalPaid, change } = paymentResult; const totalToProcess = totalPaid - change; try { const batchPromises = []; const timestamp = new Date(); let cashierName = staffMember ? staffMember.name : 'Administrador'; const waiterName = orderToPay ? (orderToPay.staffName || 'Barra') : (staffMember ? staffMember.name : 'Barra'); const waiterId = orderToPay ? (orderToPay.staffId || 'anon') : (staffMember ? staffMember.id : 'anon'); const originalOrderId = orderToPay?.orderId || ('ORD-' + Math.floor(Math.random() * 10000)); const cleanItems = itemsToProcess.map(item => ({ id: item.id || 'unknown', name: item.name || 'Sin nombre', price: parseFloat(item.price) || 0, cost: parseFloat(item.cost) || 0, qty: parseInt(item.qty) || 1, category: item.category || 'General', stock: item.stock !== undefined ? item.stock : null, image: item.image || null, isServiceItem: !!item.isServiceItem, location: item.location || null })); const saleData = { date: timestamp.toISOString(), total: parseFloat(totalToProcess) || 0, items: cleanItems, staffId: waiterId, staffName: waiterName, cashier: cashierName, registerId: registerSession.id, payments: paymentsList || [], totalPaid: parseFloat(totalPaid) || 0, changeGiven: parseFloat(change) || 0, orderId: originalOrderId }; const docRef = await addDoc(collection(db, isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`), saleData); cleanItems.forEach(item => { if (item.stock !== null && item.stock !== '' && !isNaN(item.stock) && !item.isServiceItem) { const newStock = parseInt(item.stock) - item.qty; batchPromises.push(updateDoc(doc(db, getCollName('items'), item.id), { stock: newStock })); } }); if (orderToPay && orderToPay.type !== 'quick_sale') { batchPromises.push(deleteDoc(doc(db, isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`, orderToPay.id))); } await Promise.all(batchPromises); const receiptData = { type: 'order', businessName: appName, date: timestamp.toLocaleString(), staffName: waiterName, cashierName: cashierName, orderId: originalOrderId, items: cleanItems, total: totalToProcess, payments: paymentsList, change: change, autoPrint: true }; setLastSale(receiptData); if (pendingSale && pendingSale.clearCart) pendingSale.clearCart([]); setPendingSale(null); setOrderToPay(null); toast.success('Cobro exitoso', { id: toastId }); setView('receipt_view'); } catch (e) { console.error(e); toast.error('Error al cobrar', { id: toastId }); } };
   
-  // --- ¡AQUÍ ESTÁ LA LÓGICA DE CIERRE AUTOMÁTICO! ---
+  // --- HANDLE FINALIZAR (CORRECCIÓN: SOPORTE MÚLTIPLES IDS) ---
+  const handleFinalizeSale = async (paymentResult) => { 
+      if (!db) return; 
+      if (staffMember && staffMember.role !== 'Cajero' && staffMember.role !== 'Administrador') { toast.error("Solo Cajeros pueden cobrar."); setIsPaymentModalOpen(false); return; } 
+      if (!registerSession) { toast.error("La caja está cerrada"); return; } 
+      const toastId = toast.loading('Procesando pago...'); 
+      setIsPaymentModalOpen(false); 
+      const itemsToProcess = orderToPay ? orderToPay.items : pendingSale.cart; 
+      const { paymentsList, totalPaid, change } = paymentResult; 
+      const totalToProcess = totalPaid - change; 
+      try { 
+          const batchPromises = []; 
+          const timestamp = new Date(); 
+          let cashierName = staffMember ? staffMember.name : 'Administrador'; 
+          const waiterName = orderToPay ? (orderToPay.staffName || 'Barra') : (staffMember ? staffMember.name : 'Barra'); 
+          const waiterId = orderToPay ? (orderToPay.staffId || 'anon') : (staffMember ? staffMember.id : 'anon'); 
+          
+          // --- DETECTAR SI HAY MÚLTIPLES PEDIDOS ---
+          let originalOrderId = 'ORD-' + Math.floor(Math.random() * 10000);
+          
+          if (orderToPay) {
+              if (orderToPay.orderIds && Array.isArray(orderToPay.orderIds)) {
+                  // Si viene una lista de IDs (multi-selección)
+                  originalOrderId = orderToPay.orderIds.join(', ');
+              } else if (orderToPay.orderId) {
+                  // Si es un solo pedido
+                  originalOrderId = orderToPay.orderId;
+              }
+          }
+
+          const cleanItems = itemsToProcess.map(item => ({ 
+              id: item.id || 'unknown', 
+              name: item.name || 'Sin nombre', 
+              price: parseFloat(item.price) || 0, 
+              cost: parseFloat(item.cost) || 0, 
+              qty: parseInt(item.qty) || 1, 
+              category: item.category || 'General', 
+              stock: item.stock !== undefined ? item.stock : null, 
+              image: item.image || null, 
+              isServiceItem: !!item.isServiceItem, 
+              location: item.location || null 
+          })); 
+          
+          const saleData = { 
+              date: timestamp.toISOString(), 
+              total: parseFloat(totalToProcess) || 0, 
+              items: cleanItems, 
+              staffId: waiterId, 
+              staffName: waiterName, 
+              cashier: cashierName, 
+              registerId: registerSession.id, 
+              payments: paymentsList || [], 
+              totalPaid: parseFloat(totalPaid) || 0, 
+              changeGiven: parseFloat(change) || 0,
+              orderId: originalOrderId 
+          }; 
+          
+          const docRef = await addDoc(collection(db, isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`), saleData); 
+          
+          cleanItems.forEach(item => { if (item.stock !== null && item.stock !== '' && !isNaN(item.stock) && !item.isServiceItem) { const newStock = parseInt(item.stock) - item.qty; batchPromises.push(updateDoc(doc(db, getCollName('items'), item.id), { stock: newStock })); } }); 
+          
+          // Borrar pedidos pendientes
+          if (orderToPay && orderToPay.type !== 'quick_sale') { 
+              if (orderToPay.id) {
+                  // Single delete
+                  batchPromises.push(deleteDoc(doc(db, isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`, orderToPay.id))); 
+              } else if (orderToPay.ids && Array.isArray(orderToPay.ids)) {
+                  // Multi delete (si se implementa selección múltiple)
+                  orderToPay.ids.forEach(id => {
+                      batchPromises.push(deleteDoc(doc(db, isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`, id)));
+                  });
+              }
+          } 
+          
+          await Promise.all(batchPromises); 
+          
+          const receiptData = { 
+              type: 'order', 
+              businessName: appName, 
+              date: timestamp.toLocaleString(), 
+              staffName: waiterName, 
+              cashierName: cashierName, 
+              orderId: originalOrderId, 
+              items: cleanItems, 
+              total: totalToProcess, 
+              payments: paymentsList, 
+              change: change, 
+              autoPrint: true 
+          }; 
+          setLastSale(receiptData); 
+          if (pendingSale && pendingSale.clearCart) pendingSale.clearCart([]); 
+          setPendingSale(null); setOrderToPay(null); 
+          toast.success('Cobro exitoso', { id: toastId }); 
+          setView('receipt_view'); 
+      } catch (e) { console.error(e); toast.error('Error al cobrar', { id: toastId }); } 
+  };
+
   const handleReceiptClose = () => { 
-      // 1. Si es Cierre Z, siempre vuelve al inicio
       if (lastSale && lastSale.type === 'z-report') { setView('landing'); return; } 
-      
       const isCashier = (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador')) || (currentUser && !currentUser.isAnonymous); 
-      
-      if (isCashier) {
-          // Si es Cajero, vuelve a su pantalla de ventas
-          setView('cashier'); 
-      } else {
-          // Si es Garzón (u otro rol), CIERRA SESIÓN y va al Landing
-          setStaffMember(null); // Cierra sesión para el próximo usuario
-          setView('landing'); 
-      }
+      if (isCashier) { setView('cashier'); } else { setStaffMember(null); setView('landing'); }
   };
 
   const handleSave = async (d) => { try { if(currentItem) await setDoc(doc(db, getCollName('items'), currentItem.id), d); else await addDoc(collection(db, getCollName('items')), d); toast.success('Guardado'); setIsModalOpen(false); } catch { toast.error('Error'); } };
