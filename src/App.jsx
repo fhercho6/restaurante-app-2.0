@@ -1,6 +1,6 @@
-// src/App.jsx - SOPORTE PARA IMPRESIÓN DE COBRO MASIVO
+// src/App.jsx - SOPORTE PARA REPORTE CARTA (TIPO CONTABLE)
 import React, { useState, useEffect, useMemo } from 'react';
-import { Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign, ArrowLeft, Lock, Unlock, Wallet, Loader2, LayoutGrid, Gift, Trees, TrendingUp, Package, AlertCircle, Filter, X } from 'lucide-react';
+import { Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign, ArrowLeft, Lock, Unlock, Wallet, Loader2, LayoutGrid, Gift, Trees, TrendingUp, Package, AlertCircle, Filter, X, FileSpreadsheet } from 'lucide-react';
 import { onAuthStateChanged, signOut, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
 import { collection, doc, setDoc, addDoc, deleteDoc, onSnapshot, updateDoc, query, where, limit, getDocs } from 'firebase/firestore';
 import toast, { Toaster } from 'react-hot-toast';
@@ -25,6 +25,40 @@ const INITIAL_ROLES = ['Garzón', 'Cajero', 'Cocinero', 'Administrador'];
 const INITIAL_TABLES = ['Barra', 'Mesa 1', 'Mesa 2', 'Mesa 3', 'Mesa 4', 'VIP 1']; 
 const INITIAL_EXPENSE_TYPES = ['Hielo', 'Taxi', 'Insumos', 'Limpieza', 'Adelanto Sueldo', 'Proveedores'];
 
+// --- NUEVO MODAL DE CONFIGURACIÓN DE IMPRESORA ---
+const PrinterSettingsModal = ({ isOpen, onClose, currentType, onSelect }) => {
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+            <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+                <div className="bg-gray-900 p-4 text-white flex justify-between items-center">
+                    <h3 className="font-bold flex items-center gap-2"><Printer size={20}/> Configurar Impresora</h3>
+                    <button onClick={onClose}><X size={20}/></button>
+                </div>
+                <div className="p-6">
+                    <p className="text-gray-500 mb-4 text-sm font-bold text-center uppercase">Seleccione el formato de impresión</p>
+                    <div className="grid grid-cols-2 gap-4">
+                        <button onClick={() => onSelect('thermal')} className={`p-4 rounded-xl border-2 flex flex-col items-center gap-3 transition-all ${currentType === 'thermal' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-200 hover:border-gray-300 text-gray-500'}`}>
+                            <Printer size={40}/>
+                            <div className="text-center">
+                                <span className="block font-black text-sm">TÉRMICA (Ticket)</span>
+                                <span className="text-[10px]">80mm / 58mm</span>
+                            </div>
+                        </button>
+                        <button onClick={() => onSelect('letter')} className={`p-4 rounded-xl border-2 flex flex-col items-center gap-3 transition-all ${currentType === 'letter' ? 'border-green-600 bg-green-50 text-green-700' : 'border-gray-200 hover:border-gray-300 text-gray-500'}`}>
+                            <FileSpreadsheet size={40}/>
+                            <div className="text-center">
+                                <span className="block font-black text-sm">CARTA / A4</span>
+                                <span className="text-[10px]">Reporte Contable</span>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 export default function App() {
   const [view, setView] = useState('landing');
   const [currentUser, setCurrentUser] = useState(null);
@@ -36,7 +70,11 @@ export default function App() {
   
   const [tables, setTables] = useState(INITIAL_TABLES);
   const [expenseTypes, setExpenseTypes] = useState(INITIAL_EXPENSE_TYPES);
-  const [autoLockTime, setAutoLockTime] = useState(45); 
+  const [autoLockTime, setAutoLockTime] = useState(45);
+  
+  // NUEVO ESTADO DE IMPRESORA
+  const [printerType, setPrinterType] = useState('thermal'); // 'thermal' | 'letter'
+  const [isPrinterSettingsOpen, setIsPrinterSettingsOpen] = useState(false);
 
   const [activeServices, setActiveServices] = useState([]); 
   const [dbStatus, setDbStatus] = useState('connecting');
@@ -46,14 +84,12 @@ export default function App() {
   const [registerSession, setRegisterSession] = useState(null);
   const [isOpenRegisterModalOpen, setIsOpenRegisterModalOpen] = useState(false);
   
-  // ESTADÍSTICAS DEL TURNO
   const [sessionStats, setSessionStats] = useState({ 
       cashSales: 0, qrSales: 0, cardSales: 0, digitalSales: 0, 
       totalExpenses: 0, totalCostOfGoods: 0, courtesyTotal: 0, courtesyCost: 0, 
       expensesList: [], soldProducts: [] 
   });
   
-  // ESTADOS MODALES
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
@@ -75,7 +111,6 @@ export default function App() {
   const [lastSale, setLastSale] = useState(null);
   const [isQuickEditMode, setIsQuickEditMode] = useState(false); 
 
-  // --- CÁLCULOS Y HANDLERS COMUNES ---
   const inventoryStats = useMemo(() => {
       let totalCost = 0; let totalRetail = 0; let totalItems = 0; let lowStockCount = 0;
       items.forEach(item => {
@@ -121,24 +156,15 @@ export default function App() {
       } catch (error) { console.error(error); toast.error("Error al registrar asistencia"); }
   };
 
-  const handleQuickUpdate = async (id, field, value) => { 
-      try { 
-          let valToSave = value;
-          if (field === 'price' || field === 'cost') { valToSave = parseFloat(value); if (isNaN(valToSave)) valToSave = 0; }
-          if (field === 'stock') { valToSave = parseInt(value); if (isNaN(valToSave)) valToSave = 0; }
-          await updateDoc(doc(db, getCollName('items'), id), { [field]: valToSave }); 
-          toast.success('Actualizado', { icon: '💾', duration: 1000 }); 
-      } catch (error) { console.error(error); toast.error('Error al actualizar'); } 
-  };
+  const handleQuickUpdate = async (id, field, value) => { try { let valToSave = value; if (field === 'price' || field === 'cost') { valToSave = parseFloat(value); if (isNaN(valToSave)) valToSave = 0; } if (field === 'stock') { valToSave = parseInt(value); if (isNaN(valToSave)) valToSave = 0; } await updateDoc(doc(db, getCollName('items'), id), { [field]: valToSave }); toast.success('Actualizado', { icon: '💾', duration: 1000 }); } catch (error) { console.error(error); toast.error('Error al actualizar'); } };
 
-  // --- DATA LOADING & LISTENERS ---
   useEffect(() => { const initAuth = async () => { if (!auth.currentUser) { if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token && !isPersonalProject) { await signInWithCustomToken(auth, __initial_auth_token); } else { await signInAnonymously(auth).catch(() => setDbStatus('warning')); } } }; initAuth(); return onAuthStateChanged(auth, (u) => { setCurrentUser(u); if (u) { setDbStatus('connected'); setDbErrorMsg(''); } }); }, []);
   useEffect(() => { if (!db || !currentUser) return; const checkSession = async () => { const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`; const q = query(collection(db, colName), where('status', '==', 'open'), limit(1)); const snap = await getDocs(q); if (!snap.empty) { const data = snap.docs[0].data(); setRegisterSession({ id: snap.docs[0].id, ...data }); } }; checkSession(); }, [db, currentUser]);
   useEffect(() => { 
       if (!db || !currentUser) return; 
       const itemsUnsub = onSnapshot(collection(db, getCollName('items')), (s) => { const rawItems = s.docs.map(doc => ({ id: doc.id, ...doc.data() })); const uniqueItems = Array.from(new Map(rawItems.map(item => [item.id, item])).values()); setItems(uniqueItems); }, (e) => { console.warn("Esperando permisos..."); }); 
       const staffUnsub = onSnapshot(collection(db, getCollName('staff')), (s) => setStaff(s.docs.map(d => ({id: d.id, ...d.data()})))); 
-      const settingsUnsub = onSnapshot(collection(db, getCollName('settings')), (s) => { s.docs.forEach(d => { const data = d.data(); if (d.id === 'categories') setCategories(data.list || []); if (d.id === 'roles') setRoles(data.list || INITIAL_ROLES); if (d.id === 'tables') setTables(data.list || INITIAL_TABLES); if (d.id === 'expenses') setExpenseTypes(data.list || INITIAL_EXPENSE_TYPES); if (d.id === 'branding') { setLogo(data.logo); if(data.appName) setAppName(data.appName); if(data.autoLockTime) setAutoLockTime(data.autoLockTime); } }); setIsLoadingApp(false); }); 
+      const settingsUnsub = onSnapshot(collection(db, getCollName('settings')), (s) => { s.docs.forEach(d => { const data = d.data(); if (d.id === 'categories') setCategories(data.list || []); if (d.id === 'roles') setRoles(data.list || INITIAL_ROLES); if (d.id === 'tables') setTables(data.list || INITIAL_TABLES); if (d.id === 'expenses') setExpenseTypes(data.list || INITIAL_EXPENSE_TYPES); if (d.id === 'branding') { setLogo(data.logo); if(data.appName) setAppName(data.appName); if(data.autoLockTime) setAutoLockTime(data.autoLockTime); if(data.printerType) setPrinterType(data.printerType); } }); setIsLoadingApp(false); }); 
       const activeSrvCol = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`; 
       const srvUnsub = onSnapshot(collection(db, activeSrvCol), (s) => { setActiveServices(s.docs.map(d => ({ id: d.id, ...d.data() }))); }); 
       return () => { itemsUnsub(); staffUnsub(); settingsUnsub(); srvUnsub(); }; 
@@ -150,65 +176,28 @@ export default function App() {
       const qSales = query(collection(db, salesCol), where('registerId', '==', registerSession.id)); 
       const expensesCol = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`; 
       const qExpenses = query(collection(db, expensesCol), where('registerId', '==', registerSession.id)); 
-      
-      const unsubSales = onSnapshot(qSales, (snap) => { 
-          let cash = 0, qr = 0, card = 0; 
-          let courtesyTotalVal = 0, courtesyCostVal = 0, totalCostCalc = 0; 
-          const productMap = {}; 
-          snap.forEach(doc => { 
-              const sale = doc.data(); 
-              const isCourtesy = sale.payments && sale.payments.some(p => p.method === 'Cortesía');
-              if (!isCourtesy) {
-                  if (sale.payments && Array.isArray(sale.payments)) { sale.payments.forEach(p => { const amt = parseFloat(p.amount) || 0; const method = (p.method || '').toLowerCase(); if (method.includes('efectivo')) cash += amt; else if (method.includes('qr')) qr += amt; else if (method.includes('tarjeta')) card += amt; }); if (sale.changeGiven) cash -= parseFloat(sale.changeGiven); } else { const total = parseFloat(sale.total); const method = (sale.paymentMethod || 'efectivo').toLowerCase(); if (method.includes('efectivo')) { const change = parseFloat(sale.changeGiven) || 0; const received = parseFloat(sale.amountReceived) || total; if(sale.amountReceived) cash += (received - change); else cash += total; } else if (method.includes('qr')) qr += total; else if (method.includes('tarjeta')) card += total; }
-              }
-              if (sale.items && Array.isArray(sale.items)) {
-                  sale.items.forEach(item => {
-                      const key = item.name; const qty = item.qty || 1; const price = parseFloat(item.price) || 0; const cost = parseFloat(item.cost) || 0; 
-                      if (isCourtesy) { courtesyTotalVal += (price * qty); courtesyCostVal += (cost * qty); } else { totalCostCalc += (cost * qty); }
-                      if (!productMap[key]) { productMap[key] = { name: item.name, qty: 0, total: 0, costUnit: cost, totalCost: 0, isCourtesy: isCourtesy }; }
-                      productMap[key].qty += qty;
-                      if (!isCourtesy) { productMap[key].total += (price * qty); }
-                      productMap[key].totalCost += (cost * qty); 
-                  });
-              }
-          }); 
-          const soldProductsList = Object.values(productMap).sort((a, b) => b.qty - a.qty);
-          setSessionStats(prev => ({ ...prev, cashSales: cash, qrSales: qr, cardSales: card, digitalSales: qr + card, totalCostOfGoods: totalCostCalc, courtesyTotal: courtesyTotalVal, courtesyCost: courtesyCostVal, soldProducts: soldProductsList })); 
-      }); 
+      const unsubSales = onSnapshot(qSales, (snap) => { let cash = 0, qr = 0, card = 0; let courtesyTotalVal = 0, courtesyCostVal = 0, totalCostCalc = 0; const productMap = {}; snap.forEach(doc => { const sale = doc.data(); const isCourtesy = sale.payments && sale.payments.some(p => p.method === 'Cortesía'); if (!isCourtesy) { if (sale.payments && Array.isArray(sale.payments)) { sale.payments.forEach(p => { const amt = parseFloat(p.amount) || 0; const method = (p.method || '').toLowerCase(); if (method.includes('efectivo')) cash += amt; else if (method.includes('qr')) qr += amt; else if (method.includes('tarjeta')) card += amt; }); if (sale.changeGiven) cash -= parseFloat(sale.changeGiven); } else { const total = parseFloat(sale.total); const method = (sale.paymentMethod || 'efectivo').toLowerCase(); if (method.includes('efectivo')) { const change = parseFloat(sale.changeGiven) || 0; const received = parseFloat(sale.amountReceived) || total; if(sale.amountReceived) cash += (received - change); else cash += total; } else if (method.includes('qr')) qr += total; else if (method.includes('tarjeta')) card += total; } } if (sale.items && Array.isArray(sale.items)) { sale.items.forEach(item => { const key = item.name; const qty = item.qty || 1; const price = parseFloat(item.price) || 0; const cost = parseFloat(item.cost) || 0; if (isCourtesy) { courtesyTotalVal += (price * qty); courtesyCostVal += (cost * qty); } else { totalCostCalc += (cost * qty); } if (!productMap[key]) { productMap[key] = { name: item.name, qty: 0, total: 0, costUnit: cost, totalCost: 0, isCourtesy: isCourtesy }; } productMap[key].qty += qty; if (!isCourtesy) { productMap[key].total += (price * qty); } productMap[key].totalCost += (cost * qty); }); } }); const soldProductsList = Object.values(productMap).sort((a, b) => b.qty - a.qty); setSessionStats(prev => ({ ...prev, cashSales: cash, qrSales: qr, cardSales: card, digitalSales: qr + card, totalCostOfGoods: totalCostCalc, courtesyTotal: courtesyTotalVal, courtesyCost: courtesyCostVal, soldProducts: soldProductsList })); }); 
       const unsubExpenses = onSnapshot(qExpenses, (snap) => { let totalExp = 0; const list = []; snap.forEach(doc => { const exp = doc.data(); totalExp += parseFloat(exp.amount); list.push({ id: doc.id, ...exp }); }); setSessionStats(prev => ({ ...prev, totalExpenses: totalExp, expensesList: list })); }); 
       return () => { unsubSales(); unsubExpenses(); }; 
   }, [registerSession]);
 
-  // --- HANDLERS ---
-  const checkRegisterStatus = (requireOwnership = false) => { if (registerSession) { const isAdmin = currentUser && !currentUser.isAnonymous; const isOwner = staffMember && registerSession.openedBy === staffMember.name; if (requireOwnership && !isAdmin && !isOwner) { toast.error(`⛔ ACCESO DENEGADO\nTurno de: ${registerSession.openedBy}`, { duration: 5000 }); return false; } return true; } const canOpenRegister = (currentUser && !currentUser.isAnonymous) || (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador')); if (canOpenRegister) setIsOpenRegisterModalOpen(true); else toast.error("⚠️ LA CAJA ESTÁ CERRADA.", { icon: '🔒' }); return false; };
-  const handleOpenRegister = async (amount, activeTeam = []) => { try { const sessionData = { status: 'open', openedBy: staffMember ? staffMember.name : (currentUser?.email || 'Admin'), openedAt: new Date().toISOString(), openingAmount: amount, activeTeam: activeTeam, salesTotal: 0 }; const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`; const docRef = await addDoc(collection(db, colName), sessionData); setRegisterSession({ id: docRef.id, ...sessionData }); setIsOpenRegisterModalOpen(false); toast.success(`Turno Abierto`, { icon: '🔓' }); } catch (error) { toast.error("Error al abrir caja"); } };
-  
-  const handleStartService = async (service, note) => { 
-      if (!checkRegisterStatus(false)) return; 
-      try { 
-          const serviceData = { serviceName: service.name, pricePerHour: service.price, startTime: new Date().toISOString(), note: note, staffName: staffMember ? staffMember.name : 'Admin', registerId: registerSession.id }; const colName = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`; await addDoc(collection(db, colName), serviceData); 
-          const orderData = { date: new Date().toISOString(), staffId: staffMember ? staffMember.id : 'anon', staffName: staffMember ? staffMember.name : 'Mesero', orderId: 'INI-' + Math.floor(Math.random() * 1000), items: [{ id: 'start-' + Date.now(), name: `⏱️ INICIO: ${service.name} (${note})`, price: 0, qty: 1, category: 'Servicios' }], total: 0, status: 'pending' }; 
-          setIsServiceModalOpen(false); 
-          const ticketData = { ...orderData, type: 'order', businessName: appName, date: new Date().toLocaleString(), autoPrint: true }; 
-          setLastSale(ticketData); setView('receipt_view'); toast.success("Servicio iniciado"); 
-      } catch (e) { toast.error("Error al iniciar servicio"); } 
+  // --- HANDLERS Y CONFIG ---
+  const handleSavePrinterType = (type) => {
+      setPrinterType(type);
+      setDoc(doc(db, getCollName('settings'), 'branding'), { printerType: type }, { merge: true });
+      setIsPrinterSettingsOpen(false);
+      toast.success(`Formato de impresión: ${type === 'thermal' ? 'Térmica 80mm' : 'Carta/A4'}`);
   };
 
+  const handleBulkReceipt = (receiptData) => { const finalReceipt = { ...receiptData, businessName: appName || 'LicoBar' }; setLastSale(finalReceipt); setView('receipt_view'); };
+  const checkRegisterStatus = (requireOwnership = false) => { if (registerSession) { const isAdmin = currentUser && !currentUser.isAnonymous; const isOwner = staffMember && registerSession.openedBy === staffMember.name; if (requireOwnership && !isAdmin && !isOwner) { toast.error(`⛔ ACCESO DENEGADO\nTurno de: ${registerSession.openedBy}`, { duration: 5000 }); return false; } return true; } const canOpenRegister = (currentUser && !currentUser.isAnonymous) || (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador')); if (canOpenRegister) setIsOpenRegisterModalOpen(true); else toast.error("⚠️ LA CAJA ESTÁ CERRADA.", { icon: '🔒' }); return false; };
+  const handleOpenRegister = async (amount, activeTeam = []) => { try { const sessionData = { status: 'open', openedBy: staffMember ? staffMember.name : (currentUser?.email || 'Admin'), openedAt: new Date().toISOString(), openingAmount: amount, activeTeam: activeTeam, salesTotal: 0 }; const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`; const docRef = await addDoc(collection(db, colName), sessionData); setRegisterSession({ id: docRef.id, ...sessionData }); setIsOpenRegisterModalOpen(false); toast.success(`Turno Abierto`, { icon: '🔓' }); } catch (error) { toast.error("Error al abrir caja"); } };
+  const handleStartService = async (service, note) => { if (!checkRegisterStatus(false)) return; try { const serviceData = { serviceName: service.name, pricePerHour: service.price, startTime: new Date().toISOString(), note: note, staffName: staffMember ? staffMember.name : 'Admin', registerId: registerSession.id }; const colName = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`; await addDoc(collection(db, colName), serviceData); const orderData = { date: new Date().toISOString(), staffId: staffMember ? staffMember.id : 'anon', staffName: staffMember ? staffMember.name : 'Mesero', orderId: 'INI-' + Math.floor(Math.random() * 1000), items: [{ id: 'start-' + Date.now(), name: `⏱️ INICIO: ${service.name} (${note})`, price: 0, qty: 1, category: 'Servicios' }], total: 0, status: 'pending' }; setIsServiceModalOpen(false); const ticketData = { ...orderData, type: 'order', businessName: appName, date: new Date().toLocaleString(), autoPrint: true }; setLastSale(ticketData); setView('receipt_view'); toast.success("Servicio iniciado"); } catch (e) { toast.error("Error al iniciar servicio"); } };
   const handleStopService = async (service, cost, timeLabel) => { if (!checkRegisterStatus(true)) return; if (!window.confirm(`¿Detener ${service.serviceName}?\nCosto: Bs. ${cost.toFixed(2)}`)) return; try { const srvCol = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`; await deleteDoc(doc(db, srvCol, service.id)); const orderData = { date: new Date().toISOString(), staffId: staffMember ? staffMember.id : 'anon', staffName: service.staffName || 'Sistema', orderId: 'SRV-' + Math.floor(Math.random() * 1000), items: [{ id: 'srv-' + Date.now(), name: `${service.serviceName} (${timeLabel})`, price: cost, qty: 1, category: 'Servicios' }], total: cost, status: 'pending' }; const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`; await addDoc(collection(db, ordersCol), orderData); toast.success("Servicio detenido."); } catch (e) { console.error(e); toast.error("Error al detener servicio"); } };
   const handleAddExpense = async (description, amount) => { if (!registerSession) return; try { const expenseData = { registerId: registerSession.id, description, amount, date: new Date().toISOString(), createdBy: staffMember ? staffMember.name : 'Admin' }; const colName = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`; await addDoc(collection(db, colName), expenseData); const expenseReceipt = { type: 'expense', businessName: appName, date: new Date().toLocaleString(), staffName: staffMember ? staffMember.name : 'Admin', description: description, amount: amount, autoPrint: true }; setLastSale(expenseReceipt); setView('receipt_view'); toast.success("Gasto registrado", { icon: '💸' }); } catch (e) { toast.error("Error guardando gasto"); } };
   const handleDeleteExpense = async (id) => { if(!window.confirm("¿Eliminar este gasto?")) return; try { const colName = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`; await deleteDoc(doc(db, colName, id)); toast.success("Gasto eliminado"); } catch (e) { toast.error("Error"); } };
-  
   const handleCloseRegister = () => { if (!registerSession) return; const cashFinal = registerSession.openingAmount + sessionStats.cashSales - sessionStats.totalExpenses; toast((t) => ( <div className="flex flex-col gap-3 min-w-[240px]"> <div className="border-b pb-3"> <p className="font-bold text-gray-800 text-lg mb-2">Resumen de Cierre</p> <div className="bg-gray-50 p-2 rounded mb-3 grid grid-cols-2 gap-2 text-xs"> <div className="bg-white p-2 rounded border border-gray-100"><span className="text-gray-500 block uppercase text-[10px]">Total QR</span><span className="font-bold text-blue-600 text-sm">Bs. {sessionStats.qrSales.toFixed(2)}</span></div> <div className="bg-white p-2 rounded border border-gray-100"><span className="text-gray-500 block uppercase text-[10px]">Total Tarjeta</span><span className="font-bold text-purple-600 text-sm">Bs. {sessionStats.cardSales.toFixed(2)}</span></div> </div> <div className="px-2"><p className="text-xs text-gray-500 uppercase font-bold">Efectivo en Caja:</p><p className="text-2xl font-black text-green-600">Bs. {cashFinal.toFixed(2)}</p></div> </div> <div className="flex gap-2"><button onClick={() => { confirmCloseRegister(cashFinal); toast.dismiss(t.id); }} className="bg-red-600 text-white px-4 py-3 rounded-lg text-xs font-bold shadow-sm flex-1 hover:bg-red-700 transition-colors">CERRAR TURNO</button><button onClick={() => toast.dismiss(t.id)} className="bg-gray-200 text-gray-800 px-4 py-3 rounded-lg text-xs font-bold flex-1 hover:bg-gray-300 transition-colors">CANCELAR</button></div> </div> ), { duration: 10000, position: 'top-center', icon: null }); };
   const confirmCloseRegister = async (finalCash) => { try { const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`; await updateDoc(doc(db, colName, registerSession.id), { status: 'closed', closedAt: new Date().toISOString(), closedBy: staffMember ? staffMember.name : 'Admin', finalCashCalculated: finalCash, finalSalesStats: sessionStats }); const zReportData = { type: 'z-report', businessName: appName, date: new Date().toLocaleString(), staffName: staffMember ? staffMember.name : 'Admin', registerId: registerSession.id, openedAt: registerSession.openedAt, openingAmount: registerSession.openingAmount, finalCash: finalCash, stats: sessionStats, expensesList: sessionStats.expensesList, soldProducts: sessionStats.soldProducts, autoPrint: true }; setRegisterSession(null); setSessionStats({ cashSales: 0, qrSales: 0, cardSales: 0, digitalSales: 0, totalExpenses: 0, totalCostOfGoods: 0, courtesyTotal: 0, courtesyCost: 0, expensesList: [], soldProducts: [] }); setLastSale(zReportData); setView('receipt_view'); toast.success("Cierre exitoso", { icon: '🖨️' }); } catch (error) { toast.error("Error cerrando"); } };
-  
-  // --- NUEVA FUNCIÓN: RECIBO DE COBRO MASIVO (BRIDGE) ---
-  const handleBulkReceipt = (receiptData) => {
-      // Inyectamos el nombre del negocio si falta
-      const finalReceipt = { ...receiptData, businessName: appName || 'LicoBar' };
-      setLastSale(finalReceipt);
-      setView('receipt_view');
-  };
-
   const handleReprintZReport = (shiftData) => { const zReportData = { type: 'z-report', businessName: appName, date: new Date(shiftData.closedAt).toLocaleString(), staffName: shiftData.closedBy || 'Admin', registerId: shiftData.id, openedAt: shiftData.openedAt, openingAmount: shiftData.openingAmount, finalCash: shiftData.finalCashCalculated, stats: shiftData.finalSalesStats || { cashSales:0, qrSales: 0, cardSales: 0, totalExpenses:0, totalCostOfGoods: 0, courtesyTotal: 0, courtesyCost: 0 }, expensesList: shiftData.finalSalesStats?.expensesList || [], soldProducts: shiftData.finalSalesStats?.soldProducts || [] }; setLastSale(zReportData); setView('receipt_view'); toast.success("Cargando copia del reporte..."); };
   const handleStartPaymentFromCashier = (order, clearCartCallback) => { if (!checkRegisterStatus(true)) return; setOrderToPay(order); setPendingSale({ cart: order.items, clearCart: clearCartCallback || (() => {}) }); setIsPaymentModalOpen(true); };
   const handlePOSCheckout = (cart, clearCart) => { if (!checkRegisterStatus(true)) return; setOrderToPay(null); setPendingSale({ cart, clearCart }); setIsPaymentModalOpen(true); };
@@ -234,7 +223,7 @@ export default function App() {
   const handleAddExpenseType = (n) => setDoc(doc(db, getCollName('settings'), 'expenses'), { list: [...expenseTypes, n] });
   const handleRenameExpenseType = (i, n) => { const l = [...expenseTypes]; l[i] = n; setDoc(doc(db, getCollName('settings'), 'expenses'), { list: l }); };
   const handleDeleteExpenseType = (i) => { const l = expenseTypes.filter((_, x) => x !== i); setDoc(doc(db, getCollName('settings'), 'expenses'), { list: l }); };
-  const handleSaveBranding = (l, n, t) => { setDoc(doc(db, getCollName('settings'), 'branding'), { logo: l, appName: n, autoLockTime: t }, { merge: true }); setLogo(l); setAppName(n); setAutoLockTime(t); toast.success('Marca y Configuración actualizadas'); };
+  const handleSaveBranding = (l, n, t) => { setDoc(doc(db, getCollName('settings'), 'branding'), { logo: l, appName: n, autoLockTime: t, printerType: printerType }, { merge: true }); setLogo(l); setAppName(n); setAutoLockTime(t); toast.success('Marca y Configuración actualizadas'); };
 
   const filterCategories = ['Todos', ...categories];
   const filteredItems = filter === 'Todos' ? items : items.filter(i => i.category === filter);
@@ -283,34 +272,47 @@ export default function App() {
                 {view === 'credential_print' && credentialToPrint && (<div className="flex flex-col items-center w-full min-h-screen bg-gray-100"><div className="w-full max-w-md p-4 flex justify-start no-print"><button onClick={() => setView('staff_admin')} className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-lg shadow hover:bg-gray-50 font-bold"><ArrowLeft size={20} /> Volver a la Lista</button></div><CredentialPrintView member={credentialToPrint} appName={appName} /></div>)}
                 {view === 'admin' && !isCashierOnly && (
                   <div className="space-y-6">
+                    {/* TARJETAS DE RESUMEN */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="bg-white p-4 rounded-xl border border-blue-100 shadow-sm flex items-center justify-between"><div><p className="text-xs text-gray-500 uppercase font-bold">Inversión (Costo)</p><p className="text-2xl font-black text-blue-600">Bs. {inventoryStats.totalCost.toFixed(2)}</p></div><div className="p-3 bg-blue-50 rounded-full text-blue-600"><DollarSign size={24}/></div></div>
                         <div className="bg-white p-4 rounded-xl border border-green-100 shadow-sm flex items-center justify-between"><div><p className="text-xs text-gray-500 uppercase font-bold">Venta Potencial</p><p className="text-2xl font-black text-green-600">Bs. {inventoryStats.totalRetail.toFixed(2)}</p></div><div className="p-3 bg-green-50 rounded-full text-green-600"><TrendingUp size={24}/></div></div>
                         <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between"><div><p className="text-xs text-gray-500 uppercase font-bold">Total Unidades</p><p className="text-2xl font-black text-gray-800">{inventoryStats.totalItems}</p></div><div className="p-3 bg-gray-100 rounded-full text-gray-600"><Package size={24}/></div></div>
                     </div>
+
+                    {/* BARRA DE HERRAMIENTAS Y BÚSQUEDA */}
                     <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-2 rounded-xl shadow-sm border border-gray-200">
+                        {/* BOTONES DE CONFIGURACIÓN */}
                         <div className="flex gap-2">
                             <button onClick={() => setIsBrandingModalOpen(true)} className="p-2.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors" title="Configuración Global"><Settings size={20}/></button>
+                            <button onClick={() => setIsPrinterSettingsOpen(true)} className="p-2.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 border border-blue-100 transition-colors" title="Configurar Impresora"><Printer size={20}/></button>
                             <button onClick={() => setIsTableModalOpen(true)} className="p-2.5 bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100 border border-purple-100 transition-colors" title="Gestionar Mesas"><LayoutGrid size={20}/></button>
                             <button onClick={() => setIsExpenseTypeModalOpen(true)} className="p-2.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 border border-red-100 transition-colors" title="Tipos de Gasto"><DollarSign size={20}/></button>
                             <button onClick={() => setIsCategoryModalOpen(true)} className="p-2.5 bg-yellow-50 text-yellow-600 rounded-lg hover:bg-yellow-100 border border-yellow-100 transition-colors" title="Gestionar Categorías"><Filter size={20}/></button>
                             <button onClick={() => setIsQuickEditMode(!isQuickEditMode)} className={`px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-all ${isQuickEditMode ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>{isQuickEditMode ? '⚡ EDICIÓN ACTIVA' : '⚡ Edición Rápida'}</button>
                         </div>
+
+                        {/* BUSCADOR */}
                         <div className="relative w-full md:w-64">
                             <Search className="absolute left-3 top-2.5 text-gray-400" size={18}/>
                             <input type="text" placeholder="Buscar producto..." className="w-full pl-10 p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}/>
                             {searchTerm && <button onClick={() => setSearchTerm('')} className="absolute right-3 top-2.5 text-gray-400 hover:text-black"><X size={16}/></button>}
                         </div>
+
                         <button onClick={() => { setCurrentItem(null); setIsModalOpen(true); }} className="px-6 py-2.5 bg-green-600 text-white rounded-lg font-bold shadow hover:bg-green-700 transition-colors flex items-center gap-2"><Plus size={20}/> NUEVO</button>
                     </div>
+
+                    {/* CINTA DE CATEGORÍAS MEJORADA (SCROLLABLE) */}
                     <div className="relative group">
                         <div className="flex overflow-x-auto pb-2 gap-2 scrollbar-hide snap-x">
                             {filterCategories.map(cat => (
                                 <button key={cat} onClick={() => setFilter(cat)} className={`flex-none snap-start px-6 py-2.5 rounded-full text-sm font-bold transition-all shadow-sm border ${filter === cat ? 'bg-black text-white border-black ring-2 ring-offset-2 ring-gray-300' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'}`}>{cat}</button>
                             ))}
                         </div>
+                        {/* Gradientes para indicar scroll */}
                         <div className="absolute top-0 right-0 bottom-2 w-8 bg-gradient-to-l from-gray-50 to-transparent pointer-events-none md:hidden"></div>
                     </div>
+
+                    {/* TABLA DE PRODUCTOS */}
                     <div className="bg-white rounded-xl shadow border overflow-hidden">
                       <table className="w-full text-left">
                         <thead><tr className="bg-gray-50 text-xs uppercase text-gray-500 border-b border-gray-200"><th className="p-4">Producto</th><th className="p-4 text-center">Stock</th><th className="p-4 text-right">Costo</th><th className="p-4 text-right">Precio</th><th className="p-4 text-right">Margen</th><th className="p-4 text-right">Acciones</th></tr></thead>
@@ -329,7 +331,7 @@ export default function App() {
             )}
             {view === 'pin_login' && <PinLoginView staffMembers={staff} onLoginSuccess={handleStaffPinLogin} onClockAction={handleClockAction} onCancel={() => setView('landing')} />}
             {view === 'pos' && (<POSInterface items={items} categories={categories} staffMember={staffMember} onCheckout={handlePOSCheckout} onPrintOrder={handleSendToKitchen} onExit={() => setView('landing')} onOpenServiceModal={() => setIsServiceModalOpen(true)} autoLockTime={autoLockTime} />)}
-            {view === 'receipt_view' && <Receipt data={lastSale} onPrint={handlePrint} onClose={handleReceiptClose} />}
+            {view === 'receipt_view' && <Receipt data={lastSale} onPrint={handlePrint} onClose={handleReceiptClose} printerType={printerType} />}
             {view === 'menu' && (<>{/* ... MENÚ CLIENTES ... */}<div className="fixed inset-0 z-0 pointer-events-none bg-[#0a0a0a]"><div className="absolute top-[-20%] left-[-20%] w-[50%] h-[50%] bg-red-600/20 blur-[100px] rotate-45 animate-pulse"></div><div className="absolute bottom-[-20%] right-[-20%] w-[50%] h-[50%] bg-green-600/20 blur-[100px] rotate-[-45] animate-pulse delay-500"></div><div className="absolute inset-0" style={{backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '30px 30px', animation: 'snowfallNative 10s linear infinite', opacity: 0.3}}></div><style jsx>{`@keyframes snowfallNative { from {background-position: 0 0;} to {background-position: 20px 100vh;} }`}</style></div>{filter === 'Todos' ? (<div className="animate-in fade-in pb-20 relative z-10 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 pt-6"><button onClick={() => setView('landing')} className="absolute top-4 left-4 z-50 p-3 text-white/50 hover:text-white bg-black/20 hover:bg-black/40 backdrop-blur-md rounded-full transition-all" title="Salir del Menú"><Home size={24} /></button><div className="text-center mb-10 mt-4"><div className="flex items-center justify-center gap-3 mb-2"><Trees size={28} className="text-red-500 drop-shadow-[0_0_8px_rgba(220,38,38,0.8)]" /><h2 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-white to-green-400 tracking-tight drop-shadow-[0_0_10px_rgba(255,255,255,0.5)] uppercase">NUESTRO MENÚ</h2><Trees size={28} className="text-green-500 drop-shadow-[0_0_8px_rgba(34,197,94,0.8)] scale-x-[-1]" /></div><p className="text-gray-400 font-bold uppercase tracking-widest text-sm flex justify-center items-center gap-2 before:h-px before:w-6 before:bg-red-500 after:h-px after:w-6 after:bg-green-500 opacity-80"><Gift size={14} className="text-red-400"/> Selecciona una categoría <Gift size={14} className="text-green-400"/></p></div><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 px-2 max-w-5xl mx-auto">{categories.map((cat, index) => { const borderColors = ['border-red-500/60 shadow-[0_0_15px_-3px_rgba(220,38,38,0.5)] text-red-100', 'border-green-500/60 shadow-[0_0_15px_-3px_rgba(34,197,94,0.5)] text-green-100', 'border-yellow-500/60 shadow-[0_0_15px_-3px_rgba(234,179,8,0.5)] text-yellow-100', 'border-purple-500/60 shadow-[0_0_15px_-3px_rgba(168,85,247,0.5)] text-purple-100']; const currentStyle = borderColors[index % borderColors.length]; return (<button key={cat} onClick={() => setFilter(cat)} className={`relative h-40 rounded-3xl overflow-hidden bg-black/60 backdrop-blur-md group border-2 border-dashed transition-all duration-500 hover:scale-[1.03] active:scale-95 hover:shadow-[0_0_30px_-5px_rgba(255,255,255,0.3)] ${currentStyle}`}><div className={`absolute top-2 left-2 w-2 h-2 rounded-full animate-pulse ${index%2 ? 'bg-red-500 shadow-[0_0_5px_red]' : 'bg-green-500 shadow-[0_0_5px_green]'}`}></div><div className={`absolute bottom-2 right-2 w-2 h-2 rounded-full animate-pulse delay-500 ${index%3 ? 'bg-blue-500 shadow-[0_0_5px_blue]' : 'bg-yellow-500 shadow-[0_0_5px_yellow]'}`}></div><div className="absolute inset-0 flex flex-col items-center justify-center z-10 p-4"><Gift size={20} className={`mb-2 opacity-50 group-hover:opacity-100 transition-opacity drop-shadow-[0_0_5px_currentColor] ${index%2 ? 'text-green-400' : 'text-red-400'}`}/><span className="font-black text-2xl uppercase tracking-wider drop-shadow-md text-center">{cat}</span></div></button>)})}</div></div>) : (<div className="animate-in slide-in-from-right duration-300 relative z-10 min-h-screen -mx-4 sm:-mx-6 lg:-mx-8"><div className="sticky top-16 z-20 bg-black/70 backdrop-blur-xl py-4 mb-6 border-b border-white/10 shadow-[0_4px_20px_-5px_rgba(0,0,0,0.5)] px-4 sm:px-6 lg:px-8"><div className="flex items-center gap-4 max-w-7xl mx-auto"><button aria-label="Volver al menú" onClick={() => setFilter('Todos')} className="p-3 bg-white/10 text-white rounded-full hover:bg-white/20 border border-white/10 shadow-lg transition-transform active:scale-90 group backdrop-blur-md"><ArrowLeft size={24} className="group-hover:-translate-x-1 transition-transform"/></button><div><h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-400 uppercase tracking-wide leading-none drop-shadow-[0_0_5px_rgba(249,115,22,0.5)]">{filter}</h2><p className="text-xs text-gray-400 font-bold uppercase tracking-widest flex items-center gap-1"><Trees size={10} className="text-green-500"/> Explora nuestros productos</p></div></div></div><div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6 pb-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">{filteredItems.length > 0 ? (filteredItems.map(item => (<div key={item.id} className="rounded-2xl overflow-hidden p-1 bg-gradient-to-br from-white/10 to-transparent border border-white/5 shadow-lg"><MenuCard item={item} /></div>))) : (<div className="col-span-full text-center py-20 text-gray-500 flex flex-col items-center"><Search size={48} className="mb-2 opacity-20 text-white"/><p className="text-gray-400">No hay productos en esta categoría.</p></div>)}</div></div>)}</>)}
           </main>
           <div className={`fixed bottom-0 w-full p-1 text-[10px] text-center text-white ${dbStatus === 'connected' ? 'bg-green-600' : 'bg-red-600'}`}> {dbStatus === 'connected' ? 'Sistema Online' : 'Desconectado'} </div>
@@ -337,6 +339,7 @@ export default function App() {
       )}
       <OpenRegisterModal isOpen={isOpenRegisterModalOpen} onClose={() => {}} onOpenRegister={handleOpenRegister} />
       <PaymentModal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} total={orderToPay ? orderToPay.total : (pendingSale ? pendingSale.cart.reduce((acc, i) => acc + (i.price * i.qty), 0) : 0)} onConfirm={handleFinalizeSale} />
+      <PrinterSettingsModal isOpen={isPrinterSettingsOpen} onClose={() => setIsPrinterSettingsOpen(false)} currentType={printerType} onSelect={handleSavePrinterType} />
       <ProductModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSave} item={currentItem} categories={categories} />
       <CategoryManager isOpen={isCategoryModalOpen} onClose={() => setIsCategoryModalOpen(false)} categories={categories} onAdd={handleAddCategory} onRename={handleRenameCategory} onDelete={handleDeleteCategory} />
       <RoleManager isOpen={isRoleModalOpen} onClose={() => setIsRoleModalOpen(false)} roles={roles} onAdd={handleAddRole} onRename={handleRenameRole} onDelete={handleDeleteRole} />
