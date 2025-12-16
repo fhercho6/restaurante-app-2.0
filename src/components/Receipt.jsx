@@ -1,4 +1,4 @@
-// src/components/Receipt.jsx - VERSIÓN BLINDADA (ANTI-CRASH)
+// src/components/Receipt.jsx - REPORTE ORDENADO (ESTILO CONTABLE LIMPIO)
 import React, { useEffect } from 'react';
 import { X, Printer } from 'lucide-react';
 
@@ -6,111 +6,176 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
   if (!data) return null;
 
   // --- FUNCIÓN DE SEGURIDAD (FORMATEADOR) ---
-  // Si el valor es undefined, null o texto raro, devuelve "0.00"
-  // Esto evita el error "toFixed of undefined"
   const fmt = (value) => {
       const num = parseFloat(value);
       return isNaN(num) ? '0.00' : num.toFixed(2);
   };
 
-  // --- MODO 1: REPORTE CARTA (A4/OFICIO) ---
+  // --- MODO 1: REPORTE CARTA (A4/OFICIO) - DISEÑO MEJORADO ---
   const renderLetterReport = () => {
-      // Aseguramos que stats exista para evitar errores
       const stats = data.stats || {};
       
-      // FILAS DE PRODUCTOS
+      // 1. FILAS DE PRODUCTOS
       const productRows = data.soldProducts ? data.soldProducts.map(p => `
         <tr>
-            <td style="text-align: left; padding: 5px; border-bottom: 1px solid #ddd;">${p.name}</td>
-            <td style="text-align: center; padding: 5px; border-bottom: 1px solid #ddd;">${p.qty}</td>
-            <td style="text-align: center; padding: 5px; border-bottom: 1px solid #ddd;">0</td>
-            <td style="text-align: right; padding: 5px; border-bottom: 1px solid #ddd;">${fmt(p.totalCost)}</td>
-            <td style="text-align: right; padding: 5px; border-bottom: 1px solid #ddd;">${fmt(p.total)}</td>
+            <td style="text-align: left; padding: 6px; border-bottom: 1px solid #eee;">${p.name}</td>
+            <td style="text-align: center; padding: 6px; border-bottom: 1px solid #eee;">${p.qty}</td>
+            <td style="text-align: center; padding: 6px; border-bottom: 1px solid #eee;">0</td>
+            <td style="text-align: right; padding: 6px; border-bottom: 1px solid #eee;">${fmt(p.totalCost)}</td>
+            <td style="text-align: right; padding: 6px; border-bottom: 1px solid #eee;">${fmt(p.total)}</td>
         </tr>
       `).join('') : '';
 
-      // FILAS DE GASTOS
-      const expensesRows = stats.expensesList ? stats.expensesList.map(e => `
-        <tr>
-            <td style="padding:4px;">GASTOS OPERATIVOS</td>
-            <td style="padding:4px;">${e.description}</td>
-            <td style="padding:4px; text-align:right;">${fmt(e.amount)}</td>
-        </tr>
-      `).join('') : '';
+      // 2. FILAS DE GASTOS (Para la sección de Egresos)
+      const expensesRows = stats.expensesList && stats.expensesList.length > 0 
+        ? stats.expensesList.map(e => `
+            <tr>
+                <td style="padding: 4px 0; color: #444;">• ${e.description || 'Gasto General'}</td>
+                <td style="text-align: right; padding: 4px 0;">${fmt(e.amount)}</td>
+            </tr>
+          `).join('') 
+        : '<tr><td colspan="2" style="font-style: italic; color: #999; padding: 4px 0;">Sin gastos registrados</td></tr>';
 
-      // HTML DEL REPORTE CARTA
       return `
         <html>
         <head>
             <title>Reporte de Cierre</title>
             <style>
-                body { font-family: 'Arial', sans-serif; font-size: 11px; margin: 30px; color: #000; }
-                .header-section { text-align: center; margin-bottom: 20px; }
-                .report-title { font-size: 18px; font-weight: bold; text-decoration: underline; margin-bottom: 5px; text-transform: uppercase; }
-                .report-meta { font-size: 12px; margin-bottom: 20px; }
-                table { width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 11px; }
-                th { border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 6px; font-weight: bold; text-transform: uppercase; background-color: #f9f9f9; }
-                td { padding: 6px; vertical-align: top; }
-                .financial-table td { border-bottom: 1px dotted #ccc; }
-                .financial-table th { text-align: left; }
-                .product-table th.left { text-align: left; }
-                .product-table th.center { text-align: center; }
-                .product-table th.right { text-align: right; }
-                .product-table td { font-family: 'Courier New', monospace; font-size: 12px; }
-                .footer-total { font-size: 14px; font-weight: bold; text-align: right; border-top: 2px solid #000; padding-top: 5px; margin-top: -20px; }
+                body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 12px; margin: 40px; color: #333; line-height: 1.4; }
+                
+                /* ENCABEZADO */
+                .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #000; padding-bottom: 15px; }
+                .company-name { font-size: 24px; font-weight: 900; letter-spacing: 1px; margin-bottom: 5px; text-transform: uppercase; }
+                .report-title { font-size: 16px; font-weight: bold; text-transform: uppercase; color: #555; }
+                .meta-info { margin-top: 10px; font-size: 11px; color: #666; }
+                
+                /* CONTENEDOR PRINCIPAL - DOS COLUMNAS */
+                .main-container { display: flex; gap: 40px; margin-bottom: 30px; }
+                .box { flex: 1; border: 1px solid #000; padding: 15px; }
+                .box-title { font-weight: 900; text-transform: uppercase; border-bottom: 2px solid #000; margin-bottom: 10px; padding-bottom: 5px; font-size: 13px; }
+                
+                /* TABLAS DENTRO DE LAS CAJAS */
+                .clean-table { width: 100%; border-collapse: collapse; }
+                .clean-table td { padding: 5px 0; border-bottom: 1px dashed #ddd; }
+                .clean-table tr:last-child td { border-bottom: none; }
+                .clean-table .total-row td { border-top: 2px solid #000; border-bottom: none; font-weight: 900; font-size: 14px; padding-top: 10px; }
+                
+                /* TABLA DE PRODUCTOS (ABAJO) */
+                .product-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
+                .product-table th { background-color: #eee; text-align: left; padding: 8px; border: 1px solid #ccc; font-weight: bold; }
+                .product-table td { border: 1px solid #ccc; }
+                .product-table .right { text-align: right; }
+                .product-table .center { text-align: center; }
+
+                /* UTILIDADES */
                 .text-right { text-align: right; }
+                .text-red { color: #cc0000; }
+                .text-green { color: #008800; }
+                .section-header { background-color: #000; color: #fff; padding: 5px 10px; font-weight: bold; margin-top: 20px; }
             </style>
         </head>
         <body>
-            <div class="header-section">
-                <div class="report-title">REPORTE POR JORNADA</div>
-                <div class="report-meta">
-                    JORNADA: ${new Date(data.openedAt || Date.now()).toLocaleDateString()} al ${new Date(data.date).toLocaleDateString()} <br/>
+            
+            <div class="header">
+                <div class="company-name">${data.businessName || 'LicoBar'}</div>
+                <div class="report-title">REPORTE DE CIERRE DE CAJA (CORTE Z)</div>
+                <div class="meta-info">
+                    FECHA: ${new Date(data.date).toLocaleDateString()} &nbsp;|&nbsp; 
+                    HORA CIERRE: ${new Date(data.date).toLocaleTimeString()} &nbsp;|&nbsp; 
                     RESPONSABLE: ${(data.staffName || 'Admin').toUpperCase()}
                 </div>
             </div>
 
-            <div style="font-weight:bold; margin-bottom:5px;">I. MOVIMIENTO DE CAJA</div>
-            <table class="financial-table">
-                <thead><tr><th style="width: 25%;">TIPO CUENTA</th><th style="width: 55%;">DETALLE / SUB-CUENTA</th><th style="width: 20%; text-align: right;">MONTO (Bs)</th></tr></thead>
-                <tbody>
-                    <tr><td>INGRESOS</td><td>FONDO INICIAL (APERTURA)</td><td class="text-right">${fmt(data.openingAmount)}</td></tr>
-                    <tr><td>INGRESOS</td><td>VENTAS EFECTIVO</td><td class="text-right">${fmt(stats.cashSales)}</td></tr>
-                    <tr><td>INGRESOS</td><td>VENTAS QR / TRANSFERENCIA</td><td class="text-right">${fmt(stats.qrSales)}</td></tr>
-                    <tr><td>INGRESOS</td><td>VENTAS TARJETA</td><td class="text-right">${fmt(stats.cardSales)}</td></tr>
-                    ${expensesRows}
-                    ${stats.courtesyTotal > 0 ? `<tr><td style="color:red;">CONTROL</td><td>CORTESÍAS ENTREGADAS</td><td class="text-right">(${fmt(stats.courtesyTotal)})</td></tr>` : ''}
-                </tbody>
-            </table>
+            ${data.type === 'z-report' ? `
+            
+            <div class="main-container">
+                
+                <div class="box">
+                    <div class="box-title">I. INGRESOS Y VENTAS</div>
+                    <table class="clean-table">
+                        <tr>
+                            <td>FONDO INICIAL (APERTURA)</td>
+                            <td class="text-right">${fmt(data.openingAmount)}</td>
+                        </tr>
+                        <tr>
+                            <td>VENTAS EFECTIVO</td>
+                            <td class="text-right">${fmt(stats.cashSales)}</td>
+                        </tr>
+                        <tr>
+                            <td>VENTAS QR / TRANSFERENCIA</td>
+                            <td class="text-right">${fmt(stats.qrSales)}</td>
+                        </tr>
+                        <tr>
+                            <td>VENTAS TARJETA</td>
+                            <td class="text-right">${fmt(stats.cardSales)}</td>
+                        </tr>
+                        <tr class="total-row">
+                            <td>TOTAL INGRESOS</td>
+                            <td class="text-right text-green">${fmt(data.openingAmount + stats.cashSales + stats.qrSales + stats.cardSales)}</td>
+                        </tr>
+                    </table>
+                </div>
 
-            <div class="footer-total">SALDO FINAL EN CAJA (EFECTIVO) = Bs. ${fmt(data.finalCash)}</div>
+                <div class="box">
+                    <div class="box-title">II. EGRESOS (GASTOS)</div>
+                    <table class="clean-table">
+                        ${expensesRows}
+                        <tr class="total-row">
+                            <td>TOTAL GASTOS</td>
+                            <td class="text-right text-red">${fmt(stats.totalExpenses)}</td>
+                        </tr>
+                    </table>
 
-            <br/><br/>
+                    <div style="margin-top: 20px; border: 2px solid #000; padding: 10px; background: #f9f9f9;">
+                        <div style="font-weight: bold; font-size: 11px; color: #555; text-transform: uppercase;">EFECTIVO REAL EN CAJA</div>
+                        <div style="font-weight: 900; font-size: 24px; text-align: right;">Bs. ${fmt(data.finalCash)}</div>
+                    </div>
+                </div>
+            </div>
 
-            <div class="report-title" style="font-size: 14px; margin-bottom: 2px; text-align: center;">PRODUCTOS VENDIDOS</div>
-            <div style="text-align: center; font-size: 11px; margin-bottom: 10px;">Jornada del ${data.date}</div>
-
+            <div class="section-header">III. DETALLE DE PRODUCTOS VENDIDOS</div>
             <table class="product-table">
                 <thead>
                     <tr>
-                        <th class="left" style="width: 40%;">Producto</th>
-                        <th class="center" style="width: 10%;">VxUnid</th>
-                        <th class="center" style="width: 10%;">VxCombo</th>
-                        <th class="right" style="width: 20%;">T.Costo</th>
-                        <th class="right" style="width: 20%;">T.Venta</th>
+                        <th style="width: 40%;">PRODUCTO</th>
+                        <th class="center" style="width: 10%;">CANT</th>
+                        <th class="center" style="width: 10%;">COMBO</th>
+                        <th class="right" style="width: 20%;">COSTO TOTAL</th>
+                        <th class="right" style="width: 20%;">VENTA TOTAL</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${productRows}
-                    <tr style="font-weight:bold; background-color:#eee; border-top: 2px solid black;">
-                        <td>TOTAL GENERAL</td>
-                        <td style="text-align:center;">${data.soldProducts ? data.soldProducts.reduce((a,b)=>a+b.qty,0) : 0}</td>
-                        <td style="text-align:center;">0</td>
-                        <td style="text-align:right;">${fmt(stats.totalCostOfGoods)}</td>
-                        <td style="text-align:right;">${fmt((stats.cashSales || 0) + (stats.digitalSales || 0))}</td>
+                    <tr style="background-color: #ddd; font-weight: 900;">
+                        <td colspan="3" class="right">TOTALES GENERALES</td>
+                        <td class="right">${fmt(stats.totalCostOfGoods)}</td>
+                        <td class="right">${fmt((stats.cashSales || 0) + (stats.digitalSales || 0))}</td>
                     </tr>
                 </tbody>
             </table>
+            
+            <div style="margin-top: 10px; font-size: 10px; color: #666;">
+                * La columna COSTO TOTAL es interna. | GANANCIA BRUTA ESTIMADA: <b>Bs. ${fmt(((stats.cashSales || 0) + (stats.digitalSales || 0)) - (stats.totalCostOfGoods || 0))}</b>
+            </div>
+
+            ` : `
+                <div style="border: 1px solid #000; padding: 20px;">
+                    <h2 style="text-align:center; margin-top:0;">DETALLE DE VENTA</h2>
+                    <table class="product-table">
+                        <thead><tr><th>CANT</th><th>DESCRIPCION</th><th class="right">PRECIO UNIT</th><th class="right">TOTAL</th></tr></thead>
+                        <tbody>
+                            ${data.items ? data.items.map(i => `
+                                <tr>
+                                    <td class="center">${i.qty}</td>
+                                    <td>${i.name}</td>
+                                    <td class="right">${fmt(i.price)}</td>
+                                    <td class="right">${fmt(i.price * i.qty)}</td>
+                                </tr>`).join('') : ''}
+                        </tbody>
+                    </table>
+                    <h1 class="text-right" style="margin-top: 20px;">TOTAL: Bs. ${fmt(data.total)}</h1>
+                </div>
+            `}
         </body>
         </html>
       `;
@@ -118,10 +183,11 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
 
   // --- MODO 2: TICKET TÉRMICO (80mm) ---
   const renderThermalReport = () => {
-      // itemsHtml solo para tickets de venta normal
-      let itemsHtml = data.items ? data.items.map(item => `<div class="row" style="margin-bottom:2px;"><div class="col-qty">${item.qty}</div><div class="col-name">${item.name}</div><div class="col-price">${fmt(item.price * item.qty)}</div></div>`).join('') : '';
+      // CORRECCIÓN: Asegurar que el título del gasto salga en el ticket térmico individual
+      let title = data.businessName || 'LicoBar';
+      if (data.type === 'expense') title = 'VALE DE GASTO';
       
-      // zReportRows para cierre de caja
+      let itemsHtml = data.items ? data.items.map(item => `<div class="row" style="margin-bottom:2px;"><div class="col-qty">${item.qty}</div><div class="col-name">${item.name}</div><div class="col-price">${fmt(item.price * item.qty)}</div></div>`).join('') : '';
       let zReportRows = data.soldProducts ? data.soldProducts.map(p => `<div class="row"><div class="col-qty">${p.qty}</div><div class="col-name">${p.name}</div><div class="col-price">${fmt(p.total)}</div></div>`).join('') : '';
       
       const stats = data.stats || {};
@@ -139,23 +205,37 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                 .flex-between { display: flex; justify-content: space-between; }
                 .row { display: flex; width: 100%; font-size: 11px; }
                 .col-qty { width: 10%; } .col-name { width: 65%; } .col-price { width: 25%; text-align: right; }
+                .expense-title { font-size: 14px; font-weight: bold; text-transform: uppercase; margin: 5px 0; display: block; }
             </style>
         </head>
         <body>
             <div class="text-center border-b">
-                <div class="bold" style="font-size:16px;">${data.type === 'z-report' ? 'CIERRE DE CAJA' : (data.businessName || 'LicoBar')}</div>
+                <div class="bold" style="font-size:16px;">${data.type==='z-report'?'CIERRE DE CAJA': title}</div>
                 <div>${data.date}</div>
             </div>
-            ${data.type === 'z-report' ? `
+
+            ${data.type === 'expense' ? `
+                <div style="margin-top:10px;">
+                    <span style="font-size:10px;">CONCEPTO:</span><br/>
+                    <span class="expense-title">${data.description || 'Sin descripción'}</span>
+                    <div class="border-b" style="margin:5px 0;"></div>
+                    <div class="flex-between bold" style="font-size:18px;">
+                        <span>MONTO:</span>
+                        <span>Bs. ${fmt(data.amount)}</span>
+                    </div>
+                    <br/><br/>
+                    <div class="text-center" style="font-size:10px; border-top:1px solid #000; padding-top:5px;">FIRMA</div>
+                </div>
+            ` : data.type === 'z-report' ? `
                 <div class="flex-between"><span>Fondo Inicial:</span><span>${fmt(data.openingAmount)}</span></div>
-                <div class="flex-between bold"><span>(+) Ventas:</span><span>${fmt((stats.cashSales || 0) + (stats.digitalSales || 0))}</span></div>
-                <div style="font-size:10px; margin-left:10px; font-style:italic;">
-                    <div class="flex-between"><span>• Efvo: ${fmt(stats.cashSales)}</span> <span>• Dig: ${fmt(stats.digitalSales)}</span></div>
+                <div class="flex-between bold"><span>(+) Ventas:</span><span>${fmt((stats.cashSales||0)+(stats.digitalSales||0))}</span></div>
+                <div style="font-size:10px;margin-left:10px;">
+                    <div class="flex-between"><span>Efvo: ${fmt(stats.cashSales)}</span><span>Dig: ${fmt(stats.digitalSales)}</span></div>
                 </div>
                 <div class="flex-between"><span>(-) Gastos:</span><span>${fmt(stats.totalExpenses)}</span></div>
                 <div class="border-b" style="margin:5px 0;"></div>
                 <div class="flex-between bold" style="font-size:18px;"><span>CAJA:</span><span>Bs. ${fmt(data.finalCash)}</span></div>
-                <br/><div class="bold text-center border-b">RESUMEN PRODUCTOS</div>${zReportRows}
+                <br/><div>DETALLE PRODUCTOS</div>${zReportRows}
             ` : `
                 ${itemsHtml}
                 <div class="border-b" style="margin:5px 0;"></div>
@@ -172,13 +252,11 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
     const printWindow = window.open('', 'PRINT', `height=${height},width=${width}`);
     if (!printWindow) { alert("Permite las ventanas emergentes."); return; }
     
-    // DECIDIR QUÉ FORMATO USAR
+    // Si es GASTO, siempre usa formato térmico pequeño, a menos que se fuerce carta
     let htmlContent = '';
-    // Si es un ticket normal (venta o comanda), SIEMPRE usa formato térmico pequeño
-    if (data.type === 'order' || data.type === 'quick_sale' || data.type === 'expense') {
+    if (data.type === 'expense' && printerType !== 'letter') {
         htmlContent = renderThermalReport();
     } else {
-        // Si es Cierre Z, obedece a la configuración (Carta o Térmico)
         htmlContent = printerType === 'letter' ? renderLetterReport() : renderThermalReport();
     }
     
