@@ -1,4 +1,4 @@
-// src/components/Receipt.jsx - INTENSIDAD DE TINTA AJUSTADA (-35%)
+// src/components/Receipt.jsx - MODO ECO (AHORRO TINTA Y CABEZAL)
 import React, { useEffect, useState } from 'react';
 import { X, Printer, Loader2, CheckCircle } from 'lucide-react';
 
@@ -19,11 +19,11 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
   const cashierName = data.cashierName || 'Caja';
   const displayCode = data.orderId ? data.orderId.replace(/[^0-9]/g, '').slice(-4) : '----';
 
-  // --- CONFIGURACIÓN DE COLOR (AHORRO DE TINTA) ---
-  // Usamos #353535 en lugar de #000000. 
-  // Esto reduce la intensidad visual aprox un 35% sin perder legibilidad.
-  const INK_COLOR = '#353535'; 
-  const BORDER_COLOR = '#555555';
+  // --- CONFIGURACIÓN DE COLOR "ECO" ---
+  // Usamos #404040 (Gris oscuro) en lugar de Negro.
+  // Bordes más claros #888888.
+  const INK_COLOR = '#404040'; 
+  const BORDER_COLOR = '#999999';
 
   // --- MODO 1: REPORTE CARTA (A4) ---
   const renderLetterReport = () => {
@@ -32,25 +32,25 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
       const expensesRows = stats.expensesList && stats.expensesList.length > 0 ? stats.expensesList.map(e => `<tr><td style="padding:4px 0;color:#666;">• ${e.description || 'Gasto'}</td><td style="text-align:right;padding:4px 0;">${fmt(e.amount)}</td></tr>`).join('') : '<tr><td colspan="2" style="font-style:italic;color:#999;padding:4px 0;">Sin gastos operativos</td></tr>';
 
       return `<html><head><title>Reporte Z</title><style>
-            body { font-family:'Arial',sans-serif; font-size:11px; margin:30px; color:${INK_COLOR}; }
-            .header { text-align:center; margin-bottom:20px; border-bottom:3px solid ${INK_COLOR}; padding-bottom:15px; }
+            body { font-family:'Helvetica', sans-serif; font-size:11px; margin:30px; color:${INK_COLOR}; }
+            .header { text-align:center; margin-bottom:20px; border-bottom:1px solid ${INK_COLOR}; padding-bottom:15px; }
             .box { border:1px solid ${BORDER_COLOR}; padding:15px; margin-bottom:10px; }
             .clean-table { width:100%; border-collapse:collapse; }
             .clean-table td { padding:5px 0; border-bottom:1px dashed #ccc; }
-            .clean-table .total-row td { border-top:2px solid ${INK_COLOR}; border-bottom:none; font-weight:900; font-size:14px; padding-top:10px; }
+            .clean-table .total-row td { border-top:1px solid ${INK_COLOR}; border-bottom:none; font-weight:bold; font-size:13px; padding-top:10px; }
             .product-table { width:100%; border-collapse:collapse; margin-top:10px; font-size:11px; }
-            .product-table th { background-color:#eee; text-align:left; padding:8px; border:1px solid #ccc; font-weight:bold; color:${INK_COLOR}; }
+            .product-table th { background-color:#f5f5f5; text-align:left; padding:8px; border:1px solid #ccc; font-weight:bold; color:${INK_COLOR}; }
             .product-table td { border:1px solid #ccc; }
             .text-right { text-align:right; }
             .text-center { text-align:center; }
             .page-break { page-break-before:always; }
             </style></head><body>
-            <div class="header"><div style="font-size:24px;font-weight:900;">${data.businessName||'LicoBar'}</div><div style="font-size:16px;font-weight:bold;">REPORTE DE CIERRE DE CAJA (CORTE Z)</div><div style="font-size:11px;margin-top:5px;">${new Date(data.date).toLocaleDateString()} | Resp: ${staffName}</div></div>
-            <div style="display:flex;gap:20px;"><div style="flex:1" class="box"><div style="font-weight:900;border-bottom:2px solid ${INK_COLOR};">I. INGRESOS</div><table class="clean-table"><tr><td>FONDO INICIAL</td><td class="text-right">${fmt(data.openingAmount)}</td></tr><tr><td>EFECTIVO</td><td class="text-right">${fmt(stats.cashSales)}</td></tr><tr><td>QR/TRANSF</td><td class="text-right">${fmt(stats.qrSales)}</td></tr><tr><td>TARJETA</td><td class="text-right">${fmt(stats.cardSales)}</td></tr><tr class="total-row"><td>TOTAL INGRESOS</td><td class="text-right">${fmt(data.openingAmount+stats.cashSales+stats.qrSales+stats.cardSales)}</td></tr></table></div><div style="flex:1" class="box"><div style="font-weight:900;border-bottom:2px solid ${INK_COLOR};">II. EGRESOS</div><table class="clean-table">${expensesRows}<tr class="total-row"><td>TOTAL GASTOS</td><td class="text-right" style="color:red">${fmt(stats.totalExpenses)}</td></tr></table><div style="margin-top:15px;padding:10px;background:#eee;text-align:right;font-weight:900;font-size:16px;">CAJA REAL: Bs. ${fmt(data.finalCash)}</div></div></div>
-            <div class="page-break"></div><div style="font-weight:900;font-size:14px;margin-bottom:10px;border-bottom:1px solid ${INK_COLOR};">III. DETALLE PRODUCTOS</div><table class="product-table"><thead><tr><th>PRODUCTO</th><th class="text-center">VEND</th><th class="text-center">CORT</th><th class="text-right">T.COSTO</th><th class="text-right">T.VENTA</th></tr></thead><tbody>${productRows}</tbody></table></body></html>`;
+            <div class="header"><div style="font-size:20px;font-weight:bold;">${data.businessName||'LicoBar'}</div><div style="font-size:14px;">REPORTE DE CIERRE DE CAJA (CORTE Z)</div><div style="font-size:11px;margin-top:5px;">${new Date(data.date).toLocaleDateString()} | Resp: ${staffName}</div></div>
+            <div style="display:flex;gap:20px;"><div style="flex:1" class="box"><div style="font-weight:bold;border-bottom:1px solid ${INK_COLOR};margin-bottom:5px;">I. INGRESOS</div><table class="clean-table"><tr><td>FONDO INICIAL</td><td class="text-right">${fmt(data.openingAmount)}</td></tr><tr><td>EFECTIVO</td><td class="text-right">${fmt(stats.cashSales)}</td></tr><tr><td>QR/TRANSF</td><td class="text-right">${fmt(stats.qrSales)}</td></tr><tr><td>TARJETA</td><td class="text-right">${fmt(stats.cardSales)}</td></tr><tr class="total-row"><td>TOTAL INGRESOS</td><td class="text-right">${fmt(data.openingAmount+stats.cashSales+stats.qrSales+stats.cardSales)}</td></tr></table></div><div style="flex:1" class="box"><div style="font-weight:bold;border-bottom:1px solid ${INK_COLOR};margin-bottom:5px;">II. EGRESOS</div><table class="clean-table">${expensesRows}<tr class="total-row"><td>TOTAL GASTOS</td><td class="text-right" style="color:red">${fmt(stats.totalExpenses)}</td></tr></table><div style="margin-top:15px;padding:10px;background:#f5f5f5;text-align:right;font-weight:bold;font-size:16px;">CAJA REAL: Bs. ${fmt(data.finalCash)}</div></div></div>
+            <div class="page-break"></div><div style="font-weight:bold;font-size:14px;margin-bottom:10px;border-bottom:1px solid ${INK_COLOR};">III. DETALLE PRODUCTOS</div><table class="product-table"><thead><tr><th>PRODUCTO</th><th class="text-center">VEND</th><th class="text-center">CORT</th><th class="text-right">T.COSTO</th><th class="text-right">T.VENTA</th></tr></thead><tbody>${productRows}</tbody></table></body></html>`;
   };
 
-  // --- MODO 2: TICKET TÉRMICO (AHORRO TINTA) ---
+  // --- MODO 2: TICKET TÉRMICO (ULTRA LIGERO) ---
   const renderThermalReport = () => {
       const stats = data.stats || {};
       let title = (data.businessName || 'LicoBar').toUpperCase();
@@ -62,19 +62,22 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
 
       return `<html><head><style>
             * { box-sizing: border-box; }
-            /* COLOR GRIS OSCURO #353535 PARA AHORRAR QUEMADO DEL CABEZAL */
+            /* COLOR GRIS SUAVE #404040 */
             body { font-family: 'Arial', sans-serif; margin: 0; padding: 5px 0; width: 72mm; font-size: 12px; color: ${INK_COLOR}; }
             .text-center { text-align: center; }
             .text-right { text-align: right; }
-            .bold { font-weight: 700; }
-            .border-b { border-bottom: 1px solid ${BORDER_COLOR}; padding-bottom: 5px; margin-bottom: 5px; }
+            /* FUENTE MENOS GRUESA (600 en vez de 900) */
+            .bold { font-weight: 600; } 
+            /* BORDES FINOS Y PUNTEADOS */
+            .border-b { border-bottom: 1px dashed ${BORDER_COLOR}; padding-bottom: 5px; margin-bottom: 5px; }
             .flex-between { display: flex; justify-content: space-between; }
             .row { display: flex; width: 100%; font-size: 11px; }
             .col-qty { width: 10%; text-align: center; } 
             .col-name { width: 65%; padding-left: 5px; } 
             .col-price { width: 25%; text-align: right; }
-            .code-box { font-size: 24px; font-weight: 900; text-align: center; margin: 5px 0; border: 2px solid ${BORDER_COLOR}; padding: 2px; color: ${INK_COLOR}; }
-            .courtesy-box { border: 2px dashed ${BORDER_COLOR}; padding: 5px; margin: 10px 0; text-align: center; }
+            /* CODIGO GRANDE PERO FINO */
+            .code-box { font-size: 20px; font-weight: 600; text-align: center; margin: 5px 0; border: 1px solid ${BORDER_COLOR}; padding: 4px; color: ${INK_COLOR}; letter-spacing: 1px; }
+            .courtesy-box { border: 1px dashed ${BORDER_COLOR}; padding: 5px; margin: 10px 0; text-align: center; }
             </style></head><body>
             <div class="text-center border-b">
                 <div class="bold" style="font-size:16px;">${data.type==='z-report'?'CIERRE DE CAJA':title}</div>
@@ -150,9 +153,10 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                 <div className={`w-full p-4 border-t-4 bg-white shadow-sm ${isCourtesySale ? 'border-yellow-500' : 'border-blue-500'}`}>
                     <p className="font-bold text-lg mb-2">{isCourtesySale ? 'RECIBO CORTESÍA' : (data.businessName || 'LicoBar')}</p>
                     <p className="text-4xl font-black text-gray-800">Bs. {isCourtesySale ? '0.00' : fmt(previewAmount)}</p>
-                    <p className="text-xs text-gray-400 mt-4 uppercase font-bold border-t pt-2">
-                        Formato: {useThermalFormat ? 'TÉRMICO (80mm)' : 'CARTA (A4)'}
-                    </p>
+                    <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-2 gap-4 text-xs text-left">
+                        <div><span className="block text-gray-400 font-bold uppercase">Formato</span><span className="font-bold text-gray-700">{useThermalFormat ? 'TÉRMICO (80mm)' : 'CARTA (A4)'}</span></div>
+                        <div><span className="block text-gray-400 font-bold uppercase">Tipo</span><span className="font-bold text-gray-700 uppercase">{data.type === 'z-report' ? 'Cierre Caja' : (isCourtesySale ? 'Cortesía' : 'Venta')}</span></div>
+                    </div>
                 </div>
             )}
         </div>
