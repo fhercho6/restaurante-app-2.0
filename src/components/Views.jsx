@@ -1,4 +1,4 @@
-// src/components/Views.jsx - CORRECCIÓN DE REBOTE (BLOQUEO DE TECLADO)
+// src/components/Views.jsx - LOGIN FLUIDO Y SIN CONGELAMIENTOS
 import React, { useState } from 'react';
 import { Clock, User, ArrowLeft, Trash2, Edit2, Plus, Minus, Lock, LogIn, LogOut, Briefcase, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -34,15 +34,15 @@ export const MenuCard = ({ item }) => {
   );
 };
 
-// --- PANTALLA DE LOGIN CON PIN (PROTECCIÓN ANTI-REBOTE) ---
+// --- PANTALLA DE LOGIN CON PIN (OPTIMIZADA) ---
 export const PinLoginView = ({ staffMembers, onLoginSuccess, onClockAction, onCancel }) => {
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [pin, setPin] = useState('');
-  const [mode, setMode] = useState('system'); 
+  const [mode, setMode] = useState('system'); // 'system' (Vender) | 'attendance' (Reloj)
   const [showAttendanceOptions, setShowAttendanceOptions] = useState(false); 
   const [shuffledKeys, setShuffledKeys] = useState(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']);
   
-  // NUEVO ESTADO: PROCESANDO
+  // ESTADO DE PROCESAMIENTO
   const [isProcessing, setIsProcessing] = useState(false);
 
   const shuffleArray = (array) => {
@@ -69,43 +69,45 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onClockAction, onCa
       const newPin = pin + num;
       setPin(newPin);
       
-      // Si llegamos a 4 dígitos
+      // AL LLEGAR A 4 DÍGITOS
       if (newPin.length === 4) {
-        setIsProcessing(true); // BLOQUEAR INMEDIATAMENTE
+        setIsProcessing(true); // Bloquear UI
 
-        // Pequeño delay para que la UI se actualice antes de validar
-        setTimeout(() => {
-            if (newPin === selectedStaff.pin) {
-              if (mode === 'system') {
-                 onLoginSuccess(selectedStaff); 
-                 // No desbloqueamos isProcessing porque el componente se desmontará
-              } else {
-                 setShowAttendanceOptions(true); 
-                 setIsProcessing(false); // Desbloquear para que elija entrada/salida
-              }
+        // Verificación inmediata sin setTimeout largo
+        if (newPin === selectedStaff.pin) {
+            if (mode === 'system') {
+                onLoginSuccess(selectedStaff); 
+                // No desbloqueamos aquí porque el componente se va a desmontar
+                // al cambiar de vista en App.jsx
             } else {
-              toast.error('PIN Incorrecto');
-              setPin('');
-              setShuffledKeys(shuffleArray(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']));
-              setIsProcessing(false); // Desbloquear para intentar de nuevo
+                setShowAttendanceOptions(true); 
+                setIsProcessing(false); // Desbloquear para que elija opción de reloj
             }
-        }, 100);
+        } else {
+            // Error: Feedback rápido
+            toast.error('PIN Incorrecto');
+            setTimeout(() => { // Pequeña pausa para que vea el error
+                setPin('');
+                setShuffledKeys(shuffleArray(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']));
+                setIsProcessing(false); // Desbloquear
+            }, 500);
+        }
       }
     }
   };
 
   const handleClock = (type) => {
       if (isProcessing) return;
-      setIsProcessing(true); // Bloquear botón para evitar doble registro
+      setIsProcessing(true); 
       onClockAction(selectedStaff, type);
       
-      // Reset después de un tiempo si no se desmonta
+      // Reiniciar estado después de un breve momento
       setTimeout(() => {
           setSelectedStaff(null);
           setPin('');
           setShowAttendanceOptions(false);
           setIsProcessing(false);
-      }, 500);
+      }, 800);
   };
 
   const handleDelete = () => {
@@ -173,7 +175,7 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onClockAction, onCa
                 // OPCIONES DE ENTRADA / SALIDA (BLOQUEADAS SI PROCESANDO)
                 <div className="flex flex-col gap-4 h-full justify-center p-6 animate-in fade-in slide-in-from-bottom-4">
                     {isProcessing ? (
-                        <div className="flex flex-col items-center justify-center text-gray-500">
+                        <div className="flex flex-col items-center justify-center text-gray-500 animate-pulse">
                             <Loader2 size={48} className="animate-spin text-blue-500 mb-4"/>
                             <p className="font-bold">Registrando...</p>
                         </div>
@@ -205,7 +207,7 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onClockAction, onCa
                             <button 
                                 key={num} 
                                 onClick={() => handleNumClick(num)} 
-                                disabled={isProcessing} // <--- BLOQUEO
+                                disabled={isProcessing} 
                                 className="h-16 rounded-2xl bg-white border border-gray-200 shadow-[0_4px_0_0_rgba(0,0,0,0.1)] active:shadow-none active:translate-y-[4px] transition-all font-black text-2xl text-gray-800 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {num}
@@ -214,7 +216,7 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onClockAction, onCa
                         <div className="h-16"></div>
                         <button 
                             onClick={handleDelete} 
-                            disabled={isProcessing} // <--- BLOQUEO
+                            disabled={isProcessing} 
                             className="h-16 rounded-2xl bg-red-50 border border-red-100 text-red-500 flex items-center justify-center shadow-[0_4px_0_0_rgba(220,38,38,0.1)] active:shadow-none active:translate-y-[4px] transition-all disabled:opacity-50"
                         >
                             <ArrowLeft size={24} />
@@ -261,14 +263,24 @@ export const CredentialPrintView = ({ member, appName }) => (
 // --- TABLA DE ADMIN (FILA MEJORADA CON ENTER) ---
 export const AdminRow = ({ item, onEdit, onDelete, isQuickEdit, onQuickUpdate }) => {
     const stockNum = parseFloat(item.stock);
-    const handleKeyDown = (e, field) => { if (e.key === 'Enter') e.target.blur(); };
+    const handleKeyDown = (e, field) => {
+        if (e.key === 'Enter') {
+            e.target.blur(); // Simula click afuera para guardar
+        }
+    };
 
     return (
         <tr className="hover:bg-gray-50 transition-colors group">
             <td className="p-4"><div className="font-bold text-gray-900">{item.name}</div><div className="text-xs text-gray-500 uppercase">{item.category}</div></td>
             <td className="p-4 text-center">
                 {isQuickEdit && item.category !== 'Servicios' ? (
-                    <input type="number" defaultValue={item.stock} onBlur={(e) => onQuickUpdate(item.id, 'stock', e.target.value)} onKeyDown={(e) => handleKeyDown(e, 'stock')} className="w-16 p-1 border rounded text-center font-bold bg-white focus:ring-2 ring-blue-500 outline-none" />
+                    <input 
+                        type="number" 
+                        defaultValue={item.stock} 
+                        onBlur={(e) => onQuickUpdate(item.id, 'stock', e.target.value)} 
+                        onKeyDown={(e) => handleKeyDown(e, 'stock')} 
+                        className="w-16 p-1 border rounded text-center font-bold bg-white focus:ring-2 ring-blue-500 outline-none" 
+                    />
                 ) : (
                     <span className={`px-2 py-1 rounded-full text-xs font-black ${item.category === 'Servicios' ? 'bg-purple-100 text-purple-700' : (stockNum <= 5 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700')}`}>{item.category === 'Servicios' ? '∞' : item.stock}</span>
                 )}
