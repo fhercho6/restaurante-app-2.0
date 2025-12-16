@@ -1,4 +1,4 @@
-// src/App.jsx - CORRECCIÓN: CONSERVACIÓN DEL ID DE PEDIDO (MATCHING)
+// src/App.jsx - GARZÓN VUELVE AL INICIO AUTOMÁTICAMENTE
 import React, { useState, useEffect, useMemo } from 'react';
 import { Wifi, WifiOff, Home, LogOut, User, ClipboardList, Users, FileText, Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign, ArrowLeft, Lock, Unlock, Wallet, Loader2, LayoutGrid, Gift, Trees, TrendingUp, Package, AlertCircle, Filter, X, FileSpreadsheet } from 'lucide-react';
 import { onAuthStateChanged, signOut, signInAnonymously, signInWithCustomToken } from 'firebase/auth';
@@ -102,8 +102,7 @@ export default function App() {
   useEffect(() => { if (!db || !currentUser) return; const q = query(collection(db, isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`), where('status', '==', 'open'), limit(1)); getDocs(q).then(s => { if (!s.empty) setRegisterSession({ id: s.docs[0].id, ...s.docs[0].data() }); }); }, [db, currentUser]);
   useEffect(() => { if (!db || !currentUser) return; const unsub1 = onSnapshot(collection(db, getCollName('items')), (s) => setItems(s.docs.map(d => ({ id: d.id, ...d.data() })))); const unsub2 = onSnapshot(collection(db, getCollName('staff')), (s) => setStaff(s.docs.map(d => ({id: d.id, ...d.data()})))); const unsub3 = onSnapshot(collection(db, getCollName('settings')), (s) => { s.docs.forEach(d => { const dt = d.data(); if(d.id === 'categories') setCategories(dt.list); if(d.id === 'roles') setRoles(dt.list); if(d.id === 'tables') setTables(dt.list); if(d.id === 'expenses') setExpenseTypes(dt.list); if(d.id === 'branding') { setLogo(dt.logo); setAppName(dt.appName); setAutoLockTime(dt.autoLockTime); if(dt.printerType) setPrinterType(dt.printerType); } }); setIsLoadingApp(false); }); const unsub4 = onSnapshot(collection(db, isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`), (s) => setActiveServices(s.docs.map(d => ({ id: d.id, ...d.data() })))); return () => { unsub1(); unsub2(); unsub3(); unsub4(); }; }, [currentUser]);
   useEffect(() => { if (!db || !registerSession) return; const qS = query(collection(db, salesCol = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`), where('registerId', '==', registerSession.id)); const qE = query(collection(db, isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`), where('registerId', '==', registerSession.id)); const uS = onSnapshot(qS, (s) => { let c=0, q=0, k=0, d=0, ct=0, cc=0, cg=0; const pm={}; s.forEach(d => { const v=d.data(); const ic=v.payments?.some(p=>p.method==='Cortesía'); if(!ic){ if(v.payments){v.payments.forEach(p=>{const a=parseFloat(p.amount); const m=(p.method||'').toLowerCase(); if(m.includes('efectivo'))c+=a; else if(m.includes('qr'))q+=a; else k+=a;}); if(v.changeGiven)c-=parseFloat(v.changeGiven);} else { const t=parseFloat(v.total); const m=(v.paymentMethod||'').toLowerCase(); if(m.includes('efectivo')) c+=t; else if(m.includes('qr')) q+=t; else k+=t; } } if(v.items) v.items.forEach(i=>{ const kn=i.name; const qt=i.qty; const pr=parseFloat(i.price); const co=parseFloat(i.cost)||0; if(ic){ct+=(pr*qt); cc+=(co*qt);} else {cg+=(co*qt);} if(!pm[kn]) pm[kn]={name:kn, qtySold:0, qtyCourtesy:0, total:0, totalCost:0}; if(ic){pm[kn].qtyCourtesy+=qt;} else {pm[kn].qtySold+=qt; pm[kn].total+=(pr*qt);} pm[kn].totalCost+=(co*qt); }); }); setSessionStats(prev => ({ ...prev, cashSales:c, qrSales:q, cardSales:k, digitalSales:q+k, totalCostOfGoods:cg, courtesyTotal:ct, courtesyCost:cc, soldProducts:Object.values(pm).sort((a,b)=>b.qtySold-a.qtySold) })); }); const uE = onSnapshot(qE, (s) => { let te=0; const el=[]; s.forEach(d => { const e=d.data(); te+=parseFloat(e.amount); el.push(e); }); setSessionStats(prev => ({...prev, totalExpenses:te, expensesList:el})); }); return () => { uS(); uE(); }; }, [registerSession]);
-  
-  var salesCol; // Fix scope issue above
+  var salesCol;
 
   const checkRegisterStatus = (requireOwnership = false) => { if (registerSession) { const isAdmin = currentUser && !currentUser.isAnonymous; const isOwner = staffMember && registerSession.openedBy === staffMember.name; if (requireOwnership && !isAdmin && !isOwner) { toast.error(`⛔ ACCESO DENEGADO\nTurno de: ${registerSession.openedBy}`, { duration: 5000 }); return false; } return true; } const canOpenRegister = (currentUser && !currentUser.isAnonymous) || (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador')); if (canOpenRegister) setIsOpenRegisterModalOpen(true); else toast.error("⚠️ LA CAJA ESTÁ CERRADA.", { icon: '🔒' }); return false; };
   const handleOpenRegister = async (amount, activeTeam = []) => { try { const sessionData = { status: 'open', openedBy: staffMember ? staffMember.name : (currentUser?.email || 'Admin'), openedAt: new Date().toISOString(), openingAmount: amount, activeTeam: activeTeam, salesTotal: 0 }; const docRef = await addDoc(collection(db, isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`), sessionData); setRegisterSession({ id: docRef.id, ...sessionData }); setIsOpenRegisterModalOpen(false); toast.success(`Turno Abierto`); } catch (error) { toast.error("Error al abrir caja"); } };
@@ -120,81 +119,25 @@ export default function App() {
   const handleSendToKitchen = async (cart, clearCart) => { if (!checkRegisterStatus(false)) return; if (cart.length === 0) return; const toastId = toast.loading('Procesando comanda...'); try { const totalOrder = cart.reduce((acc, item) => acc + (item.price * item.qty), 0); const orderData = { date: new Date().toISOString(), staffId: staffMember ? staffMember.id : 'anon', staffName: staffMember ? staffMember.name : 'Mesero', orderId: 'ORD-' + Math.floor(Math.random() * 10000), items: cart, total: totalOrder, status: 'pending' }; await addDoc(collection(db, isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`), orderData); const preCheckData = { ...orderData, type: 'order', date: new Date().toLocaleString(), autoPrint: true }; clearCart([]); setLastSale(preCheckData); toast.success('Pedido enviado a caja', { id: toastId }); setView('receipt_view'); } catch (error) { toast.error('Error al enviar pedido', { id: toastId }); } };
   const handleVoidAndPrint = async (order) => { try { await deleteDoc(doc(db, isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`, order.id)); setLastSale({ ...order, type: 'void', businessName: appName, date: new Date().toLocaleString() }); toast.success("Pedido anulado"); setView('receipt_view'); } catch (error) { toast.error("Error al anular"); } };
   const handleReprintOrder = (order) => { const preCheckData = { ...order, type: 'order', businessName: appName, date: new Date().toLocaleString() }; setLastSale(preCheckData); setView('receipt_view'); toast.success("Reimprimiendo comanda..."); };
+  const handleFinalizeSale = async (paymentResult) => { if (!db) return; if (staffMember && staffMember.role !== 'Cajero' && staffMember.role !== 'Administrador') { toast.error("Solo Cajeros pueden cobrar."); setIsPaymentModalOpen(false); return; } if (!registerSession) { toast.error("La caja está cerrada"); return; } const toastId = toast.loading('Procesando pago...'); setIsPaymentModalOpen(false); const itemsToProcess = orderToPay ? orderToPay.items : pendingSale.cart; const { paymentsList, totalPaid, change } = paymentResult; const totalToProcess = totalPaid - change; try { const batchPromises = []; const timestamp = new Date(); let cashierName = staffMember ? staffMember.name : 'Administrador'; const waiterName = orderToPay ? (orderToPay.staffName || 'Barra') : (staffMember ? staffMember.name : 'Barra'); const waiterId = orderToPay ? (orderToPay.staffId || 'anon') : (staffMember ? staffMember.id : 'anon'); const originalOrderId = orderToPay?.orderId || ('ORD-' + Math.floor(Math.random() * 10000)); const cleanItems = itemsToProcess.map(item => ({ id: item.id || 'unknown', name: item.name || 'Sin nombre', price: parseFloat(item.price) || 0, cost: parseFloat(item.cost) || 0, qty: parseInt(item.qty) || 1, category: item.category || 'General', stock: item.stock !== undefined ? item.stock : null, image: item.image || null, isServiceItem: !!item.isServiceItem, location: item.location || null })); const saleData = { date: timestamp.toISOString(), total: parseFloat(totalToProcess) || 0, items: cleanItems, staffId: waiterId, staffName: waiterName, cashier: cashierName, registerId: registerSession.id, payments: paymentsList || [], totalPaid: parseFloat(totalPaid) || 0, changeGiven: parseFloat(change) || 0, orderId: originalOrderId }; const docRef = await addDoc(collection(db, isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`), saleData); cleanItems.forEach(item => { if (item.stock !== null && item.stock !== '' && !isNaN(item.stock) && !item.isServiceItem) { const newStock = parseInt(item.stock) - item.qty; batchPromises.push(updateDoc(doc(db, getCollName('items'), item.id), { stock: newStock })); } }); if (orderToPay && orderToPay.type !== 'quick_sale') { batchPromises.push(deleteDoc(doc(db, isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`, orderToPay.id))); } await Promise.all(batchPromises); const receiptData = { type: 'order', businessName: appName, date: timestamp.toLocaleString(), staffName: waiterName, cashierName: cashierName, orderId: originalOrderId, items: cleanItems, total: totalToProcess, payments: paymentsList, change: change, autoPrint: true }; setLastSale(receiptData); if (pendingSale && pendingSale.clearCart) pendingSale.clearCart([]); setPendingSale(null); setOrderToPay(null); toast.success('Cobro exitoso', { id: toastId }); setView('receipt_view'); } catch (e) { console.error(e); toast.error('Error al cobrar', { id: toastId }); } };
   
-  // --- HANDLE FINALIZAR (CONSERVANDO ID ORIGINAL PARA MATCH) ---
-  const handleFinalizeSale = async (paymentResult) => { 
-      if (!db) return; 
-      if (staffMember && staffMember.role !== 'Cajero' && staffMember.role !== 'Administrador') { toast.error("Solo Cajeros pueden cobrar."); setIsPaymentModalOpen(false); return; } 
-      if (!registerSession) { toast.error("La caja está cerrada"); return; } 
-      const toastId = toast.loading('Procesando pago...'); 
-      setIsPaymentModalOpen(false); 
-      const itemsToProcess = orderToPay ? orderToPay.items : pendingSale.cart; 
-      const { paymentsList, totalPaid, change } = paymentResult; 
-      const totalToProcess = totalPaid - change; 
-      try { 
-          const batchPromises = []; 
-          const timestamp = new Date(); 
-          let cashierName = staffMember ? staffMember.name : 'Administrador'; 
-          const waiterName = orderToPay ? (orderToPay.staffName || 'Barra') : (staffMember ? staffMember.name : 'Barra'); 
-          const waiterId = orderToPay ? (orderToPay.staffId || 'anon') : (staffMember ? staffMember.id : 'anon'); 
-          
-          // PRESERVAR EL ORDER ID ORIGINAL
-          const originalOrderId = orderToPay?.orderId || ('ORD-' + Math.floor(Math.random() * 10000));
-
-          const cleanItems = itemsToProcess.map(item => ({ 
-              id: item.id || 'unknown', 
-              name: item.name || 'Sin nombre', 
-              price: parseFloat(item.price) || 0, 
-              cost: parseFloat(item.cost) || 0, 
-              qty: parseInt(item.qty) || 1, 
-              category: item.category || 'General', 
-              stock: item.stock !== undefined ? item.stock : null, 
-              image: item.image || null, 
-              isServiceItem: !!item.isServiceItem, 
-              location: item.location || null 
-          })); 
-          
-          const saleData = { 
-              date: timestamp.toISOString(), 
-              total: parseFloat(totalToProcess) || 0, 
-              items: cleanItems, 
-              staffId: waiterId, 
-              staffName: waiterName, 
-              cashier: cashierName, 
-              registerId: registerSession.id, 
-              payments: paymentsList || [], 
-              totalPaid: parseFloat(totalPaid) || 0, 
-              changeGiven: parseFloat(change) || 0,
-              orderId: originalOrderId // <--- AQUÍ SE GUARDA
-          }; 
-          const docRef = await addDoc(collection(db, isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`), saleData); 
-          
-          cleanItems.forEach(item => { if (item.stock !== null && item.stock !== '' && !isNaN(item.stock) && !item.isServiceItem) { const newStock = parseInt(item.stock) - item.qty; batchPromises.push(updateDoc(doc(db, getCollName('items'), item.id), { stock: newStock })); } }); 
-          if (orderToPay && orderToPay.type !== 'quick_sale') { batchPromises.push(deleteDoc(doc(db, isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`, orderToPay.id))); } 
-          await Promise.all(batchPromises); 
-          
-          const receiptData = { 
-              type: 'order', 
-              businessName: appName, 
-              date: timestamp.toLocaleString(), 
-              staffName: waiterName, 
-              cashierName: cashierName, 
-              orderId: originalOrderId, // <--- SE PASA AL RECIBO
-              items: cleanItems, 
-              total: totalToProcess, 
-              payments: paymentsList, 
-              change: change, 
-              autoPrint: true 
-          }; 
-          setLastSale(receiptData); 
-          if (pendingSale && pendingSale.clearCart) pendingSale.clearCart([]); 
-          setPendingSale(null); setOrderToPay(null); 
-          toast.success('Cobro exitoso', { id: toastId }); 
-          setView('receipt_view'); 
-      } catch (e) { console.error(e); toast.error('Error al cobrar', { id: toastId }); } 
+  // --- ¡AQUÍ ESTÁ LA LÓGICA DE CIERRE AUTOMÁTICO! ---
+  const handleReceiptClose = () => { 
+      // 1. Si es Cierre Z, siempre vuelve al inicio
+      if (lastSale && lastSale.type === 'z-report') { setView('landing'); return; } 
+      
+      const isCashier = (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador')) || (currentUser && !currentUser.isAnonymous); 
+      
+      if (isCashier) {
+          // Si es Cajero, vuelve a su pantalla de ventas
+          setView('cashier'); 
+      } else {
+          // Si es Garzón (u otro rol), CIERRA SESIÓN y va al Landing
+          setStaffMember(null); // Cierra sesión para el próximo usuario
+          setView('landing'); 
+      }
   };
 
-  const handleReceiptClose = () => { if (lastSale && lastSale.type === 'z-report') { setView('landing'); return; } const isCashier = (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador')) || (currentUser && !currentUser.isAnonymous); if (isCashier) setView('cashier'); else setView('pos'); };
   const handleSave = async (d) => { try { if(currentItem) await setDoc(doc(db, getCollName('items'), currentItem.id), d); else await addDoc(collection(db, getCollName('items')), d); toast.success('Guardado'); setIsModalOpen(false); } catch { toast.error('Error'); } };
   const handleDelete = async (id) => { try { await deleteDoc(doc(db, getCollName('items'), id)); toast.success('Eliminado'); } catch { toast.error('Error'); }};
   const handleAddStaff = async (d) => { await addDoc(collection(db, getCollName('staff')), d); toast.success('Personal creado'); };
