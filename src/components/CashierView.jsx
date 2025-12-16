@@ -1,6 +1,7 @@
-// src/components/CashierView.jsx - CAJA CON COBRO MÚLTIPLE Y CÓDIGOS
+// src/components/CashierView.jsx - CORREGIDO (IMPORTACIÓN DE USER AGREGADA)
 import React, { useState, useEffect } from 'react';
-import { Search, ShoppingCart, Clock, Filter, Trash2, Printer, CheckSquare, Square, DollarSign, X } from 'lucide-react';
+// CORRECCIÓN AQUÍ: Se agregó 'User' a la lista de iconos importados
+import { Search, ShoppingCart, Clock, Filter, Trash2, Printer, CheckSquare, Square, DollarSign, X, User } from 'lucide-react';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { db, ROOT_COLLECTION, isPersonalProject } from '../config/firebase';
 
@@ -77,18 +78,18 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
           // 2. Sumar Totales
           const totalAmount = ordersToPay.reduce((sum, order) => sum + (parseFloat(order.total) || 0), 0);
 
-          // 3. RECOLECTAR CÓDIGOS (Aquí estaba el detalle que faltaba)
-          const allOrderIds = ordersToPay.map(o => o.orderId || '???'); // Ej: ['ORD-8019', 'ORD-8020']
+          // 3. RECOLECTAR CÓDIGOS
+          const allOrderIds = ordersToPay.map(o => o.orderId || '???'); 
           
           // 4. Crear "Super Orden"
           const superOrder = {
-              id: 'BULK_PAYMENT', // ID temporal
-              ids: selectedOrders, // Lista de IDs de firestore para borrar luego
-              orderIds: allOrderIds, // <--- ESTO ES LO QUE NECESITA APP.JSX PARA EL RECIBO
+              id: 'BULK_PAYMENT', // ID temporal para UI
+              ids: selectedOrders, // Lista de IDs de firestore para borrar luego en App.jsx
+              orderIds: allOrderIds, // Lista de códigos visuales (ej: ORD-1, ORD-2)
               type: 'bulk_sale',
               items: mergedItems,
               total: totalAmount,
-              staffName: 'Varios', // O tomar del primero: ordersToPay[0].staffName
+              staffName: 'Varios', 
               staffId: 'anon'
           };
 
@@ -138,7 +139,7 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
                 <DollarSign size={18}/> Gastos/Retiros
             </button>
             <button 
-                onClick={() => onPrintReceipt({ type: 'z-report-preview' })} // Solo vista previa si se desea
+                onClick={() => onPrintReceipt({ type: 'z-report-preview' })} 
                 className="flex-1 md:flex-none px-4 py-2.5 bg-gray-100 text-gray-600 font-bold rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
             >
                 <Printer size={18}/> Reimprimir Último
@@ -149,7 +150,7 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
       {/* CONTENIDO PRINCIPAL */}
       <div className="flex-1 overflow-hidden flex flex-col md:flex-row gap-6">
           
-          {/* COLUMNA IZQUIERDA: SERVICIOS ACTIVOS (MESAS DE BILLAR, ETC) */}
+          {/* COLUMNA IZQUIERDA: SERVICIOS ACTIVOS */}
           {activeServices.length > 0 && (
               <div className="w-full md:w-1/3 flex flex-col gap-4 overflow-y-auto pb-20">
                   <h3 className="font-bold text-gray-500 uppercase text-xs flex items-center gap-2 px-1"><Clock size={14}/> Servicios en Curso ({activeServices.length})</h3>
@@ -184,7 +185,7 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
               </div>
           )}
 
-          {/* COLUMNA DERECHA: PEDIDOS PENDIENTES (COMANDAS) */}
+          {/* COLUMNA DERECHA: PEDIDOS PENDIENTES */}
           <div className="flex-1 flex flex-col overflow-hidden bg-white rounded-2xl shadow-sm border border-gray-200">
               
               {/* HEADER TABLA */}
