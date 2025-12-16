@@ -1,6 +1,7 @@
-// src/components/SalesDashboard.jsx - CON BOTÓN DE CONFIGURACIÓN DE IMPRESORA
+// src/components/SalesDashboard.jsx - CORRECCIÓN (LIMIT IMPORTADO)
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+// CORRECCIÓN AQUÍ: Se agregó 'limit' a la importación
+import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { db, ROOT_COLLECTION, isPersonalProject } from '../config/firebase';
 import { Calendar, DollarSign, CreditCard, TrendingUp, FileText, Printer, Search, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -8,21 +9,21 @@ import toast from 'react-hot-toast';
 export default function SalesDashboard({ onReprintZ, onConfigurePrinter, currentPrinterType }) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [range, setRange] = useState('today'); // today, 7days, 30days
 
   const fetchHistory = async () => {
       setLoading(true);
       try {
           const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`;
           const salesRef = collection(db, colName);
-          let q = query(salesRef, where('status', '==', 'closed'), orderBy('closedAt', 'desc'), limit(20)); // Últimos 20 cierres
+          // Ahora 'limit' funcionará correctamente
+          let q = query(salesRef, where('status', '==', 'closed'), orderBy('closedAt', 'desc'), limit(20)); 
           
           const snapshot = await getDocs(q);
           const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
           setHistory(data);
       } catch (error) {
-          console.error(error);
-          toast.error("Error cargando historial");
+          console.error("Error cargando historial:", error);
+          toast.error("Error al cargar historial");
       } finally {
           setLoading(false);
       }
