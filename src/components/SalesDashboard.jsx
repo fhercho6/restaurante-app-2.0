@@ -1,7 +1,6 @@
-// src/components/SalesDashboard.jsx - CORRECCIÓN (LIMIT IMPORTADO)
+// src/components/SalesDashboard.jsx - VERSIÓN SEGURA (SIN ERROR DE ÍNDICE)
 import React, { useState, useEffect } from 'react';
-// CORRECCIÓN AQUÍ: Se agregó 'limit' a la importación
-import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore'; // Quitamos orderBy y limit para evitar errores
 import { db, ROOT_COLLECTION, isPersonalProject } from '../config/firebase';
 import { Calendar, DollarSign, CreditCard, TrendingUp, FileText, Printer, Search, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -15,15 +14,28 @@ export default function SalesDashboard({ onReprintZ, onConfigurePrinter, current
       try {
           const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`;
           const salesRef = collection(db, colName);
-          // Ahora 'limit' funcionará correctamente
-          let q = query(salesRef, where('status', '==', 'closed'), orderBy('closedAt', 'desc'), limit(20)); 
+          
+          // 1. Consulta SIMPLE (Solo filtramos por estado, sin ordenar todavía)
+          // Esto evita el error de "Index Required" de Firebase
+          let q = query(salesRef, where('status', '==', 'closed'));
           
           const snapshot = await getDocs(q);
           const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-          setHistory(data);
+
+          // 2. Ordenamos AQUÍ en el navegador (Más seguro)
+          // Ordenar por fecha de cierre (más reciente primero)
+          data.sort((a, b) => {
+              const dateA = new Date(a.closedAt || 0);
+              const dateB = new Date(b.closedAt || 0);
+              return dateB - dateA;
+          });
+
+          // 3. Tomamos los últimos 20
+          setHistory(data.slice(0, 20));
+
       } catch (error) {
           console.error("Error cargando historial:", error);
-          toast.error("Error al cargar historial");
+          toast.error("No se pudo cargar el historial");
       } finally {
           setLoading(false);
       }
