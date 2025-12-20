@@ -1,6 +1,7 @@
-// src/components/LandingPage.jsx - EDICIÓN NAVIDAD NEÓN
-import React from 'react';
-import { ChefHat, User, Settings, ArrowRight, UtensilsCrossed, Gift, Trees } from 'lucide-react';
+// src/components/LandingPage.jsx - EDICIÓN NAVIDAD NEÓN + CALCULADORA
+import React, { useState } from 'react';
+import { ChefHat, User, Settings, UtensilsCrossed, Gift, Trees, Calculator } from 'lucide-react';
+import ServiceCalculatorModal from './ServiceCalculatorModal';
 
 // Componente simple para la nieve de fondo
 const Snowfall = () => {
@@ -43,6 +44,8 @@ const Snowfall = () => {
 
 
 export default function LandingPage({ appName, logo, onSelectClient, onSelectStaff, onSelectAdmin }) {
+  const [isCalculatorOpen, setIsCalculatorOpen] = useState(false); // <--- ESTADO PARA EL MODAL
+
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden font-sans bg-[#0a0a0a]">
       
@@ -104,7 +107,7 @@ export default function LandingPage({ appName, logo, onSelectClient, onSelectSta
         </p>
 
         {/* --- BOTONES DE ACCIÓN (Estilo Luces de Navidad) --- */}
-        <div className="w-full space-y-6">
+        <div className="w-full space-y-4">
             
             {/* BOTÓN 1: CLIENTES (Naranja/Rojo) */}
             <button 
@@ -143,6 +146,19 @@ export default function LandingPage({ appName, logo, onSelectClient, onSelectSta
                 <Gift size={24} className="text-green-500 drop-shadow-[0_0_5px_rgba(34,197,94,0.8)] group-hover:-rotate-12 transition-transform"/>
             </button>
 
+            {/* --- NUEVO BOTÓN: COTIZAR (Rosa Neón) --- */}
+            <button 
+                onClick={() => setIsCalculatorOpen(true)}
+                className="group w-full relative bg-black/40 text-white py-4 rounded-2xl font-bold text-lg tracking-widest uppercase 
+                border-2 border-dashed border-pink-500/50 hover:border-pink-500 transition-all duration-300
+                shadow-[0_0_15px_-5px_rgba(236,72,153,0.3)]
+                hover:shadow-[0_0_25px_-5px_rgba(236,72,153,0.6)]
+                active:scale-95 flex items-center justify-center gap-3 backdrop-blur-sm"
+            >
+                <Calculator size={20} className="text-pink-400 drop-shadow-[0_0_5px_rgba(236,72,153,0.8)] group-hover:rotate-12 transition-transform" />
+                <span className="text-pink-100">COTIZAR COSTO</span>
+            </button>
+
         </div>
       </div>
 
@@ -150,6 +166,12 @@ export default function LandingPage({ appName, logo, onSelectClient, onSelectSta
       <div className="absolute bottom-6 text-white/30 text-[10px] uppercase font-bold tracking-[0.3em] z-30 flex items-center gap-2">
         <Trees size={12} className="text-green-900" /> 2025 POWERED BY ZZIF SYSTEM <Trees size={12} className="text-green-900" />
       </div>
+
+      {/* --- RENDERIZADO DEL MODAL CALCULADORA --- */}
+      <ServiceCalculatorModal 
+        isOpen={isCalculatorOpen} 
+        onClose={() => setIsCalculatorOpen(false)} 
+      />
     </div>
   );
 }
