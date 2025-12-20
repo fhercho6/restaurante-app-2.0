@@ -1,12 +1,17 @@
-// src/components/ServiceCalculatorModal.jsx
+// src/components/ServiceCalculatorModal.jsx - FORMATO DE TIEMPO CLARO (h m)
 import React, { useState } from 'react';
-import { X, Calculator, Zap, Coffee, Clock } from 'lucide-react';
+import { X, Calculator, Zap, Coffee, ArrowRight, Hourglass } from 'lucide-react';
 
 export default function ServiceCalculatorModal({ isOpen, onClose }) {
     if (!isOpen) return null;
 
-    const [hours, setHours] = useState(1);
-    const [minutes, setMinutes] = useState(0);
+    // Horas por defecto: Inicio (Ahora), Fin (Ahora + 1 hora)
+    const now = new Date();
+    const nowStr = now.toTimeString().slice(0, 5); // "HH:MM"
+    const nextHour = new Date(now.getTime() + 60 * 60 * 1000).toTimeString().slice(0, 5);
+
+    const [startTime, setStartTime] = useState(nowStr);
+    const [endTime, setEndTime] = useState(nextHour);
     const [mode, setMode] = useState('consumption'); // 'consumption' (70) | 'normal' (100)
 
     // TARIFAS
@@ -15,9 +20,34 @@ export default function ServiceCalculatorModal({ isOpen, onClose }) {
 
     const currentRate = mode === 'consumption' ? RATE_WITH_CONSUMPTION : RATE_NORMAL;
     
-    // Cálculo: Horas + (Minutos / 60)
-    const totalTime = parseFloat(hours || 0) + (parseFloat(minutes || 0) / 60);
-    const totalCost = totalTime * currentRate;
+    // --- LÓGICA DE CÁLCULO ---
+    const calculateDiff = () => {
+        if (!startTime || !endTime) return { hours: 0, minutes: 0, totalHours: 0 };
+
+        const [startH, startM] = startTime.split(':').map(Number);
+        const [endH, endM] = endTime.split(':').map(Number);
+
+        let startMinutes = startH * 60 + startM;
+        let endMinutes = endH * 60 + endM;
+
+        // Si la hora fin es menor a la inicio (ej: 23:00 a 01:00), sumamos 24h
+        if (endMinutes < startMinutes) {
+            endMinutes += 1440;
+        }
+
+        const diffMinutes = endMinutes - startMinutes;
+        const diffH = Math.floor(diffMinutes / 60);
+        const diffM = diffMinutes % 60;
+        
+        return { 
+            hours: diffH, 
+            minutes: diffM, 
+            totalHours: diffMinutes / 60 
+        };
+    };
+
+    const { hours, minutes, totalHours } = calculateDiff();
+    const totalCost = totalHours * currentRate;
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-in fade-in">
@@ -35,7 +65,7 @@ export default function ServiceCalculatorModal({ isOpen, onClose }) {
 
                 <div className="p-6 space-y-6">
                     
-                    {/* Selector de Modo (Tarifas) */}
+                    {/* Selector de Modo */}
                     <div className="grid grid-cols-2 gap-3">
                         <button 
                             onClick={() => setMode('consumption')}
@@ -60,49 +90,59 @@ export default function ServiceCalculatorModal({ isOpen, onClose }) {
                         </button>
                     </div>
 
-                    {/* Inputs de Tiempo */}
+                    {/* Panel de Tiempo */}
                     <div className="bg-gray-800/50 p-4 rounded-2xl border border-gray-700">
-                        <div className="flex items-end gap-2 mb-2">
-                            <Clock size={16} className="text-pink-500 mb-1"/>
-                            <span className="text-xs font-bold text-gray-400 uppercase">Tiempo de uso</span>
+                        {/* Inputs de Hora */}
+                        <div className="flex items-center gap-4 mb-6">
+                            <div className="flex-1">
+                                <label className="text-[10px] text-gray-500 font-bold ml-1 uppercase block mb-1">Inicio</label>
+                                <input 
+                                    type="time" 
+                                    value={startTime}
+                                    onChange={(e) => setStartTime(e.target.value)}
+                                    className="w-full bg-black border border-gray-600 text-white text-center text-xl font-bold rounded-xl p-3 focus:border-pink-500 outline-none transition-colors"
+                                />
+                            </div>
+                            <div className="text-gray-600 pt-6"><ArrowRight size={20}/></div>
+                            <div className="flex-1">
+                                <label className="text-[10px] text-gray-500 font-bold ml-1 uppercase block mb-1">Fin</label>
+                                <input 
+                                    type="time" 
+                                    value={endTime}
+                                    onChange={(e) => setEndTime(e.target.value)}
+                                    className="w-full bg-black border border-gray-600 text-white text-center text-xl font-bold rounded-xl p-3 focus:border-pink-500 outline-none transition-colors"
+                                />
+                            </div>
                         </div>
-                        <div className="flex gap-4">
-                            <div className="flex-1">
-                                <label className="text-[10px] text-gray-500 font-bold ml-1">HORAS</label>
-                                <input 
-                                    type="number" 
-                                    min="0" 
-                                    value={hours}
-                                    onChange={(e) => setHours(Math.max(0, parseInt(e.target.value) || 0))}
-                                    className="w-full bg-black border border-gray-600 text-white text-center text-2xl font-black rounded-xl p-3 focus:border-pink-500 outline-none"
-                                />
+
+                        {/* --- TIEMPO TOTAL CON FORMATO h / m --- */}
+                        <div className="pt-4 border-t border-gray-700 text-center">
+                            <p className="text-[10px] text-pink-400 font-bold uppercase mb-2 flex justify-center items-center gap-1">
+                                <Hourglass size={10}/> Tiempo Total
+                            </p>
+                            
+                            {/* Aquí está el cambio visual importante */}
+                            <div className="flex justify-center items-baseline gap-3 text-white">
+                                <div>
+                                    <span className="text-5xl font-black tracking-tighter">{hours}</span>
+                                    <span className="text-2xl font-bold text-gray-500 ml-1">h</span>
+                                </div>
+                                <div>
+                                    <span className="text-5xl font-black tracking-tighter">{minutes}</span>
+                                    <span className="text-2xl font-bold text-gray-500 ml-1">m</span>
+                                </div>
                             </div>
-                            <div className="flex items-center text-gray-600 font-black text-xl mt-4">:</div>
-                            <div className="flex-1">
-                                <label className="text-[10px] text-gray-500 font-bold ml-1">MINUTOS</label>
-                                <input 
-                                    type="number" 
-                                    min="0" 
-                                    max="59"
-                                    step="15"
-                                    value={minutes}
-                                    onChange={(e) => setMinutes(Math.max(0, parseInt(e.target.value) || 0))}
-                                    className="w-full bg-black border border-gray-600 text-white text-center text-2xl font-black rounded-xl p-3 focus:border-pink-500 outline-none"
-                                />
-                            </div>
+
                         </div>
                     </div>
 
-                    {/* Resultado Total */}
-                    <div className="bg-gradient-to-r from-pink-900/20 to-purple-900/20 p-6 rounded-2xl border border-pink-500/30 text-center relative overflow-hidden">
+                    {/* Resultado Costo */}
+                    <div className="bg-gradient-to-r from-pink-900/20 to-purple-900/20 p-5 rounded-2xl border border-pink-500/30 text-center relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-pink-500 to-purple-500"></div>
-                        <span className="text-xs font-bold text-pink-300 uppercase tracking-widest">Costo Estimado</span>
-                        <div className="text-5xl font-black text-white drop-shadow-[0_0_10px_rgba(236,72,153,0.5)] my-2">
+                        <span className="text-xs font-bold text-pink-300 uppercase tracking-widest">Total a Pagar</span>
+                        <div className="text-5xl font-black text-white drop-shadow-[0_0_10px_rgba(236,72,153,0.5)] my-1">
                             Bs. {totalCost.toFixed(2)}
                         </div>
-                        <p className="text-[10px] text-gray-400">
-                            {hours}h {minutes}m @ Bs.{currentRate}/h
-                        </p>
                     </div>
 
                 </div>

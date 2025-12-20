@@ -1,11 +1,11 @@
-// src/components/LandingPage.jsx - EDICIÓN NAVIDAD NEÓN + CALCULADORA
+// src/components/LandingPage.jsx - EDICIÓN NAVIDAD LIMPIA + CALCULADORA PEQUEÑA
 import React, { useState } from 'react';
 import { ChefHat, User, Settings, UtensilsCrossed, Gift, Trees, Calculator } from 'lucide-react';
 import ServiceCalculatorModal from './ServiceCalculatorModal';
 
 // Componente simple para la nieve de fondo
 const Snowfall = () => {
-  const flakes = Array.from({ length: 20 }); // 20 copos de nieve
+  const flakes = Array.from({ length: 20 });
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden z-10">
       {flakes.map((_, i) => {
@@ -44,14 +44,13 @@ const Snowfall = () => {
 
 
 export default function LandingPage({ appName, logo, onSelectClient, onSelectStaff, onSelectAdmin }) {
-  const [isCalculatorOpen, setIsCalculatorOpen] = useState(false); // <--- ESTADO PARA EL MODAL
+  const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
 
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden font-sans bg-[#0a0a0a]">
       
       {/* 1. FONDO NEÓN + NIEVE */}
       <div className="absolute inset-0 z-0 overflow-hidden">
-        {/* Rayos de luz neón estilo navideño */}
         <div className="absolute top-[-20%] left-[-20%] w-[50%] h-[50%] bg-orange-600/30 blur-[100px] rotate-45 animate-pulse"></div>
         <div className="absolute bottom-[-20%] right-[-20%] w-[50%] h-[50%] bg-purple-600/30 blur-[100px] rotate-[-45] animate-pulse"></div>
         <div className="absolute top-[10%] right-[20%] w-[30%] h-[30%] bg-red-600/20 blur-[80px] animate-pulse delay-700"></div>
@@ -59,24 +58,37 @@ export default function LandingPage({ appName, logo, onSelectClient, onSelectSta
       </div>
       <Snowfall />
       
-      {/* Barra superior tipo Guirnalda */}
+      {/* BARRA SUPERIOR (HEADER) */}
       <div className="absolute top-0 inset-x-0 h-16 z-20 flex items-center justify-between px-6 bg-gradient-to-b from-black/80 to-transparent border-b border-red-500/50 shadow-[0_5px_15px_-5px_rgba(220,38,38,0.5)]">
           {/* Decoración izquierda */}
           <div className="flex gap-2 text-green-500 drop-shadow-[0_0_5px_rgba(34,197,94,0.8)]">
               <Trees size={20} /><Trees size={16} className="mt-1" />
           </div>
 
-          {/* BOTÓN ADMIN CON GORRO */}
-          <button 
-            onClick={onSelectAdmin}
-            className="relative group p-2 text-gray-400 hover:text-white transition-all"
-            title="Acceso Administrativo"
-          >
-            <div className="absolute -top-1 -right-1 transform rotate-12 text-red-600 drop-shadow-[0_0_2px_rgba(255,255,255,0.8)]">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C12 2 10 5 9 7C8 9 4 12 4 15C4 18 6 21 12 21C18 21 20 18 20 15C20 12 16 9 15 7C14 5 12 2 12 2Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="2" r="2" fill="white"/></svg>
-            </div>
-            <Settings size={24} className="group-hover:rotate-90 transition-transform duration-500 drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]"/>
-          </button>
+          {/* BOTONES DERECHA */}
+          <div className="flex items-center gap-4">
+              
+              {/* --- BOTÓN CALCULADORA (PEQUEÑO) --- */}
+              <button 
+                onClick={() => setIsCalculatorOpen(true)}
+                className="group relative p-2 text-pink-400 hover:text-white transition-all hover:scale-110"
+                title="Cotizar Costo"
+              >
+                  <Calculator size={24} className="drop-shadow-[0_0_5px_rgba(236,72,153,0.8)]"/>
+              </button>
+
+              {/* BOTÓN ADMIN */}
+              <button 
+                onClick={onSelectAdmin}
+                className="relative group p-2 text-gray-400 hover:text-white transition-all hover:scale-110"
+                title="Acceso Administrativo"
+              >
+                <div className="absolute -top-1 -right-1 transform rotate-12 text-red-600 drop-shadow-[0_0_2px_rgba(255,255,255,0.8)]">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C12 2 10 5 9 7C8 9 4 12 4 15C4 18 6 21 12 21C18 21 20 18 20 15C20 12 16 9 15 7C14 5 12 2 12 2Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="2" r="2" fill="white"/></svg>
+                </div>
+                <Settings size={24} className="group-hover:rotate-90 transition-transform duration-500 drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]"/>
+              </button>
+          </div>
       </div>
 
       {/* 3. CONTENIDO CENTRAL */}
@@ -94,7 +106,7 @@ export default function LandingPage({ appName, logo, onSelectClient, onSelectSta
             </div>
         </div>
 
-        {/* TÍTULO CON DECORACIÓN NAVIDEÑA */}
+        {/* TÍTULO */}
         <div className="flex items-center justify-center gap-2 mb-2">
             <Trees size={24} className="text-green-500 drop-shadow-[0_0_5px_rgba(34,197,94,0.8)]" />
             <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-white to-purple-400 tracking-tight drop-shadow-[0_0_10px_rgba(255,255,255,0.4)] uppercase relative">
@@ -106,10 +118,10 @@ export default function LandingPage({ appName, logo, onSelectClient, onSelectSta
           Sistema de Gestión Inteligente
         </p>
 
-        {/* --- BOTONES DE ACCIÓN (Estilo Luces de Navidad) --- */}
+        {/* --- BOTONES DE ACCIÓN PRINCIPALES --- */}
         <div className="w-full space-y-4">
             
-            {/* BOTÓN 1: CLIENTES (Naranja/Rojo) */}
+            {/* BOTÓN 1: CLIENTES */}
             <button 
                 onClick={onSelectClient}
                 className="group w-full relative bg-black/40 text-white py-5 rounded-2xl font-black text-lg tracking-wide 
@@ -118,17 +130,15 @@ export default function LandingPage({ appName, logo, onSelectClient, onSelectSta
                 hover:shadow-[0_0_30px_-5px_rgba(220,38,38,0.7),inset_0_0_20px_-5px_rgba(249,115,22,0.5)]
                 active:scale-95 flex items-center justify-center gap-4 overflowing-hidden"
             >
-                {/* Gorro en el botón */}
                 <div className="absolute top-[-8px] left-4 transform -rotate-12 text-red-600 drop-shadow-[0_0_2px_rgba(255,255,255,0.8)]">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C12 2 10 5 9 7C8 9 4 12 4 15C4 18 6 21 12 21C18 21 20 18 20 15C20 12 16 9 15 7C14 5 12 2 12 2Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="2" r="2" fill="white"/></svg>
                 </div>
-
                 <UtensilsCrossed size={24} className="text-orange-500 drop-shadow-[0_0_5px_rgba(249,115,22,0.8)]"/>
                 <span>VER MENÚ</span>
                 <Gift size={24} className="text-red-500 drop-shadow-[0_0_5px_rgba(220,38,38,0.8)] group-hover:rotate-12 transition-transform"/>
             </button>
 
-            {/* BOTÓN 2: PERSONAL (Morado/Verde) */}
+            {/* BOTÓN 2: PERSONAL */}
             <button 
                 onClick={onSelectStaff}
                 className="group w-full relative bg-black/40 text-white py-5 rounded-2xl font-bold text-lg tracking-widest uppercase 
@@ -137,26 +147,12 @@ export default function LandingPage({ appName, logo, onSelectClient, onSelectSta
                 hover:shadow-[0_0_30px_-5px_rgba(34,197,94,0.7),inset_0_0_20px_-5px_rgba(168,85,247,0.5)]
                 active:scale-95 flex items-center justify-center gap-4"
             >
-                 {/* Gorro en el botón */}
                  <div className="absolute top-[-8px] right-4 transform rotate-12 text-green-600 drop-shadow-[0_0_2px_rgba(255,255,255,0.8)]">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C12 2 10 5 9 7C8 9 4 12 4 15C4 18 6 21 12 21C18 21 20 18 20 15C20 12 16 9 15 7C14 5 12 2 12 2Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="2" r="2" fill="white"/></svg>
                 </div>
                 <User size={24} className="text-purple-400 drop-shadow-[0_0_5px_rgba(168,85,247,0.8)]" />
                 <span>PERSONAL</span>
                 <Gift size={24} className="text-green-500 drop-shadow-[0_0_5px_rgba(34,197,94,0.8)] group-hover:-rotate-12 transition-transform"/>
-            </button>
-
-            {/* --- NUEVO BOTÓN: COTIZAR (Rosa Neón) --- */}
-            <button 
-                onClick={() => setIsCalculatorOpen(true)}
-                className="group w-full relative bg-black/40 text-white py-4 rounded-2xl font-bold text-lg tracking-widest uppercase 
-                border-2 border-dashed border-pink-500/50 hover:border-pink-500 transition-all duration-300
-                shadow-[0_0_15px_-5px_rgba(236,72,153,0.3)]
-                hover:shadow-[0_0_25px_-5px_rgba(236,72,153,0.6)]
-                active:scale-95 flex items-center justify-center gap-3 backdrop-blur-sm"
-            >
-                <Calculator size={20} className="text-pink-400 drop-shadow-[0_0_5px_rgba(236,72,153,0.8)] group-hover:rotate-12 transition-transform" />
-                <span className="text-pink-100">COTIZAR COSTO</span>
             </button>
 
         </div>
@@ -167,7 +163,7 @@ export default function LandingPage({ appName, logo, onSelectClient, onSelectSta
         <Trees size={12} className="text-green-900" /> 2025 POWERED BY ZZIF SYSTEM <Trees size={12} className="text-green-900" />
       </div>
 
-      {/* --- RENDERIZADO DEL MODAL CALCULADORA --- */}
+      {/* MODAL */}
       <ServiceCalculatorModal 
         isOpen={isCalculatorOpen} 
         onClose={() => setIsCalculatorOpen(false)} 
