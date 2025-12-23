@@ -1,8 +1,8 @@
 // src/components/SalesDashboard.jsx - VERSIÓN SEGURA (SIN ERROR DE ÍNDICE)
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, getDocs } from 'firebase/firestore'; // Quitamos orderBy y limit para evitar errores
+import { collection, query, where, getDocs, deleteDoc, doc } from 'firebase/firestore'; // Quitamos orderBy y limit para evitar errores
 import { db, ROOT_COLLECTION, isPersonalProject } from '../config/firebase';
-import { Calendar, DollarSign, CreditCard, TrendingUp, FileText, Printer, Search, ArrowRight } from 'lucide-react';
+import { Calendar, DollarSign, CreditCard, TrendingUp, FileText, Printer, Search, ArrowRight, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function SalesDashboard({ onReprintZ, onConfigurePrinter, currentPrinterType }) {
@@ -44,6 +44,20 @@ export default function SalesDashboard({ onReprintZ, onConfigurePrinter, current
   useEffect(() => {
       fetchHistory();
   }, []);
+
+  const handleDelete = async (shift) => {
+      if(!window.confirm(`¿Estás seguro de eliminar el reporte del ${new Date(shift.closedAt).toLocaleDateString()}?\nEsta acción es irreversible.`)) return;
+      
+      try {
+          const colName = isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`;
+          await deleteDoc(doc(db, colName, shift.id));
+          toast.success("Reporte eliminado");
+          fetchHistory(); // Recargar lista
+      } catch (error) {
+          console.error("Error al eliminar:", error);
+          toast.error("Error al eliminar el reporte");
+      }
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in">
@@ -115,6 +129,13 @@ export default function SalesDashboard({ onReprintZ, onConfigurePrinter, current
                                             title="Reimprimir Reporte Z"
                                         >
                                             <Printer size={16}/>
+                                        </button>
+                                        <button 
+                                            onClick={() => handleDelete(shift)}
+                                            className="p-2 ml-2 bg-white border border-red-200 text-red-500 rounded-lg hover:bg-red-50 hover:border-red-300 transition-colors shadow-sm" 
+                                            title="Eliminar Reporte Permanentemente"
+                                        >
+                                            <Trash2 size={16}/>
                                         </button>
                                     </td>
                                 </tr>
