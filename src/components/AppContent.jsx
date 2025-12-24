@@ -103,7 +103,7 @@ export default function AppContent() {
     }, [items]);
 
     const filterCategories = ['Todos', ...categories];
-    const filteredItems = filter === 'Todos' ? items : items.filter(i => i.category === filter);
+    const filteredItems = filter === 'Todos' ? items : items.filter(i => (i.category || '').trim().toLowerCase() === filter.trim().toLowerCase());
     const finalFilteredItems = filteredItems.filter(i => i.name.toLowerCase().includes(searchTerm.toLowerCase()));
     const isAdminMode = view === 'admin' || view === 'report' || view === 'staff_admin' || view === 'cashier' || view === 'register_control' || view === 'maintenance' || view === 'shift_history';
     const isCashierOnly = staffMember && staffMember.role === 'Cajero';
