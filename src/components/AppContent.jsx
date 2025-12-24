@@ -261,6 +261,7 @@ export default function AppContent() {
                                 <div><h1 className="text-lg font-bold text-gray-800 leading-none">{appName} <span className="text-xs text-green-600 bg-green-100 px-1 rounded">v2.3 FINAL</span></h1><span className="text-[10px] text-gray-500 font-medium uppercase">Cloud Menu</span></div>
                             </div>
                             <div className="flex items-center gap-2 header-buttons">
+                                {isAdminMode && !isCashierOnly && <button onClick={handlePurgeDuplicates} className="p-2 rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition-colors" title="Limpiar Duplicados"><Trash2 size={20} /></button>}
                                 <button onClick={() => setIsCalculatorOpen(true)} className="p-2 rounded-full hover:bg-gray-100 text-gray-500 hover:text-purple-600 transition-colors" title="Cotizar Servicio"><Calculator size={20} /></button>
                                 {!isAdminMode && <button aria-label="Ir al inicio" onClick={() => setView('landing')} className="p-2 rounded-full hover:bg-gray-100 text-gray-500"><Home size={20} /></button>}
                                 {isAdminMode && <button aria-label="Cerrar sesión" onClick={onLogout} className="flex items-center gap-2 px-4 py-2 rounded-full text-sm bg-red-50 text-red-600"><LogOut size={16} />Salir</button>}
