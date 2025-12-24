@@ -225,40 +225,37 @@ export default function AppContent() {
     if (isLoadingData) return (<div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center animate-in fade-in duration-700"><Loader2 size={32} className="text-orange-500 animate-spin mb-4" /><h2 className="text-white font-bold text-xl tracking-widest uppercase mb-1">ZZIF System</h2></div>);
     if (view === 'public_report' && reportId) return <PublicReportView equipmentId={reportId} onExit={() => { window.history.pushState({}, '', '/'); setView('landing'); }} />;
 
-    // Cleanup Function (Missing in previous step)
+    // Cleanup Function: NUKE CATEGORY (Modified)
     const handlePurgeDuplicates = async () => {
-        if (!window.confirm("⚠️ ATENCIÓN: ¿Seguro que deseas eliminar los duplicados?\n\nEsta acción buscará productos con el mismo nombre y categoría, dejará solo uno y BORRARÁ el resto permanentemente.\n\nNo se puede deshacer.")) return;
-
-        const uniqueMap = new Map();
-        const duplicatesToDelete = [];
-
-        items.forEach(item => {
-            // Aggressive normalization: remove all non-alphanumeric characters to catch "1  hora" vs "1 hora" vs "1 hora "
-            const normName = (item.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-            const normCat = (item.category || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-            // Fallback for very short names to avoid empty keys, though rare
-            const key = normName.length > 0 ? `${normName}-${normCat}` : `${item.name}-${item.category}`;
-
-            if (uniqueMap.has(key)) {
-                duplicatesToDelete.push(item.id);
-            } else {
-                uniqueMap.set(key, true);
-            }
-        });
-
-        if (duplicatesToDelete.length === 0) {
-            toast.success("No se encontraron duplicados.");
+        if (filter === 'Todos') {
+            toast.error("Para limpiar, selecciona primero una categoría específica.");
             return;
         }
 
-        toast.loading(`Eliminando ${duplicatesToDelete.length} duplicados...`);
+        if (!window.confirm(`⚠️ PELIGRO EXTREMO ⚠️\n\n¿Estás SEGURO de que quieres eliminar TODOS los productos de la categoría "${filter}"?\n\nSe borrarán permanentemente y no se pueden recuperar.\n\nEsto es útil si la categoría tiene datos corruptos.`)) return;
+
+        const confirmText = prompt(`Para confirmar, escribe: BORRAR ${filter.toUpperCase()}`);
+        if (confirmText !== `BORRAR ${filter.toUpperCase()}`) {
+            toast.error("Confirmación incorrecta. Cancelado.");
+            return;
+        }
+
+        // Use itemsToDisplay instead of recreating filter logic to ensure we target what is seen
+        const itemsToDelete = itemsToDisplay.map(i => i.id);
+
+        if (itemsToDelete.length === 0) {
+            toast("La categoría ya está vacía.", { icon: '👻' });
+            return;
+        }
+
+        toast.loading(`Eliminando ${itemsToDelete.length} productos de "${filter}"...`);
         let count = 0;
-        for (const id of duplicatesToDelete) {
+        for (const id of itemsToDelete) {
             await handleDeleteItem(id);
             count++;
         }
         toast.dismiss();
-        toast.success(`Limpieza completada: ${count} eliminados.`);
+        toast.success(`Categoría "nukeada": ${count} productos eliminados.`);
     };
 
     return (
