@@ -225,7 +225,7 @@ export default function AppContent() {
     if (isLoadingData) return (<div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center animate-in fade-in duration-700"><Loader2 size={32} className="text-orange-500 animate-spin mb-4" /><h2 className="text-white font-bold text-xl tracking-widest uppercase mb-1">ZZIF System</h2></div>);
     if (view === 'public_report' && reportId) return <PublicReportView equipmentId={reportId} onExit={() => { window.history.pushState({}, '', '/'); setView('landing'); }} />;
 
-    // Cleanup Function: NUKE CATEGORY (Modified)
+    // Cleanup Function: NUKE CATEGORY (Nuclear Option)
     const handlePurgeDuplicates = async () => {
         if (filter === 'Todos') {
             toast.error("Para limpiar, selecciona primero una categoría específica.");
@@ -240,7 +240,6 @@ export default function AppContent() {
             return;
         }
 
-        // Use itemsToDisplay instead of recreating filter logic to ensure we target what is seen
         const itemsToDelete = itemsToDisplay.map(i => i.id);
 
         if (itemsToDelete.length === 0) {
@@ -248,14 +247,32 @@ export default function AppContent() {
             return;
         }
 
-        toast.loading(`Eliminando ${itemsToDelete.length} productos de "${filter}"...`);
+        toast.loading(`ELIMINANDO ${itemsToDelete.length} ITEMS (NO CIERRES)...`);
+
         let count = 0;
+        let errors = 0;
+
+        // Force sequential deletion with delay to ensure backend processes it
         for (const id of itemsToDelete) {
-            await handleDeleteItem(id);
-            count++;
+            try {
+                await handleDeleteItem(id);
+                count++;
+            } catch (e) {
+                console.error("Error deleting:", id, e);
+                errors++;
+            }
+            // Tiny delay to breathe
+            await new Promise(r => setTimeout(r, 50));
         }
+
         toast.dismiss();
-        toast.success(`Categoría "nukeada": ${count} productos eliminados.`);
+
+        if (errors > 0) {
+            alert(`Se eliminaron ${count} items, pero hubo ${errors} errores. Recomendamos reintentar.`);
+        } else {
+            alert(`✅ ÉXITO: Se eliminaron ${count} productos. \n\nEl sistema se reiniciará ahora para limpiar la memoria.`);
+            window.location.reload(); // NUCLEAR RELOAD
+        }
     };
 
     return (
