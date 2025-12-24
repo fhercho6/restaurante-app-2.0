@@ -47,8 +47,8 @@ export const DataProvider = ({ children }) => {
         }
         setDbStatus('connected');
 
-        const unsub1 = onSnapshot(collection(db, getCollName('items')), (s) => setItems(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-        const unsub2 = onSnapshot(collection(db, getCollName('staff')), (s) => setStaff(s.docs.map(d => ({ id: d.id, ...d.data() }))));
+        const unsub1 = onSnapshot(collection(db, getCollName('items')), (s) => setItems(s.docs.map(d => ({ ...d.data(), id: d.id }))));
+        const unsub2 = onSnapshot(collection(db, getCollName('staff')), (s) => setStaff(s.docs.map(d => ({ ...d.data(), id: d.id }))));
 
         const unsub3 = onSnapshot(collection(db, getCollName('settings')), (s) => {
             s.docs.forEach(d => {
