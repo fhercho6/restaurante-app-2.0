@@ -413,7 +413,7 @@ export default function AppContent() {
                                                 <thead><tr className="bg-gray-50 text-xs uppercase text-gray-500 border-b border-gray-200"><th className="p-4">Producto</th><th className="p-4 text-center">Stock</th><th className="p-4 text-right">Costo</th><th className="p-4 text-right">Precio</th><th className="p-4 text-right">Margen</th><th className="p-4 text-right">Acciones</th></tr></thead>
                                                 <tbody className="divide-y divide-gray-100">
                                                     {itemsToDisplay.length > 0 ? (
-                                                        itemsToDisplay.map(item => (<AdminRow key={item.id} item={item} onEdit={(i) => { setCurrentItem(i); setIsModalOpen(true); }} onDelete={handleDeleteItem} isQuickEdit={isQuickEditMode} onQuickUpdate={handleQuickUpdate} />))
+                                                        itemsToDisplay.map(item => (<AdminRow key={item.id} item={item} allItems={items} onEdit={(i) => { setCurrentItem(i); setIsModalOpen(true); }} onDelete={handleDeleteItem} isQuickEdit={isQuickEditMode} onQuickUpdate={handleQuickUpdate} />))
                                                     ) : (
                                                         <tr><td colSpan="6" className="p-8 text-center text-gray-400">No se encontraron productos en "{filter}".</td></tr>
                                                     )}
