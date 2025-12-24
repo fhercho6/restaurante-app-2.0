@@ -266,7 +266,7 @@ export const AdminRow = ({ item, onEdit, onDelete, isQuickEdit, onQuickUpdate, a
     let isVirtualStock = false;
 
     // CÁLCULO DINÁMICO DE STOCK PARA COMBOS
-    if (item.category === 'Combos' && item.recipe && item.recipe.length > 0) {
+    if (item.category.toLowerCase() === 'combos' && item.recipe && item.recipe.length > 0) {
         const recipe = item.recipe;
         // Mapeamos cada ingrediente para ver cuál es el "cuello de botella"
         const maxCombos = recipe.map(ing => {
@@ -286,6 +286,12 @@ export const AdminRow = ({ item, onEdit, onDelete, isQuickEdit, onQuickUpdate, a
         }
     };
 
+    // Estilos de stock
+    let badgeClass = 'bg-gray-100 text-gray-700';
+    if (item.category === 'Servicios') badgeClass = 'bg-purple-100 text-purple-700';
+    else if (isVirtualStock) badgeClass = 'bg-orange-100 text-orange-800 ring-1 ring-orange-300';
+    else if (stockNum <= 5) badgeClass = 'bg-red-100 text-red-700';
+
     return (
         <tr className="hover:bg-gray-50 transition-colors group">
             <td className="p-4"><div className="font-bold text-gray-900">{item.name}</div><div className="text-xs text-gray-500 uppercase">{item.category}</div></td>
@@ -299,8 +305,9 @@ export const AdminRow = ({ item, onEdit, onDelete, isQuickEdit, onQuickUpdate, a
                         className="w-16 p-1 border rounded text-center font-bold bg-white focus:ring-2 ring-blue-500 outline-none"
                     />
                 ) : (
-                    <span className={`px-2 py-1 rounded-full text-xs font-black ${item.category === 'Servicios' ? 'bg-purple-100 text-purple-700' : (stockNum <= 5 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700')} ${isVirtualStock ? 'ring-1 ring-orange-500 text-orange-700 bg-orange-50' : ''}`}>
-                        {item.category === 'Servicios' ? '∞' : stockDisplay} {isVirtualStock && <span className="text-[9px] opacity-70 block">VIRTUAL</span>}
+                    <span className={`px-2 py-1 rounded-full text-xs font-black ${badgeClass}`}>
+                        {item.category === 'Servicios' ? '∞' : (stockDisplay === '' || stockDisplay === null || stockDisplay === undefined ? '0' : stockDisplay)}
+                        {isVirtualStock && <span className="text-[8px] opacity-80 block tracking-wider mt-0.5">VIRTUAL</span>}
                     </span>
                 )}
             </td>

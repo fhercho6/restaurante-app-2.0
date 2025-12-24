@@ -48,7 +48,7 @@ export default function POSInterface({ items, categories, staffMember, onCheckou
     let hasStock = item.stock !== undefined && item.stock !== '';
 
     // LÓGICA DE STOCK VIRTUAL PARA COMBOS
-    if (item.category === 'Combos' && item.recipe && item.recipe.length > 0) {
+    if (item.category.toLowerCase() === 'combos' && item.recipe && item.recipe.length > 0) {
       const recipe = item.recipe;
       const maxCombos = recipe.map(ing => {
         const realItem = allItems.find(i => i.id === ing.itemId);
