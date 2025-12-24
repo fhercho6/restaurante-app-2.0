@@ -78,6 +78,8 @@ export default function AppContent() {
 
         items.forEach(item => {
             if (item.category === 'Servicios') return;
+            // EXCLUIR COMBOS DEL CÁLCULO DE INVERSIÓN (Su costo es la suma de ingredientes, ya contados)
+            if (item.category.toLowerCase() === 'combos') return;
 
             const stock = parseFloat(item.stock) || 0;
             const cost = parseFloat(item.cost) || 0;
@@ -101,6 +103,8 @@ export default function AppContent() {
 
         return { totalCost, totalRetail, totalItems, sortedCategories };
     }, [items]);
+
+    const [isStatsExpanded, setIsStatsExpanded] = useState(true);
 
     const filterCategories = ['Todos', ...categories];
     // v2.3 FIXED: Improved filtering logic with fresh variable names
@@ -370,16 +374,25 @@ export default function AppContent() {
                                             <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between"><div><p className="text-xs text-gray-500 uppercase font-bold">Total Unidades</p><p className="text-2xl font-black text-gray-800">{inventoryStats.totalItems}</p></div><div className="p-3 bg-gray-100 rounded-full text-gray-600"><Package size={24} /></div></div>
                                         </div>
 
-                                        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-                                            <h3 className="text-xs font-bold text-gray-500 uppercase mb-4 flex items-center gap-2"><PieChart size={14} /> Desglose de Inversión por Categoría</h3>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                                {inventoryStats.sortedCategories.map(cat => (
-                                                    <div key={cat.name} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100">
-                                                        <span className="font-bold text-gray-600 text-sm truncate pr-2">{cat.name}</span>
-                                                        <span className="font-mono font-bold text-blue-600 text-sm whitespace-nowrap">Bs. {cat.total.toFixed(2)}</span>
-                                                    </div>
-                                                ))}
+                                        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 transition-all">
+                                            <div
+                                                className="flex justify-between items-center cursor-pointer select-none"
+                                                onClick={() => setIsStatsExpanded(!isStatsExpanded)}
+                                            >
+                                                <h3 className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2"><PieChart size={14} /> Desglose de Inversión por Categoría</h3>
+                                                {isStatsExpanded ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
                                             </div>
+
+                                            {isStatsExpanded && (
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4 animate-in fade-in slide-in-from-top-2">
+                                                    {inventoryStats.sortedCategories.map(cat => (
+                                                        <div key={cat.name} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100">
+                                                            <span className="font-bold text-gray-600 text-sm truncate pr-2">{cat.name}</span>
+                                                            <span className="font-mono font-bold text-blue-600 text-sm whitespace-nowrap">Bs. {cat.total.toFixed(2)}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
 
                                         <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-2 rounded-xl shadow-sm border border-gray-200">
