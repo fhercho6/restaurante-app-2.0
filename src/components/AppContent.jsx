@@ -247,7 +247,7 @@ export default function AppContent() {
                                 <div className={`rounded-lg overflow-hidden flex items-center justify-center ${logo ? 'bg-white' : 'bg-orange-500 p-2 text-white'}`} style={{ width: '40px', height: '40px' }}>
                                     {logo ? <img src={logo} alt="Logo" className="w-full h-full object-contain" /> : <ChefHat size={24} />}
                                 </div>
-                                <div><h1 className="text-lg font-bold text-gray-800 leading-none">{appName} <span className="text-xs text-red-600 bg-red-100 px-1 rounded">v2.1 DEBUG</span></h1><span className="text-[10px] text-gray-500 font-medium uppercase">Cloud Menu</span></div>
+                                <div><h1 className="text-lg font-bold text-gray-800 leading-none">{appName} <span className="text-xs text-purple-600 bg-purple-100 px-1 rounded">v2.2 DEEP SCAN</span></h1><span className="text-[10px] text-gray-500 font-medium uppercase">Cloud Menu</span></div>
                             </div>
                             {/* DEBUG INFO */}
                             {isAdminMode && !isCashierOnly && (
@@ -351,6 +351,24 @@ export default function AppContent() {
                                             </div>
                                             <div className="absolute top-0 right-0 bottom-2 w-8 bg-gradient-to-l from-gray-50 to-transparent pointer-events-none md:hidden"></div>
                                         </div>
+
+                                        {/* DEEP DEBUG SCAN */}
+                                        {filter !== 'Todos' && (
+                                            <div className="bg-black text-green-400 p-4 rounded mb-4 font-mono text-xs overflow-x-auto">
+                                                <p className="font-bold border-b border-green-800 pb-2 mb-2">🔍 DEEP SCAN DIAGNOSTICS</p>
+                                                <p>FILTRO ACTIVO: "{filter}" (Len: {filter.length})</p>
+                                                <p>ITEMS ENCONTRADOS: {finalFilteredItems.length}</p>
+                                                <hr className="border-green-900 my-2" />
+                                                {finalFilteredItems.slice(0, 5).map(i => (
+                                                    <div key={i.id} className="mb-2 border-b border-gray-800 pb-1">
+                                                        <p>Name: {i.name}</p>
+                                                        <p>Raw Cat: "{i.category}" (Type: {typeof i.category})</p>
+                                                        <p>Match Test: {String(i.category || '').trim().toLowerCase() === String(filter).trim().toLowerCase() ? '✅ MATCH' : '❌ NO MATCH'}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
                                         <div className="bg-white rounded-xl shadow border overflow-hidden">
                                             <table className="w-full text-left">
                                                 <thead><tr className="bg-gray-50 text-xs uppercase text-gray-500 border-b border-gray-200"><th className="p-4">Producto</th><th className="p-4 text-center">Stock</th><th className="p-4 text-right">Costo</th><th className="p-4 text-right">Precio</th><th className="p-4 text-right">Margen</th><th className="p-4 text-right">Acciones</th></tr></thead>
