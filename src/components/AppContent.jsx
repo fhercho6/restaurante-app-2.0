@@ -225,6 +225,37 @@ export default function AppContent() {
     if (isLoadingData) return (<div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center animate-in fade-in duration-700"><Loader2 size={32} className="text-orange-500 animate-spin mb-4" /><h2 className="text-white font-bold text-xl tracking-widest uppercase mb-1">ZZIF System</h2></div>);
     if (view === 'public_report' && reportId) return <PublicReportView equipmentId={reportId} onExit={() => { window.history.pushState({}, '', '/'); setView('landing'); }} />;
 
+    // Cleanup Function (Missing in previous step)
+    const handlePurgeDuplicates = async () => {
+        if (!window.confirm("⚠️ ATENCIÓN: ¿Seguro que deseas eliminar los duplicados?\n\nEsta acción buscará productos con el mismo nombre y categoría, dejará solo uno y BORRARÁ el resto permanentemente.\n\nNo se puede deshacer.")) return;
+
+        const uniqueMap = new Map();
+        const duplicatesToDelete = [];
+
+        items.forEach(item => {
+            const key = `${item.name.trim().toLowerCase()}-${item.category.trim().toLowerCase()}`;
+            if (uniqueMap.has(key)) {
+                duplicatesToDelete.push(item.id);
+            } else {
+                uniqueMap.set(key, true);
+            }
+        });
+
+        if (duplicatesToDelete.length === 0) {
+            toast.success("No se encontraron duplicados.");
+            return;
+        }
+
+        toast.loading(`Eliminando ${duplicatesToDelete.length} duplicados...`);
+        let count = 0;
+        for (const id of duplicatesToDelete) {
+            await handleDeleteItem(id);
+            count++;
+        }
+        toast.dismiss();
+        toast.success(`Limpieza completada: ${count} eliminados.`);
+    };
+
     return (
         <div className="min-h-screen bg-gray-50 font-sans text-gray-900 pb-20">
             <Toaster position="top-center" reverseOrder={false} />
