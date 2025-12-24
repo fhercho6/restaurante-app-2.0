@@ -103,8 +103,19 @@ export default function AppContent() {
     }, [items]);
 
     const filterCategories = ['Todos', ...categories];
-    const filteredItems = filter === 'Todos' ? items : items.filter(i => String(i.category || '').trim().toLowerCase() === String(filter).trim().toLowerCase());
-    const finalFilteredItems = filteredItems.filter(i => i.name.toLowerCase().includes(searchTerm.toLowerCase()));
+    // v2.3 FIXED: Improved filtering logic with fresh variable names
+    const itemsToDisplay = useMemo(() => {
+        let result = items;
+        if (filter !== 'Todos') {
+            const cleanFilter = String(filter).trim().toUpperCase();
+            result = result.filter(i => String(i.category || '').trim().toUpperCase() === cleanFilter);
+        }
+        if (searchTerm) {
+            const cleanSearch = searchTerm.toLowerCase();
+            result = result.filter(i => i.name.toLowerCase().includes(cleanSearch));
+        }
+        return result;
+    }, [items, filter, searchTerm]);
     const isAdminMode = view === 'admin' || view === 'report' || view === 'staff_admin' || view === 'cashier' || view === 'register_control' || view === 'maintenance' || view === 'shift_history';
     const isCashierOnly = staffMember && staffMember.role === 'Cajero';
 
@@ -247,14 +258,8 @@ export default function AppContent() {
                                 <div className={`rounded-lg overflow-hidden flex items-center justify-center ${logo ? 'bg-white' : 'bg-orange-500 p-2 text-white'}`} style={{ width: '40px', height: '40px' }}>
                                     {logo ? <img src={logo} alt="Logo" className="w-full h-full object-contain" /> : <ChefHat size={24} />}
                                 </div>
-                                <div><h1 className="text-lg font-bold text-gray-800 leading-none">{appName} <span className="text-xs text-purple-600 bg-purple-100 px-1 rounded">v2.2 DEEP SCAN</span></h1><span className="text-[10px] text-gray-500 font-medium uppercase">Cloud Menu</span></div>
+                                <div><h1 className="text-lg font-bold text-gray-800 leading-none">{appName} <span className="text-xs text-green-600 bg-green-100 px-1 rounded">v2.3 FINAL</span></h1><span className="text-[10px] text-gray-500 font-medium uppercase">Cloud Menu</span></div>
                             </div>
-                            {/* DEBUG INFO */}
-                            {isAdminMode && !isCashierOnly && (
-                                <div className="hidden md:block text-[10px] bg-yellow-50 p-1 border border-yellow-200 rounded text-yellow-800 mx-4">
-                                    Filtro: "{filter}" | Items: {filteredItems.length} | Match ID 1: {filteredItems[0]?.category}
-                                </div>
-                            )}
                             <div className="flex items-center gap-2 header-buttons">
                                 <button onClick={() => setIsCalculatorOpen(true)} className="p-2 rounded-full hover:bg-gray-100 text-gray-500 hover:text-purple-600 transition-colors" title="Cotizar Servicio"><Calculator size={20} /></button>
                                 {!isAdminMode && <button aria-label="Ir al inicio" onClick={() => setView('landing')} className="p-2 rounded-full hover:bg-gray-100 text-gray-500"><Home size={20} /></button>}
@@ -352,31 +357,14 @@ export default function AppContent() {
                                             <div className="absolute top-0 right-0 bottom-2 w-8 bg-gradient-to-l from-gray-50 to-transparent pointer-events-none md:hidden"></div>
                                         </div>
 
-                                        {/* DEEP DEBUG SCAN */}
-                                        {filter !== 'Todos' && (
-                                            <div className="bg-black text-green-400 p-4 rounded mb-4 font-mono text-xs overflow-x-auto">
-                                                <p className="font-bold border-b border-green-800 pb-2 mb-2">🔍 DEEP SCAN DIAGNOSTICS</p>
-                                                <p>FILTRO ACTIVO: "{filter}" (Len: {filter.length})</p>
-                                                <p>ITEMS ENCONTRADOS: {finalFilteredItems.length}</p>
-                                                <hr className="border-green-900 my-2" />
-                                                {finalFilteredItems.slice(0, 5).map(i => (
-                                                    <div key={i.id} className="mb-2 border-b border-gray-800 pb-1">
-                                                        <p>Name: {i.name}</p>
-                                                        <p>Raw Cat: "{i.category}" (Type: {typeof i.category})</p>
-                                                        <p>Match Test: {String(i.category || '').trim().toLowerCase() === String(filter).trim().toLowerCase() ? '✅ MATCH' : '❌ NO MATCH'}</p>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-
                                         <div className="bg-white rounded-xl shadow border overflow-hidden">
                                             <table className="w-full text-left">
                                                 <thead><tr className="bg-gray-50 text-xs uppercase text-gray-500 border-b border-gray-200"><th className="p-4">Producto</th><th className="p-4 text-center">Stock</th><th className="p-4 text-right">Costo</th><th className="p-4 text-right">Precio</th><th className="p-4 text-right">Margen</th><th className="p-4 text-right">Acciones</th></tr></thead>
                                                 <tbody className="divide-y divide-gray-100">
-                                                    {finalFilteredItems.length > 0 ? (
-                                                        finalFilteredItems.map(item => (<AdminRow key={item.id} item={item} onEdit={(i) => { setCurrentItem(i); setIsModalOpen(true); }} onDelete={handleDeleteItem} isQuickEdit={isQuickEditMode} onQuickUpdate={handleQuickUpdate} />))
+                                                    {itemsToDisplay.length > 0 ? (
+                                                        itemsToDisplay.map(item => (<AdminRow key={item.id} item={item} onEdit={(i) => { setCurrentItem(i); setIsModalOpen(true); }} onDelete={handleDeleteItem} isQuickEdit={isQuickEditMode} onQuickUpdate={handleQuickUpdate} />))
                                                     ) : (
-                                                        <tr><td colSpan="6" className="p-8 text-center text-gray-400">No se encontraron productos.</td></tr>
+                                                        <tr><td colSpan="6" className="p-8 text-center text-gray-400">No se encontraron productos en "{filter}".</td></tr>
                                                     )}
                                                 </tbody>
                                             </table>
