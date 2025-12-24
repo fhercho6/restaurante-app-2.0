@@ -308,7 +308,7 @@ export default function AppContent() {
                                 <div className={`rounded-lg overflow-hidden flex items-center justify-center ${logo ? 'bg-white' : 'bg-orange-500 p-2 text-white'}`} style={{ width: '40px', height: '40px' }}>
                                     {logo ? <img src={logo} alt="Logo" className="w-full h-full object-contain" /> : <ChefHat size={24} />}
                                 </div>
-                                <div><h1 className="text-lg font-bold text-gray-800 leading-none">{appName} <span className="text-xs text-green-600 bg-green-100 px-1 rounded">v2.3 FINAL</span></h1><span className="text-[10px] text-gray-500 font-medium uppercase">Cloud Menu</span></div>
+                                <div><h1 className="text-lg font-bold text-gray-800 leading-none">{appName}</h1><span className="text-[10px] text-gray-500 font-medium uppercase">Cloud Menu</span></div>
                             </div>
                             <div className="flex items-center gap-2 header-buttons">
                                 {isAdminMode && !isCashierOnly && <button onClick={handlePurgeDuplicates} className="p-2 rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition-colors" title="Limpiar Duplicados"><Trash2 size={20} /></button>}
