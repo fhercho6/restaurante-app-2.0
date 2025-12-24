@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { onAuthStateChanged, signOut, signInAnonymously } from 'firebase/auth';
-import { doc, updateDoc, collection } from 'firebase/firestore';
+import { doc, updateDoc, collection, addDoc } from 'firebase/firestore';
 import { auth, db, ROOT_COLLECTION, isPersonalProject } from '../config/firebase';
 import toast from 'react-hot-toast';
 
@@ -21,6 +21,7 @@ export const AuthProvider = ({ children }) => {
 
     const getCollName = (type) => {
         if (type === 'staff') return isPersonalProject ? 'staffMembers' : `${ROOT_COLLECTION}staffMembers`;
+        if (type === 'attendance') return isPersonalProject ? 'attendance' : `${ROOT_COLLECTION}attendance`;
         return null;
     };
 
@@ -67,6 +68,27 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    const markAttendance = async (member, registerId) => {
+        if (!member || !registerId) return false;
+        try {
+            await addDoc(collection(db, getCollName('attendance')), {
+                staffId: member.id,
+                staffName: member.name,
+                registerId: registerId,
+                role: member.role,
+                timestamp: new Date().toISOString(),
+                dailySalary: parseFloat(member.dailySalary || 0),
+                type: 'clock-in' // Future proofing for clock-out
+            });
+            toast.success(`Asistencia marcada: ${member.name}`);
+            return true;
+        } catch (error) {
+            console.error(error);
+            toast.error("Error al marcar asistencia");
+            return false;
+        }
+    };
+
     const prepareCredentialPrint = (member) => {
         if (!member) {
             toast.error("Error: Empleado no válido");
@@ -87,6 +109,7 @@ export const AuthProvider = ({ children }) => {
         login,
         logout,
         staffLogin,
+        markAttendance,
         prepareCredentialPrint
     };
 

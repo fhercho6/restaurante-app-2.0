@@ -136,6 +136,20 @@ export default function AppContent() {
         if (result) setView(result);
     };
 
+    const handleClockAction = async (member, type) => {
+        // Enforce Register Open Constraint
+        if (!registerSession || registerSession.status !== 'open') {
+            toast.error("⚠️ La caja debe estar ABIERTA para marcar asistencia.");
+            return;
+        }
+
+        const success = await markAttendance(member, registerSession.id);
+        if (success) {
+            // Optional: Auto-login after clock-in if desired, or just stay on pin screen
+            // For now, staying on pin screen is safer so others can clock in
+        }
+    };
+
     const onPrintCredential = (member) => {
         prepareCredentialPrint(member);
         setView('credential_print');
@@ -439,7 +453,7 @@ export default function AppContent() {
                         )}
 
                         {/* PIN LOGIN VIEW */}
-                        {view === 'pin_login' && <PinLoginView staffMembers={staff} onLoginSuccess={onStaffPinLogin} onClockAction={() => {/* Logic needs to be extracted or kept as is, sticking to simple log for now */ }} onCancel={() => setView('landing')} />}
+                        {view === 'pin_login' && <PinLoginView staffMembers={staff} onLoginSuccess={onStaffPinLogin} onClockAction={handleClockAction} onCancel={() => setView('landing')} />}
 
                         {/* POS VIEW */}
                         {view === 'pos' && (
