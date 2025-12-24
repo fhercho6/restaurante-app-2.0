@@ -469,7 +469,19 @@ export default function AppContent() {
             <PaymentModal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} total={orderToPay ? orderToPay.total : (pendingSale ? pendingSale.cart.reduce((acc, i) => acc + (i.price * i.qty), 0) : 0)} onConfirm={handleFinalizeSale} />
             <PrinterSettingsModal isOpen={isPrinterSettingsOpen} onClose={() => setIsPrinterSettingsOpen(false)} currentType={printerType} onSelect={onSavePrinterFormat} />
 
-            <ProductModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSaveItem} item={currentItem} categories={categories} items={items} />
+            <ProductModal
+                isOpen={isModalOpen}
+                onClose={() => { setIsModalOpen(false); setCurrentItem(null); }}
+                onSave={async (data) => {
+                    const idToUpdate = currentItem ? currentItem.id : null;
+                    await handleSaveItem(data, idToUpdate);
+                    setIsModalOpen(false);
+                    setCurrentItem(null);
+                }}
+                item={currentItem}
+                categories={categories}
+                items={items}
+            />
 
             <CategoryManager isOpen={isCategoryModalOpen} onClose={() => setIsCategoryModalOpen(false)} categories={categories} onAdd={handleAddCategory} onRename={handleRenameCategory} onDelete={handleDeleteCategory} />
             <RoleManager isOpen={isRoleModalOpen} onClose={() => setIsRoleModalOpen(false)} roles={roles} onAdd={handleAddRole} onRename={handleRenameRole} onDelete={handleDeleteRole} />
