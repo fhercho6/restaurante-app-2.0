@@ -103,7 +103,7 @@ export default function AppContent() {
     }, [items]);
 
     const filterCategories = ['Todos', ...categories];
-    const filteredItems = filter === 'Todos' ? items : items.filter(i => (i.category || '').trim().toLowerCase() === filter.trim().toLowerCase());
+    const filteredItems = filter === 'Todos' ? items : items.filter(i => String(i.category || '').trim().toLowerCase() === String(filter).trim().toLowerCase());
     const finalFilteredItems = filteredItems.filter(i => i.name.toLowerCase().includes(searchTerm.toLowerCase()));
     const isAdminMode = view === 'admin' || view === 'report' || view === 'staff_admin' || view === 'cashier' || view === 'register_control' || view === 'maintenance' || view === 'shift_history';
     const isCashierOnly = staffMember && staffMember.role === 'Cajero';
@@ -247,8 +247,14 @@ export default function AppContent() {
                                 <div className={`rounded-lg overflow-hidden flex items-center justify-center ${logo ? 'bg-white' : 'bg-orange-500 p-2 text-white'}`} style={{ width: '40px', height: '40px' }}>
                                     {logo ? <img src={logo} alt="Logo" className="w-full h-full object-contain" /> : <ChefHat size={24} />}
                                 </div>
-                                <div><h1 className="text-lg font-bold text-gray-800 leading-none">{appName}</h1><span className="text-[10px] text-gray-500 font-medium uppercase">Cloud Menu</span></div>
+                                <div><h1 className="text-lg font-bold text-gray-800 leading-none">{appName} <span className="text-xs text-red-600 bg-red-100 px-1 rounded">v2.1 DEBUG</span></h1><span className="text-[10px] text-gray-500 font-medium uppercase">Cloud Menu</span></div>
                             </div>
+                            {/* DEBUG INFO */}
+                            {isAdminMode && !isCashierOnly && (
+                                <div className="hidden md:block text-[10px] bg-yellow-50 p-1 border border-yellow-200 rounded text-yellow-800 mx-4">
+                                    Filtro: "{filter}" | Items: {filteredItems.length} | Match ID 1: {filteredItems[0]?.category}
+                                </div>
+                            )}
                             <div className="flex items-center gap-2 header-buttons">
                                 <button onClick={() => setIsCalculatorOpen(true)} className="p-2 rounded-full hover:bg-gray-100 text-gray-500 hover:text-purple-600 transition-colors" title="Cotizar Servicio"><Calculator size={20} /></button>
                                 {!isAdminMode && <button aria-label="Ir al inicio" onClick={() => setView('landing')} className="p-2 rounded-full hover:bg-gray-100 text-gray-500"><Home size={20} /></button>}
