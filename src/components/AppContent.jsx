@@ -233,7 +233,12 @@ export default function AppContent() {
         const duplicatesToDelete = [];
 
         items.forEach(item => {
-            const key = `${item.name.trim().toLowerCase()}-${item.category.trim().toLowerCase()}`;
+            // Aggressive normalization: remove all non-alphanumeric characters to catch "1  hora" vs "1 hora" vs "1 hora "
+            const normName = (item.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            const normCat = (item.category || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            // Fallback for very short names to avoid empty keys, though rare
+            const key = normName.length > 0 ? `${normName}-${normCat}` : `${item.name}-${item.category}`;
+
             if (uniqueMap.has(key)) {
                 duplicatesToDelete.push(item.id);
             } else {
