@@ -287,10 +287,10 @@ export const AdminRow = ({ item, onEdit, onDelete, isQuickEdit, onQuickUpdate, a
     };
 
     // Estilos de stock
-    let badgeClass = 'bg-gray-100 text-gray-700';
-    if (item.category === 'Servicios') badgeClass = 'bg-purple-100 text-purple-700';
-    else if (isVirtualStock) badgeClass = 'bg-orange-100 text-orange-800 ring-1 ring-orange-300';
-    else if (stockNum <= 5) badgeClass = 'bg-red-100 text-red-700';
+    let badgeClass = 'bg-gray-100 text-gray-700 rounded-full px-2 py-1';
+    if (item.category === 'Servicios') badgeClass = 'bg-purple-100 text-purple-700 rounded-full px-2 py-1';
+    else if (isVirtualStock) badgeClass = 'bg-orange-100 text-orange-800 ring-1 ring-orange-300 rounded-lg px-2 py-1 inline-flex flex-col items-center justify-center min-w-[40px]'; // Cambio a rounded-lg y flex-col
+    else if (stockNum <= 5) badgeClass = 'bg-red-100 text-red-700 rounded-full px-2 py-1';
 
     return (
         <tr className="hover:bg-gray-50 transition-colors group">
@@ -305,9 +305,9 @@ export const AdminRow = ({ item, onEdit, onDelete, isQuickEdit, onQuickUpdate, a
                         className="w-16 p-1 border rounded text-center font-bold bg-white focus:ring-2 ring-blue-500 outline-none"
                     />
                 ) : (
-                    <span className={`px-2 py-1 rounded-full text-xs font-black ${badgeClass}`}>
+                    <span className={`text-xs font-black ${badgeClass}`}>
                         {item.category === 'Servicios' ? '∞' : (stockDisplay === '' || stockDisplay === null || stockDisplay === undefined ? '0' : stockDisplay)}
-                        {isVirtualStock && <span className="text-[8px] opacity-80 block tracking-wider mt-0.5">VIRTUAL</span>}
+                        {isVirtualStock && <span className="text-[9px] leading-none opacity-80 block tracking-widest mt-0.5 font-bold uppercase">Virtual</span>}
                     </span>
                 )}
             </td>
