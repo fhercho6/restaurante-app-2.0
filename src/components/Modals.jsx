@@ -105,12 +105,38 @@ export const ProductModal = ({ isOpen, onClose, onSave, item, categories, items 
                             </div>
                             {recipe.length > 0 ? (
                                 <div className="space-y-2">
-                                    {recipe.map((r, idx) => (
-                                        <div key={idx} className="flex justify-between items-center bg-white p-2 rounded border border-orange-100 shadow-sm text-sm">
-                                            <span className="font-bold text-gray-700">{r.qty}x {r.name}</span>
-                                            <button type="button" onClick={() => removeIngredient(idx)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 size={14} /></button>
-                                        </div>
-                                    ))}
+                                    {recipe.map((r, idx) => {
+                                        const originalItem = items.find(i => i.id === r.itemId);
+                                        const itemCost = originalItem ? (parseFloat(originalItem.cost) || 0) : 0;
+                                        return (
+                                            <div key={idx} className="flex justify-between items-center bg-white p-2 rounded border border-orange-100 shadow-sm text-sm">
+                                                <span className="font-bold text-gray-700">{r.qty}x {r.name} <span className="text-xs text-gray-400 font-normal">({itemCost > 0 ? `Costo: ${itemCost * r.qty}` : 'Sin Costo'})</span></span>
+                                                <button type="button" onClick={() => removeIngredient(idx)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 size={14} /></button>
+                                            </div>
+                                        );
+                                    })}
+                                    <div className="mt-2 pt-2 border-t border-orange-200 flex justify-between items-center text-xs text-orange-800 font-bold">
+                                        <span>Costo total de ingredientes:</span>
+                                        <span>Bs. {recipe.reduce((sum, r) => {
+                                            const originalItem = items.find(i => i.id === r.itemId);
+                                            const c = originalItem ? (parseFloat(originalItem.cost) || 0) : 0;
+                                            return sum + (c * r.qty);
+                                        }, 0).toFixed(2)}</span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const total = recipe.reduce((sum, r) => {
+                                                const originalItem = items.find(i => i.id === r.itemId);
+                                                const c = originalItem ? (parseFloat(originalItem.cost) || 0) : 0;
+                                                return sum + (c * r.qty);
+                                            }, 0);
+                                            setFormData(prev => ({ ...prev, cost: total }));
+                                        }}
+                                        className="w-full text-center text-[10px] bg-orange-200 hover:bg-orange-300 text-orange-800 py-1 rounded mt-1 font-bold transition-colors"
+                                    >
+                                        USAR ESTE COSTO AUTOMÁTICO
+                                    </button>
                                 </div>
                             ) : <p className="text-xs text-orange-400 italic">Agrega productos para descontar del inventario al vender este combo.</p>}
                         </div>
