@@ -1,4 +1,9 @@
 import React, { useState, useMemo } from 'react';
+import { collection, query, where, getDocs, addDoc } from 'firebase/firestore'; // [UPDATED]
+import { db, ROOT_COLLECTION, isPersonalProject } from '../config/firebase';
+import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
+import { useRegister } from '../context/RegisterContext';
 import { Wifi, WifiOff, Home, LogOut, ClipboardList, Users, FileText, Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign, ArrowLeft, Lock, Unlock, Wallet, Loader2, LayoutGrid, Gift, Trees, TrendingUp, Package, Filter, X, Zap, Wrench, Calendar, PieChart, Calculator, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 
@@ -162,34 +167,110 @@ export default function AppContent() {
         if (success) setIsOpenRegisterModalOpen(false);
     };
 
-    const handleCloseRegisterAction = () => {
+    const handleCloseRegisterAction = async () => {
         if (!registerSession) return;
-        // Calculation logic now in Context, but for simple display we can recalc or trust stats
-        const cashFinal = (registerSession.openingAmount || 0) + sessionStats.cashSales - sessionStats.totalExpenses;
+
+        // 1. Calculate Expected Cash
+        let cashFinal = (registerSession.openingAmount || 0) + sessionStats.cashSales - sessionStats.totalExpenses;
+        let totalSalaries = 0;
+        let attendanceList = [];
+
+        // 2. Fetch Attendance for this Register Session
+        try {
+            const attColl = isPersonalProject ? 'attendance' : `${ROOT_COLLECTION}attendance`;
+            const q = query(collection(db, attColl), where('registerId', '==', registerSession.id));
+            const snap = await getDocs(q);
+            attendanceList = snap.docs.map(d => d.data());
+            totalSalaries = attendanceList.reduce((acc, curr) => acc + (parseFloat(curr.dailySalary) || 0), 0);
+        } catch (err) {
+            console.error("Error fetching attendance:", err);
+        }
 
         toast((t) => (
-            <div className="flex flex-col gap-3 min-w-[240px]">
+            <div className="flex flex-col gap-3 min-w-[280px]">
                 <div className="border-b pb-3">
                     <p className="font-bold text-gray-800 text-lg mb-2">Resumen de Cierre</p>
+
+                    {/* Salary Section */}
+                    {totalSalaries > 0 && (
+                        <div className="bg-yellow-50 p-2 rounded mb-2 border border-yellow-100">
+                            <p className="text-xs text-yellow-700 font-bold uppercase mb-1 flex items-center gap-1"><Users size={12} /> Nómina ({attendanceList.length} emp.)</p>
+                            <div className="flex justify-between items-end">
+                                <span className="text-gray-600 text-xs">Total Sueldos:</span>
+                                <span className="font-black text-yellow-600 text-base">Bs. {totalSalaries.toFixed(2)}</span>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="bg-gray-50 p-2 rounded mb-3 grid grid-cols-2 gap-2 text-xs">
                         <div className="bg-white p-2 rounded border border-gray-100"><span className="text-gray-500 block uppercase text-[10px]">Total QR</span><span className="font-bold text-blue-600 text-sm">Bs. {sessionStats.qrSales.toFixed(2)}</span></div>
                         <div className="bg-white p-2 rounded border border-gray-100"><span className="text-gray-500 block uppercase text-[10px]">Total Tarjeta</span><span className="font-bold text-purple-600 text-sm">Bs. {sessionStats.cardSales.toFixed(2)}</span></div>
                     </div>
-                    <div className="px-2"><p className="text-xs text-gray-500 uppercase font-bold">Efectivo en Caja:</p><p className="text-2xl font-black text-green-600">Bs. {cashFinal.toFixed(2)}</p></div>
+
+                    <div className="px-2">
+                        <p className="text-xs text-gray-500 uppercase font-bold">Efectivo (Sin descontar sueldos):</p>
+                        <p className="text-xl font-black text-gray-400">Bs. {cashFinal.toFixed(2)}</p>
+                    </div>
                 </div>
-                <div className="flex gap-2">
-                    <button onClick={async () => {
-                        const zReport = await confirmCloseRegister(cashFinal);
-                        if (zReport) {
-                            setLastSale(zReport);
-                            setView('receipt_view');
-                        }
-                        toast.dismiss(t.id);
-                    }} className="bg-red-600 text-white px-4 py-3 rounded-lg text-xs font-bold shadow-sm flex-1 hover:bg-red-700 transition-colors">CERRAR TURNO</button>
-                    <button onClick={() => toast.dismiss(t.id)} className="bg-gray-200 text-gray-800 px-4 py-3 rounded-lg text-xs font-bold flex-1 hover:bg-gray-300 transition-colors">CANCELAR</button>
+
+                <div className="flex flex-col gap-2">
+                    {totalSalaries > 0 && (
+                        <button onClick={async () => {
+                            toast.dismiss(t.id);
+                            const toastId = toast.loading("Procesando pago de nómina...");
+
+                            // 1. Create Expense
+                            try {
+                                const expColl = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`;
+                                await addDoc(collection(db, expColl), {
+                                    amount: totalSalaries,
+                                    reason: `Sueldos Turno (Automático)`,
+                                    type: 'Adelanto Sueldo', // Matches standard types
+                                    registerId: registerSession.id,
+                                    timestamp: new Date().toISOString(),
+                                    staffNames: attendanceList.map(a => a.staffName).join(', ')
+                                });
+
+                                // 2. Wait for propagation (Optimistic UI would be better but keeping it safe)
+                                await new Promise(r => setTimeout(r, 1500));
+
+                                // 3. Recalc Cash (Expense is now in 'sessionStats' via snapshot theoretically, or we deduct manually)
+                                // We deduct manually to be sure for the *closing* call, although Z-Report might show double if we are not careful.
+                                // Actuallly, if we wait, sessionStats updates.
+                                // Let's try closing with the NEW adjusted cash.
+                                const newCashFinal = cashFinal - totalSalaries;
+
+                                const zReport = await confirmCloseRegister(newCashFinal);
+                                if (zReport) {
+                                    setLastSale(zReport);
+                                    setView('receipt_view');
+                                }
+                                toast.dismiss(toastId);
+                            } catch (error) {
+                                toast.error("Error al procesar pago");
+                                console.error(error);
+                            }
+                        }} className="bg-green-600 text-white px-4 py-3 rounded-lg text-xs font-bold shadow-sm hover:bg-green-700 transition-colors flex items-center justify-center gap-2">
+                            <DollarSign size={16} /> PAGAR SUELDOS Y CERRAR
+                        </button>
+                    )}
+
+                    <div className="flex gap-2">
+                        <button onClick={async () => {
+                            const zReport = await confirmCloseRegister(cashFinal);
+                            if (zReport) {
+                                setLastSale(zReport);
+                                setView('receipt_view');
+                            }
+                            toast.dismiss(t.id);
+                        }} className={`${totalSalaries > 0 ? 'bg-gray-100 text-gray-600' : 'bg-red-600 text-white'} px-4 py-3 rounded-lg text-xs font-bold shadow-sm flex-1 hover:opacity-80 transition-colors`}>
+                            {totalSalaries > 0 ? 'Cerrar SIN Pagar' : 'CERRAR TURNO'}
+                        </button>
+                        <button onClick={() => toast.dismiss(t.id)} className="bg-gray-200 text-gray-800 px-4 py-3 rounded-lg text-xs font-bold flex-1 hover:bg-gray-300 transition-colors">CANCELAR</button>
+                    </div>
                 </div>
             </div>
-        ), { duration: 10000, position: 'top-center', icon: null });
+        ), { duration: null, position: 'top-center', icon: null });
     };
 
     // Transaction Handlers
