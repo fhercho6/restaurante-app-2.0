@@ -6,7 +6,6 @@ import LandingPage from './LandingPage';
 import POSInterface from './POSInterface';
 import StaffManagerView from './StaffManagerView';
 import SalesDashboard from './SalesDashboard';
-import SalesDashboard from './SalesDashboard';
 import Receipt from './Receipt';
 import PaymentModal from './PaymentModal';
 import HRDashboardView from './HRDashboardView'; // [NEW]
