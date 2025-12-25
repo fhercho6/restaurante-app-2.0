@@ -6,8 +6,10 @@ import LandingPage from './LandingPage';
 import POSInterface from './POSInterface';
 import StaffManagerView from './StaffManagerView';
 import SalesDashboard from './SalesDashboard';
+import SalesDashboard from './SalesDashboard';
 import Receipt from './Receipt';
 import PaymentModal from './PaymentModal';
+import HRDashboardView from './HRDashboardView'; // [NEW]
 import CashierView from './CashierView';
 import OpenRegisterModal from './OpenRegisterModal';
 import RegisterControlView from './RegisterControlView';
@@ -411,6 +413,8 @@ export default function AppContent() {
 
                                         <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-2 rounded-xl shadow-sm border border-gray-200">
                                             <div className="flex gap-2">
+                                                <button onClick={() => setView('hr_dashboard')} className="px-4 py-2.5 bg-black text-white rounded-lg font-bold hover:bg-gray-800 transition-colors flex items-center gap-2 shadow-lg shadow-gray-200" title="Recursos Humanos"><Users size={18} /> RR.HH.</button>
+                                                <div className="w-px h-8 bg-gray-200 mx-1"></div>
                                                 <button onClick={() => setIsBrandingModalOpen(true)} className="p-2.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors" title="Configuración Global"><Settings size={20} /></button>
                                                 <button onClick={() => setIsPrinterSettingsOpen(true)} className="p-2.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 border border-blue-100 transition-colors" title="Configurar Impresora"><Printer size={20} /></button>
                                                 <button onClick={() => setIsTableModalOpen(true)} className="p-2.5 bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100 border border-purple-100 transition-colors" title="Gestionar Mesas"><LayoutGrid size={20} /></button>
@@ -479,6 +483,20 @@ export default function AppContent() {
 
                         {/* RECEIPT VIEW */}
                         {view === 'receipt_view' && <Receipt data={lastSale} onPrint={() => window.print()} onClose={handleReceiptClose} printerType={printerType} />}
+
+                        {/* HR DASHBOARD */}
+                        {view === 'hr_dashboard' && (
+                            <HRDashboardView
+                                staff={staff}
+                                roles={roles}
+                                onAddStaff={handleAddStaff}
+                                onUpdateStaff={handleUpdateStaff}
+                                onDeleteStaff={handleDeleteStaff}
+                                onManageRoles={() => setIsRoleModalOpen(true)}
+                                onPrintCredential={onPrintCredential}
+                                onBack={() => setView('admin')}
+                            />
+                        )}
 
                         {/* MENU VIEW */}
                         {view === 'menu' && (
