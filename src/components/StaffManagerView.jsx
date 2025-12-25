@@ -2,7 +2,8 @@
 import React, { useState } from 'react';
 // IMPORTANTE: Quitamos 'Loader' de los imports para evitar errores
 // IMPORTANTE: Quitamos 'Loader' de los imports para evitar errores
-import { User, Plus, Printer, Edit2, Trash2, Shield, Settings } from 'lucide-react';
+import { User, Plus, Printer, Edit2, Trash2, Shield, Settings, FolderOpen } from 'lucide-react';
+import StaffDocumentsModal from './StaffDocumentsModal';
 
 export default function StaffManagerView({
   staff, roles,
@@ -16,6 +17,10 @@ export default function StaffManagerView({
   // Commission Modal State
   const [isCommissionModalOpen, setIsCommissionModalOpen] = useState(false);
   const [editingTiers, setEditingTiers] = useState([]);
+
+  // Documents Modal State
+  const [isDocsModalOpen, setIsDocsModalOpen] = useState(false);
+  const [selectedMemberForDocs, setSelectedMemberForDocs] = useState(null);
 
   const openCommissionModal = () => {
     setEditingTiers(JSON.parse(JSON.stringify(commissionTiers || [])));
@@ -146,6 +151,7 @@ export default function StaffManagerView({
                 <td className="p-4 font-mono text-sm text-gray-400">****</td>
                 <td className="p-4 text-right">
                   <div className="flex justify-end gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => { setSelectedMemberForDocs(member); setIsDocsModalOpen(true); }} className="p-2 text-yellow-600 hover:bg-yellow-100 rounded-lg transition-colors" title="Legajo Digital"><FolderOpen size={16} /></button>
                     <button onClick={() => onPrintCredential(member)} className="p-2 text-gray-400 hover:text-black hover:bg-gray-200 rounded-lg transition-colors" title="Imprimir Credencial"><Printer size={16} /></button>
                     <button onClick={() => handleEditClick(member)} className="p-2 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Editar"><Edit2 size={16} /></button>
                     <button onClick={() => onDeleteStaff(member.id)} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Eliminar"><Trash2 size={16} /></button>
@@ -211,6 +217,14 @@ export default function StaffManagerView({
           </div>
         </div>
       )}
+
+      {/* Documents Modal */}
+      <StaffDocumentsModal
+        isOpen={isDocsModalOpen}
+        onClose={() => { setIsDocsModalOpen(false); setSelectedMemberForDocs(null); }}
+        staffMember={selectedMemberForDocs}
+      />
     </div>
   );
 }
+```
