@@ -26,9 +26,7 @@ import ServiceCalculatorModal from './ServiceCalculatorModal';
 import { MenuCard, PinLoginView, CredentialPrintView, PrintableView, AdminRow } from './Views';
 
 // Hooks & Contexts
-import { useAuth } from '../context/AuthContext';
-import { useData } from '../context/DataContext';
-import { useRegister } from '../context/RegisterContext';
+
 import { useSales } from '../hooks/useSales';
 
 export default function AppContent() {
