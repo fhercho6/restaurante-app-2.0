@@ -1,12 +1,38 @@
 // src/components/StaffManagerView.jsx - VERSIÓN FINAL SEGURA (Sin Loader)
 import React, { useState } from 'react';
 // IMPORTANTE: Quitamos 'Loader' de los imports para evitar errores
-import { User, Plus, Printer, Edit2, Trash2, Shield } from 'lucide-react';
+// IMPORTANTE: Quitamos 'Loader' de los imports para evitar errores
+import { User, Plus, Printer, Edit2, Trash2, Shield, Settings } from 'lucide-react';
 
-export default function StaffManagerView({ staff, roles, onAddStaff, onUpdateStaff, onDeleteStaff, onManageRoles, onPrintCredential }) {
+export default function StaffManagerView({
+  staff, roles,
+  onAddStaff, onUpdateStaff, onDeleteStaff, onManageRoles, onPrintCredential,
+  commissionTiers, onSaveCommissionTiers
+}) {
   const [isEditing, setIsEditing] = useState(false);
   const [currentMember, setCurrentMember] = useState(null);
-  const [formData, setFormData] = useState({ name: '', role: 'Garzón', pin: '', dailySalary: '' });
+  const [formData, setFormData] = useState({ name: '', role: 'Garzón', pin: '', dailySalary: '', commissionEnabled: false });
+
+  // Commission Modal State
+  const [isCommissionModalOpen, setIsCommissionModalOpen] = useState(false);
+  const [editingTiers, setEditingTiers] = useState([]);
+
+  const openCommissionModal = () => {
+    setEditingTiers(JSON.parse(JSON.stringify(commissionTiers || [])));
+    setIsCommissionModalOpen(true);
+  };
+
+  const saveCommissionTiers = () => {
+    onSaveCommissionTiers(editingTiers);
+    setIsCommissionModalOpen(false);
+  };
+
+  const updateTier = (index, field, value) => {
+    const newTiers = [...editingTiers];
+    if (field === 'rate') newTiers[index].rate = parseFloat(value) / 100;
+    else newTiers[index].max = parseFloat(value);
+    setEditingTiers(newTiers);
+  };
 
   // --- ESTADO DE CARGA ---
   const [isSaving, setIsSaving] = useState(false);
@@ -82,9 +108,14 @@ export default function StaffManagerView({ staff, roles, onAddStaff, onUpdateSta
             </button>
             {isEditing && <button type="button" onClick={resetForm} disabled={isSaving} className="px-4 py-2 rounded-lg font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-all">Cancelar</button>}
           </div>
-          <div className="w-full flex items-center gap-2 mt-2">
-            <input type="checkbox" id="commission" className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500" checked={formData.commissionEnabled || false} onChange={e => setFormData({ ...formData, commissionEnabled: e.target.checked })} disabled={isSaving} />
-            <label htmlFor="commission" className="text-xs font-bold text-gray-600 uppercase select-none cursor-pointer">Habilitar Esquema de Comisiones (5% - 8% S/Utilidad)</label>
+          <div className="w-full flex flex-wrap items-center gap-4 mt-2 bg-gray-50 p-3 rounded-lg border border-dashed border-gray-200">
+            <div className="flex items-center gap-2">
+              <input type="checkbox" id="commission" className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500" checked={formData.commissionEnabled || false} onChange={e => setFormData({ ...formData, commissionEnabled: e.target.checked })} disabled={isSaving} />
+              <label htmlFor="commission" className="text-sm font-bold text-gray-700 select-none cursor-pointer">Habilitar Comisiones</label>
+            </div>
+            <button type="button" onClick={openCommissionModal} className="text-xs bg-white border border-gray-200 px-3 py-1.5 rounded-lg font-bold text-blue-600 hover:bg-blue-50 hover:border-blue-200 transition-colors flex items-center gap-1 shadow-sm">
+              <Settings size={14} /> Configurar Tabla
+            </button>
           </div>
         </form>
       </div>
@@ -126,6 +157,60 @@ export default function StaffManagerView({ staff, roles, onAddStaff, onUpdateSta
           </tbody>
         </table>
       </div>
+
+      {/* Commission Configuration Modal */}
+      {isCommissionModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+              <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                <Settings size={18} className="text-blue-600" />
+                Configurar Tabla de Comisiones
+              </h3>
+              <button onClick={() => setIsCommissionModalOpen(false)} className="text-gray-400 hover:text-black"><Trash2 size={18} className="rotate-45" /></button>
+            </div>
+            <div className="p-6">
+              <p className="text-xs text-gray-500 mb-4 bg-blue-50 p-2 rounded border border-blue-100">
+                Define los rangos de Utilidad (Precio - Costo) y el porcentaje a pagar.
+              </p>
+              <div className="space-y-3">
+                <div className="grid grid-cols-3 gap-2 text-xs font-bold text-gray-400 uppercase">
+                  <div className="col-span-2">Rango Utilidad (Hasta)</div>
+                  <div>Porcentaje</div>
+                </div>
+                {editingTiers.map((tier, index) => (
+                  <div key={index} className="grid grid-cols-3 gap-2 items-center">
+                    <div className="col-span-2 relative">
+                      <span className="absolute left-3 top-2.5 text-gray-400 text-xs font-bold">Bs.</span>
+                      <input
+                        type="number"
+                        className="w-full pl-8 pr-3 py-2 border rounded-lg text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none"
+                        value={tier.max}
+                        onChange={(e) => updateTier(index, 'max', e.target.value)}
+                        step="100"
+                      />
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        className="w-full pl-3 pr-6 py-2 border rounded-lg text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none text-center"
+                        value={(tier.rate * 100).toFixed(0)}
+                        onChange={(e) => updateTier(index, 'rate', e.target.value)}
+                        min="0" max="100"
+                      />
+                      <span className="absolute right-3 top-2.5 text-gray-400 text-xs font-bold">%</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-2">
+              <button onClick={() => setIsCommissionModalOpen(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded-lg font-bold text-sm transition-colors">Cancelar</button>
+              <button onClick={saveCommissionTiers} className="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold text-sm hover:bg-blue-700 shadow-md transition-colors">Guardar Tabla</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

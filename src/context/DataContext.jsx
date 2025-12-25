@@ -31,6 +31,12 @@ export const DataProvider = ({ children }) => {
     const [appName, setAppName] = useState("");
     const [autoLockTime, setAutoLockTime] = useState(45);
     const [printerType, setPrinterType] = useState('thermal');
+    const [commissionTiers, setCommissionTiers] = useState([
+        { max: 5000, rate: 0.05 },
+        { max: 5500, rate: 0.06 },
+        { max: 6000, rate: 0.07 },
+        { max: 999999, rate: 0.08 }
+    ]);
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [dbStatus, setDbStatus] = useState('connecting');
 
@@ -62,6 +68,9 @@ export const DataProvider = ({ children }) => {
                     setAppName(dt.appName);
                     setAutoLockTime(dt.autoLockTime);
                     if (dt.printerType) setPrinterType(dt.printerType);
+                }
+                else if (d.id === 'commissions') {
+                    if (dt.tiers) setCommissionTiers(dt.tiers);
                 }
             });
             setIsLoadingData(false);
@@ -106,10 +115,11 @@ export const DataProvider = ({ children }) => {
 
     const handleSaveBranding = (l, n, t) => { setDoc(doc(db, getCollName('settings'), 'branding'), { logo: l, appName: n, autoLockTime: t, printerType: printerType }, { merge: true }); setLogo(l); setAppName(n); setAutoLockTime(t); toast.success('Marca y Configuración actualizadas'); };
     const handleSavePrinterType = (type) => { setPrinterType(type); setDoc(doc(db, getCollName('settings'), 'branding'), { printerType: type }, { merge: true }); toast.success(`Formato: ${type === 'thermal' ? 'Ticket' : 'Carta'}`); };
+    const handleSaveCommissionTiers = (tiers) => { setCommissionTiers(tiers); setDoc(doc(db, getCollName('settings'), 'commissions'), { tiers }); toast.success('Tabla de Comisiones Guardada'); };
 
     const value = {
         items, staff, categories, roles, tables, expenseTypes, activeServices,
-        logo, appName, autoLockTime, printerType,
+        logo, appName, autoLockTime, printerType, commissionTiers,
         isLoadingData, dbStatus,
         handleQuickUpdate, handleSaveItem, handleDeleteItem,
         handleAddStaff, handleUpdateStaff, handleDeleteStaff,
@@ -117,7 +127,7 @@ export const DataProvider = ({ children }) => {
         handleAddRole, handleRenameRole, handleDeleteRole,
         handleAddTable, handleRenameTable, handleDeleteTable,
         handleAddExpenseType, handleRenameExpenseType, handleDeleteExpenseType,
-        handleSaveBranding, handleSavePrinterType,
+        handleSaveBranding, handleSavePrinterType, handleSaveCommissionTiers,
         getCollName // Exporting if needed by other components
     };
 

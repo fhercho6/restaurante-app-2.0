@@ -34,7 +34,7 @@ export default function AppContent() {
     const { currentUser, staffMember, setStaffMember, isAuthModalOpen, setIsAuthModalOpen, login, logout, staffLogin, prepareCredentialPrint, credentialToPrint } = useAuth();
     const {
         items, staff, categories, roles, tables, expenseTypes, activeServices,
-        logo, appName, autoLockTime, printerType,
+        logo, appName, autoLockTime, printerType, commissionTiers,
         isLoadingData, dbStatus,
         handleQuickUpdate, handleSaveItem, handleDeleteItem,
         handleAddStaff, handleUpdateStaff, handleDeleteStaff,
@@ -216,13 +216,25 @@ export default function AppContent() {
                     }
                 });
 
-                // Apply Tiers
+                // Apply Dynamic Tiers
+                const tiers = commissionTiers || [
+                    { max: 5000, rate: 0.05 },
+                    { max: 5500, rate: 0.06 },
+                    { max: 6000, rate: 0.07 },
+                    { max: 999999, rate: 0.08 }
+                ];
+
                 Object.entries(staffUtility).forEach(([name, utility]) => {
-                    let rate = 0;
-                    if (utility <= 5000) rate = 0.05;
-                    else if (utility <= 5500) rate = 0.06;
-                    else if (utility <= 6000) rate = 0.07;
-                    else rate = 0.08; // > 6000
+                    // Find applicable tier
+                    // Tiers should be sorted by max ASC. e.g. 5000, 5500, 6000.
+                    // If utility is 5200:
+                    // 5000 < 5200? yes, but we want the bracket it falls into?
+                    // The rule is: 0-5000 (5%), 5001-5500 (6%).
+                    // So we find the first tier where utility <= max.
+
+                    const sortedTiers = [...tiers].sort((a, b) => a.max - b.max);
+                    const tier = sortedTiers.find(t => utility <= t.max);
+                    const rate = tier ? tier.rate : sortedTiers[sortedTiers.length - 1].rate;
 
                     const comm = utility * rate;
                     if (comm > 0) {
@@ -230,6 +242,7 @@ export default function AppContent() {
                         totalCommissions += comm;
                     }
                 });
+
             }
         } catch (err) { console.error("Error calculating Commissions:", err); }
 

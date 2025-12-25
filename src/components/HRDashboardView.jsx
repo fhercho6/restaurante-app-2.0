@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Users, Calendar, DollarSign, Clock, LayoutGrid, Search, ArrowLeft } from 'lucide-react';
 import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { db, ROOT_COLLECTION, isPersonalProject } from '../config/firebase';
+import { useData } from '../context/DataContext';
 import StaffManagerView from './StaffManagerView';
 
 export default function HRDashboardView({
@@ -14,6 +15,7 @@ export default function HRDashboardView({
     onPrintCredential,
     onBack
 }) {
+    const { commissionTiers, handleSaveCommissionTiers } = useData();
     const [activeTab, setActiveTab] = useState('staff'); // 'staff', 'attendance', 'payroll'
     const [attendanceLog, setAttendanceLog] = useState([]);
     const [loadingAttendance, setLoadingAttendance] = useState(false);
@@ -97,6 +99,8 @@ export default function HRDashboardView({
                         onDeleteStaff={onDeleteStaff}
                         onManageRoles={onManageRoles}
                         onPrintCredential={onPrintCredential}
+                        commissionTiers={commissionTiers}
+                        onSaveCommissionTiers={handleSaveCommissionTiers}
                     />
                 )}
 
