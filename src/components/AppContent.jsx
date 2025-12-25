@@ -171,31 +171,99 @@ export default function AppContent() {
         // 1. Calculate Expected Cash
         let cashFinal = (registerSession.openingAmount || 0) + sessionStats.cashSales - sessionStats.totalExpenses;
         let totalSalaries = 0;
+        let totalCommissions = 0;
         let attendanceList = [];
+        let commissionDetails = [];
 
-        // 2. Fetch Attendance for this Register Session
+        // 2. Fetch Attendance
         try {
             const attColl = isPersonalProject ? 'attendance' : `${ROOT_COLLECTION}attendance`;
-            const q = query(collection(db, attColl), where('registerId', '==', registerSession.id));
-            const snap = await getDocs(q);
-            attendanceList = snap.docs.map(d => d.data());
-            totalSalaries = attendanceList.reduce((acc, curr) => acc + (parseFloat(curr.dailySalary) || 0), 0);
-        } catch (err) {
-            console.error("Error fetching attendance:", err);
-        }
+            const qAtt = query(collection(db, attColl), where('registerId', '==', registerSession.id));
+            const snapAtt = await getDocs(qAtt);
+            attendanceList = snapAtt.docs.map(d => d.data());
+        } catch (err) { console.error("Error fetching attendance:", err); }
+
+        // 3. Calculate Commissions (Tiered Logic)
+        try {
+            // Find staff with commissions enabled
+            const commissionedStaff = staff.filter(s => s.commissionEnabled);
+
+            if (commissionedStaff.length > 0) {
+                const salesColl = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`;
+                const qSales = query(collection(db, salesColl), where('registerId', '==', registerSession.id));
+                const snapSales = await getDocs(qSales);
+
+                const staffUtility = {}; // { staffName: utilityAmount }
+
+                snapSales.forEach(doc => {
+                    const sale = doc.data();
+                    // Identify waiter. Priority: sale.staffName -> sale.waiterName -> 'Barra'
+                    // We need to match precise names or IDs. Best to use staffName from sale which usually matches staff.name
+                    const waiterName = sale.staffName;
+                    if (waiterName && commissionedStaff.some(s => s.name === waiterName)) {
+                        if (!staffUtility[waiterName]) staffUtility[waiterName] = 0;
+
+                        // Calculate Utility for this sale
+                        if (sale.items) {
+                            sale.items.forEach(item => {
+                                const price = parseFloat(item.price) || 0;
+                                const cost = parseFloat(item.cost) || 0;
+                                const qty = parseInt(item.qty) || 1;
+                                // Only count profit if price > cost, else 0 or negative? usually profit is net
+                                staffUtility[waiterName] += (price - cost) * qty;
+                            });
+                        }
+                    }
+                });
+
+                // Apply Tiers
+                Object.entries(staffUtility).forEach(([name, utility]) => {
+                    let rate = 0;
+                    if (utility <= 5000) rate = 0.05;
+                    else if (utility <= 5500) rate = 0.06;
+                    else if (utility <= 6000) rate = 0.07;
+                    else rate = 0.08; // > 6000
+
+                    const comm = utility * rate;
+                    if (comm > 0) {
+                        commissionDetails.push({ name, utility, rate, amount: comm });
+                        totalCommissions += comm;
+                    }
+                });
+            }
+        } catch (err) { console.error("Error calculating Commissions:", err); }
+
+        // 4. Sum Totals
+        const baseSalaries = attendanceList.reduce((acc, curr) => acc + (parseFloat(curr.dailySalary) || 0), 0);
+        totalSalaries = baseSalaries + totalCommissions;
 
         toast((t) => (
-            <div className="flex flex-col gap-3 min-w-[280px]">
+            <div className="flex flex-col gap-3 min-w-[300px]">
                 <div className="border-b pb-3">
                     <p className="font-bold text-gray-800 text-lg mb-2">Resumen de Cierre</p>
 
                     {/* Salary Section */}
                     {totalSalaries > 0 && (
-                        <div className="bg-yellow-50 p-2 rounded mb-2 border border-yellow-100">
-                            <p className="text-xs text-yellow-700 font-bold uppercase mb-1 flex items-center gap-1"><Users size={12} /> Nómina ({attendanceList.length} emp.)</p>
-                            <div className="flex justify-between items-end">
-                                <span className="text-gray-600 text-xs">Total Sueldos:</span>
-                                <span className="font-black text-yellow-600 text-base">Bs. {totalSalaries.toFixed(2)}</span>
+                        <div className="bg-yellow-50 p-3 rounded-lg mb-2 border border-yellow-100 text-xs">
+                            <p className="text-yellow-800 font-bold uppercase mb-2 flex items-center gap-1"><Users size={12} /> Nómina & Comisiones</p>
+
+                            {/* Breakdown */}
+                            <div className="space-y-1 mb-2 border-b border-yellow-200 pb-2">
+                                <div className="flex justify-between text-gray-600">
+                                    <span>Salarios Fijos ({attendanceList.length}):</span>
+                                    <span>Bs. {baseSalaries.toFixed(2)}</span>
+                                </div>
+                                {commissionDetails.map(c => (
+                                    <div key={c.name} className="flex justify-between text-yellow-700 bg-yellow-100/50 px-1 rounded">
+                                        <span>{c.name} ({(c.rate * 100).toFixed(0)}% de {c.utility.toFixed(0)}):</span>
+                                        <span className="font-bold">Bs. {c.amount.toFixed(2)}</span>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="flex justify-between items-end pt-1">
+                                <span className="font-bold text-gray-700">TOTAL A PAGAR:</span>
+                                <span className="font-black text-yellow-600 text-lg">Bs. {totalSalaries.toFixed(2)}</span>
                             </div>
                         </div>
                     )}
@@ -206,7 +274,7 @@ export default function AppContent() {
                     </div>
 
                     <div className="px-2">
-                        <p className="text-xs text-gray-500 uppercase font-bold">Efectivo (Sin descontar sueldos):</p>
+                        <p className="text-xs text-gray-500 uppercase font-bold">Efectivo en Caja (Antes de pagos):</p>
                         <p className="text-xl font-black text-gray-400">Bs. {cashFinal.toFixed(2)}</p>
                     </div>
                 </div>
@@ -215,27 +283,23 @@ export default function AppContent() {
                     {totalSalaries > 0 && (
                         <button onClick={async () => {
                             toast.dismiss(t.id);
-                            const toastId = toast.loading("Procesando pago de nómina...");
+                            const toastId = toast.loading("Registrando pagos...");
 
                             // 1. Create Expense
                             try {
                                 const expColl = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`;
                                 await addDoc(collection(db, expColl), {
                                     amount: totalSalaries,
-                                    reason: `Sueldos Turno (Automático)`,
-                                    type: 'Adelanto Sueldo', // Matches standard types
+                                    reason: `Nómina Turno (Inc. Comisiones)`,
+                                    type: 'Adelanto Sueldo',
                                     registerId: registerSession.id,
                                     timestamp: new Date().toISOString(),
-                                    staffNames: attendanceList.map(a => a.staffName).join(', ')
+                                    staffNames: attendanceList.map(a => a.staffName).join(', '),
+                                    details: { base: baseSalaries, commissions: commissionDetails }
                                 });
 
-                                // 2. Wait for propagation (Optimistic UI would be better but keeping it safe)
                                 await new Promise(r => setTimeout(r, 1500));
 
-                                // 3. Recalc Cash (Expense is now in 'sessionStats' via snapshot theoretically, or we deduct manually)
-                                // We deduct manually to be sure for the *closing* call, although Z-Report might show double if we are not careful.
-                                // Actuallly, if we wait, sessionStats updates.
-                                // Let's try closing with the NEW adjusted cash.
                                 const newCashFinal = cashFinal - totalSalaries;
 
                                 const zReport = await confirmCloseRegister(newCashFinal);
@@ -249,7 +313,7 @@ export default function AppContent() {
                                 console.error(error);
                             }
                         }} className="bg-green-600 text-white px-4 py-3 rounded-lg text-xs font-bold shadow-sm hover:bg-green-700 transition-colors flex items-center justify-center gap-2">
-                            <DollarSign size={16} /> PAGAR SUELDOS Y CERRAR
+                            <DollarSign size={16} /> PAGAR Y CERRAR (Bs. {totalSalaries.toFixed(0)})
                         </button>
                     )}
 

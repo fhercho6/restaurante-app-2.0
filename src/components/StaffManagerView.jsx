@@ -82,6 +82,10 @@ export default function StaffManagerView({ staff, roles, onAddStaff, onUpdateSta
             </button>
             {isEditing && <button type="button" onClick={resetForm} disabled={isSaving} className="px-4 py-2 rounded-lg font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-all">Cancelar</button>}
           </div>
+          <div className="w-full flex items-center gap-2 mt-2">
+            <input type="checkbox" id="commission" className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500" checked={formData.commissionEnabled || false} onChange={e => setFormData({ ...formData, commissionEnabled: e.target.checked })} disabled={isSaving} />
+            <label htmlFor="commission" className="text-xs font-bold text-gray-600 uppercase select-none cursor-pointer">Habilitar Esquema de Comisiones (5% - 8% S/Utilidad)</label>
+          </div>
         </form>
       </div>
 
@@ -104,7 +108,10 @@ export default function StaffManagerView({ staff, roles, onAddStaff, onUpdateSta
                   {member.name}
                 </td>
                 <td className="p-4 text-sm text-gray-600"><span className="bg-gray-100 px-2 py-1 rounded text-xs font-bold border border-gray-200">{member.role}</span></td>
-                <td className="p-4 text-sm font-mono font-bold text-green-600">Bs. {parseFloat(member.dailySalary || 0).toFixed(2)}</td>
+                <td className="p-4 text-sm font-mono font-bold text-green-600">
+                  Bs. {parseFloat(member.dailySalary || 0).toFixed(2)}
+                  {member.commissionEnabled && <span className="ml-2 px-1.5 py-0.5 bg-yellow-100 text-yellow-700 text-[10px] rounded border border-yellow-200 uppercase">Comisión</span>}
+                </td>
                 <td className="p-4 font-mono text-sm text-gray-400">****</td>
                 <td className="p-4 text-right">
                   <div className="flex justify-end gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
