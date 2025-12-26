@@ -110,12 +110,17 @@ export default function HRDashboardView({
     };
 
     const handleAddManual = async (member, type) => {
+        if (!registerSession || registerSession.status !== 'open') {
+            toast.error("🛑 La caja debe estar abierta para registrar asistencia.");
+            return;
+        }
+
         try {
             const collName = isPersonalProject ? 'attendance' : `${ROOT_COLLECTION}attendance`;
             await addDoc(collection(db, collName), {
                 staffId: member.id,
                 staffName: member.name,
-                registerId: 'MANUAL',
+                registerId: registerSession.id,
                 role: member.role,
                 timestamp: new Date().toISOString(),
                 dailySalary: parseFloat(member.dailySalary || 0),
