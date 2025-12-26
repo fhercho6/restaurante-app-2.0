@@ -1,22 +1,24 @@
 // src/components/LandingPage.jsx - EDICIÓN NAVIDAD LIMPIA + CALCULADORA PEQUEÑA
 import React, { useState } from 'react';
-import { ChefHat, User, Settings, UtensilsCrossed, Gift, Trees, Calculator } from 'lucide-react';
+import { ChefHat, User, Settings, UtensilsCrossed, PartyPopper, Sparkles, Clock, Wine, Star, Calculator } from 'lucide-react';
 import ServiceCalculatorModal from './ServiceCalculatorModal';
 
 // Componente simple para la nieve de fondo
-const Snowfall = () => {
-  const flakes = Array.from({ length: 20 });
+// Componente de Confeti para Año Nuevo
+const Confetti = () => {
+  const particles = Array.from({ length: 30 });
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden z-10">
-      {flakes.map((_, i) => {
+      {particles.map((_, i) => {
         const left = `${Math.random() * 100}%`;
-        const duration = `${Math.random() * 5 + 5}s`;
-        const delay = `${Math.random() * 5}s`;
-        const size = `${Math.random() * 4 + 2}px`;
+        const duration = `${Math.random() * 3 + 3}s`;
+        const delay = `${Math.random() * 2}s`;
+        const size = `${Math.random() * 6 + 4}px`;
+        const color = ['bg-yellow-400', 'bg-blue-400', 'bg-white', 'bg-purple-400'][Math.floor(Math.random() * 4)];
         return (
           <div
             key={i}
-            className="absolute bg-white rounded-full opacity-80 animate-[snowfall_linear_infinite]"
+            className={`absolute rounded-xs opacity-80 animate-[snowfall_linear_infinite] ${color}`}
             style={{
               left,
               top: '-10px',
@@ -25,7 +27,8 @@ const Snowfall = () => {
               animationDuration: duration,
               animationDelay: delay,
               '--tw-translate-y': '110vh',
-              '--tw-translate-x': `${Math.random() * 20 - 10}px`
+              '--tw-translate-x': `${Math.random() * 40 - 20}px`,
+              transform: `rotate(${Math.random() * 360}deg)`
             }}
           ></div>
         );
@@ -33,8 +36,8 @@ const Snowfall = () => {
       <style jsx>{`
         @keyframes snowfall {
           to {
-            transform: translateY(var(--tw-translate-y)) translateX(var(--tw-translate-x));
-            opacity: 0.2;
+            transform: translateY(var(--tw-translate-y)) translateX(var(--tw-translate-x)) rotate(360deg);
+            opacity: 0;
           }
         }
       `}</style>
@@ -47,126 +50,123 @@ export default function LandingPage({ appName, logo, onSelectClient, onSelectSta
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
 
   return (
-    <div className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden font-sans bg-[#0a0a0a]">
-      
-      {/* 1. FONDO NEÓN + NIEVE */}
+    <div className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden font-sans bg-[#050505]">
+
+      {/* 1. FONDO ELEGANTE AÑO NUEVO */}
       <div className="absolute inset-0 z-0 overflow-hidden">
-        <div className="absolute top-[-20%] left-[-20%] w-[50%] h-[50%] bg-orange-600/30 blur-[100px] rotate-45 animate-pulse"></div>
-        <div className="absolute bottom-[-20%] right-[-20%] w-[50%] h-[50%] bg-purple-600/30 blur-[100px] rotate-[-45] animate-pulse"></div>
-        <div className="absolute top-[10%] right-[20%] w-[30%] h-[30%] bg-red-600/20 blur-[80px] animate-pulse delay-700"></div>
-         <div className="absolute bottom-[10%] left-[20%] w-[30%] h-[30%] bg-green-600/20 blur-[80px] animate-pulse delay-1000"></div>
+        <div className="absolute top-[-20%] left-[-20%] w-[50%] h-[50%] bg-yellow-600/20 blur-[120px] animate-pulse"></div>
+        <div className="absolute bottom-[-20%] right-[-20%] w-[50%] h-[50%] bg-blue-900/40 blur-[120px] animate-pulse delay-1000"></div>
+        <div className="absolute top-[20%] right-[10%] w-[20%] h-[20%] bg-purple-900/30 blur-[100px] animate-pulse delay-500"></div>
       </div>
-      <Snowfall />
-      
+      <Confetti />
+
       {/* BARRA SUPERIOR (HEADER) */}
-      <div className="absolute top-0 inset-x-0 h-16 z-20 flex items-center justify-between px-6 bg-gradient-to-b from-black/80 to-transparent border-b border-red-500/50 shadow-[0_5px_15px_-5px_rgba(220,38,38,0.5)]">
-          {/* Decoración izquierda */}
-          <div className="flex gap-2 text-green-500 drop-shadow-[0_0_5px_rgba(34,197,94,0.8)]">
-              <Trees size={20} /><Trees size={16} className="mt-1" />
-          </div>
+      <div className="absolute top-0 inset-x-0 h-16 z-20 flex items-center justify-between px-6 bg-gradient-to-b from-black/90 to-transparent border-b border-yellow-500/30 shadow-[0_5px_15px_-5px_rgba(234,179,8,0.2)]">
+        {/* Decoración izquierda */}
+        <div className="flex gap-2 text-yellow-400 drop-shadow-[0_0_8px_rgba(234,179,8,0.8)]">
+          <Sparkles size={20} className="animate-pulse" /><Star size={16} className="mt-1 animate-spin-slow" />
+        </div>
 
-          {/* BOTONES DERECHA */}
-          <div className="flex items-center gap-4">
-              
-              {/* --- BOTÓN CALCULADORA (PEQUEÑO) --- */}
-              <button 
-                onClick={() => setIsCalculatorOpen(true)}
-                className="group relative p-2 text-pink-400 hover:text-white transition-all hover:scale-110"
-                title="Cotizar Costo"
-              >
-                  <Calculator size={24} className="drop-shadow-[0_0_5px_rgba(236,72,153,0.8)]"/>
-              </button>
+        {/* BOTONES DERECHA */}
+        <div className="flex items-center gap-4">
 
-              {/* BOTÓN ADMIN */}
-              <button 
-                onClick={onSelectAdmin}
-                className="relative group p-2 text-gray-400 hover:text-white transition-all hover:scale-110"
-                title="Acceso Administrativo"
-              >
-                <div className="absolute -top-1 -right-1 transform rotate-12 text-red-600 drop-shadow-[0_0_2px_rgba(255,255,255,0.8)]">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C12 2 10 5 9 7C8 9 4 12 4 15C4 18 6 21 12 21C18 21 20 18 20 15C20 12 16 9 15 7C14 5 12 2 12 2Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="2" r="2" fill="white"/></svg>
-                </div>
-                <Settings size={24} className="group-hover:rotate-90 transition-transform duration-500 drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]"/>
-              </button>
-          </div>
+          {/* --- BOTÓN CALCULADORA (PEQUEÑO) --- */}
+          <button
+            onClick={() => setIsCalculatorOpen(true)}
+            className="group relative p-2 text-yellow-200 hover:text-white transition-all hover:scale-110"
+            title="Cotizar Costo"
+          >
+            <Calculator size={24} className="drop-shadow-[0_0_5px_rgba(253,224,71,0.8)]" />
+          </button>
+
+          {/* BOTÓN ADMIN */}
+          <button
+            onClick={onSelectAdmin}
+            className="relative group p-2 text-gray-400 hover:text-white transition-all hover:scale-110"
+            title="Acceso Administrativo"
+          >
+            <div className="absolute -top-1 -right-1 transform rotate-12 text-yellow-500 drop-shadow-[0_0_2px_rgba(255,255,255,0.8)]">
+              <Clock size={16} />
+            </div>
+            <Settings size={24} className="group-hover:rotate-90 transition-transform duration-500 drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]" />
+          </button>
+        </div>
       </div>
 
       {/* 3. CONTENIDO CENTRAL */}
       <div className="relative z-30 flex flex-col items-center w-full max-w-md px-6 text-center animate-in fade-in zoom-in duration-700 mt-16">
-        
+
         {/* LOGO CENTRAL */}
         <div className="mb-6 relative group">
-            <div className="absolute inset-0 bg-gradient-to-tr from-orange-500 to-purple-600 blur-3xl opacity-40 group-hover:opacity-60 transition-opacity duration-1000 rounded-full"></div>
-            <div className="relative w-32 h-32 bg-black/50 backdrop-blur-md border-2 border-orange-500/50 rounded-full flex items-center justify-center shadow-[0_0_30px_-5px_rgba(249,115,22,0.6)] p-4">
-                {logo ? (
-                    <img src={logo} alt="Logo" className="w-full h-full object-contain drop-shadow-lg" />
-                ) : (
-                    <ChefHat size={64} className="text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]" strokeWidth={1.5} />
-                )}
-            </div>
+          <div className="absolute inset-0 bg-gradient-to-tr from-yellow-500 to-amber-700 blur-3xl opacity-30 group-hover:opacity-50 transition-opacity duration-1000 rounded-full"></div>
+          <div className="relative w-32 h-32 bg-black/80 backdrop-blur-md border border-yellow-500/50 rounded-full flex items-center justify-center shadow-[0_0_40px_-5px_rgba(234,179,8,0.4)] p-4 ring-1 ring-yellow-400/30">
+            {logo ? (
+              <img src={logo} alt="Logo" className="w-full h-full object-contain drop-shadow-lg" />
+            ) : (
+              <ChefHat size={64} className="text-yellow-100 drop-shadow-[0_0_15px_rgba(234,179,8,0.5)]" strokeWidth={1.5} />
+            )}
+          </div>
         </div>
 
         {/* TÍTULO */}
         <div className="flex items-center justify-center gap-2 mb-2">
-            <Trees size={24} className="text-green-500 drop-shadow-[0_0_5px_rgba(34,197,94,0.8)]" />
-            <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-white to-purple-400 tracking-tight drop-shadow-[0_0_10px_rgba(255,255,255,0.4)] uppercase relative">
+          <PartyPopper size={28} className="text-yellow-500 drop-shadow-[0_0_10px_rgba(234,179,8,0.8)] -rotate-12" />
+          <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-white to-amber-200 tracking-tight drop-shadow-[0_0_15px_rgba(234,179,8,0.3)] uppercase relative">
             {appName || 'LicoBar'}
-            </h1>
-            <Trees size={24} className="text-green-500 drop-shadow-[0_0_5px_rgba(34,197,94,0.8)] scale-x-[-1]" />
+          </h1>
+          <Wine size={28} className="text-yellow-500 drop-shadow-[0_0_10px_rgba(234,179,8,0.8)] rotate-12" />
         </div>
-        <p className="text-sm text-orange-300/80 font-bold tracking-[0.3em] uppercase mb-10 flex items-center gap-2 before:h-px before:w-4 before:bg-orange-500 after:h-px after:w-4 after:bg-orange-500">
-          Sistema de Gestión Inteligente
+        <p className="text-sm text-yellow-600/80 font-bold tracking-[0.3em] uppercase mb-10 flex items-center gap-2 before:h-[1px] before:w-6 before:bg-yellow-700 after:h-[1px] after:w-6 after:bg-yellow-700">
+          Happy New Year 2026
         </p>
 
         {/* --- BOTONES DE ACCIÓN PRINCIPALES --- */}
         <div className="w-full space-y-4">
-            
-            {/* BOTÓN 1: CLIENTES */}
-            <button 
-                onClick={onSelectClient}
-                className="group w-full relative bg-black/40 text-white py-5 rounded-2xl font-black text-lg tracking-wide 
-                border-2 border-dashed border-orange-500/70 hover:border-red-500/80 transition-all duration-500
-                shadow-[0_0_20px_-5px_rgba(249,115,22,0.5),inset_0_0_15px_-5px_rgba(220,38,38,0.3)]
-                hover:shadow-[0_0_30px_-5px_rgba(220,38,38,0.7),inset_0_0_20px_-5px_rgba(249,115,22,0.5)]
-                active:scale-95 flex items-center justify-center gap-4 overflowing-hidden"
-            >
-                <div className="absolute top-[-8px] left-4 transform -rotate-12 text-red-600 drop-shadow-[0_0_2px_rgba(255,255,255,0.8)]">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C12 2 10 5 9 7C8 9 4 12 4 15C4 18 6 21 12 21C18 21 20 18 20 15C20 12 16 9 15 7C14 5 12 2 12 2Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="2" r="2" fill="white"/></svg>
-                </div>
-                <UtensilsCrossed size={24} className="text-orange-500 drop-shadow-[0_0_5px_rgba(249,115,22,0.8)]"/>
-                <span>VER MENÚ</span>
-                <Gift size={24} className="text-red-500 drop-shadow-[0_0_5px_rgba(220,38,38,0.8)] group-hover:rotate-12 transition-transform"/>
-            </button>
 
-            {/* BOTÓN 2: PERSONAL */}
-            <button 
-                onClick={onSelectStaff}
-                className="group w-full relative bg-black/40 text-white py-5 rounded-2xl font-bold text-lg tracking-widest uppercase 
-                border-2 border-dashed border-purple-500/70 hover:border-green-500/80 transition-all duration-500
-                shadow-[0_0_20px_-5px_rgba(168,85,247,0.5),inset_0_0_15px_-5px_rgba(34,197,94,0.3)]
-                hover:shadow-[0_0_30px_-5px_rgba(34,197,94,0.7),inset_0_0_20px_-5px_rgba(168,85,247,0.5)]
+          {/* BOTÓN 1: CLIENTES */}
+          <button
+            onClick={onSelectClient}
+            className="group w-full relative bg-black/60 text-white py-5 rounded-xl font-black text-lg tracking-wide 
+                border border-yellow-500/40 hover:border-yellow-400 transition-all duration-500
+                shadow-[0_0_20px_-5px_rgba(234,179,8,0.3)]
+                hover:shadow-[0_0_30px_-5px_rgba(234,179,8,0.6)]
+                active:scale-95 flex items-center justify-center gap-4 overflow-hidden"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-yellow-500/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+            <UtensilsCrossed size={24} className="text-yellow-400 drop-shadow-[0_0_5px_rgba(234,179,8,0.8)]" />
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-200">VER MENÚ</span>
+            <Sparkles size={24} className="text-yellow-200 drop-shadow-[0_0_5px_rgba(253,224,71,0.8)] group-hover:rotate-180 transition-transform duration-700" />
+          </button>
+
+          {/* BOTÓN 2: PERSONAL */}
+          <button
+            onClick={onSelectStaff}
+            className="group w-full relative bg-black/60 text-white py-5 rounded-xl font-bold text-lg tracking-widest uppercase 
+                border border-blue-500/40 hover:border-blue-400 transition-all duration-500
+                shadow-[0_0_20px_-5px_rgba(59,130,246,0.3)]
+                hover:shadow-[0_0_30px_-5px_rgba(59,130,246,0.6)]
                 active:scale-95 flex items-center justify-center gap-4"
-            >
-                 <div className="absolute top-[-8px] right-4 transform rotate-12 text-green-600 drop-shadow-[0_0_2px_rgba(255,255,255,0.8)]">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C12 2 10 5 9 7C8 9 4 12 4 15C4 18 6 21 12 21C18 21 20 18 20 15C20 12 16 9 15 7C14 5 12 2 12 2Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="2" r="2" fill="white"/></svg>
-                </div>
-                <User size={24} className="text-purple-400 drop-shadow-[0_0_5px_rgba(168,85,247,0.8)]" />
-                <span>PERSONAL</span>
-                <Gift size={24} className="text-green-500 drop-shadow-[0_0_5px_rgba(34,197,94,0.8)] group-hover:-rotate-12 transition-transform"/>
-            </button>
+          >
+            <div className="absolute top-[-8px] right-4 transform rotate-12 text-blue-500 drop-shadow-[0_0_2px_rgba(255,255,255,0.8)]">
+              <Clock size={16} />
+            </div>
+            <User size={24} className="text-blue-400 drop-shadow-[0_0_5px_rgba(96,165,250,0.8)]" />
+            <span className="text-gray-200">PERSONAL</span>
+            <Star size={24} className="text-blue-300 drop-shadow-[0_0_5px_rgba(147,197,253,0.8)] group-hover:scale-125 transition-transform" />
+          </button>
 
         </div>
       </div>
 
       {/* FOOTER */}
-      <div className="absolute bottom-6 text-white/30 text-[10px] uppercase font-bold tracking-[0.3em] z-30 flex items-center gap-2">
-        <Trees size={12} className="text-green-900" /> 2025 POWERED BY ZZIF SYSTEM <Trees size={12} className="text-green-900" />
+      <div className="absolute bottom-6 text-white/20 text-[10px] uppercase font-bold tracking-[0.3em] z-30 flex items-center gap-2">
+        <Star size={10} className="text-yellow-600" /> 2025 FESTIVE EDITION <Star size={10} className="text-yellow-600" />
       </div>
 
       {/* MODAL */}
-      <ServiceCalculatorModal 
-        isOpen={isCalculatorOpen} 
-        onClose={() => setIsCalculatorOpen(false)} 
+      <ServiceCalculatorModal
+        isOpen={isCalculatorOpen}
+        onClose={() => setIsCalculatorOpen(false)}
       />
     </div>
   );
