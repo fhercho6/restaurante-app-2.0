@@ -30,6 +30,4 @@ try {
   console.error("Error Firebase:", e);
 }
 
-export { auth, db, storage }; // [UPDATED]
-
-export { app, auth, db, firebaseConfig };
+export { app, auth, db, storage, firebaseConfig };
