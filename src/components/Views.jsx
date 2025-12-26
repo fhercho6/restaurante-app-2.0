@@ -280,7 +280,7 @@ export const CredentialPrintView = ({ member, appName }) => (
                     <p className="font-black text-lg tracking-widest text-gray-800">{member.pin || "****"}</p>
                 </div>
                 <div className="bg-white p-1 rounded-lg border border-gray-100 shadow-sm shrink-0">
-                    <QRCodeSVG value={member.pin || "0000"} size={54} level="M" fgColor="#000000" />
+                    <QRCodeSVG value={`AUTH:${member.id}:${member.pin}`} size={54} level="M" fgColor="#000000" />
                 </div>
             </div>
         </div>
