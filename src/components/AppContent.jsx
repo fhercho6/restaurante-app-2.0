@@ -683,9 +683,9 @@ export default function AppContent() {
                     {/* FOOTER */}
                     <div className={`fixed bottom-0 w-full p-1 text-[10px] text-center text-white ${dbStatus === 'connected' ? 'bg-green-600' : 'bg-red-600'}`}> {dbStatus === 'connected' ? 'Sistema Online' : 'Desconectado'} </div>
                 </>
-            )
+            )}
 
-{/* SHARED MODALS */}
+            {/* SHARED MODALS */}
             <OpenRegisterModal isOpen={isOpenRegisterModalOpen} onClose={() => { }} onOpenRegister={handleOpenRegister} />
             <PaymentModal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} total={orderToPay ? orderToPay.total : (pendingSale ? pendingSale.cart.reduce((acc, i) => acc + (i.price * i.qty), 0) : 0)} onConfirm={handleFinalizeSale} />
             <PrinterSettingsModal isOpen={isPrinterSettingsOpen} onClose={() => setIsPrinterSettingsOpen(false)} currentType={printerType} onSelect={onSavePrinterFormat} />
