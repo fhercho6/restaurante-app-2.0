@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Clock, User, ArrowLeft, Trash2, Edit2, Plus, Minus, Lock, LogIn, LogOut, Briefcase, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { QRCodeSVG } from 'qrcode.react';
 
 // --- TARJETA DE MENÚ (CLIENTE) ---
 export const MenuCard = ({ item }) => {
@@ -253,11 +254,14 @@ export const CredentialPrintView = ({ member, appName }) => (
                     <p className="text-sm text-gray-600 uppercase">{member.role}</p>
                 </div>
             </div>
-            <div className="flex justify-between items-end mt-2">
-                <div className="text-[10px] text-gray-400">ID: {member.id.slice(0, 8)}</div>
-                <div className="text-right">
+            <div className="flex justify-between items-end mt-4 pt-4 border-t border-gray-100">
+                <div>
+                    <div className="text-[10px] text-gray-400 font-bold mb-1">ID: {member.id.slice(0, 8)}</div>
                     <p className="text-[10px] uppercase font-bold text-orange-600">PIN DE ACCESO</p>
-                    <p className="font-black text-2xl tracking-widest">****</p>
+                    <p className="font-black text-xl tracking-widest text-gray-800">{member.pin || "****"}</p>
+                </div>
+                <div className="bg-white p-1 rounded-lg border border-gray-100 shadow-sm">
+                    <QRCodeSVG value={member.pin || "0000"} size={64} level="M" fgColor="#000000" />
                 </div>
             </div>
         </div>
