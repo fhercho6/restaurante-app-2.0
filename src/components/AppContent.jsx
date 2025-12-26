@@ -704,8 +704,19 @@ export default function AppContent() {
                                         }
                                     }
 
-                                    // 2. Default -> Normal Login
-                                    onStaffPinLogin(member);
+                                    // 2. YA REGISTRADO -> Comportamiento según Rol
+                                    // Si es Mesero/Cajero/Admin -> Entrar al sistema (POS/Caja)
+                                    // Si es Cocina/Otro -> Solo mostrar mensaje "Ya registrado"
+                                    const operationalRoles = ['Mesero', 'Garzon', 'Garzón', 'Cajero', 'Administrador'];
+
+                                    if (operationalRoles.includes(member.role)) {
+                                        onStaffPinLogin(member);
+                                    } else {
+                                        toast("📅 Ya registraste tu asistencia hoy.", {
+                                            icon: '✅',
+                                            style: { borderRadius: '10px', background: '#333', color: '#fff' }
+                                        });
+                                    }
                                 }}
                             />
                         )}
