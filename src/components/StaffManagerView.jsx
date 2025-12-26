@@ -1,8 +1,11 @@
 // src/components/StaffManagerView.jsx - VERSIÓN FINAL SEGURA (Sin Loader)
 import React, { useState } from 'react';
 // IMPORTANTE: Quitamos 'Loader' de los imports para evitar errores
-import { User, Plus, Printer, Edit2, Trash2, Shield, Settings, FolderOpen, Save, X, Banknote, CreditCard, UserCog } from 'lucide-react';
+import { User, Plus, Printer, Edit2, Trash2, Shield, Settings, FolderOpen, Save, X, Banknote, CreditCard, UserCog, Upload, Image as ImageIcon, Loader2 } from 'lucide-react';
 import StaffDocumentsModal from './StaffDocumentsModal';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '../config/firebase';
+import toast from 'react-hot-toast';
 
 export default function StaffManagerView({
   staff, roles,
@@ -40,6 +43,32 @@ export default function StaffManagerView({
 
   // --- ESTADO DE CARGA ---
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) { // 2MB Limit
+      toast.error("La imagen es muy pesada (Máx 2MB)");
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const storageRef = ref(storage, `staff_photos/${Date.now()}_${file.name}`);
+      const snapshot = await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+
+      setFormData(prev => ({ ...prev, photoUrl: downloadURL }));
+      toast.success("Foto subida correctamente");
+    } catch (error) {
+      console.error("Error upload:", error);
+      toast.error("Error al subir la imagen");
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const handleSubmitSafe = async (e) => {
     e.preventDefault();
@@ -125,8 +154,50 @@ export default function StaffManagerView({
               </div>
 
               <div className="md:col-span-2">
-                <label className="text-xs font-bold text-gray-500 uppercase mb-1.5 block">URL Foto (Opcional)</label>
-                <input type="url" placeholder="https://..." className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all font-medium text-gray-600 text-sm" value={formData.photoUrl || ''} onChange={e => setFormData({ ...formData, photoUrl: e.target.value })} disabled={isSaving} />
+                <label className="text-xs font-bold text-gray-500 uppercase mb-1.5 block">Foto de Perfil</label>
+                <div className="flex items-center gap-4">
+                  {/* PREVIEW */}
+                  <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-gray-200 bg-gray-50 flex items-center justify-center shrink-0">
+                    {formData.photoUrl ? (
+                      <img src={formData.photoUrl} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <User className="text-gray-300" size={32} />
+                    )}
+                    {isUploading && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                        <Loader2 className="animate-spin text-white" size={20} />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* UPLOAD BUTTON */}
+                  <div className="flex-1">
+                    <input
+                      type="file"
+                      id="photo-upload"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleImageUpload}
+                      disabled={isSaving || isUploading}
+                    />
+                    <label
+                      htmlFor="photo-upload"
+                      className={`flex items-center justify-center gap-2 w-full p-2.5 rounded-xl border border-dashed transition-all cursor-pointer ${isUploading ? 'bg-gray-100 border-gray-300 text-gray-400 cursor-wait' : 'bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100 hover:border-blue-300'}`}
+                    >
+                      <Upload size={18} />
+                      <span className="text-sm font-bold">{isUploading ? 'Subiendo...' : 'Subir Foto'}</span>
+                    </label>
+                    {formData.photoUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, photoUrl: '' })}
+                        className="text-[10px] text-red-500 font-bold mt-1 hover:underline flex items-center gap-1"
+                      >
+                        <Trash2 size={10} /> Quitar foto
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div>
