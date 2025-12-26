@@ -1,10 +1,8 @@
 // src/components/StaffManagerView.jsx - VERSIÓN FINAL SEGURA (Sin Loader)
 import React, { useState } from 'react';
 // IMPORTANTE: Quitamos 'Loader' de los imports para evitar errores
-import { User, Plus, Printer, Edit2, Trash2, Shield, Settings, FolderOpen, Save, X, Banknote, CreditCard, UserCog, Upload, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { User, Plus, Printer, Edit2, Trash2, Shield, Settings, FolderOpen, Save, X, Banknote, CreditCard, UserCog, Loader2 } from 'lucide-react';
 import StaffDocumentsModal from './StaffDocumentsModal';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage } from '../config/firebase';
 import toast from 'react-hot-toast';
 
 export default function StaffManagerView({
