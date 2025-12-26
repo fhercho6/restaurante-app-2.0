@@ -3,6 +3,7 @@ import { Users, Calendar, DollarSign, Clock, LayoutGrid, Search, ArrowLeft, Tras
 import { collection, query, orderBy, limit, getDocs, deleteDoc, doc, addDoc } from 'firebase/firestore'; // [UPDATED]
 import { db, ROOT_COLLECTION, isPersonalProject } from '../config/firebase';
 import { useData } from '../context/DataContext';
+import { useRegister } from '../context/RegisterContext';
 import StaffManagerView from './StaffManagerView';
 import toast from 'react-hot-toast';
 
@@ -69,6 +70,7 @@ export default function HRDashboardView({
     onBack
 }) {
     const { commissionTiers, handleSaveCommissionTiers } = useData();
+    const { registerSession } = useRegister();
     const [activeTab, setActiveTab] = useState('staff'); // 'staff', 'attendance', 'payroll'
     const [attendanceLog, setAttendanceLog] = useState([]);
     const [loadingAttendance, setLoadingAttendance] = useState(false);
