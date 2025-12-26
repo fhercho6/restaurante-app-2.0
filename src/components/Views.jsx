@@ -236,32 +236,32 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onClockAction, onCa
 
 // --- CREDENCIAL PARA IMPRIMIR ---
 export const CredentialPrintView = ({ member, appName }) => (
-    <div className="w-[350px] h-[200px] bg-white border border-gray-300 p-4 m-4 flex rounded-xl shadow-lg relative overflow-hidden print:shadow-none print:border-black print:m-0">
+    <div className="w-[350px] h-[210px] bg-white border border-gray-300 p-4 m-4 flex rounded-xl shadow-lg relative overflow-hidden print:shadow-none print:border-black print:m-0">
         <div className="absolute top-0 right-0 w-20 h-20 bg-orange-500 transform rotate-45 translate-x-10 -translate-y-10"></div>
-        <div className="z-10 flex flex-col justify-between w-full">
-            <div className="flex gap-4">
-                <div className="w-24 h-24 bg-gray-100 rounded-lg border-2 border-gray-200 flex items-center justify-center overflow-hidden">
+        <div className="z-10 flex flex-col justify-between w-full h-full">
+            <div className="flex gap-3 items-center">
+                <div className="w-20 h-20 bg-gray-100 rounded-lg border-2 border-gray-200 flex items-center justify-center overflow-hidden shrink-0">
                     {member.photoUrl ? (
                         <img src={member.photoUrl} alt="Staff" className="w-full h-full object-cover" />
                     ) : (
-                        <User size={48} className="text-gray-300" />
+                        <User size={40} className="text-gray-300" />
                     )}
                 </div>
-                <div>
-                    <h3 className="font-black text-xl uppercase leading-none text-gray-900 mb-1">{appName || 'LicoBar'}</h3>
-                    <p className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-4">Credencial Personal</p>
-                    <p className="font-bold text-lg leading-tight">{member.name}</p>
-                    <p className="text-sm text-gray-600 uppercase">{member.role}</p>
+                <div className="min-w-0">
+                    <h3 className="font-black text-lg uppercase leading-none text-gray-900 mb-0.5 truncate">{appName || 'LicoBar'}</h3>
+                    <p className="text-[9px] uppercase tracking-widest text-gray-500 font-bold mb-2">Credencial</p>
+                    <p className="font-bold text-base leading-tight truncate">{member.name}</p>
+                    <p className="text-xs text-gray-600 uppercase truncate">{member.role}</p>
                 </div>
             </div>
-            <div className="flex justify-between items-end mt-4 pt-4 border-t border-gray-100">
+            <div className="flex justify-between items-end mt-2 pt-2 border-t border-gray-100">
                 <div>
-                    <div className="text-[10px] text-gray-400 font-bold mb-1">ID: {member.id.slice(0, 8)}</div>
-                    <p className="text-[10px] uppercase font-bold text-orange-600">PIN DE ACCESO</p>
-                    <p className="font-black text-xl tracking-widest text-gray-800">{member.pin || "****"}</p>
+                    <div className="text-[9px] text-gray-400 font-bold mb-0.5">ID: {member.id.slice(0, 8)}</div>
+                    <p className="text-[9px] uppercase font-bold text-orange-600">PIN DE ACCESO</p>
+                    <p className="font-black text-lg tracking-widest text-gray-800">{member.pin || "****"}</p>
                 </div>
-                <div className="bg-white p-1 rounded-lg border border-gray-100 shadow-sm">
-                    <QRCodeSVG value={member.pin || "0000"} size={64} level="M" fgColor="#000000" />
+                <div className="bg-white p-1 rounded-lg border border-gray-100 shadow-sm shrink-0">
+                    <QRCodeSVG value={member.pin || "0000"} size={54} level="M" fgColor="#000000" />
                 </div>
             </div>
         </div>
