@@ -59,7 +59,7 @@ export const ProductModal = ({ isOpen, onClose, onSave, item, categories, items 
             setFormData(prev => ({ ...prev, image: downloadURL }));
         } catch (error) {
             console.error("Error uploading image:", error);
-            alert("Error al subir la imagen. Intenta de nuevo.");
+            alert(`Error al subir imagen: ${error.message}\nRevisa que Firebase Storage esté activado y las reglas permitan escritura.`);
         } finally {
             setIsUploading(false);
         }
