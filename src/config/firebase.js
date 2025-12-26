@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage'; // [ADDED]
 
 // 1. TUS LLAVES (Seguras en .env)
 const firebaseConfig = {
@@ -18,14 +19,17 @@ export const ROOT_COLLECTION = '';
 export const defaultAppId = 'default-app-id';
 
 // 3. INICIALIZACIÓN
-let app, auth, db;
+let app, auth, db, storage;
 
 try {
   app = initializeApp(firebaseConfig);
   auth = getAuth(app);
   db = getFirestore(app);
+  storage = getStorage(app); // [ADDED]
 } catch (e) {
   console.error("Error Firebase:", e);
 }
+
+export { auth, db, storage }; // [UPDATED]
 
 export { app, auth, db, firebaseConfig };
