@@ -124,7 +124,7 @@ export default function AppContent() {
         }
         return result;
     }, [items, filter, searchTerm]);
-    const isAdminMode = ['admin', 'report', 'staff_admin', 'cashier', 'register_control', 'maintenance', 'shift_history', 'hr_dashboard'].includes(view);
+    const isAdminMode = ['admin', 'report', 'staff_admin', 'cashier', 'register_control', 'maintenance', 'shift_history'].includes(view);
     const isCashierOnly = staffMember && staffMember.role === 'Cajero';
 
     // 4. Handler Adaptations
@@ -534,7 +534,7 @@ export default function AppContent() {
                                 {view === 'maintenance' && <EquipmentManager staff={staff} registerSession={registerSession} />}
                                 {view === 'shift_history' && !isCashierOnly && <ShiftHistory onReprint={(shift) => { setLastSale({ ...shift, type: 'z-report', businessName: appName, date: new Date(shift.closedAt).toLocaleString() }); setView('receipt_view'); }} />}
 
-                                {view === 'hr_dashboard' && <HRDashboardView staff={staff} onAddStaff={handleAddStaff} onUpdateStaff={handleUpdateStaff} onDeleteStaff={handleDeleteStaff} onManageRoles={() => setIsRoleModalOpen(true)} onPrintCredential={onPrintCredential} onBack={() => setView('admin')} />}
+
 
                                 {/* INVENTORY/ADMIN HOME */}
                                 {view === 'admin' && !isCashierOnly && (
