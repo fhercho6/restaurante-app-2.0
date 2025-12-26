@@ -1,6 +1,6 @@
 // src/components/Views.jsx - LOGIN FLUIDO Y SIN CONGELAMIENTOS
 import React, { useState } from 'react';
-import { Clock, User, ArrowLeft, Trash2, Edit2, Plus, Minus, Lock, LogIn, LogOut, Briefcase, Loader2 } from 'lucide-react';
+import { Clock, User, ArrowLeft, Trash2, Edit2, Plus, Minus, Lock, LogIn, LogOut, Briefcase, Loader2, Image as ImageIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -357,6 +357,15 @@ export const AdminRow = ({ item, onEdit, onDelete, isQuickEdit, onQuickUpdate, a
 
     return (
         <tr className="hover:bg-gray-50 transition-colors group">
+            <td className="p-4 text-center">
+                <div className="w-10 h-10 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center overflow-hidden mx-auto">
+                    {item.image ? (
+                        <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                    ) : (
+                        <div className="text-gray-300"><ImageIcon size={16} /></div>
+                    )}
+                </div>
+            </td>
             <td className="p-4"><div className="font-bold text-gray-900">{item.name}</div><div className="text-xs text-gray-500 uppercase">{item.category}</div></td>
             <td className="p-4 text-center">
                 {isQuickEdit && item.category !== 'Servicios' && !isVirtualStock ? (
