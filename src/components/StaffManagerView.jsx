@@ -11,7 +11,7 @@ export default function StaffManagerView({
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [currentMember, setCurrentMember] = useState(null);
-  const [formData, setFormData] = useState({ name: '', role: 'Garzón', pin: '', dailySalary: '', commissionEnabled: false });
+  const [formData, setFormData] = useState({ name: '', role: 'Garzón', pin: '', dailySalary: '', commissionEnabled: false, photoUrl: '' });
 
   // Commission Modal State
   const [isCommissionModalOpen, setIsCommissionModalOpen] = useState(false);
@@ -64,13 +64,20 @@ export default function StaffManagerView({
   };
 
   const resetForm = () => {
-    setFormData({ name: '', role: 'Garzón', pin: '', dailySalary: '', commissionEnabled: false });
+    setFormData({ name: '', role: 'Garzón', pin: '', dailySalary: '', commissionEnabled: false, photoUrl: '' });
     setIsEditing(false);
     setCurrentMember(null);
   };
 
   const handleEditClick = (member) => {
-    setFormData({ name: member.name, role: member.role, pin: member.pin, dailySalary: member.dailySalary || '', commissionEnabled: !!member.commissionEnabled });
+    setFormData({
+      name: member.name,
+      role: member.role,
+      pin: member.pin,
+      dailySalary: member.dailySalary || '',
+      commissionEnabled: !!member.commissionEnabled,
+      photoUrl: member.photoUrl || ''
+    });
     setCurrentMember(member);
     setIsEditing(true);
   };
@@ -115,6 +122,11 @@ export default function StaffManagerView({
                   <User className="absolute left-3 top-2.5 text-gray-400" size={18} />
                   <input type="text" placeholder="Ej. Juan Pérez" className="w-full pl-10 p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all font-medium text-gray-800" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} required disabled={isSaving} />
                 </div>
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="text-xs font-bold text-gray-500 uppercase mb-1.5 block">URL Foto (Opcional)</label>
+                <input type="url" placeholder="https://..." className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all font-medium text-gray-600 text-sm" value={formData.photoUrl || ''} onChange={e => setFormData({ ...formData, photoUrl: e.target.value })} disabled={isSaving} />
               </div>
 
               <div>

@@ -616,12 +616,17 @@ export default function AppContent() {
                             <div className="flex flex-col items-center w-full min-h-screen bg-gray-100 animate-in fade-in">
                                 {credentialToPrint ? (
                                     <>
-                                        <div className="w-full max-w-md p-4 flex justify-start no-print">
-                                            <button onClick={() => setView('hr_dashboard')} className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-lg shadow hover:bg-gray-50 font-bold transition-colors">
-                                                <ArrowLeft size={20} /> Volver a Personal
+                                        <div className="w-full p-4 flex justify-center gap-4 no-print fixed top-0 left-0 bg-white/80 backdrop-blur-md z-50 border-b border-gray-200">
+                                            <button onClick={() => setView('hr_dashboard')} className="flex items-center gap-2 px-6 py-2 bg-white text-gray-700 rounded-full border border-gray-300 shadow-sm hover:bg-gray-50 font-bold transition-all hover:scale-105">
+                                                <ArrowLeft size={18} /> Volver
+                                            </button>
+                                            <button onClick={() => window.print()} className="flex items-center gap-2 px-8 py-2 bg-black text-white rounded-full shadow-lg hover:bg-gray-800 font-bold transition-all hover:scale-105 hover:shadow-xl">
+                                                <Printer size={18} /> IMPRIMIR
                                             </button>
                                         </div>
-                                        <CredentialPrintView member={credentialToPrint} appName={appName} />
+                                        <div className="pt-24 scale-[1.3] transform origin-top"> {/* Scale up for better visibility */}
+                                            <CredentialPrintView member={credentialToPrint} appName={appName} />
+                                        </div>
                                     </>
                                 ) : (
                                     <div className="text-center p-8">

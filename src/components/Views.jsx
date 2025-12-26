@@ -240,7 +240,11 @@ export const CredentialPrintView = ({ member, appName }) => (
         <div className="z-10 flex flex-col justify-between w-full">
             <div className="flex gap-4">
                 <div className="w-24 h-24 bg-gray-100 rounded-lg border-2 border-gray-200 flex items-center justify-center overflow-hidden">
-                    <User size={48} className="text-gray-300" />
+                    {member.photoUrl ? (
+                        <img src={member.photoUrl} alt="Staff" className="w-full h-full object-cover" />
+                    ) : (
+                        <User size={48} className="text-gray-300" />
+                    )}
                 </div>
                 <div>
                     <h3 className="font-black text-xl uppercase leading-none text-gray-900 mb-1">{appName || 'LicoBar'}</h3>
