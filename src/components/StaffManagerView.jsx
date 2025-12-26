@@ -1,9 +1,11 @@
 // src/components/StaffManagerView.jsx - VERSIÓN FINAL SEGURA (Sin Loader)
 import React, { useState } from 'react';
 // IMPORTANTE: Quitamos 'Loader' de los imports para evitar errores
-import { User, Plus, Printer, Edit2, Trash2, Shield, Settings, FolderOpen, Save, X, Banknote, CreditCard, UserCog, Loader2 } from 'lucide-react';
+import { User, Plus, Printer, Edit2, Trash2, Shield, Settings, FolderOpen, Save, X, Banknote, CreditCard, UserCog, Loader2, Image as ImageIcon } from 'lucide-react';
 import StaffDocumentsModal from './StaffDocumentsModal';
 import toast from 'react-hot-toast';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '../config/firebase';
 
 export default function StaffManagerView({
   staff, roles,
@@ -41,6 +43,25 @@ export default function StaffManagerView({
 
   // --- ESTADO DE CARGA ---
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const storageRef = ref(storage, `staff/${Date.now()}_${file.name}`);
+      const snapshot = await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      setFormData(prev => ({ ...prev, photoUrl: downloadURL }));
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      alert(`Error al subir imagen: ${error.message}\nRevisa que Firebase Storage esté activado.`);
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const handleSubmitSafe = async (e) => {
     e.preventDefault();
@@ -126,10 +147,42 @@ export default function StaffManagerView({
               </div>
 
               <div className="md:col-span-2">
-                <label className="text-xs font-bold text-gray-500 uppercase mb-1.5 block">URL Foto (Opcional)</label>
-                <div className="relative">
-                  <input type="url" placeholder="https://..." className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all font-medium text-gray-600 text-sm" value={formData.photoUrl || ''} onChange={e => setFormData({ ...formData, photoUrl: e.target.value })} disabled={isSaving} />
-                  <p className="text-[10px] text-gray-400 mt-1">Pega aquí el enlace directo de la imagen (ej. PostImages, Imgur)</p>
+                <label className="text-xs font-bold text-gray-500 uppercase mb-1.5 block">Foto de Perfil</label>
+                <div className="flex gap-4 items-start">
+                  <div className="w-16 h-16 bg-gray-100 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden relative group shrink-0">
+                    {isUploading ? (
+                      <Loader2 className="animate-spin text-gray-400" size={20} />
+                    ) : formData.photoUrl ? (
+                      <>
+                        <img src={formData.photoUrl} alt="Staff" className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer" onClick={() => document.getElementById('staff-photo-upload').click()}>
+                          <Edit2 size={16} className="text-white" />
+                        </div>
+                      </>
+                    ) : (
+                      <label htmlFor="staff-photo-upload" className="cursor-pointer w-full h-full flex flex-col items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors">
+                        <ImageIcon size={20} />
+                      </label>
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <input
+                      id="staff-photo-upload"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleImageUpload}
+                    />
+                    <input
+                      type="url"
+                      placeholder="https://..."
+                      className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all font-medium text-gray-600 text-sm"
+                      value={formData.photoUrl || ''}
+                      onChange={e => setFormData({ ...formData, photoUrl: e.target.value })}
+                      disabled={isSaving}
+                    />
+                    <p className="text-[10px] text-gray-400 mt-1">Sube una foto o pega un enlace directo.</p>
+                  </div>
                 </div>
               </div>
 
@@ -200,10 +253,13 @@ export default function StaffManagerView({
                 {member.name.charAt(0)}
               </div>
               <div>
-                <h4 className="font-bold text-gray-800 text-lg leading-tight">{member.name}</h4>
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-gray-100 text-gray-500 border border-gray-200 mt-1">
-                  {member.role}
-                </span>
+                <h3 className="font-bold text-gray-900 text-lg leading-tight">{member.name}</h3>
+                <div className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase mt-0.5">
+                  <span>{member.role}</span>
+                  <span className="text-gray-300">•</span>
+                  <span className="font-mono text-gray-400 tracking-wider">PIN: {member.pin || '****'}</span>
+                </div>
+                {member.photoUrl && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full mt-1 border border-green-100"><ImageIcon size={10} /> Foto Cargada</span>}
               </div>
             </div>
 
