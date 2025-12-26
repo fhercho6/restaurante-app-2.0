@@ -23,7 +23,7 @@ import ShiftHistory from './ShiftHistory';
 import PrinterSettingsModal from './PrinterSettingsModal';
 import { AuthModal, BrandingModal, ProductModal, CategoryManager, RoleManager, TableManager, ExpenseTypeManager, ServiceStartModal, ExpenseModal } from './Modals';
 import ServiceCalculatorModal from './ServiceCalculatorModal';
-import { MenuCard, PinLoginView, CredentialPrintView, PrintableView, AdminRow } from './Views';
+import { MenuCard, PinLoginView, CredentialPrintView, PrintableView, AdminRow, AttendanceTicket } from './Views';
 
 // Hooks & Contexts
 
@@ -637,8 +637,78 @@ export default function AppContent() {
                             </div>
                         )}
 
+                        {/* ATTENDANCE TICKET VIEW */}
+                        {view === 'attendance_print' && lastSale && ( // Reusing lastSale to store attendance data temporarily
+                            <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 animate-in fade-in">
+                                <div className="bg-white p-8 rounded-xl shadow-2xl flex flex-col items-center gap-6">
+                                    <h2 className="text-2xl font-bold text-green-600 flex items-center gap-2"><Check size={32} /> ¡Asistencia Registrada!</h2>
+                                    <div className="scale-100 border border-gray-200 shadow-sm">
+                                        <AttendanceTicket data={lastSale} />
+                                    </div>
+                                    <div className="flex gap-4 w-full">
+                                        <button onClick={() => { setView('landing'); setLastSale(null); }} className="flex-1 py-3 bg-gray-100 rounded-xl font-bold text-gray-600 hover:bg-gray-200">
+                                            Volver
+                                        </button>
+                                        <button onClick={() => window.print()} className="flex-1 py-3 bg-black text-white rounded-xl font-bold hover:bg-gray-800 flex items-center justify-center gap-2">
+                                            <Printer size={20} /> Imprimir Ticket
+                                        </button>
+                                    </div>
+                                    <p className="text-xs text-gray-400">Imprimiendo ticket de control...</p>
+                                </div>
+                            </div>
+                        )}
+
                         {/* PIN LOGIN VIEW */}
-                        {view === 'pin_login' && <PinLoginView staffMembers={staff} onLoginSuccess={onStaffPinLogin} onClockAction={handleClockAction} onCancel={() => setView('landing')} />}
+                        {view === 'pin_login' && (
+                            <PinLoginView
+                                staffMembers={staff}
+                                onLoginSuccess={onStaffPinLogin}
+                                onClockAction={handleClockAction}
+                                onCancel={() => setView('landing')}
+                                onScan={async (member) => {
+                                    // GLOBAL AUTO-SCAN LOGIC
+                                    // 1. If Register Open -> Check Attendance
+                                    if (registerSession && registerSession.status === 'open') {
+                                        try {
+                                            const attColl = isPersonalProject ? 'attendance' : `${ROOT_COLLECTION}attendance`;
+                                            const q = query(collection(db, attColl), where('registerId', '==', registerSession.id), where('staffId', '==', member.id));
+                                            const snap = await getDocs(q);
+
+                                            if (snap.empty) {
+                                                // FIRST TIME TODAY -> CLOCK IN AND PRINT
+                                                toast.success(`¡Bienvenido, ${member.name}! Imprimiendo ticket...`);
+
+                                                // Create record directly here or via context
+                                                const record = {
+                                                    staffId: member.id,
+                                                    staffName: member.name,
+                                                    registerId: registerSession.id,
+                                                    role: member.role,
+                                                    timestamp: new Date().toISOString(),
+                                                    dailySalary: parseFloat(member.dailySalary || 0),
+                                                    type: 'clock-in'
+                                                };
+
+                                                await addDoc(collection(db, attColl), record);
+
+                                                // Show Ticket View
+                                                setLastSale(record); // Using lastSale slot for convenience
+                                                setView('attendance_print');
+
+                                                // Auto Print after delay
+                                                setTimeout(() => window.print(), 500);
+                                                return;
+                                            }
+                                        } catch (e) {
+                                            console.error("Auto Checkin Error", e);
+                                        }
+                                    }
+
+                                    // 2. Default -> Normal Login
+                                    onStaffPinLogin(member);
+                                }}
+                            />
+                        )}
 
                         {/* POS VIEW */}
                         {view === 'pos' && (

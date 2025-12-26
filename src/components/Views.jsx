@@ -253,6 +253,42 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onClockAction, onCa
     );
 };
 
+// --- TICKET DE ASISTENCIA ---
+export const AttendanceTicket = ({ data }) => (
+    <div className="w-[300px] p-6 bg-white font-mono text-xs leading-relaxed text-black/90">
+        <div className="text-center border-b-2 border-dashed border-black/20 pb-4 mb-4">
+            <h2 className="text-xl font-black uppercase tracking-wider mb-1">REGISTRO DE CONTROL</h2>
+            <p className="font-bold text-base text-gray-600 mb-2">{new Date(data.timestamp).toLocaleString()}</p>
+            <div className="bg-black text-white px-2 py-1 rounded inline-block font-bold mt-1">TURNO #{data.registerId.slice(-4)}</div>
+        </div>
+
+        <div className="space-y-4">
+            <div className="flex justify-between items-end">
+                <span className="text-gray-500 uppercase font-bold text-[10px]">Empleado</span>
+                <span className="text-xl font-black">{data.staffName}</span>
+            </div>
+            <div className="flex justify-between border-b border-gray-100 pb-2">
+                <span className="text-gray-500 uppercase font-bold text-[10px]">Rol / Cargo</span>
+                <span className="font-bold">{data.role}</span>
+            </div>
+            <div className="flex justify-between">
+                <span className="text-gray-500 uppercase font-bold text-[10px]">Evento</span>
+                <span className="font-bold uppercase flex items-center gap-1">
+                    <LogIn size={12} /> ENTRADA
+                </span>
+            </div>
+        </div>
+
+        <div className="mt-12 pt-4 border-t-2 border-black">
+            <p className="text-center font-bold text-[10px] uppercase text-gray-400 mb-8">Firma del Empleado</p>
+        </div>
+
+        <div className="text-center text-[8px] text-gray-300 font-bold uppercase tracking-widest">
+            Documento de Control Interno
+        </div>
+    </div>
+);
+
 // --- CREDENCIAL PARA IMPRIMIR ---
 export const CredentialPrintView = ({ member, appName }) => (
     <div className="w-[350px] h-[210px] bg-white border border-gray-300 p-4 m-4 flex rounded-xl shadow-lg relative overflow-hidden print:shadow-none print:border-black print:m-0">
