@@ -1,4 +1,3 @@
-```javascript
 // src/components/Modals.jsx - DISEÑO PREMIUM + GASTOS MEJORADO
 import React, { useState, useEffect } from 'react';
 import { X, Upload, Save, Trash2, Plus, Edit2, Check, LayoutGrid, DollarSign, FileText, ChevronDown, Loader2, Image as ImageIcon } from 'lucide-react';
@@ -54,7 +53,7 @@ export const ProductModal = ({ isOpen, onClose, onSave, item, categories, items 
 
         setIsUploading(true);
         try {
-            const storageRef = ref(storage, `products / ${ Date.now() }_${ file.name } `);
+            const storageRef = ref(storage, `products/${Date.now()}_${file.name}`);
             const snapshot = await uploadBytes(storageRef, file);
             const downloadURL = await getDownloadURL(snapshot.ref);
             setFormData(prev => ({ ...prev, image: downloadURL }));
@@ -132,7 +131,7 @@ export const ProductModal = ({ isOpen, onClose, onSave, item, categories, items 
                                         const itemCost = originalItem ? (parseFloat(originalItem.cost) || 0) : 0;
                                         return (
                                             <div key={idx} className="flex justify-between items-center bg-white p-2 rounded border border-orange-100 shadow-sm text-sm">
-                                                <span className="font-bold text-gray-700">{r.qty}x {r.name} <span className="text-xs text-gray-400 font-normal">({itemCost > 0 ? `Costo: ${ itemCost * r.qty } ` : 'Sin Costo'})</span></span>
+                                                <span className="font-bold text-gray-700">{r.qty}x {r.name} <span className="text-xs text-gray-400 font-normal">({itemCost > 0 ? `Costo: ${itemCost * r.qty} ` : 'Sin Costo'})</span></span>
                                                 <button type="button" onClick={() => removeIngredient(idx)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 size={14} /></button>
                                             </div>
                                         );
@@ -173,12 +172,12 @@ export const ProductModal = ({ isOpen, onClose, onSave, item, categories, items 
                             <div className="w-1/2"><label className="label-input">Stock Inicial</label><input name="stock" type="number" className="input-field font-mono" placeholder="0" value={formData.stock} onChange={handleChange} /></div>
                         </div>
                     )}
-                    
+
                     {/* IMAGE UPLOAD SECTION */}
                     <div>
                         <label className="label-input">Imagen del Producto</label>
                         <div className="flex gap-4 items-start">
-                             <div className="w-24 h-24 bg-gray-100 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden relative group">
+                            <div className="w-24 h-24 bg-gray-100 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden relative group">
                                 {isUploading ? (
                                     <Loader2 className="animate-spin text-gray-400" />
                                 ) : formData.image ? (
@@ -196,30 +195,30 @@ export const ProductModal = ({ isOpen, onClose, onSave, item, categories, items 
                                 )}
                             </div>
                             <div className="flex-1 space-y-2">
-                                <input 
-                                    id="file-upload" 
-                                    type="file" 
-                                    accept="image/*" 
-                                    className="hidden" 
-                                    onChange={handleImageUpload} 
+                                <input
+                                    id="file-upload"
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={handleImageUpload}
                                 />
-                                <input 
-                                    name="image" 
-                                    className="input-field text-xs text-gray-500" 
-                                    placeholder="O pega una URL..." 
-                                    value={formData.image} 
-                                    onChange={handleChange} 
+                                <input
+                                    name="image"
+                                    className="input-field text-xs text-gray-500"
+                                    placeholder="O pega una URL..."
+                                    value={formData.image}
+                                    onChange={handleChange}
                                 />
                                 <p className="text-[10px] text-gray-400 leading-tight">
                                     Sube una foto desde tu equipo o pega un enlace directo.
-                                    <br/>Formatos: JPG, PNG, WEBP.
+                                    <br />Formatos: JPG, PNG, WEBP.
                                 </p>
                             </div>
                         </div>
                     </div>
 
                     <button type="submit" disabled={isUploading} className="w-full py-4 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl shadow-lg shadow-orange-200 transition-all active:scale-95 flex items-center justify-center gap-2 mt-4 disabled:opacity-50 disabled:cursor-not-allowed">
-                        {isUploading ? <Loader2 className="animate-spin" /> : <Save size={20} />} 
+                        {isUploading ? <Loader2 className="animate-spin" /> : <Save size={20} />}
                         GUARDAR PRODUCTO
                     </button>
                 </form>
@@ -478,7 +477,7 @@ export const ServiceStartModal = ({ isOpen, onClose, services, onStart, occupied
             <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
                 <div className="bg-purple-600 p-4 text-white flex justify-between items-center"><h3 className="font-bold">Iniciar Servicio</h3><button onClick={onClose}><X size={20} /></button></div>
                 <div className="p-4 space-y-4">
-                    <div><label className="block text-xs font-bold text-gray-500 uppercase mb-2">Selecciona Servicio</label><div className="grid grid-cols-2 gap-2">{services.map(srv => (<button key={srv.id} onClick={() => setSelectedService(srv)} className={`p - 3 rounded - xl border text - sm font - bold transition - all text - left ${ selectedService?.id === srv.id ? 'border-purple-600 bg-purple-50 text-purple-700 ring-2 ring-purple-200' : 'border-gray-200 hover:border-gray-300' } `}>{srv.name}<span className="block text-[10px] text-gray-400 font-normal">Bs. {srv.price}/hr</span></button>))}</div></div>
+                    <div><label className="block text-xs font-bold text-gray-500 uppercase mb-2">Selecciona Servicio</label><div className="grid grid-cols-2 gap-2">{services.map(srv => (<button key={srv.id} onClick={() => setSelectedService(srv)} className={`p - 3 rounded - xl border text - sm font - bold transition - all text - left ${selectedService?.id === srv.id ? 'border-purple-600 bg-purple-50 text-purple-700 ring-2 ring-purple-200' : 'border-gray-200 hover:border-gray-300'} `}>{srv.name}<span className="block text-[10px] text-gray-400 font-normal">Bs. {srv.price}/hr</span></button>))}</div></div>
                     <div><label className="block text-xs font-bold text-gray-500 uppercase mb-2">Ubicación / Mesa</label><input placeholder="Ej. Mesa 1, VIP..." className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-purple-500" value={note} onChange={e => setNote(e.target.value)} /></div>
                     {occupiedLocations.includes(note) && note && <p className="text-xs text-red-500 font-bold">⚠️ Esta ubicación parece ocupada.</p>}
                     <button disabled={!selectedService || !note} onClick={() => onStart(selectedService, note)} className="w-full py-3 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg transition-transform active:scale-95">INICIAR CRONÓMETRO</button>
@@ -504,7 +503,7 @@ export const ExpenseModal = ({ isOpen, onClose, onSave, expenseTypes }) => {
 
     const handleSubmit = () => {
         if (amount) {
-            const finalDesc = selectedType + (detail ? ` - ${ detail } ` : '');
+            const finalDesc = selectedType + (detail ? ` - ${detail} ` : '');
             onSave(finalDesc, parseFloat(amount));
             setDetail('');
             setAmount('');
