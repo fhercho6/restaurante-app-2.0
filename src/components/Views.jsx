@@ -115,6 +115,25 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onClockAction, onCa
         if (!isProcessing) setPin(prev => prev.slice(0, -1));
     };
 
+    // SOPORTE PARA LECTOR DE CÓDIGO (TECLADO FÍSICO)
+    React.useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (isProcessing) return;
+
+            // Números 0-9
+            if (/^[0-9]$/.test(e.key)) {
+                handleNumClick(e.key);
+            }
+            // Borrar
+            else if (e.key === 'Backspace') {
+                handleDelete();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [pin, isProcessing, selectedStaff, mode, showAttendanceOptions]); // Dependencias clave
+
     return (
         <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 animate-in zoom-in duration-300 transition-colors ${mode === 'attendance' ? 'bg-blue-900/95 backdrop-blur-xl' : 'bg-black/90 backdrop-blur-xl'}`}>
             <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[85vh]">
