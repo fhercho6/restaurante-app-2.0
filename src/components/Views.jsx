@@ -312,8 +312,7 @@ export const CredentialPrintView = ({ member, appName }) => (
             <div className="flex justify-between items-end mt-2 pt-2 border-t border-gray-100">
                 <div>
                     <div className="text-[9px] text-gray-400 font-bold mb-0.5">ID: {member.id.slice(0, 8)}</div>
-                    <p className="text-[9px] uppercase font-bold text-orange-600">PIN DE ACCESO</p>
-                    <p className="font-black text-lg tracking-widest text-gray-800">{member.pin || "****"}</p>
+                    <p className="text-[9px] uppercase font-bold text-gray-400 mt-1">ACCESO SEGURO</p>
                 </div>
                 <div className="bg-white p-1 rounded-lg border border-gray-100 shadow-sm shrink-0">
                     <QRCodeSVG value={`AUTH:${member.id}:${member.pin}`} size={54} level="M" fgColor="#000000" />

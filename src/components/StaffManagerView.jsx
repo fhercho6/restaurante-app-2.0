@@ -249,8 +249,12 @@ export default function StaffManagerView({
           <div key={member.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-all group flex flex-col md:flex-row items-center gap-4">
             {/* Avatar & Name */}
             <div className="flex items-center gap-4 w-full md:w-1/3">
-              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-lg font-black shadow-inner ${member.role === 'Administrador' ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}>
-                {member.name.charAt(0)}
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-lg font-black shadow-inner overflow-hidden ${member.role === 'Administrador' ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}>
+                {member.photoUrl ? (
+                  <img src={member.photoUrl} alt={member.name} className="w-full h-full object-cover" />
+                ) : (
+                  member.name.charAt(0)
+                )}
               </div>
               <div>
                 <h3 className="font-bold text-gray-900 text-lg leading-tight">{member.name}</h3>
