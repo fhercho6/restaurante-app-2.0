@@ -1,9 +1,62 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Calendar, DollarSign, Clock, LayoutGrid, Search, ArrowLeft } from 'lucide-react';
-import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
+import { Users, Calendar, DollarSign, Clock, LayoutGrid, Search, ArrowLeft, Trash2, Plus } from 'lucide-react';
+import { collection, query, orderBy, limit, getDocs, deleteDoc, doc, addDoc } from 'firebase/firestore'; // [UPDATED]
 import { db, ROOT_COLLECTION, isPersonalProject } from '../config/firebase';
 import { useData } from '../context/DataContext';
 import StaffManagerView from './StaffManagerView';
+import toast from 'react-hot-toast';
+
+// Simple Modal for Manual Attendance
+const AddAttendanceModal = ({ isOpen, onClose, staff, onSave }) => {
+    const [selectedStaffId, setSelectedStaffId] = useState('');
+    const [type, setType] = useState('clock-in');
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in">
+            <div className="bg-white w-full max-w-sm rounded-xl shadow-2xl p-6">
+                <h3 className="font-bold text-lg mb-4">Agregar Asistencia Manual</h3>
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Empleado</label>
+                        <select
+                            className="w-full p-2 border border-gray-200 rounded-lg bg-gray-50"
+                            value={selectedStaffId}
+                            onChange={(e) => setSelectedStaffId(e.target.value)}
+                        >
+                            <option value="">Seleccionar...</option>
+                            {staff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tipo de Evento</label>
+                        <select
+                            className="w-full p-2 border border-gray-200 rounded-lg bg-gray-50"
+                            value={type}
+                            onChange={(e) => setType(e.target.value)}
+                        >
+                            <option value="clock-in">Entrada</option>
+                            <option value="clock-out">Salida</option>
+                        </select>
+                    </div>
+                    <button
+                        disabled={!selectedStaffId}
+                        onClick={() => {
+                            const member = staff.find(s => s.id === selectedStaffId);
+                            onSave(member, type);
+                            onClose();
+                        }}
+                        className="w-full py-3 bg-black text-white font-bold rounded-lg hover:opacity-80 disabled:opacity-50"
+                    >
+                        GUARDAR REGISTRO
+                    </button>
+                    <button onClick={onClose} className="w-full py-2 text-gray-400 font-bold hover:text-gray-600">CANCELAR</button>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 export default function HRDashboardView({
     staff,
@@ -19,6 +72,7 @@ export default function HRDashboardView({
     const [activeTab, setActiveTab] = useState('staff'); // 'staff', 'attendance', 'payroll'
     const [attendanceLog, setAttendanceLog] = useState([]);
     const [loadingAttendance, setLoadingAttendance] = useState(false);
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
     // Fetch attendance when tab is active
     useEffect(() => {
@@ -39,6 +93,39 @@ export default function HRDashboardView({
             console.error("Error loading attendance:", error);
         } finally {
             setLoadingAttendance(false);
+        }
+    };
+
+    const handleDeleteAttendance = async (id) => {
+        if (!window.confirm("¿Estás seguro de eliminar este registro?")) return;
+        try {
+            const collName = isPersonalProject ? 'attendance' : `${ROOT_COLLECTION}attendance`;
+            await deleteDoc(doc(db, collName, id));
+            toast.success("Registro eliminado");
+            loadAttendance();
+        } catch (error) {
+            toast.error("Error al eliminar");
+            console.error(error);
+        }
+    };
+
+    const handleAddManual = async (member, type) => {
+        try {
+            const collName = isPersonalProject ? 'attendance' : `${ROOT_COLLECTION}attendance`;
+            await addDoc(collection(db, collName), {
+                staffId: member.id,
+                staffName: member.name,
+                registerId: 'MANUAL',
+                role: member.role,
+                timestamp: new Date().toISOString(),
+                dailySalary: parseFloat(member.dailySalary || 0),
+                type: type
+            });
+            toast.success("Registro agregado manualmente");
+            loadAttendance();
+        } catch (error) {
+            toast.error("Error al crear registro");
+            console.error(error);
         }
     };
 
@@ -107,8 +194,13 @@ export default function HRDashboardView({
                 {activeTab === 'attendance' && (
                     <div className="space-y-6 animate-in slide-in-from-bottom-2">
                         <div className="flex justify-between items-center">
-                            <h2 className="text-xl font-bold text-gray-800">Registro de Asistencia</h2>
-                            <button onClick={loadAttendance} className="text-sm text-blue-600 font-bold hover:underline">Actualizar</button>
+                            <h2 className="text-xl font-bold text-gray-800">Historial de Asistencia</h2>
+                            <div className="flex gap-2">
+                                <button onClick={() => setIsAddModalOpen(true)} className="px-4 py-2 bg-black text-white rounded-lg text-sm font-bold hover:bg-gray-800 flex items-center gap-2">
+                                    <Plus size={16} /> Agregar Manual
+                                </button>
+                                <button onClick={loadAttendance} className="text-sm text-blue-600 font-bold hover:underline px-2">Actualizar</button>
+                            </div>
                         </div>
 
                         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -118,15 +210,16 @@ export default function HRDashboardView({
                                         <th className="p-4">Fecha y Hora</th>
                                         <th className="p-4">Empleado</th>
                                         <th className="p-4">Evento</th>
-                                        <th className="p-4 text-right">Detalle</th>
+                                        <th className="p-4 text-right">Origen</th>
+                                        <th className="p-4 text-center">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
                                     {loadingAttendance ? (
-                                        <tr><td colSpan="4" className="p-8 text-center text-gray-400">Cargando registros...</td></tr>
+                                        <tr><td colSpan="5" className="p-8 text-center text-gray-400">Cargando registros...</td></tr>
                                     ) : attendanceLog.length > 0 ? (
                                         attendanceLog.map(log => (
-                                            <tr key={log.id} className="hover:bg-gray-50 transition-colors">
+                                            <tr key={log.id} className="hover:bg-gray-50 transition-colors group">
                                                 <td className="p-4 text-sm font-mono text-gray-600">{formatDate(log.timestamp)}</td>
                                                 <td className="p-4 font-bold text-gray-800">{log.staffName}</td>
                                                 <td className="p-4">
@@ -135,12 +228,21 @@ export default function HRDashboardView({
                                                     </span>
                                                 </td>
                                                 <td className="p-4 text-right text-xs text-gray-400 font-mono">
-                                                    ID: {log.registerId ? log.registerId.slice(-4) : 'N/A'}
+                                                    {log.registerId === 'MANUAL' ? 'MANUAL' : (log.registerId ? `Turno #${log.registerId.slice(-4)}` : 'N/A')}
+                                                </td>
+                                                <td className="p-4 text-center">
+                                                    <button
+                                                        onClick={() => handleDeleteAttendance(log.id)}
+                                                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg opacity-50 group-hover:opacity-100 transition-all"
+                                                        title="Eliminar Registro"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
                                                 </td>
                                             </tr>
                                         ))
                                     ) : (
-                                        <tr><td colSpan="4" className="p-8 text-center text-gray-400">No hay registros de asistencia recientes.</td></tr>
+                                        <tr><td colSpan="5" className="p-8 text-center text-gray-400">No hay registros de asistencia recientes.</td></tr>
                                     )}
                                 </tbody>
                             </table>
@@ -148,6 +250,13 @@ export default function HRDashboardView({
                     </div>
                 )}
             </main>
+
+            <AddAttendanceModal
+                isOpen={isAddModalOpen}
+                onClose={() => setIsAddModalOpen(false)}
+                staff={staff}
+                onSave={handleAddManual}
+            />
         </div>
     );
 }
