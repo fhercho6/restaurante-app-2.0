@@ -560,7 +560,29 @@ export default function AppContent() {
                                 )}
 
                                 {/* OTHER ADMIN VIEWS */}
-                                {view === 'register_control' && <RegisterControlView session={registerSession} onOpen={handleOpenRegister} onClose={handleCloseRegisterAction} staff={staff} stats={sessionStats} onAddExpense={handleAddExpenseWithReceipt} onDeleteExpense={deleteExpense} />}
+                                {/* OTHER ADMIN VIEWS */}
+                                {view === 'register_control' && <RegisterControlView
+                                    session={registerSession}
+                                    onOpen={handleOpenRegister}
+                                    onClose={handleCloseRegisterAction}
+                                    staff={staff}
+                                    stats={sessionStats}
+                                    onAddExpense={handleAddExpenseWithReceipt}
+                                    onDeleteExpense={deleteExpense}
+                                    onReprintExpense={(ex) => {
+                                        const expenseReceipt = {
+                                            type: 'expense',
+                                            businessName: appName,
+                                            date: new Date(ex.date).toLocaleString(),
+                                            staffName: ex.createdBy || 'Admin',
+                                            description: ex.description,
+                                            amount: ex.amount,
+                                            autoPrint: true
+                                        };
+                                        setLastSale(expenseReceipt);
+                                        setView('receipt_view');
+                                    }}
+                                />}
                                 {view === 'maintenance' && <EquipmentManager staff={staff} registerSession={registerSession} />}
                                 {view === 'shift_history' && !isCashierOnly && <ShiftHistory onReprint={(shift) => { setLastSale({ ...shift, type: 'z-report', businessName: appName, date: new Date(shift.closedAt).toLocaleString() }); setView('receipt_view'); }} />}
 

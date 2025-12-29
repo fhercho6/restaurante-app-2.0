@@ -1,8 +1,8 @@
 // src/components/RegisterControlView.jsx
 import React, { useState } from 'react';
-import { Lock, Unlock, DollarSign, Clock, User, AlertTriangle, CheckCircle, Wallet, Users, TrendingDown, TrendingUp, Plus, Trash2 } from 'lucide-react';
+import { Lock, Unlock, DollarSign, Clock, User, AlertTriangle, CheckCircle, Wallet, Users, TrendingDown, TrendingUp, Plus, Trash2, Printer } from 'lucide-react';
 
-const RegisterControlView = ({ session, onOpen, onClose, staff, stats, onAddExpense, onDeleteExpense }) => {
+const RegisterControlView = ({ session, onOpen, onClose, staff, stats, onAddExpense, onDeleteExpense, onReprintExpense }) => {
     const [amount, setAmount] = useState('');
     const [selectedStaff, setSelectedStaff] = useState([]);
 
@@ -130,11 +130,10 @@ const RegisterControlView = ({ session, onOpen, onClose, staff, stats, onAddExpe
 
                     {session ? (
                         <>
-                            {/* Formulario de Gastos */}
                             {/* Lista de Gastos */}
                             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                                 <div className="bg-gray-50 px-5 py-3 border-b border-gray-200 flex justify-between">
-                                    <h3 className="font-bold text-gray-700 text-sm">Movimientos Registrados</h3>
+                                    <h3 className="font-bold text-gray-700 text-sm">Gastos del Turno</h3>
                                     <span className="text-xs text-gray-500">{stats.expensesList.length} registros</span>
                                 </div>
                                 <div className="max-h-64 overflow-y-auto">
@@ -148,8 +147,19 @@ const RegisterControlView = ({ session, onOpen, onClose, staff, stats, onAddExpe
                                                         <td className="px-5 py-3 text-gray-600">{new Date(ex.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
                                                         <td className="px-5 py-3 font-medium text-gray-800">{ex.description}</td>
                                                         <td className="px-5 py-3 text-right font-bold text-red-600">- Bs. {ex.amount.toFixed(2)}</td>
-                                                        <td className="px-5 py-3 text-right w-10">
-                                                            <button onClick={() => onDeleteExpense(ex.id)} className="text-gray-400 hover:text-red-500"><Trash2 size={16} /></button>
+                                                        <td className="px-5 py-3 text-right w-24 flex items-center justify-end gap-2">
+                                                            <button onClick={() => onReprintExpense && onReprintExpense(ex)} className="text-gray-400 hover:text-blue-500" title="Reimprimir"><Printer size={16} /></button>
+                                                            <button
+                                                                onClick={() => {
+                                                                    if (window.confirm('¿Estás seguro de eliminar este gasto?')) {
+                                                                        onDeleteExpense(ex.id);
+                                                                    }
+                                                                }}
+                                                                className="text-gray-400 hover:text-red-500"
+                                                                title="Eliminar"
+                                                            >
+                                                                <Trash2 size={16} />
+                                                            </button>
                                                         </td>
                                                     </tr>
                                                 ))}
