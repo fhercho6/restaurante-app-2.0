@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Clock, User, ArrowLeft, Trash2, Edit2, Plus, Minus, Lock, LogIn, LogOut, Briefcase, Loader2, Image as ImageIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { QRCodeSVG } from 'qrcode.react';
+import Barcode from 'react-barcode';
 
 // --- TARJETA DE MENÚ (CLIENTE) ---
 export const MenuCard = ({ item }) => {
@@ -127,12 +128,12 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onClockAction, onCa
             // Los scanners suelen mandar todo muy rápido.
             if (e.key.length === 1) {
                 buffer += e.key;
-                
+
                 // Reiniciamos el buffer si pasa mucho tiempo sin teclas (no es un scanner)
                 clearTimeout(timeout);
                 timeout = setTimeout(() => {
                     buffer = '';
-                }, 100); 
+                }, 100);
             }
 
             // 2. DETECTAR ENTER (Fin del escaneo)
@@ -147,7 +148,7 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onClockAction, onCa
 
                         // Buscar empleado
                         const staff = staffMembers.find(m => m.id === scannedId);
-                        
+
                         if (staff) {
                             if (staff.pin === scannedPin) {
                                 setIsProcessing(true);
@@ -164,14 +165,14 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onClockAction, onCa
                     buffer = ''; // Limpiar tras procesar
                     return;
                 }
-                
+
                 // Si no fue escaneo, quizas fue enter manual (no hacemos nada por ahora en el teclado numérico)
-                buffer = ''; 
+                buffer = '';
             }
 
             // 3. COMPORTAMIENTO ORIGINAL (SOLO NÚMEROS MANUALES)
             // Si el buffer está vacío o corto, permitimos interacción manual
-            if (buffer.length < 2) { 
+            if (buffer.length < 2) {
                 // Números 0-9
                 if (/^[0-9]$/.test(e.key)) {
                     handleNumClick(e.key);
@@ -347,33 +348,41 @@ export const AttendanceTicket = ({ data }) => (
 
 // --- CREDENCIAL PARA IMPRIMIR ---
 export const CredentialPrintView = ({ member, appName }) => (
-    <div className="w-[350px] h-[210px] bg-white border border-gray-300 p-4 m-4 flex rounded-xl shadow-lg relative overflow-hidden print:shadow-none print:border-black print:m-0">
+    <div className="w-[350px] h-[240px] bg-white border border-gray-300 p-4 m-4 flex flex-col rounded-xl shadow-lg relative overflow-hidden print:shadow-none print:border-black print:m-0">
         <div className="absolute top-0 right-0 w-20 h-20 bg-orange-500 transform rotate-45 translate-x-10 -translate-y-10"></div>
-        <div className="z-10 flex flex-col justify-between w-full h-full">
-            <div className="flex gap-3 items-center">
-                <div className="w-20 h-20 bg-gray-100 rounded-lg border-2 border-gray-200 flex items-center justify-center overflow-hidden shrink-0">
-                    {member.photoUrl ? (
-                        <img src={member.photoUrl} alt="Staff" className="w-full h-full object-cover" />
-                    ) : (
-                        <User size={40} className="text-gray-300" />
-                    )}
-                </div>
-                <div className="min-w-0">
-                    <h3 className="font-black text-lg uppercase leading-none text-gray-900 mb-0.5 truncate">{appName || 'LicoBar'}</h3>
-                    <p className="text-[9px] uppercase tracking-widest text-gray-500 font-bold mb-2">Credencial</p>
-                    <p className="font-bold text-base leading-tight truncate">{member.name}</p>
-                    <p className="text-xs text-gray-600 uppercase truncate">{member.role}</p>
-                </div>
+
+        {/* TOP SECTION: INFO & PHOTO */}
+        <div className="flex gap-3 items-center mb-2 relative z-10">
+            <div className="w-16 h-16 bg-gray-100 rounded-lg border-2 border-gray-200 flex items-center justify-center overflow-hidden shrink-0">
+                {member.photoUrl ? (
+                    <img src={member.photoUrl} alt="Staff" className="w-full h-full object-cover" />
+                ) : (
+                    <User size={32} className="text-gray-300" />
+                )}
             </div>
-            <div className="flex justify-between items-end mt-2 pt-2 border-t border-gray-100">
-                <div>
-                    <div className="text-[9px] text-gray-400 font-bold mb-0.5">ID: {member.id.slice(0, 8)}</div>
-                    <p className="text-[9px] uppercase font-bold text-gray-400 mt-1">ACCESO SEGURO</p>
-                </div>
-                <div className="bg-white p-1 rounded-lg border border-gray-100 shadow-sm shrink-0">
-                    <QRCodeSVG value={`AUTH:${member.id}:${member.pin}`} size={54} level="M" fgColor="#000000" />
-                </div>
+            <div className="min-w-0 flex-1">
+                <h3 className="font-black text-lg uppercase leading-none text-gray-900 mb-0.5 truncate">{appName || 'LicoBar'}</h3>
+                <p className="text-[9px] uppercase tracking-widest text-gray-500 font-bold mb-1">Credencial Oficial</p>
+                <p className="font-bold text-base leading-tight truncate">{member.name}</p>
+                <p className="text-xs text-gray-600 uppercase truncate">{member.role}</p>
             </div>
+            <div className="bg-white p-1 rounded-lg border border-gray-100 shadow-sm shrink-0">
+                <QRCodeSVG value={`AUTH:${member.id}:${member.pin}`} size={48} level="M" fgColor="#000000" />
+            </div>
+        </div>
+
+        {/* BOTTOM SECTION: BARCODE FOR LASER SCANNERS */}
+        <div className="flex-1 flex flex-col justify-end items-center border-t border-gray-100 pt-2">
+            <Barcode
+                value={`AUTH:${member.id}:${member.pin}`}
+                format="CODE128"
+                width={1.2}
+                height={30}
+                displayValue={false}
+                margin={0}
+                background="transparent"
+            />
+            <p className="text-[8px] tracking-[0.2em] font-bold text-gray-400 mt-1 uppercase">ID: {member.id.toUpperCase().slice(0, 12)}</p>
         </div>
     </div>
 );
