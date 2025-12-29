@@ -166,16 +166,17 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onClockAction, onCa
                     return;
                 }
 
-                // MODO 2: USR:ID (Generado por Barcode Simplificado para Scanner Laser)
+                // MODO 2: USR:SHORT_ID (Código Optimizado y Corto)
                 if (buffer.startsWith('USR:')) {
                     const parts = buffer.split(':');
                     if (parts.length === 2) {
-                        const scannedId = parts[1];
-                        const staff = staffMembers.find(m => m.id === scannedId);
+                        const scannedShortId = parts[1];
+                        // Buscamos coincidencia parcial (los primeros 8 caracteres)
+                        const staff = staffMembers.find(m => m.id.startsWith(scannedShortId));
 
                         if (staff) {
                             setIsProcessing(true);
-                            toast.success(`¡Hola ${staff.name}! (Acceso Rápido)`);
+                            toast.success(`¡Hola ${staff.name}!`);
                             onLoginSuccess(staff);
                         } else {
                             toast.error('Credencial no reconocida');
@@ -365,43 +366,40 @@ export const AttendanceTicket = ({ data }) => (
     </div>
 );
 
-// --- CREDENCIAL PARA IMPRIMIR ---
+// --- CREDENCIAL PARA IMPRIMIR (COMPACTA) ---
 export const CredentialPrintView = ({ member, appName }) => (
-    <div className="w-[350px] h-[240px] bg-white border border-gray-300 p-4 m-4 flex flex-col rounded-xl shadow-lg relative overflow-hidden print:shadow-none print:border-black print:m-0">
-        <div className="absolute top-0 right-0 w-20 h-20 bg-orange-500 transform rotate-45 translate-x-10 -translate-y-10"></div>
+    <div className="w-[240px] h-[155px] bg-white border border-gray-300 p-3 m-4 flex flex-col rounded-lg shadow-lg relative overflow-hidden print:shadow-none print:border-black print:m-0">
+        <div className="absolute top-0 right-0 w-12 h-12 bg-orange-500 transform rotate-45 translate-x-6 -translate-y-6"></div>
 
         {/* TOP SECTION: INFO & PHOTO */}
-        <div className="flex gap-3 items-center mb-2 relative z-10">
-            <div className="w-16 h-16 bg-gray-100 rounded-lg border-2 border-gray-200 flex items-center justify-center overflow-hidden shrink-0">
+        <div className="flex gap-2 items-center mb-1 relative z-10">
+            <div className="w-12 h-12 bg-gray-100 rounded-md border border-gray-200 flex items-center justify-center overflow-hidden shrink-0">
                 {member.photoUrl ? (
                     <img src={member.photoUrl} alt="Staff" className="w-full h-full object-cover" />
                 ) : (
-                    <User size={32} className="text-gray-300" />
+                    <User size={24} className="text-gray-300" />
                 )}
             </div>
             <div className="min-w-0 flex-1">
-                <h3 className="font-black text-lg uppercase leading-none text-gray-900 mb-0.5 truncate">{appName || 'LicoBar'}</h3>
-                <p className="text-[9px] uppercase tracking-widest text-gray-500 font-bold mb-1">Credencial Oficial</p>
-                <p className="font-bold text-base leading-tight truncate">{member.name}</p>
-                <p className="text-xs text-gray-600 uppercase truncate">{member.role}</p>
-            </div>
-            <div className="bg-white p-1 rounded-lg border border-gray-100 shadow-sm shrink-0">
-                <QRCodeSVG value={`AUTH:${member.id}:${member.pin}`} size={48} level="M" fgColor="#000000" />
+                <h3 className="font-black text-xs uppercase leading-none text-gray-900 mb-0.5 truncate w-[110px]">{appName || 'APP'}</h3>
+                <p className="text-[7px] uppercase tracking-wider text-gray-500 font-bold mb-0.5">Staff Oficial</p>
+                <p className="font-bold text-sm leading-tight truncate w-[110px]">{member.name}</p>
+                <p className="text-[9px] text-gray-600 uppercase truncate w-[100px]">{member.role}</p>
             </div>
         </div>
 
-        {/* BOTTOM SECTION: BARCODE FOR LASER SCANNERS */}
-        <div className="flex-1 flex flex-col justify-end items-center border-t border-gray-100 pt-2">
+        {/* BOTTOM SECTION: BARCODE (SHORT ID) */}
+        <div className="flex-1 flex flex-col justify-end items-center border-t border-gray-100 pt-1">
             <Barcode
-                value={`USR:${member.id}`}
+                value={`USR:${member.id.slice(0, 8)}`}
                 format="CODE128"
-                width={1}
-                height={25}
+                width={1.6}
+                height={28}
                 displayValue={false}
                 margin={0}
                 background="transparent"
             />
-            <p className="text-[8px] tracking-[0.2em] font-bold text-gray-400 mt-1 uppercase">ID: {member.id.toUpperCase().slice(0, 12)}</p>
+            <p className="text-[7px] tracking-[0.2em] font-bold text-gray-400 mt-0.5 uppercase">KEY: {member.id.slice(0, 8).toUpperCase()}</p>
         </div>
     </div>
 );

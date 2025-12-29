@@ -473,15 +473,16 @@ export default function AppContent() {
                     buffer = '';
                 }
 
-                // MODO 2: USR:ID (Generado por Barcode Simplificado para Scanner Laser)
+                // MODO 2: USR:SHORT_ID (Código Optimizado y Corto)
                 if (buffer.startsWith('USR:')) {
                     const parts = buffer.split(':');
                     if (parts.length === 2) {
-                        const scannedId = parts[1];
-                        const staffMemberFound = staff.find(m => m.id === scannedId);
+                        const scannedShortId = parts[1];
+                        // Match parcial
+                        const staffMemberFound = staff.find(m => m.id.startsWith(scannedShortId));
 
                         if (staffMemberFound) {
-                            toast.success(`¡Hola ${staffMemberFound.name}! (Acceso Rápido)`);
+                            toast.success(`¡Hola ${staffMemberFound.name}!`);
                             onStaffPinLogin(staffMemberFound);
                         } else {
                             toast.error('Credencial no encontrada');
