@@ -473,7 +473,20 @@ export default function AppContent() {
                     buffer = '';
                 }
 
-                // MODO 2: USR:SHORT_ID (Código Optimizado y Corto)
+                // MODO 2: ULTRA-SHORT ID (Detectar cadenas de 8 caracteres que coincidan con un ID)
+                if (buffer.length >= 8) {
+                    const potentialId = buffer.slice(-8);
+                    const staffMemberFound = staff.find(m => m.id.startsWith(potentialId));
+
+                    if (staffMemberFound) {
+                        toast.success(`¡Hola ${staffMemberFound.name}!`);
+                        onStaffPinLogin(staffMemberFound);
+                        buffer = '';
+                        return; // Detener aquí para no procesar 2 veces
+                    }
+                }
+
+                // MODO 3 (LEGACY): USR:SHORT_ID (Código Optimizado y Corto)
                 if (buffer.startsWith('USR:')) {
                     const parts = buffer.split(':');
                     if (parts.length === 2) {

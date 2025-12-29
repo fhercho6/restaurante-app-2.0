@@ -166,7 +166,23 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onClockAction, onCa
                     return;
                 }
 
-                // MODO 2: USR:SHORT_ID (Código Optimizado y Corto)
+                // MODO 2: ULTRA-SHORT ID (Detectar cadenas de 8 caracteres que coincidan con un ID)
+                // Se asume que el ID de firebase tiene al menos 8 chars.
+                // Si el buffer tiene longitud 8 (o un poco más por seguridad) y coincide con el inicio de un ID
+                if (buffer.length >= 8) {
+                    const potentialId = buffer.slice(-8); // Tomamos los ultimos 8 por si se colo algo antes
+                    const staff = staffMembers.find(m => m.id.startsWith(potentialId));
+
+                    if (staff) {
+                        setIsProcessing(true);
+                        toast.success(`¡Hola ${staff.name}!`);
+                        onLoginSuccess(staff);
+                        buffer = '';
+                        return;
+                    }
+                }
+
+                // MODO 3 (LEGACY): USR:SHORT_ID (Por compatibilidad si alguien ya imprimió)
                 if (buffer.startsWith('USR:')) {
                     const parts = buffer.split(':');
                     if (parts.length === 2) {
@@ -391,10 +407,10 @@ export const CredentialPrintView = ({ member, appName }) => (
         {/* BOTTOM SECTION: BARCODE (SHORT ID) */}
         <div className="flex-1 flex flex-col justify-end items-center border-t border-gray-100 pt-1">
             <Barcode
-                value={`USR:${member.id.slice(0, 8)}`}
+                value={member.id.slice(0, 8)}
                 format="CODE128"
-                width={1.6}
-                height={28}
+                width={2}
+                height={30}
                 displayValue={false}
                 margin={0}
                 background="transparent"
