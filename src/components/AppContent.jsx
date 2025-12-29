@@ -584,7 +584,7 @@ export default function AppContent() {
                                     }}
                                 />}
                                 {view === 'maintenance' && <EquipmentManager staff={staff} registerSession={registerSession} />}
-                                {view === 'shift_history' && !isCashierOnly && <ShiftHistory onReprint={(shift) => { setLastSale({ ...shift, type: 'z-report', businessName: appName, date: new Date(shift.closedAt).toLocaleString() }); setView('receipt_view'); }} />}
+                                {view === 'shift_history' && !isCashierOnly && <ShiftHistory onReprint={(shift) => { setLastSale({ ...shift, type: 'z-report', stats: shift.finalSalesStats, businessName: appName, date: new Date(shift.closedAt).toLocaleString() }); setView('receipt_view'); }} />}
 
 
 
