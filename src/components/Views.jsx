@@ -166,11 +166,11 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onClockAction, onCa
                     return;
                 }
 
-                // MODO 2: ULTRA-SHORT ID (Detectar cadenas de 8 caracteres que coincidan con un ID)
-                // Se asume que el ID de firebase tiene al menos 8 chars.
-                // Si el buffer tiene longitud 8 (o un poco más por seguridad) y coincide con el inicio de un ID
-                if (buffer.length >= 8) {
-                    const potentialId = buffer.slice(-8).toLowerCase(); // Convertimos a minúsculas por si el scanner manda CODE39 (Mayúsculas)
+                // MODO 2: ULTRA-SHORT ID (Detectar cadenas de 6 caracteres que coincidan con un ID)
+                // Se asume que el ID de firebase tiene al menos 6 chars.
+                // Si el buffer tiene longitud 6 (o un poco más por seguridad) y coincide con el inicio de un ID
+                if (buffer.length >= 6) {
+                    const potentialId = buffer.slice(-6).toLowerCase(); // Convertimos a minúsculas por si el scanner manda CODE39 (Mayúsculas)
                     // Búsqueda insensible a mayúsculas/minúsculas para seguridad
                     const staff = staffMembers.find(m => m.id.toLowerCase().startsWith(potentialId));
 
@@ -408,15 +408,15 @@ export const CredentialPrintView = ({ member, appName }) => (
         {/* BOTTOM SECTION: BARCODE (SHORT ID) */}
         <div className="flex-1 flex flex-col justify-end items-center border-t border-gray-100 pt-1">
             <Barcode
-                value={member.id.substring(0, 8).toUpperCase()}
+                value={member.id.substring(0, 6).toUpperCase()}
                 format="CODE128"
-                width={2.5}
+                width={2.2}
                 height={40}
                 displayValue={false}
                 margin={15}
                 background="transparent"
             />
-            <p className="text-[7px] tracking-[0.2em] font-bold text-gray-400 mt-0.5 uppercase">KEY: {member.id.slice(0, 8).toUpperCase()}</p>
+            <p className="text-[7px] tracking-[0.2em] font-bold text-gray-400 mt-0.5 uppercase">KEY: {member.id.substring(0, 6).toUpperCase()}</p>
         </div>
     </div>
 );

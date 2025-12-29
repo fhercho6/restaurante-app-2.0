@@ -473,9 +473,9 @@ export default function AppContent() {
                     buffer = '';
                 }
 
-                // MODO 2: ULTRA-SHORT ID (Detectar cadenas de 8 caracteres que coincidan con un ID)
-                if (buffer.length >= 8) {
-                    const potentialId = buffer.slice(-8).toLowerCase();
+                // MODO 2: ULTRA-SHORT ID (Detectar cadenas de 6 caracteres que coincidan con un ID)
+                if (buffer.length >= 6) {
+                    const potentialId = buffer.slice(-6).toLowerCase();
                     const staffMemberFound = staff.find(m => m.id.toLowerCase().startsWith(potentialId));
 
                     if (staffMemberFound) {
