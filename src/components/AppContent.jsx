@@ -47,7 +47,8 @@ export default function AppContent() {
     const {
         registerSession, sessionStats,
         isOpenRegisterModalOpen, setIsOpenRegisterModalOpen,
-        checkRegisterStatus, openRegister, confirmCloseRegister
+        checkRegisterStatus, openRegister, confirmCloseRegister,
+        addExpense, deleteExpense
     } = useRegister();
     const { processSale, voidOrder, createOrder } = useSales();
 
@@ -530,7 +531,7 @@ export default function AppContent() {
                                 )}
 
                                 {/* OTHER ADMIN VIEWS */}
-                                {view === 'register_control' && <RegisterControlView session={registerSession} onOpen={handleOpenRegister} onClose={handleCloseRegisterAction} staff={staff} stats={sessionStats} onAddExpense={() => {/* Handled inside View or Context? View needs handler */ }} onDeleteExpense={() => { }} />}
+                                {view === 'register_control' && <RegisterControlView session={registerSession} onOpen={handleOpenRegister} onClose={handleCloseRegisterAction} staff={staff} stats={sessionStats} onAddExpense={addExpense} onDeleteExpense={deleteExpense} />}
                                 {view === 'maintenance' && <EquipmentManager staff={staff} registerSession={registerSession} />}
                                 {view === 'shift_history' && !isCashierOnly && <ShiftHistory onReprint={(shift) => { setLastSale({ ...shift, type: 'z-report', businessName: appName, date: new Date(shift.closedAt).toLocaleString() }); setView('receipt_view'); }} />}
 

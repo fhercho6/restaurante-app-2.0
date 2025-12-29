@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { collection, query, where, limit, getDocs, onSnapshot, addDoc, updateDoc, doc } from 'firebase/firestore';
+import { collection, query, where, limit, getDocs, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db, ROOT_COLLECTION, isPersonalProject } from '../config/firebase';
 import toast from 'react-hot-toast';
 import { useAuth } from './AuthContext';
@@ -197,6 +197,42 @@ export const RegisterProvider = ({ children }) => {
         }
     };
 
+    // 4. Expense Actions
+    const addExpense = async (description, amount) => {
+        if (!registerSession) return;
+        try {
+            const expenseData = {
+                registerId: registerSession.id,
+                description,
+                amount,
+                date: new Date().toISOString(),
+                createdBy: staffMember ? staffMember.name : 'Admin'
+            };
+            
+            await addDoc(collection(db, isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`), expenseData);
+            toast.success("Gasto registrado");
+            return true;
+        } catch (e) {
+            console.error("Error adding expense:", e);
+            toast.error("Error registrando gasto");
+            return false;
+        }
+    };
+
+    const deleteExpense = async (expenseId) => {
+        if (!expenseId) return;
+        try {
+            await deleteDoc(doc(db, isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`, expenseId));
+            toast.success("Gasto eliminado");
+            return true;
+        } catch (e) {
+            console.error("Error deleting expense:", e);
+            toast.error("Error eliminando gasto");
+            return false;
+        }
+    };
+
+
     // Helper to calculate final cash
     const getCalculatedCash = () => {
         if (!registerSession) return 0;
@@ -212,7 +248,9 @@ export const RegisterProvider = ({ children }) => {
         checkRegisterStatus,
         openRegister,
         confirmCloseRegister,
-        getCalculatedCash
+        getCalculatedCash,
+        addExpense,
+        deleteExpense
     };
 
     return (
