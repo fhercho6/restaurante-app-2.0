@@ -28,7 +28,12 @@
     *   Se cambió el diseño de Navidad a **Año Nuevo 2026**.
     *   Colores: Dorado, Negro, Azul.
     *   Efectos: Confeti en lugar de nieve.
+    *   Efectos: Confeti en lugar de nieve.
     *   Iconos: Copas, Relojes, Fuegos artificiales.
+
+6.  **Corrección Registro de Gastos:**
+    *   **Funcionalidad:** Se implementó la lógica faltante para registrar y eliminar gastos en el Control de Caja.
+    *   **Contexto:** Se añadieron las funciones `addExpense` y `deleteExpense` al `RegisterContext`.
 
 ---
 
