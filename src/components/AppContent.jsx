@@ -167,19 +167,30 @@ export default function AppContent() {
     };
 
     const handleAddExpenseWithReceipt = async (description, amount) => {
-        const success = await addExpense(description, amount);
-        if (success) {
-            const expenseReceipt = {
-                type: 'expense',
-                businessName: appName,
-                date: new Date().toLocaleString(),
-                staffName: staffMember ? staffMember.name : 'Admin',
-                description: description,
-                amount: amount,
-                autoPrint: true
-            };
-            setLastSale(expenseReceipt);
-            setView('receipt_view');
+        const tId = toast.loading('Procesando gasto...');
+        try {
+            const success = await addExpense(description, amount);
+            if (success) {
+                toast.dismiss(tId);
+                const expenseReceipt = {
+                    type: 'expense',
+                    businessName: appName,
+                    date: new Date().toLocaleString(),
+                    staffName: staffMember ? staffMember.name : 'Admin',
+                    description: description,
+                    amount: amount,
+                    autoPrint: true
+                };
+                setLastSale(expenseReceipt);
+                setView('receipt_view');
+            } else {
+                toast.dismiss(tId);
+                // Error already shown by addExpense
+            }
+        } catch (err) {
+            toast.dismiss(tId);
+            console.error(err);
+            toast.error("Error procesando recibo");
         }
     };
 
@@ -816,7 +827,7 @@ export default function AppContent() {
             <BrandingModal isOpen={isBrandingModalOpen} onClose={() => setIsBrandingModalOpen(false)} onSave={handleSaveBranding} currentLogo={logo} currentName={appName} currentAutoLock={autoLockTime} />
             <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onLogin={onLogin} />
             <ServiceStartModal isOpen={isServiceModalOpen} onClose={() => setIsServiceModalOpen(false)} services={items.filter(i => i.category === 'Servicios')} onStart={() => { /* Service start logic */ }} occupiedLocations={activeServices.map(s => s.note)} />
-            <ExpenseModal isOpen={isExpenseModalOpen} onClose={() => setIsExpenseModalOpen(false)} onSave={() => { /* Add expense logic */ }} expenseTypes={expenseTypes} />
+            <ExpenseModal isOpen={isExpenseModalOpen} onClose={() => setIsExpenseModalOpen(false)} onSave={handleAddExpenseWithReceipt} expenseTypes={expenseTypes} />
 
             <ServiceCalculatorModal isOpen={isCalculatorOpen} onClose={() => setIsCalculatorOpen(false)} />
         </div >

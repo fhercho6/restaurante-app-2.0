@@ -34,6 +34,7 @@
 6.  **Corrección Registro de Gastos:**
     *   **Funcionalidad:** Se implementó la lógica faltante para registrar y eliminar gastos en el Control de Caja.
     *   **Contexto:** Se añadieron las funciones `addExpense` y `deleteExpense` al `RegisterContext`.
+    *   **Impresión:** Se habilitó la impresión automática de recibo al registrar un gasto.
 
 ---
 

@@ -199,7 +199,10 @@ export const RegisterProvider = ({ children }) => {
 
     // 4. Expense Actions
     const addExpense = async (description, amount) => {
-        if (!registerSession) return;
+        if (!registerSession) {
+            toast.error("Error Interno: No se detecta turno activo (registerSession lost). Refresca la página.");
+            return false;
+        }
         try {
             const expenseData = {
                 registerId: registerSession.id,
@@ -208,13 +211,14 @@ export const RegisterProvider = ({ children }) => {
                 date: new Date().toISOString(),
                 createdBy: staffMember ? staffMember.name : 'Admin'
             };
-            
+
             await addDoc(collection(db, isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`), expenseData);
-            toast.success("Gasto registrado");
+            // Success is handled by caller (AppContent) showing receipt, but we can toast here too
+            toast.success("Gasto registrado en BD");
             return true;
         } catch (e) {
             console.error("Error adding expense:", e);
-            toast.error("Error registrando gasto");
+            toast.error(`Error registrando gasto: ${e.message}`);
             return false;
         }
     };
