@@ -115,24 +115,80 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onClockAction, onCa
         if (!isProcessing) setPin(prev => prev.slice(0, -1));
     };
 
-    // SOPORTE PARA LECTOR DE CÓDIGO (TECLADO FÍSICO)
+    // SOPORTE PARA LECTOR DE CÓDIGO (TECLADO FÍSICO + SCANNER)
     React.useEffect(() => {
+        let buffer = '';
+        let timeout = null;
+
         const handleKeyDown = (e) => {
             if (isProcessing) return;
 
-            // Números 0-9
-            if (/^[0-9]$/.test(e.key)) {
-                handleNumClick(e.key);
+            // 1. SI ES UNA TECLA CLAVE DEL SCANNER (Letras, símbolos, números)
+            // Los scanners suelen mandar todo muy rápido.
+            if (e.key.length === 1) {
+                buffer += e.key;
+                
+                // Reiniciamos el buffer si pasa mucho tiempo sin teclas (no es un scanner)
+                clearTimeout(timeout);
+                timeout = setTimeout(() => {
+                    buffer = '';
+                }, 100); 
             }
-            // Borrar
-            else if (e.key === 'Backspace') {
-                handleDelete();
+
+            // 2. DETECTAR ENTER (Fin del escaneo)
+            if (e.key === 'Enter') {
+                // Verificar si es un código de autenticación
+                if (buffer.startsWith('AUTH:')) {
+                    // Formato: AUTH:USER_ID:PIN
+                    const parts = buffer.split(':');
+                    if (parts.length === 3) {
+                        const scannedId = parts[1];
+                        const scannedPin = parts[2];
+
+                        // Buscar empleado
+                        const staff = staffMembers.find(m => m.id === scannedId);
+                        
+                        if (staff) {
+                            if (staff.pin === scannedPin) {
+                                setIsProcessing(true);
+                                toast.success(`¡Hola ${staff.name}!`);
+                                // Login directo
+                                onLoginSuccess(staff);
+                            } else {
+                                toast.error('PIN de credencial inválido');
+                            }
+                        } else {
+                            toast.error('Credencial no reconocida');
+                        }
+                    }
+                    buffer = ''; // Limpiar tras procesar
+                    return;
+                }
+                
+                // Si no fue escaneo, quizas fue enter manual (no hacemos nada por ahora en el teclado numérico)
+                buffer = ''; 
+            }
+
+            // 3. COMPORTAMIENTO ORIGINAL (SOLO NÚMEROS MANUALES)
+            // Si el buffer está vacío o corto, permitimos interacción manual
+            if (buffer.length < 2) { 
+                // Números 0-9
+                if (/^[0-9]$/.test(e.key)) {
+                    handleNumClick(e.key);
+                }
+                // Borrar
+                else if (e.key === 'Backspace') {
+                    handleDelete();
+                }
             }
         };
 
         window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [pin, isProcessing, selectedStaff, mode, showAttendanceOptions]); // Dependencias clave
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            clearTimeout(timeout);
+        };
+    }, [pin, isProcessing, staffMembers, onLoginSuccess]); // Agregamos staffMembers y onLoginSuccess
 
     return (
         <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 animate-in zoom-in duration-300 transition-colors ${mode === 'attendance' ? 'bg-blue-900/95 backdrop-blur-xl' : 'bg-black/90 backdrop-blur-xl'}`}>

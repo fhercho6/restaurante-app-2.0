@@ -1,6 +1,6 @@
 # 🚀 Estado del Proyecto: Sistema ZZIF (Restaurante App)
 
-## 📅 Fecha: 26 de Diciembre, 2025
+## 📅 Fecha: 29 de Diciembre, 2025
 **Tema Actual:** Año Nuevo (Gold/Black/Silver) 🥂✨
 
 ---
@@ -38,6 +38,10 @@
     *   **UI:** Se movió el registro de gastos a la vista de Ventas (Botón "Gastos/Retiros") y se eliminó de Control de Caja para evitar duplicidad.
     *   **Mejoras UX:** Se renombró la sección a "Gastos del Turno", se añadió confirmación para eliminar y botón de reimpresión.
     *   **Reportes:** Se renombró "Reimprimir Último" a "Ver Reporte X" para mayor claridad. Se corrigió la impresión del Reporte Z desde el historial.
+
+7.  **Corrección Navegación Reportes:**
+    *   **Botón "Ver Reporte X":** Ahora respeta la vista anterior y regresa correctamente a la vista de "Caja" si se invocó desde ahí.
+    *   **Flujo de Cierre:** Se ajustó `handleReceiptClose` para manejar correctamente el retorno a `cashier` después de imprimir reportes Z.
 
 ---
 
