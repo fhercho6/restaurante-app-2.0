@@ -408,12 +408,12 @@ export const CredentialPrintView = ({ member, appName }) => (
         {/* BOTTOM SECTION: BARCODE (SHORT ID) */}
         <div className="flex-1 flex flex-col justify-end items-center border-t border-gray-100 pt-1">
             <Barcode
-                value={member.id.substring(0, 8)}
+                value={member.id.substring(0, 8).toUpperCase()}
                 format="CODE128"
-                width={2}
+                width={2.5}
                 height={40}
                 displayValue={false}
-                margin={10}
+                margin={15}
                 background="transparent"
             />
             <p className="text-[7px] tracking-[0.2em] font-bold text-gray-400 mt-0.5 uppercase">KEY: {member.id.slice(0, 8).toUpperCase()}</p>
