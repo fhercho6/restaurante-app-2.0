@@ -409,10 +409,10 @@ export const CredentialPrintView = ({ member, appName }) => (
             <Barcode
                 value={member.id.slice(0, 8)}
                 format="CODE128"
-                width={2}
+                width={1.5}
                 height={30}
                 displayValue={false}
-                margin={0}
+                margin={10}
                 background="transparent"
             />
             <p className="text-[7px] tracking-[0.2em] font-bold text-gray-400 mt-0.5 uppercase">KEY: {member.id.slice(0, 8).toUpperCase()}</p>
