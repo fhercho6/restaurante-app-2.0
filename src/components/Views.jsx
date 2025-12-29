@@ -166,6 +166,25 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onClockAction, onCa
                     return;
                 }
 
+                // MODO 2: USR:ID (Generado por Barcode Simplificado para Scanner Laser)
+                if (buffer.startsWith('USR:')) {
+                    const parts = buffer.split(':');
+                    if (parts.length === 2) {
+                        const scannedId = parts[1];
+                        const staff = staffMembers.find(m => m.id === scannedId);
+
+                        if (staff) {
+                            setIsProcessing(true);
+                            toast.success(`¡Hola ${staff.name}! (Acceso Rápido)`);
+                            onLoginSuccess(staff);
+                        } else {
+                            toast.error('Credencial no reconocida');
+                        }
+                    }
+                    buffer = '';
+                    return;
+                }
+
                 // Si no fue escaneo, quizas fue enter manual (no hacemos nada por ahora en el teclado numérico)
                 buffer = '';
             }
@@ -374,10 +393,10 @@ export const CredentialPrintView = ({ member, appName }) => (
         {/* BOTTOM SECTION: BARCODE FOR LASER SCANNERS */}
         <div className="flex-1 flex flex-col justify-end items-center border-t border-gray-100 pt-2">
             <Barcode
-                value={`AUTH:${member.id}:${member.pin}`}
+                value={`USR:${member.id}`}
                 format="CODE128"
-                width={1.2}
-                height={30}
+                width={2}
+                height={40}
                 displayValue={false}
                 margin={0}
                 background="transparent"
