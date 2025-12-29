@@ -409,8 +409,8 @@ export const CredentialPrintView = ({ member, appName }) => (
             <Barcode
                 value={member.id.slice(0, 8)}
                 format="CODE128"
-                width={1.5}
-                height={30}
+                width={2.2}
+                height={40}
                 displayValue={false}
                 margin={10}
                 background="transparent"
