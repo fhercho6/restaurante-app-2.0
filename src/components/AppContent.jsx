@@ -475,8 +475,8 @@ export default function AppContent() {
 
                 // MODO 2: ULTRA-SHORT ID (Detectar cadenas de 8 caracteres que coincidan con un ID)
                 if (buffer.length >= 8) {
-                    const potentialId = buffer.slice(-8);
-                    const staffMemberFound = staff.find(m => m.id.startsWith(potentialId));
+                    const potentialId = buffer.slice(-8).toLowerCase();
+                    const staffMemberFound = staff.find(m => m.id.toLowerCase().startsWith(potentialId));
 
                     if (staffMemberFound) {
                         toast.success(`¡Hola ${staffMemberFound.name}!`);

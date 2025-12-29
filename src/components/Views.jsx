@@ -170,8 +170,9 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onClockAction, onCa
                 // Se asume que el ID de firebase tiene al menos 8 chars.
                 // Si el buffer tiene longitud 8 (o un poco más por seguridad) y coincide con el inicio de un ID
                 if (buffer.length >= 8) {
-                    const potentialId = buffer.slice(-8); // Tomamos los ultimos 8 por si se colo algo antes
-                    const staff = staffMembers.find(m => m.id.startsWith(potentialId));
+                    const potentialId = buffer.slice(-8).toLowerCase(); // Convertimos a minúsculas por si el scanner manda CODE39 (Mayúsculas)
+                    // Búsqueda insensible a mayúsculas/minúsculas para seguridad
+                    const staff = staffMembers.find(m => m.id.toLowerCase().startsWith(potentialId));
 
                     if (staff) {
                         setIsProcessing(true);
@@ -407,9 +408,9 @@ export const CredentialPrintView = ({ member, appName }) => (
         {/* BOTTOM SECTION: BARCODE (SHORT ID) */}
         <div className="flex-1 flex flex-col justify-end items-center border-t border-gray-100 pt-1">
             <Barcode
-                value={member.id.slice(0, 8)}
-                format="CODE128"
-                width={2.2}
+                value={member.id.substring(0, 8).toUpperCase()}
+                format="CODE39"
+                width={1.5}
                 height={40}
                 displayValue={false}
                 margin={10}
