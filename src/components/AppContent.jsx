@@ -432,6 +432,56 @@ export default function AppContent() {
         if (isCashier) { setView('cashier'); } else { setStaffMember(null); setView('landing'); }
     };
 
+    // GLOBAL SCANNER LISTENER (LANDING PAGE)
+    React.useEffect(() => {
+        if (view !== 'landing') return;
+
+        let buffer = '';
+        let timeout = null;
+
+        const handleKeyDown = (e) => {
+            // 1. SI ES UNA TECLA CLAVE DEL SCANNER
+            if (e.key.length === 1) {
+                buffer += e.key;
+                clearTimeout(timeout);
+                timeout = setTimeout(() => { buffer = ''; }, 100);
+            }
+
+            // 2. DETECTAR ENTER (Fin del escaneo)
+            if (e.key === 'Enter') {
+                if (buffer.startsWith('AUTH:')) {
+                    const parts = buffer.split(':');
+                    if (parts.length === 3) {
+                        const scannedId = parts[1];
+                        const scannedPin = parts[2];
+
+                        const staffMemberFound = staff.find(m => m.id === scannedId);
+
+                        if (staffMemberFound) {
+                            if (staffMemberFound.pin === scannedPin) {
+                                toast.success(`¡Bienvenido ${staffMemberFound.name}!`);
+                                // Auto Check-in Logic duplicated or reused?
+                                // Ideally we just login, passing through PinLoginView logic is better but we can call onStaffPinLogin directly
+                                onStaffPinLogin(staffMemberFound);
+                            } else {
+                                toast.error('PIN inválido');
+                            }
+                        } else {
+                            toast.error('Credencial no encontrada');
+                        }
+                    }
+                    buffer = '';
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            clearTimeout(timeout);
+        };
+    }, [view, staff, onStaffPinLogin]);
+
     // Printer
     const onSavePrinterFormat = (type) => {
         handleSavePrinterType(type);
