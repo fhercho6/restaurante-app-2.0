@@ -385,7 +385,7 @@ export const AttendanceTicket = ({ data }) => (
 
 // --- CREDENCIAL PARA IMPRIMIR (COMPACTA) ---
 export const CredentialPrintView = ({ member, appName }) => (
-    <div className="w-[240px] h-[155px] bg-white border border-gray-300 p-3 m-4 flex flex-col rounded-lg shadow-lg relative overflow-hidden print:shadow-none print:border-black print:m-0">
+    <div className="w-[260px] h-[155px] bg-white border border-gray-300 p-3 m-4 flex flex-col rounded-lg shadow-lg relative overflow-hidden print:shadow-none print:border-black print:m-0">
         <div className="absolute top-0 right-0 w-12 h-12 bg-orange-500 transform rotate-45 translate-x-6 -translate-y-6"></div>
 
         {/* TOP SECTION: INFO & PHOTO */}
@@ -408,9 +408,9 @@ export const CredentialPrintView = ({ member, appName }) => (
         {/* BOTTOM SECTION: BARCODE (SHORT ID) */}
         <div className="flex-1 flex flex-col justify-end items-center border-t border-gray-100 pt-1">
             <Barcode
-                value={member.id.substring(0, 8).toUpperCase()}
-                format="CODE39"
-                width={1.5}
+                value={member.id.substring(0, 8)}
+                format="CODE128"
+                width={2}
                 height={40}
                 displayValue={false}
                 margin={10}
