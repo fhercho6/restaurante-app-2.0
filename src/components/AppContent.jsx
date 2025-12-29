@@ -48,7 +48,7 @@ export default function AppContent() {
         registerSession, sessionStats,
         isOpenRegisterModalOpen, setIsOpenRegisterModalOpen,
         checkRegisterStatus, openRegister, confirmCloseRegister,
-        addExpense, deleteExpense
+        addExpense, deleteExpense, getCalculatedCash
     } = useRegister();
     const { processSale, voidOrder, createOrder } = useSales();
 
@@ -555,7 +555,26 @@ export default function AppContent() {
                                         onReprintOrder={(order) => { setLastSale({ ...order, type: 'order', businessName: appName }); setView('receipt_view'); }}
                                         onStopService={() => { /* Service logic is specific, leaving it to specialized components or context if refined */ }}
                                         onOpenExpense={() => setIsExpenseModalOpen(true)}
-                                        onPrintReceipt={(doc) => { setLastSale({ ...doc, businessName: appName }); setView('receipt_view'); }}
+                                        onPrintReceipt={(doc) => {
+                                            let reportData = { ...doc, businessName: appName };
+                                            if (doc.type === 'z-report-preview') {
+                                                reportData = {
+                                                    type: 'z-report', // Use z-report type for Receipt component
+                                                    businessName: appName,
+                                                    date: new Date().toLocaleString(),
+                                                    openedAt: registerSession?.openedAt,
+                                                    openingAmount: registerSession?.openingAmount || 0,
+                                                    finalCash: getCalculatedCash(),
+                                                    stats: sessionStats,
+                                                    soldProducts: sessionStats.soldProducts,
+                                                    staffName: staffMember?.name || 'Cajero',
+                                                    cashierName: staffMember?.name || 'Cajero',
+                                                    status: 'preview'
+                                                };
+                                            }
+                                            setLastSale(reportData);
+                                            setView('receipt_view');
+                                        }}
                                     />
                                 )}
 
@@ -584,7 +603,7 @@ export default function AppContent() {
                                     }}
                                 />}
                                 {view === 'maintenance' && <EquipmentManager staff={staff} registerSession={registerSession} />}
-                                {view === 'shift_history' && !isCashierOnly && <ShiftHistory onReprint={(shift) => { setLastSale({ ...shift, type: 'z-report', stats: shift.finalSalesStats, businessName: appName, date: new Date(shift.closedAt).toLocaleString() }); setView('receipt_view'); }} />}
+                                {view === 'shift_history' && !isCashierOnly && <ShiftHistory onReprint={(shift) => { setLastSale({ ...shift, type: 'z-report', finalCash: shift.finalCashCalculated, stats: shift.finalSalesStats, businessName: appName, date: new Date(shift.closedAt).toLocaleString() }); setView('receipt_view'); }} />}
 
 
 
