@@ -36,6 +36,7 @@
     *   **Contexto:** Se añadieron las funciones `addExpense` y `deleteExpense` al `RegisterContext`.
     *   **Impresión:** Se habilitó la impresión automática de recibo al registrar un gasto.
     *   **UI:** Se movió el registro de gastos a la vista de Ventas (Botón "Gastos/Retiros") y se eliminó de Control de Caja para evitar duplicidad.
+    *   **Mejoras UX:** Se renombró la sección a "Gastos del Turno", se añadió confirmación para eliminar y botón de reimpresión.
 
 ---
 

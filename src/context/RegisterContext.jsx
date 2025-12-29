@@ -114,7 +114,7 @@ export const RegisterProvider = ({ children }) => {
             s.forEach(d => {
                 const e = d.data();
                 te += parseFloat(e.amount);
-                el.push(e);
+                el.push({ id: d.id, ...e });
             });
             setSessionStats(prev => ({ ...prev, totalExpenses: te, expensesList: el }));
         });
