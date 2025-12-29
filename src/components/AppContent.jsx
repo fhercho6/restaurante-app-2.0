@@ -73,6 +73,7 @@ export default function AppContent() {
     const [isQuickEditMode, setIsQuickEditMode] = useState(false);
     const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
     const [reportId, setReportId] = useState(null);
+    const [previousView, setPreviousView] = useState('landing');
 
     // 3. Computed Helpers
     const inventoryStats = useMemo(() => {
@@ -415,7 +416,16 @@ export default function AppContent() {
 
     // Generic Handlers
     const handleReceiptClose = () => {
-        if (lastSale && lastSale.type === 'z-report') { setView('landing'); return; }
+        if (lastSale && lastSale.type === 'z-report') {
+            // Return to previous view if it was report or shift_history
+            if (previousView === 'report' || previousView === 'shift_history') {
+                setView(previousView);
+                return;
+            }
+            // Default to landing if no specific context
+            setView('landing');
+            return;
+        }
         const isCashier = (staffMember && (staffMember.role === 'Cajero' || staffMember.role === 'Administrador')) || (currentUser && !currentUser.isAnonymous);
         if (isCashier) { setView('cashier'); } else { setStaffMember(null); setView('landing'); }
     };
@@ -543,7 +553,7 @@ export default function AppContent() {
                                 </div>
 
                                 {/* DASHBOARD VIEW */}
-                                {view === 'report' && <div className="animate-in fade-in"><SalesDashboard onReprintZ={(data) => { setLastSale(data); setView('receipt_view'); }} onConfigurePrinter={() => setIsPrinterSettingsOpen(true)} currentPrinterType={printerType} /><div className="hidden print:block mt-8"><PrintableView items={items} /></div></div>}
+                                {view === 'report' && <div className="animate-in fade-in"><SalesDashboard onReprintZ={(data) => { setLastSale({ ...data, type: 'z-report', stats: data.finalSalesStats, finalCash: data.finalCashCalculated, businessName: appName, date: new Date(data.closedAt).toLocaleString() }); setPreviousView('report'); setView('receipt_view'); }} onConfigurePrinter={() => setIsPrinterSettingsOpen(true)} currentPrinterType={printerType} /><div className="hidden print:block mt-8"><PrintableView items={items} /></div></div>}
 
                                 {/* CASHIER VIEW */}
                                 {view === 'cashier' && (
@@ -603,7 +613,7 @@ export default function AppContent() {
                                     }}
                                 />}
                                 {view === 'maintenance' && <EquipmentManager staff={staff} registerSession={registerSession} />}
-                                {view === 'shift_history' && !isCashierOnly && <ShiftHistory onReprint={(shift) => { setLastSale({ ...shift, type: 'z-report', finalCash: shift.finalCashCalculated, stats: shift.finalSalesStats, businessName: appName, date: new Date(shift.closedAt).toLocaleString() }); setView('receipt_view'); }} />}
+                                {view === 'shift_history' && !isCashierOnly && <ShiftHistory onReprint={(shift) => { setLastSale({ ...shift, type: 'z-report', finalCash: shift.finalCashCalculated, stats: shift.finalSalesStats, businessName: appName, date: new Date(shift.closedAt).toLocaleString() }); setPreviousView('shift_history'); setView('receipt_view'); }} />}
 
 
 
