@@ -12,13 +12,23 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
     const [searchTerm, setSearchTerm] = useState('');
     const [filterType, setFilterType] = useState('all'); // 'all', 'orders', 'services'
 
-    // CARGAR PEDIDOS PENDIENTES Y SERVICIOS
+    // CONTROL DE ASISTENCIA
+    const [showAttendanceList, setShowAttendanceList] = useState(false);
+    const [attendanceList, setAttendanceList] = useState([]);
+
+    // CARGAR PEDIDOS PENDIENTES, SERVICIOS Y ASISTENCIA
     useEffect(() => {
         const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
         const servicesCol = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`;
+        const attCol = isPersonalProject ? 'attendance' : `${ROOT_COLLECTION}attendance`; // [NEW]
 
         const qOrders = query(collection(db, ordersCol), orderBy('date', 'desc'));
         const qServices = query(collection(db, servicesCol), orderBy('startTime', 'desc'));
+        // Asistencia: Solo del turno actual (si tuviéramos registerID global aquí, sería mejor, pero por ahora mostramos últimos 20)
+        // Lo ideal es filtrar por registerId, pero CashierView no lo recibe como prop directo siempre.
+        // Asumimos mostrar las ultimas de hoy.
+        const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
+        const qAttendance = query(collection(db, attCol), orderBy('timestamp', 'desc'), where('timestamp', '>=', startOfDay.toISOString()));
 
         const unsubOrders = onSnapshot(qOrders, (snap) => {
             setPendingOrders(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -28,7 +38,11 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
             setActiveServices(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         });
 
-        return () => { unsubOrders(); unsubServices(); };
+        const unsubAttendance = onSnapshot(qAttendance, (snap) => {
+            setAttendanceList(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        });
+
+        return () => { unsubOrders(); unsubServices(); unsubAttendance(); };
     }, []);
 
     // --- LÓGICA DE SELECCIÓN MÚLTIPLE ---
@@ -133,6 +147,12 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
                 {/* ACCIONES GLOBALES */}
                 <div className="flex gap-2 w-full md:w-auto">
                     <button
+                        onClick={() => setShowAttendanceList(!showAttendanceList)}
+                        className={`flex-1 md:flex-none px-4 py-2.5 font-bold rounded-lg border transition-colors flex items-center justify-center gap-2 ${showAttendanceList ? 'bg-orange-100 text-orange-700 border-orange-200' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+                    >
+                        <Users size={18} /> Asistencia
+                    </button>
+                    <button
                         onClick={onOpenExpense}
                         className="flex-1 md:flex-none px-4 py-2.5 bg-red-50 text-red-600 font-bold rounded-lg border border-red-100 hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
                     >
@@ -149,6 +169,37 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
 
             {/* CONTENIDO PRINCIPAL */}
             <div className="flex-1 overflow-hidden flex flex-col md:flex-row gap-6">
+
+                {/* MODULO DE ASISTENCIA (EXPANDIBLE) */}
+                {showAttendanceList && (
+                    <div className="w-full md:w-1/4 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col animate-in slide-in-from-left duration-300">
+                        <div className="p-3 border-b border-gray-100 bg-orange-50 flex justify-between items-center">
+                            <h3 className="font-bold text-orange-800 flex items-center gap-2"><Users size={16} /> Asistencia Turno</h3>
+                            <button onClick={() => setShowAttendanceList(false)} className="text-orange-600 hover:bg-orange-100 rounded p-1"><X size={16} /></button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                            {attendanceList.length === 0 ? (
+                                <p className="text-center text-xs text-gray-400 py-4">Sin registros hoy</p>
+                            ) : (
+                                attendanceList.map(rec => (
+                                    <div key={rec.id} className="p-2 border border-gray-100 rounded-lg bg-gray-50 flex justify-between items-center group hover:border-orange-200 hover:bg-white transition-colors">
+                                        <div>
+                                            <p className="font-bold text-gray-800 text-sm">{rec.staffName}</p>
+                                            <p className="text-[10px] text-gray-500">{new Date(rec.timestamp).toLocaleTimeString()}</p>
+                                        </div>
+                                        <button
+                                            onClick={() => onPrintReceipt({ type: 'attendance-reprint', ...rec })} // Usamos el prop existente para pasar la data
+                                            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                            title="Reimprimir Ticket"
+                                        >
+                                            <Printer size={16} />
+                                        </button>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                )}
 
                 {/* COLUMNA IZQUIERDA: SERVICIOS ACTIVOS */}
                 {activeServices.length > 0 && (

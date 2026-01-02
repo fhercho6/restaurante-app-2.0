@@ -691,6 +691,15 @@ export default function AppContent() {
                                         onOpenExpense={() => setIsExpenseModalOpen(true)}
                                         onPrintReceipt={(doc) => {
                                             let reportData = { ...doc, businessName: appName };
+
+                                            // [NEW] Handle Attendance Reprint
+                                            if (doc.type === 'attendance-reprint') {
+                                                setLastSale(reportData);
+                                                setView('attendance_print');
+                                                setTimeout(() => window.print(), 500);
+                                                return;
+                                            }
+
                                             if (doc.type === 'z-report-preview') {
                                                 reportData = {
                                                     type: 'z-report', // Use z-report type for Receipt component

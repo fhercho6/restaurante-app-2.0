@@ -381,40 +381,7 @@ export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onC
 };
 
 // --- TICKET DE ASISTENCIA ---
-export const AttendanceTicket = ({ data }) => (
-    <div className="w-[300px] p-6 bg-white font-mono text-xs leading-relaxed text-black/90">
-        <div className="text-center border-b-2 border-dashed border-black/20 pb-4 mb-4">
-            <h2 className="text-xl font-black uppercase tracking-wider mb-1">REGISTRO DE CONTROL</h2>
-            <p className="font-bold text-base text-gray-600 mb-2">{new Date(data.timestamp).toLocaleString()}</p>
-            <div className="bg-black text-white px-2 py-1 rounded inline-block font-bold mt-1">TURNO #{data.registerId.slice(-4)}</div>
-        </div>
 
-        <div className="space-y-4">
-            <div className="flex justify-between items-end">
-                <span className="text-gray-500 uppercase font-bold text-[10px]">Empleado</span>
-                <span className="text-xl font-black">{data.staffName}</span>
-            </div>
-            <div className="flex justify-between border-b border-gray-100 pb-2">
-                <span className="text-gray-500 uppercase font-bold text-[10px]">Rol / Cargo</span>
-                <span className="font-bold">{data.role}</span>
-            </div>
-            <div className="flex justify-between">
-                <span className="text-gray-500 uppercase font-bold text-[10px]">Evento</span>
-                <span className="font-bold uppercase flex items-center gap-1">
-                    <LogIn size={12} /> ENTRADA
-                </span>
-            </div>
-        </div>
-
-        <div className="mt-12 pt-4 border-t-2 border-black">
-            <p className="text-center font-bold text-[10px] uppercase text-gray-400 mb-8">Firma del Empleado</p>
-        </div>
-
-        <div className="text-center text-[8px] text-gray-300 font-bold uppercase tracking-widest">
-            Documento de Control Interno
-        </div>
-    </div>
-);
 
 // --- CREDENCIAL PARA IMPRIMIR (COMPACTA) ---
 export const CredentialPrintView = ({ member, appName }) => (
@@ -548,3 +515,55 @@ export const PrintableView = ({ items }) => (
         </table>
     </div>
 );
+
+// --- TICKET DE ASISTENCIA (80mm) ---
+export const AttendanceTicket = ({ data }) => {
+    if (!data) return null;
+
+    // Format Date / Time
+    const dateObj = new Date(data.timestamp || Date.now());
+    const dateStr = dateObj.toLocaleDateString();
+    const timeStr = dateObj.toLocaleTimeString();
+
+    return (
+        <div style={{ width: '80mm', fontFamily: 'monospace', padding: '10px', fontSize: '12px', color: '#000', backgroundColor: '#fff' }}>
+            <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '16px', marginBottom: '5px' }}>
+                CONTROL DE ASISTENCIA
+            </div>
+
+            <div style={{ borderBottom: '1px dashed #000', marginBottom: '10px' }}></div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                <span style={{ fontWeight: 'bold' }}>FECHA:</span>
+                <span>{dateStr}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                <span style={{ fontWeight: 'bold' }}>HORA:</span>
+                <span>{timeStr}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                <span style={{ fontWeight: 'bold' }}>TURNO ID:</span>
+                <span>#{data.registerId ? data.registerId.slice(-4) : '????'}</span>
+            </div>
+
+            <div style={{ borderBottom: '1px dashed #000', margin: '10px 0' }}></div>
+
+            <div style={{ marginBottom: '5px' }}>
+                <span style={{ fontWeight: 'bold', display: 'block' }}>COLABORADOR:</span>
+                <span style={{ fontSize: '14px' }}>{data.staffName}</span>
+            </div>
+            <div style={{ marginBottom: '15px' }}>
+                <span style={{ fontWeight: 'bold' }}>ROL:</span> {data.role}
+            </div>
+
+            <div style={{ textAlign: 'center', marginTop: '40px', paddingTop: '10px', borderTop: '1px solid #000' }}>
+                _________________________<br />
+                FIRMA CONFORME
+            </div>
+
+            <div style={{ textAlign: 'center', marginTop: '20px', fontSize: '10px' }}>
+                *** REGISTRO INTERNO ***
+            </div>
+        </div>
+    );
+};
