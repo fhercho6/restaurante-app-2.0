@@ -860,7 +860,7 @@ export default function AppContent() {
                                         <AttendanceTicket data={lastSale} />
                                     </div>
                                     <div className="flex gap-4 w-full">
-                                        <button onClick={() => { setView('landing'); setLastSale(null); }} className="flex-1 py-3 bg-gray-100 rounded-xl font-bold text-gray-600 hover:bg-gray-200">
+                                        <button onClick={() => { setView(lastSale?.returnTo || 'landing'); setLastSale(null); }} className="flex-1 py-3 bg-gray-100 rounded-xl font-bold text-gray-600 hover:bg-gray-200">
                                             Volver
                                         </button>
                                         <button onClick={() => window.print()} className="flex-1 py-3 bg-black text-white rounded-xl font-bold hover:bg-gray-800 flex items-center justify-center gap-2">

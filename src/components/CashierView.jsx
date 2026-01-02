@@ -188,7 +188,7 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
                                             <p className="text-[10px] text-gray-500">{new Date(rec.timestamp).toLocaleTimeString()}</p>
                                         </div>
                                         <button
-                                            onClick={() => onPrintReceipt({ ...rec, type: 'attendance-reprint' })} // Usamos el prop existente para pasar la data
+                                            onClick={() => onPrintReceipt({ ...rec, type: 'attendance-reprint', returnTo: 'cashier' })} // Usamos el prop existente para pasar la data
                                             className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
                                             title="Reimprimir Ticket"
                                         >
