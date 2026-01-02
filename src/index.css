@@ -72,6 +72,9 @@ body {
   /* 3.1 CASO A2: TICKET DE ASISTENCIA */
   body * {
     visibility: hidden;
+    transform: none !important;
+    position: static !important;
+    margin: 0 !important;
   }
 
   #attendance-ticket,
