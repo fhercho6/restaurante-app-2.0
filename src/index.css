@@ -83,7 +83,7 @@ body {
   }
 
   #attendance-ticket {
-    position: absolute;
+    position: absolute !important;
     left: 0 !important;
     top: 0 !important;
     width: 80mm !important;
@@ -91,6 +91,7 @@ body {
     padding: 0;
     background: white;
     overflow: hidden !important;
+    transform: none !important;
   }
 
   /* 4. CASO B: IMPRIMIENDO REPORTES (Inventario) */
