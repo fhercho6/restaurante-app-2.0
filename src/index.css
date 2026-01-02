@@ -9,19 +9,37 @@ body {
   color: #1f2937;
 }
 
-.hide-scrollbar::-webkit-scrollbar { display: none; }
-.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
 
 /* =========================================
    REGLAS MAESTRAS DE IMPRESIÓN
    ========================================= */
 @media print {
+
   /* 1. CONFIGURACIÓN GENERAL */
-  @page { margin: 0; size: auto; }
-  body { background: white; }
-  
+  @page {
+    margin: 0;
+    size: auto;
+  }
+
+  body {
+    background: white;
+  }
+
   /* 2. OCULTAR INTERFAZ (Botones, menús, etc) */
-  header, footer, nav, button, .no-print, .sidebar {
+  header,
+  footer,
+  nav,
+  button,
+  .no-print,
+  .sidebar {
     display: none !important;
   }
 
@@ -30,10 +48,12 @@ body {
   body:has(#credential-card) * {
     visibility: hidden;
   }
+
   body:has(#credential-card) #credential-card,
   body:has(#credential-card) #credential-card * {
     visibility: visible;
   }
+
   #credential-card {
     position: absolute;
     left: 0;
@@ -49,18 +69,21 @@ body {
   }
 
   /* 3.1 CASO A2: TICKET DE ASISTENCIA */
-  body:has(#attendance-ticket) * {
+  /* 3.1 CASO A2: TICKET DE ASISTENCIA */
+  body * {
     visibility: hidden;
   }
-  body:has(#attendance-ticket) #attendance-ticket,
-  body:has(#attendance-ticket) #attendance-ticket * {
+
+  #attendance-ticket,
+  #attendance-ticket * {
     visibility: visible;
   }
+
   #attendance-ticket {
     position: absolute;
     left: 0;
     top: 0;
-    width: 80mm !important; /* Force width */
+    width: 80mm !important;
     margin: 0;
     padding: 0;
     background: white;
@@ -68,7 +91,8 @@ body {
 
   /* 4. CASO B: IMPRIMIENDO REPORTES (Inventario) */
   /* Reactivamos la visibilidad para los reportes estándar */
-  .print\:block, .print\:block * {
+  .print\:block,
+  .print\:block * {
     visibility: visible !important;
   }
 }
