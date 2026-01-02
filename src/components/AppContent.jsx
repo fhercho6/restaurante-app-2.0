@@ -137,6 +137,12 @@ export default function AppContent() {
 
     // Auth & Staff Logic
     const onStaffPinLogin = async (member) => {
+        // [MODIFIED] Prevent login if register is closed, unless Admin/Cashier
+        if ((!registerSession || registerSession.status !== 'open') && member.role !== 'Administrador' && member.role !== 'Cajero') {
+            toast.error("⚠️ La CAJA ESTÁ CERRADA.\nNo se pueden tomar pedidos.");
+            return;
+        }
+
         const result = await staffLogin(member);
         if (result) setView(result);
     };
@@ -831,10 +837,10 @@ export default function AppContent() {
                             </div>
                         )}
 
-                        {/* PIN LOGIN VIEW */}
                         {view === 'pin_login' && (
                             <PinLoginView
                                 staffMembers={staff}
+                                registerStatus={registerSession ? registerSession.status : 'closed'}
                                 onLoginSuccess={onStaffPinLogin}
                                 onClockAction={handleClockAction}
                                 onCancel={() => setView('landing')}

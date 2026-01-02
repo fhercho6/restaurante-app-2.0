@@ -37,7 +37,7 @@ export const MenuCard = ({ item }) => {
 };
 
 // --- PANTALLA DE LOGIN CON PIN (OPTIMIZADA) ---
-export const PinLoginView = ({ staffMembers, onLoginSuccess, onClockAction, onCancel }) => {
+export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onClockAction, onCancel }) => {
     const [selectedStaff, setSelectedStaff] = useState(null);
     const [pin, setPin] = useState('');
     const [mode, setMode] = useState('system'); // 'system' (Vender) | 'attendance' (Reloj)
@@ -76,12 +76,29 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onClockAction, onCa
                 setIsProcessing(true); // Bloquear UI
 
                 // Verificación inmediata sin setTimeout largo
+                // Verificación inmediata sin setTimeout largo
                 if (newPin === selectedStaff.pin) {
                     if (mode === 'system') {
+                        // VALIDACIÓN CAJA CERRADA
+                        if (registerStatus !== 'open' && selectedStaff.role !== 'Administrador' && selectedStaff.role !== 'Cajero') {
+                            toast.error("⚠️ CAJA CERRADA\nDebes abrir la caja para ingresar.");
+                            setTimeout(() => {
+                                setPin('');
+                                setIsProcessing(false);
+                            }, 1000);
+                            return;
+                        }
                         onLoginSuccess(selectedStaff);
-                        // No desbloqueamos aquí porque el componente se va a desmontar
-                        // al cambiar de vista en App.jsx
                     } else {
+                        // VALIDACIÓN CAJA CERRADA (ASISTENCIA)
+                        if (registerStatus !== 'open') {
+                            toast.error("⚠️ CAJA CERRADA\nNo se puede marcar asistencia sin abrir caja.");
+                            setTimeout(() => {
+                                setPin('');
+                                setIsProcessing(false);
+                            }, 1000);
+                            return;
+                        }
                         setShowAttendanceOptions(true);
                         setIsProcessing(false); // Desbloquear para que elija opción de reloj
                     }
@@ -169,6 +186,12 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onClockAction, onCa
                 // MODO: CARD ID (8 NÚMEROS) - PRIORIDAD ALTA
                 const staffByCard = staffMembers.find(m => m.cardId && m.cardId === buffer);
                 if (staffByCard) {
+                    // VALIDACIÓN CAJA CERRADA
+                    if (registerStatus !== 'open' && staffByCard.role !== 'Administrador' && staffByCard.role !== 'Cajero') {
+                        toast.error("⚠️ CAJA CERRADA\nDebes abrir la caja para ingresar.");
+                        buffer = '';
+                        return;
+                    }
                     setIsProcessing(true);
                     toast.success(`¡Hola ${staffByCard.name}!`);
                     onLoginSuccess(staffByCard);
