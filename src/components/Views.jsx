@@ -420,7 +420,7 @@ export const CredentialPrintView = ({ member, appName }) => (
             <Barcode
                 value={member.cardId ? member.cardId : member.id.substring(0, 6).toUpperCase()}
                 format="CODE128"
-                width={1.2}
+                width={1.1}
                 height={60}
                 displayValue={false}
                 margin={30}
