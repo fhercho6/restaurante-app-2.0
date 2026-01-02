@@ -14,7 +14,7 @@ export default function StaffManagerView({
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [currentMember, setCurrentMember] = useState(null);
-  const [formData, setFormData] = useState({ name: '', role: 'Garzón', pin: '', dailySalary: '', commissionEnabled: false, photoUrl: '' });
+  const [formData, setFormData] = useState({ name: '', role: 'Garzón', pin: '', cardId: '', dailySalary: '', commissionEnabled: false, photoUrl: '' });
 
   // Commission Modal State
   const [isCommissionModalOpen, setIsCommissionModalOpen] = useState(false);
@@ -86,7 +86,7 @@ export default function StaffManagerView({
   };
 
   const resetForm = () => {
-    setFormData({ name: '', role: 'Garzón', pin: '', dailySalary: '', commissionEnabled: false, photoUrl: '' });
+    setFormData({ name: '', role: 'Garzón', pin: '', cardId: '', dailySalary: '', commissionEnabled: false, photoUrl: '' });
     setIsEditing(false);
     setCurrentMember(null);
   };
@@ -96,6 +96,7 @@ export default function StaffManagerView({
       name: member.name,
       role: member.role,
       pin: member.pin,
+      cardId: member.cardId || '',
       dailySalary: member.dailySalary || '',
       commissionEnabled: !!member.commissionEnabled,
       photoUrl: member.photoUrl || ''
@@ -200,6 +201,17 @@ export default function StaffManagerView({
                   <input type="text" maxLength="4" placeholder="1234" className="w-full pl-10 p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all font-mono font-bold text-center tracking-widest text-gray-800" value={formData.pin} onChange={e => setFormData({ ...formData, pin: e.target.value.replace(/\D/g, '') })} required disabled={isSaving} />
                 </div>
               </div>
+
+              <div>
+                <label className="text-xs font-bold text-gray-500 uppercase mb-1.5 block">ID Tarjeta (8 Dígitos)</label>
+                <div className="relative flex gap-2">
+                  <div className="relative flex-1">
+                    <Banknote className="absolute left-3 top-2.5 text-gray-400" size={18} />
+                    <input type="text" maxLength="8" placeholder="00001234" className="w-full pl-10 p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all font-mono font-bold text-center tracking-widest text-gray-800" value={formData.cardId} onChange={e => setFormData({ ...formData, cardId: e.target.value.replace(/\D/g, '') })} disabled={isSaving} />
+                  </div>
+                  <button type="button" onClick={() => setFormData({ ...formData, cardId: Math.floor(10000000 + Math.random() * 90000000).toString() })} className="p-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl transition-colors font-bold text-xs" title="Generar ID Aleatorio">Generar</button>
+                </div>
+              </div>
             </div>
 
             {/* SECTION 2: PAYROLL & SETTINGS */}
@@ -261,7 +273,9 @@ export default function StaffManagerView({
                 <div className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase mt-0.5">
                   <span>{member.role}</span>
                   <span className="text-gray-300">•</span>
+                  <span className="text-gray-300">•</span>
                   <span className="font-mono text-gray-400 tracking-wider">PIN: {member.pin || '****'}</span>
+                  {member.cardId && <><span className="text-gray-300">•</span><span className="font-mono text-blue-400 tracking-wider">ID: {member.cardId}</span></>}
                 </div>
                 {member.photoUrl && <span className="inline-flex items-center gap-1 text-[9px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full mt-1 border border-green-100"><ImageIcon size={10} /> Foto Cargada</span>}
               </div>

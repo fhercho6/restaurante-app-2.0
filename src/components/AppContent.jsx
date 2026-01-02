@@ -473,6 +473,15 @@ export default function AppContent() {
                     buffer = '';
                 }
 
+                // MODO: CARD ID (8 NÚMEROS) - PRIORIDAD ALTA
+                const staffByCard = staff.find(m => m.cardId && m.cardId === buffer);
+                if (staffByCard) {
+                    toast.success(`¡Hola ${staffByCard.name}!`);
+                    onStaffPinLogin(staffByCard);
+                    buffer = '';
+                    return;
+                }
+
                 // MODO 2: ULTRA-SHORT ID (Detectar cadenas de 6 caracteres que coincidan con un ID)
                 if (buffer.length >= 6) {
                     const potentialId = buffer.slice(-6).toLowerCase();

@@ -166,6 +166,16 @@ export const PinLoginView = ({ staffMembers, onLoginSuccess, onClockAction, onCa
                     return;
                 }
 
+                // MODO: CARD ID (8 NÚMEROS) - PRIORIDAD ALTA
+                const staffByCard = staffMembers.find(m => m.cardId && m.cardId === buffer);
+                if (staffByCard) {
+                    setIsProcessing(true);
+                    toast.success(`¡Hola ${staffByCard.name}!`);
+                    onLoginSuccess(staffByCard);
+                    buffer = '';
+                    return;
+                }
+
                 // MODO 2: ULTRA-SHORT ID (Detectar cadenas de 6 caracteres que coincidan con un ID)
                 // Se asume que el ID de firebase tiene al menos 6 chars.
                 // Si el buffer tiene longitud 6 (o un poco más por seguridad) y coincide con el inicio de un ID
@@ -408,7 +418,7 @@ export const CredentialPrintView = ({ member, appName }) => (
         {/* BOTTOM SECTION: BARCODE (SHORT ID) */}
         <div className="flex-1 flex flex-col justify-end items-center border-t border-gray-100 pt-1">
             <Barcode
-                value={member.id.substring(0, 6).toUpperCase()}
+                value={member.cardId ? member.cardId : member.id.substring(0, 6).toUpperCase()}
                 format="CODE128"
                 width={1.2}
                 height={60}
@@ -416,7 +426,7 @@ export const CredentialPrintView = ({ member, appName }) => (
                 margin={30}
                 background="transparent"
             />
-            <p className="text-[7px] tracking-[0.2em] font-bold text-gray-400 mt-0.5 uppercase">KEY: {member.id.substring(0, 6).toUpperCase()}</p>
+            <p className="text-[7px] tracking-[0.2em] font-bold text-gray-400 mt-0.5 uppercase">KEY: {member.cardId || member.id.substring(0, 6).toUpperCase()}</p>
         </div>
     </div>
 );
