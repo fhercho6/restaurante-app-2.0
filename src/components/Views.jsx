@@ -408,7 +408,7 @@ export const CredentialPrintView = ({ member, appName }) => (
         {/* BOTTOM SECTION: BARCODE (SHORT ID) */}
         <div className="flex-1 flex flex-col justify-end items-center border-t border-gray-100 pt-1">
             <Barcode
-                value={member.cardId ? member.cardId : member.id.substring(0, 6).toUpperCase()}
+                value={(member.cardId && member.cardId.length > 0) ? member.cardId : (member.id ? member.id.substring(0, 6).toUpperCase() : '000000')}
                 format="CODE128"
                 width={1.1}
                 height={60}
@@ -416,7 +416,7 @@ export const CredentialPrintView = ({ member, appName }) => (
                 margin={30}
                 background="transparent"
             />
-            <p className="text-[7px] tracking-[0.2em] font-bold text-gray-400 mt-0.5 uppercase">KEY: {member.cardId || member.id.substring(0, 6).toUpperCase()}</p>
+            <p className="text-[7px] tracking-[0.2em] font-bold text-gray-400 mt-0.5 uppercase">KEY: {(member.cardId && member.cardId.length > 0) ? member.cardId : (member.id ? member.id.substring(0, 6).toUpperCase() : '------')}</p>
         </div>
     </div>
 );
