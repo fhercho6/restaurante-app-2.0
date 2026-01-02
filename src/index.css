@@ -42,7 +42,28 @@ body {
     margin: 0;
     padding: 0;
     border: none;
+    margin: 0;
+    padding: 0;
+    border: none;
     box-shadow: none;
+  }
+
+  /* 3.1 CASO A2: TICKET DE ASISTENCIA */
+  body:has(#attendance-ticket) * {
+    visibility: hidden;
+  }
+  body:has(#attendance-ticket) #attendance-ticket,
+  body:has(#attendance-ticket) #attendance-ticket * {
+    visibility: visible;
+  }
+  #attendance-ticket {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 80mm !important; /* Force width */
+    margin: 0;
+    padding: 0;
+    background: white;
   }
 
   /* 4. CASO B: IMPRIMIENDO REPORTES (Inventario) */

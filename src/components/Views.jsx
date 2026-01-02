@@ -526,7 +526,7 @@ export const AttendanceTicket = ({ data }) => {
     const timeStr = dateObj.toLocaleTimeString();
 
     return (
-        <div className="print:fixed print:top-0 print:left-0 print:z-[9999] print:bg-white print:h-auto" style={{ width: '80mm', fontFamily: 'monospace', padding: '10px', fontSize: '12px', color: '#000', backgroundColor: '#fff', margin: '0 auto' }}>
+        <div id="attendance-ticket" style={{ width: '80mm', fontFamily: 'monospace', padding: '10px', fontSize: '12px', color: '#000', backgroundColor: '#fff', margin: '0 auto' }}>
             <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '16px', marginBottom: '5px' }}>
                 CONTROL DE ASISTENCIA
             </div>
