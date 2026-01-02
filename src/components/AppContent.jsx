@@ -31,7 +31,7 @@ import { useSales } from '../hooks/useSales';
 
 export default function AppContent() {
     // 1. Context Consumption
-    const { currentUser, staffMember, setStaffMember, isAuthModalOpen, setIsAuthModalOpen, login, logout, staffLogin, prepareCredentialPrint, credentialToPrint } = useAuth();
+    const { currentUser, staffMember, setStaffMember, isAuthModalOpen, setIsAuthModalOpen, login, logout, staffLogin, prepareCredentialPrint, credentialToPrint, markAttendance } = useAuth();
     const {
         items, staff, categories, roles, tables, expenseTypes, activeServices,
         logo, appName, autoLockTime, printerType, commissionTiers,
@@ -141,6 +141,32 @@ export default function AppContent() {
         if ((!registerSession || registerSession.status !== 'open') && member.role !== 'Administrador' && member.role !== 'Cajero') {
             toast.error("⚠️ La CAJA ESTÁ CERRADA.\nNo se pueden tomar pedidos.");
             return;
+        }
+
+        // AUTO-ATTENDANCE LOGIC
+        // If register is open, check if this staff member has already clocked in for this register session.
+        // If not, clock them in automatically BEFORE logging them into the POS.
+        if (registerSession && registerSession.status === 'open' && registerSession.id) {
+            try {
+                const attColl = isPersonalProject ? 'attendance' : `${ROOT_COLLECTION}attendance`;
+                const q = query(
+                    collection(db, attColl),
+                    where('registerId', '==', registerSession.id),
+                    where('staffId', '==', member.id)
+                );
+                const snapshot = await getDocs(q);
+
+                if (snapshot.empty) {
+                    // Not clocked in yet for this session -> Auto Clock In
+                    const success = await markAttendance(member, registerSession.id);
+                    if (success) {
+                        toast.success("✅ Asistencia marcada automáticamente");
+                    }
+                }
+            } catch (error) {
+                console.error("Auto-attendance error:", error);
+                // We don't block login if auto-attendance fails, but we log it.
+            }
         }
 
         const result = await staffLogin(member);
