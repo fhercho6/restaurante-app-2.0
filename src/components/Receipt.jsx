@@ -159,7 +159,7 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
             </div>
 
             <div style="font-weight:bold; font-size:12px; margin-bottom:5px; color:#666;">
-                IV. INVENTARIO Y VENTAS (Items: ${soldProducts.length})
+                IV. INVENTARIO Y VENTAS (Items: ${soldProducts.length} | ${(data.stats?.debugInfo || '')})
             </div>
 
             <table class="table-products">

@@ -44,7 +44,7 @@ export const RegisterProvider = ({ children }) => {
         const qE = query(collection(db, isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`), where('registerId', '==', registerSession.id));
 
         const uS = onSnapshot(qS, (s) => {
-            let c = 0, q = 0, k = 0, d = 0, ct = 0, cc = 0, cg = 0;
+            let c = 0, q = 0, k = 0, d = 0, ct = 0, cc = 0, cg = 0, itemsProcessed = 0;
             const pm = {};
 
             s.forEach(d => {
@@ -71,6 +71,7 @@ export const RegisterProvider = ({ children }) => {
                 }
 
                 if (v.items) v.items.forEach(i => {
+                    itemsProcessed++;
                     const kn = i.name;
                     const qt = i.qty;
                     const pr = parseFloat(i.price);
@@ -107,7 +108,8 @@ export const RegisterProvider = ({ children }) => {
                 totalCostOfGoods: cg,
                 courtesyTotal: ct,
                 courtesyCost: cc,
-                soldProducts: Object.values(pm).sort((a, b) => b.qtySold - a.qtySold)
+                soldProducts: Object.values(pm).sort((a, b) => b.qtySold - a.qtySold),
+                debugInfo: `Docs: ${s.size}, ItemsProcessed: ${itemsProcessed}, PMKeys: ${Object.keys(pm).length}`
             }));
         });
 
