@@ -107,7 +107,7 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                 <div class="biz-name">${data.businessName || 'LicoBar'}</div>
                 <div class="report-title">REPORTE DE CIERRE DE CAJA (CORTE Z)</div>
                 <div class="meta-info">
-                    JORNADA: ${new Date(data.openedAt || Date.now()).toLocaleDateString()} al ${new Date(data.date).toLocaleDateString()}<br/>
+                    JORNADA: ${new Date(data.openedAt || Date.now()).toLocaleDateString()} al ${data.date}<br/>
                     RESPONSABLE: ${staffName.toUpperCase()} | CAJERO: ${cashierName.toUpperCase()}
                 </div>
             </div>
@@ -155,7 +155,7 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
 
             <div class="main-header" style="margin-bottom:10px;">
                 <div class="report-title">ANEXO: DETALLE DE PRODUCTOS VENDIDOS</div>
-                <div class="meta-info">${new Date(data.date).toLocaleDateString()} - ${staffName}</div>
+                <div class="meta-info">${data.date} - ${staffName}</div>
             </div>
 
             <div style="font-weight:bold; font-size:12px; margin-bottom:5px; color:#666;">IV. INVENTARIO Y VENTAS</div>
@@ -301,10 +301,6 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                                     }}
                                     className="bg-white shadow p-4 min-h-[500px]"
                                 />
-                            </div>
-                            <div className="p-3 border-t border-gray-100 bg-white grid grid-cols-2 gap-4 text-xs text-left">
-                                <div><span className="block text-gray-400 font-bold uppercase">Formato</span><span className="font-bold text-gray-700">{useThermalFormat ? 'TÉRMICO (80mm)' : 'CARTA (A4)'}</span></div>
-                                <div><span className="block text-gray-400 font-bold uppercase">Total</span><span className="font-bold text-gray-700 text-lg">Bs. {isCourtesySale ? '0.00' : fmt(previewAmount)}</span></div>
                             </div>
                         </div>
                     )}
