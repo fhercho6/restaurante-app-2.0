@@ -710,8 +710,8 @@ export default function AppContent() {
                                                     finalCash: getCalculatedCash(),
                                                     stats: sessionStats,
                                                     soldProducts: sessionStats.soldProducts,
-                                                    staffName: staffMember?.name || 'Cajero',
-                                                    cashierName: staffMember?.name || 'Cajero',
+                                                    staffName: staffMember?.name || currentUser?.displayName || currentUser?.email || 'Cajero',
+                                                    cashierName: staffMember?.name || currentUser?.displayName || currentUser?.email || 'Cajero',
                                                     status: 'preview'
                                                 };
                                             }

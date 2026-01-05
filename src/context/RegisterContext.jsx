@@ -83,15 +83,18 @@ export const RegisterProvider = ({ children }) => {
                         cg += (co * qt);
                     }
 
-                    if (!pm[kn]) pm[kn] = { name: kn, qty: 0, qtyCourtesy: 0, total: 0, totalCost: 0 };
+                    if (!pm[kn]) pm[kn] = { name: kn, qtySold: 0, qtyCourtesy: 0, total: 0, cost: 0, totalCost: 0, courtesyTotal: 0 };
 
                     if (ic) {
                         pm[kn].qtyCourtesy += qt;
+                        pm[kn].courtesyTotal += (pr * qt);
                     } else {
-                        pm[kn].qty += qt;
+                        pm[kn].qtySold += qt;
                         pm[kn].total += (pr * qt);
                     }
                     pm[kn].totalCost += (co * qt);
+                    // Guardamos costo unitario promedio o el ultimo encontrado para referecia
+                    if (!pm[kn].cost) pm[kn].cost = co;
                 });
             });
 
@@ -104,7 +107,7 @@ export const RegisterProvider = ({ children }) => {
                 totalCostOfGoods: cg,
                 courtesyTotal: ct,
                 courtesyCost: cc,
-                soldProducts: Object.values(pm).sort((a, b) => b.qty - a.qty)
+                soldProducts: Object.values(pm).sort((a, b) => b.qtySold - a.qtySold)
             }));
         });
 
