@@ -35,20 +35,23 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
         const stats = data.stats || {};
 
         // Filas de productos para la Página 2
-        // Filas de productos para la Página 2
         const soldProducts = data.soldProducts || [];
-        const productRows = soldProducts.map((p, i) => `
+        const productRows = soldProducts.map((p, i) => {
+            const qtyS = p.qtySold || p.qty || 0; // Fallback para compatibilidad
+            const qtyC = p.qtyCourtesy || 0;
+            return `
             <tr style="border-bottom:1px solid #eee;">
                 <td style="padding:4px;">${p.name}</td>
-                <td class="text-center">${p.qtySold}</td>
-                <td class="text-center">${p.qtyCourtesy || 0}</td>
-                <td class="text-right">${fmt(parseFloat(p.cost || 0) * (p.qtySold + (p.qtyCourtesy || 0)))}</td>
+                <td class="text-center">${qtyS}</td>
+                <td class="text-center">${qtyC}</td>
+                <td class="text-right">${fmt(parseFloat(p.cost || 0) * (qtyS + qtyC))}</td>
                 <td class="text-right">${fmt(p.courtesyTotal || 0)}</td>
                 <td class="text-right" style="font-weight:bold;">${fmt(p.total)}</td>
             </tr>
-        `).join('');
+            `;
+        }).join('');
 
-        const totalQtySold = soldProducts.reduce((sum, p) => sum + p.qtySold, 0);
+        const totalQtySold = soldProducts.reduce((sum, p) => sum + (p.qtySold || p.qty || 0), 0);
         const totalQtyCort = soldProducts.reduce((sum, p) => sum + (p.qtyCourtesy || 0), 0);
 
         const expensesRows = stats.expensesList && stats.expensesList.length > 0
