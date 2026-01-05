@@ -3,43 +3,43 @@ import React, { useEffect, useState } from 'react';
 import { X, Printer, Loader2, CheckCircle } from 'lucide-react';
 
 const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
-  const [status, setStatus] = useState('preview'); 
+    const [status, setStatus] = useState('preview');
 
-  if (!data) return null;
+    if (!data) return null;
 
-  const fmt = (value) => { 
-      const num = parseFloat(value); 
-      return isNaN(num) ? '0.00' : num.toFixed(2); 
-  };
+    const fmt = (value) => {
+        const num = parseFloat(value);
+        return isNaN(num) ? '0.00' : num.toFixed(2);
+    };
 
-  const isZReport = data.type === 'z-report';
-  // Lógica: Si es Z-Report usa Carta (si printerType es carta), sino Térmico.
-  // Pero para asegurar que el Z salga bien, forzamos el diseño carta si es Z-Report
-  const useThermalFormat = !isZReport || printerType === 'thermal'; 
-  
-  const isCourtesySale = data.payments && data.payments.some(p => p.method === 'Cortesía');
-  const staffName = data.staffName || 'General';
-  const cashierName = data.cashierName || 'Caja';
-  
-  // Limpieza de códigos para comandas múltiples
-  const displayCode = data.orderId 
-      ? data.orderId.replace(/ORD-/g, '').replace(/,/g, ' -') 
-      : '----';
+    const isZReport = data.type === 'z-report';
+    // Lógica: Si es Z-Report usa Carta (si printerType es carta), sino Térmico.
+    // Pero para asegurar que el Z salga bien, forzamos el diseño carta si es Z-Report
+    const useThermalFormat = !isZReport || printerType === 'thermal';
 
-  // COLORES: Negro puro para el Reporte Z (como la imagen), Gris oscuro para tickets (ahorro)
-  const INK_COLOR = isZReport ? '#000000' : '#404040';
-  const BORDER_COLOR = isZReport ? '#000000' : '#999999';
+    const isCourtesySale = data.payments && data.payments.some(p => p.method === 'Cortesía');
+    const staffName = data.staffName || 'General';
+    const cashierName = data.cashierName || 'Caja';
 
-  // --- MODO 1: REPORTE CARTA (REPLICA EXACTA IMAGENES 05 y 06) ---
-  const renderLetterReport = () => {
-      const stats = data.stats || {};
-      
-      // Filas de productos para la Página 2
-      const productRows = data.soldProducts ? data.soldProducts.map(p => {
-          // Detectar si es regalo total para mostrar texto o 0.00
-          const valCortesia = (p.qtyCourtesy * (p.totalCost / (p.qty || 1))) || 0; // Estimado visual
-          
-          return `
+    // Limpieza de códigos para comandas múltiples
+    const displayCode = data.orderId
+        ? data.orderId.replace(/ORD-/g, '').replace(/,/g, ' -')
+        : '----';
+
+    // COLORES: Negro puro para el Reporte Z (como la imagen), Gris oscuro para tickets (ahorro)
+    const INK_COLOR = isZReport ? '#000000' : '#404040';
+    const BORDER_COLOR = isZReport ? '#000000' : '#999999';
+
+    // --- MODO 1: REPORTE CARTA (REPLICA EXACTA IMAGENES 05 y 06) ---
+    const renderLetterReport = () => {
+        const stats = data.stats || {};
+
+        // Filas de productos para la Página 2
+        const productRows = data.soldProducts ? data.soldProducts.map(p => {
+            // Detectar si es regalo total para mostrar texto o 0.00
+            const valCortesia = (p.qtyCourtesy * (p.totalCost / (p.qty || 1))) || 0; // Estimado visual
+
+            return `
             <tr>
                 <td style="text-align:left;padding:6px 4px;">${p.name}</td>
                 <td style="text-align:center;padding:6px 4px;">${p.qtySold || 0}</td>
@@ -48,17 +48,17 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                 <td style="text-align:right;padding:6px 4px; color:#666;">${p.qtyCourtesy > 0 ? (p.total === 0 ? '(Regalo)' : 'Mixto') : '-'}</td>
                 <td style="text-align:right;padding:6px 4px; font-weight:bold;">${fmt(p.total)}</td>
             </tr>`;
-      }).join('') : '';
+        }).join('') : '';
 
-      // Totales
-      const totalQtySold = data.soldProducts ? data.soldProducts.reduce((a,b)=>a+(b.qtySold||0),0) : 0;
-      const totalQtyCort = data.soldProducts ? data.soldProducts.reduce((a,b)=>a+(b.qtyCourtesy||0),0) : 0;
+        // Totales
+        const totalQtySold = data.soldProducts ? data.soldProducts.reduce((a, b) => a + (b.qtySold || 0), 0) : 0;
+        const totalQtyCort = data.soldProducts ? data.soldProducts.reduce((a, b) => a + (b.qtyCourtesy || 0), 0) : 0;
 
-      const expensesRows = stats.expensesList && stats.expensesList.length > 0 
-        ? stats.expensesList.map(e => `<tr><td style="padding:5px 0;">• ${e.description}</td><td style="text-align:right;padding:5px 0;">${fmt(e.amount)}</td></tr>`).join('') 
-        : '<tr><td colspan="2" style="font-style:italic;padding:5px 0;">Sin gastos</td></tr>';
+        const expensesRows = stats.expensesList && stats.expensesList.length > 0
+            ? stats.expensesList.map(e => `<tr><td style="padding:5px 0;">• ${e.description}</td><td style="text-align:right;padding:5px 0;">${fmt(e.amount)}</td></tr>`).join('')
+            : '<tr><td colspan="2" style="font-style:italic;padding:5px 0;">Sin gastos</td></tr>';
 
-      return `
+        return `
         <html>
         <head>
             <title>Reporte Cierre Z</title>
@@ -179,7 +179,7 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                         <td class="text-center">${totalQtyCort}</td>
                         <td class="text-right">${fmt(stats.totalCostOfGoods)}</td>
                         <td class="text-right">${fmt(stats.courtesyTotal)}</td>
-                        <td class="text-right">${fmt((stats.cashSales||0)+(stats.digitalSales||0))}</td>
+                        <td class="text-right">${fmt((stats.cashSales || 0) + (stats.digitalSales || 0))}</td>
                     </tr>
                 </tbody>
             </table>
@@ -191,19 +191,19 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
         </body>
         </html>
       `;
-  };
+    };
 
-  // --- MODO 2: TICKET TÉRMICO (Manteniendo optimización Eco) ---
-  const renderThermalReport = () => {
-      const stats = data.stats || {};
-      let title = (data.businessName || 'LicoBar').toUpperCase();
-      if (data.type === 'expense') title = 'VALE DE GASTO';
-      if (isCourtesySale) title = 'RECIBO DE CORTESÍA';
-      
-      let itemsHtml = data.items ? data.items.map(item => `<div class="row" style="margin-bottom:2px;"><div class="col-qty">${item.qty}</div><div class="col-name">${item.name}</div><div class="col-price">${isCourtesySale ? '0.00' : fmt(item.price * item.qty)}</div></div>`).join('') : '';
-      let zReportRows = data.soldProducts ? data.soldProducts.map(p => `<div class="row"><div class="col-qty">${p.qtySold + (p.qtyCourtesy||0)}</div><div class="col-name">${p.name}</div><div class="col-price">${fmt(p.total)}</div></div>`).join('') : '';
+    // --- MODO 2: TICKET TÉRMICO (Manteniendo optimización Eco) ---
+    const renderThermalReport = () => {
+        const stats = data.stats || {};
+        let title = (data.businessName || 'LicoBar').toUpperCase();
+        if (data.type === 'expense') title = 'VALE DE GASTO';
+        if (isCourtesySale) title = 'RECIBO DE CORTESÍA';
 
-      return `<html><head><style>
+        let itemsHtml = data.items ? data.items.map(item => `<div class="row" style="margin-bottom:2px;"><div class="col-qty">${item.qty}</div><div class="col-name">${item.name}</div><div class="col-price">${isCourtesySale ? '0.00' : fmt(item.price * item.qty)}</div></div>`).join('') : '';
+        let zReportRows = data.soldProducts ? data.soldProducts.map(p => `<div class="row"><div class="col-qty">${p.qtySold + (p.qtyCourtesy || 0)}</div><div class="col-name">${p.name}</div><div class="col-price">${fmt(p.total)}</div></div>`).join('') : '';
+
+        return `<html><head><style>
             * { box-sizing: border-box; }
             body { font-family: 'Arial', sans-serif; margin: 0; padding: 5px 0; width: 72mm; font-size: 12px; color: ${INK_COLOR}; }
             .text-center { text-align: center; }
@@ -219,94 +219,99 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
             .courtesy-box { border: 1px dashed ${BORDER_COLOR}; padding: 5px; margin: 10px 0; text-align: center; }
             </style></head><body>
             <div class="text-center border-b">
-                <div class="bold" style="font-size:16px;">${data.type==='z-report'?'CIERRE DE CAJA':title}</div>
+                <div class="bold" style="font-size:16px;">${data.type === 'z-report' ? 'CIERRE DE CAJA' : title}</div>
                 <div style="font-size:10px;">${data.date}</div>
                 <div style="font-size:10px;margin-top:2px;">Atiende: ${staffName.split(' ')[0]} | Caja: ${cashierName.split(' ')[0]}</div>
                 ${(data.type === 'order' || data.type === 'quick_sale') ? `<div class="code-box">#${displayCode}</div>` : ''}
             </div>
-            ${data.type === 'z-report' ? `<div class="flex-between"><span>Fondo Inicial:</span><span>${fmt(data.openingAmount)}</span></div><div class="flex-between bold"><span>(+) Ventas:</span><span>${fmt((stats.cashSales||0)+(stats.digitalSales||0))}</span></div><div class="flex-between"><span>(-) Gastos:</span><span>${fmt(stats.totalExpenses)}</span></div><div class="border-b" style="margin:5px 0;"></div><div class="flex-between bold" style="font-size:18px;"><span>CAJA:</span><span>Bs. ${fmt(data.finalCash)}</span></div><br/><div class="bold text-center border-b">PRODUCTOS</div>${zReportRows}` : data.type === 'expense' ? `<div style="margin-top:10px;"><span style="font-size:10px;">CONCEPTO:</span><br/><span class="bold uppercase" style="font-size:14px;">${data.description}</span><div class="border-b" style="margin:5px 0;"></div><div class="flex-between bold" style="font-size:18px;"><span>RETIRO:</span><span>Bs. ${fmt(data.amount)}</span></div><br/><br/><div class="text-center" style="font-size:10px;border-top:1px solid ${BORDER_COLOR};padding-top:5px;">FIRMA</div></div>` : `
+            ${data.type === 'z-report' ? `<div class="flex-between"><span>Fondo Inicial:</span><span>${fmt(data.openingAmount)}</span></div><div class="flex-between bold"><span>(+) Ventas:</span><span>${fmt((stats.cashSales || 0) + (stats.digitalSales || 0))}</span></div><div class="flex-between"><span>(-) Gastos:</span><span>${fmt(stats.totalExpenses)}</span></div><div class="border-b" style="margin:5px 0;"></div><div class="flex-between bold" style="font-size:18px;"><span>CAJA:</span><span>Bs. ${fmt(data.finalCash)}</span></div><br/><div class="bold text-center border-b">PRODUCTOS</div>${zReportRows}` : data.type === 'expense' ? `<div style="margin-top:10px;"><span style="font-size:10px;">CONCEPTO:</span><br/><span class="bold uppercase" style="font-size:14px;">${data.description}</span><div class="border-b" style="margin:5px 0;"></div><div class="flex-between bold" style="font-size:18px;"><span>RETIRO:</span><span>Bs. ${fmt(data.amount)}</span></div><br/><br/><div class="text-center" style="font-size:10px;border-top:1px solid ${BORDER_COLOR};padding-top:5px;">FIRMA</div></div>` : `
                 <div class="row bold" style="font-size:10px;border-bottom:1px solid ${BORDER_COLOR};margin-bottom:2px;"><div class="col-qty">C</div><div class="col-name">DESCRIPCION</div><div class="col-price">TOTAL</div></div>${itemsHtml}<div class="border-b" style="margin:5px 0;"></div>
-                ${isCourtesySale?`<div class="courtesy-box"><div class="bold" style="font-size:14px;">CORTESÍA AUTORIZADA</div><div style="font-size:10px;">Total Bonificado: Bs. ${fmt(data.total)}</div></div><div class="flex-between bold" style="font-size:16px;"><span>A PAGAR:</span><span>Bs. 0.00</span></div>`:`<div class="flex-between bold" style="font-size:18px;"><span>TOTAL:</span><span>Bs. ${fmt(data.total)}</span></div>${data.payments?`<div style="margin-top:5px;font-size:10px;">${data.payments.map(p=>`<div class="flex-between"><span>PAGO ${p.method.toUpperCase()}:</span><span>${fmt(p.amount)}</span></div>`).join('')}</div>`:''}${data.changeGiven>0?`<div class="text-right bold" style="margin-top:2px;">CAMBIO: ${fmt(data.changeGiven)}</div>`:''}`}
+                ${isCourtesySale ? `<div class="courtesy-box"><div class="bold" style="font-size:14px;">CORTESÍA AUTORIZADA</div><div style="font-size:10px;">Total Bonificado: Bs. ${fmt(data.total)}</div></div><div class="flex-between bold" style="font-size:16px;"><span>A PAGAR:</span><span>Bs. 0.00</span></div>` : `<div class="flex-between bold" style="font-size:18px;"><span>TOTAL:</span><span>Bs. ${fmt(data.total)}</span></div>${data.payments ? `<div style="margin-top:5px;font-size:10px;">${data.payments.map(p => `<div class="flex-between"><span>PAGO ${p.method.toUpperCase()}:</span><span>${fmt(p.amount)}</span></div>`).join('')}</div>` : ''}${data.changeGiven > 0 ? `<div class="text-right bold" style="margin-top:2px;">CAMBIO: ${fmt(data.changeGiven)}</div>` : ''}`}
             `}
             <div style="margin-top:15px;text-align:center;font-size:10px;">*** GRACIAS POR SU VISITA ***</div></body></html>`;
-  };
+    };
 
-  const handlePrintInNewWindow = () => {
-    // Si NO es Z-Report, siempre es térmico
-    const isThermal = useThermalFormat;
-    
-    // Dimensiones de ventana
-    const width = isThermal ? 400 : 1000;
-    const height = isThermal ? 600 : 800;
-    
-    const printWindow = window.open('', 'PRINT', `height=${height},width=${width}`);
-    if (!printWindow) { alert("⚠️ Permite ventanas emergentes para imprimir."); setStatus('preview'); return; }
-    
-    const htmlContent = isThermal ? renderThermalReport() : renderLetterReport();
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
-    printWindow.focus();
-    
-    setTimeout(() => { 
-        printWindow.print(); 
-        printWindow.close(); 
-        if (data.autoPrint) {
-            setStatus('done');
-            setTimeout(onClose, 2000); 
+    const handlePrintInNewWindow = () => {
+        // Si NO es Z-Report, siempre es térmico
+        const isThermal = useThermalFormat;
+
+        // Dimensiones de ventana
+        const width = isThermal ? 400 : 1000;
+        const height = isThermal ? 600 : 800;
+
+        const printWindow = window.open('', 'PRINT', `height=${height},width=${width}`);
+        if (!printWindow) { alert("⚠️ Permite ventanas emergentes para imprimir."); setStatus('preview'); return; }
+
+        const htmlContent = isThermal ? renderThermalReport() : renderLetterReport();
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+        printWindow.focus();
+
+        setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+            if (data.autoPrint) {
+                setStatus('done');
+                setTimeout(onClose, 2000);
+            }
+        }, 100);
+    };
+
+    useEffect(() => {
+        if (data && data.autoPrint) {
+            setStatus('printing');
+            setTimeout(handlePrintInNewWindow, 300);
         }
-    }, 100); 
-  };
+    }, [data]);
 
-  useEffect(() => { 
-      if (data && data.autoPrint) {
-          setStatus('printing');
-          setTimeout(handlePrintInNewWindow, 300);
-      }
-  }, [data]);
+    const previewAmount = data.type === 'expense' ? data.amount : (data.type === 'z-report' ? data.finalCash : data.total);
 
-  const previewAmount = data.type === 'expense' ? data.amount : (data.type === 'z-report' ? data.finalCash : data.total);
+    return (
+        <div className="fixed inset-0 bg-gray-900/90 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
+            <div className="bg-white w-full max-w-sm shadow-2xl rounded-xl overflow-hidden flex flex-col max-h-[90vh]">
 
-  return (
-    <div className="fixed inset-0 bg-gray-900/90 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
-      <div className="bg-white w-full max-w-sm shadow-2xl rounded-xl overflow-hidden flex flex-col max-h-[90vh]">
-        
-        {status === 'preview' && (
-            <div className="bg-gray-800 p-3 flex justify-between items-center">
-                <h3 className="text-white font-bold text-sm">{useThermalFormat ? 'TICKET' : 'REPORTE CARTA'}</h3>
-                <div className="flex gap-2">
-                    <button onClick={handlePrintInNewWindow} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 shadow-lg"><Printer size={18}/> IMPRIMIR</button>
-                    <button onClick={onClose} className="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-lg"><X size={18}/></button>
+                {status === 'preview' && (
+                    <div className="bg-gray-800 p-3 flex justify-between items-center">
+                        <h3 className="text-white font-bold text-sm">{useThermalFormat ? 'TICKET' : 'REPORTE CARTA'}</h3>
+                        <div className="flex gap-2">
+                            <button onClick={handlePrintInNewWindow} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 shadow-lg"><Printer size={18} /> IMPRIMIR</button>
+                            <button onClick={onClose} className="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-lg"><X size={18} /></button>
+                        </div>
+                    </div>
+                )}
+
+                <div className="p-8 flex flex-col items-center justify-center text-center bg-gray-50 min-h-[200px]">
+                    {status === 'printing' ? (
+                        <>
+                            <Loader2 size={64} className="text-blue-600 animate-spin mb-4" />
+                            <h3 className="text-xl font-bold text-gray-800">Imprimiendo...</h3>
+                            <p className="text-sm text-gray-500">Espere un momento</p>
+                        </>
+                    ) : status === 'done' ? (
+                        <>
+                            <CheckCircle size={64} className="text-green-500 mb-4 animate-in zoom-in" />
+                            <h3 className="text-xl font-bold text-gray-800">¡Listo!</h3>
+                        </>
+                    ) : (
+                        <div className="w-full h-full flex flex-col overflow-hidden bg-white shadow-sm border border-gray-200">
+                            <div className="flex-1 overflow-y-auto p-4 bg-gray-50 scale-90 origin-top">
+                                <div
+                                    dangerouslySetInnerHTML={{
+                                        __html: useThermalFormat ? '(Vista previa térmica no disponible, imprima para ver)' : renderLetterReport()
+                                    }}
+                                    className="bg-white shadow p-4 min-h-[500px]"
+                                />
+                            </div>
+                            <div className="p-3 border-t border-gray-100 bg-white grid grid-cols-2 gap-4 text-xs text-left">
+                                <div><span className="block text-gray-400 font-bold uppercase">Formato</span><span className="font-bold text-gray-700">{useThermalFormat ? 'TÉRMICO (80mm)' : 'CARTA (A4)'}</span></div>
+                                <div><span className="block text-gray-400 font-bold uppercase">Total</span><span className="font-bold text-gray-700 text-lg">Bs. {isCourtesySale ? '0.00' : fmt(previewAmount)}</span></div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
-        )}
-
-        <div className="p-8 flex flex-col items-center justify-center text-center bg-gray-50 min-h-[200px]">
-            {status === 'printing' ? (
-                <>
-                    <Loader2 size={64} className="text-blue-600 animate-spin mb-4"/>
-                    <h3 className="text-xl font-bold text-gray-800">Imprimiendo...</h3>
-                    <p className="text-sm text-gray-500">Espere un momento</p>
-                </>
-            ) : status === 'done' ? (
-                <>
-                    <CheckCircle size={64} className="text-green-500 mb-4 animate-in zoom-in"/>
-                    <h3 className="text-xl font-bold text-gray-800">¡Listo!</h3>
-                </>
-            ) : (
-                <div className={`w-full p-4 border-t-4 bg-white shadow-sm ${isCourtesySale ? 'border-yellow-500' : 'border-blue-500'}`}>
-                    <p className="font-bold text-lg mb-2">{isCourtesySale ? 'RECIBO CORTESÍA' : (data.businessName || 'LicoBar')}</p>
-                    <p className="text-4xl font-black text-gray-800">Bs. {isCourtesySale ? '0.00' : fmt(previewAmount)}</p>
-                    
-                    <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-2 gap-4 text-xs text-left">
-                        <div><span className="block text-gray-400 font-bold uppercase">Formato</span><span className="font-bold text-gray-700">{useThermalFormat ? 'TÉRMICO (80mm)' : 'CARTA (A4)'}</span></div>
-                        <div><span className="block text-gray-400 font-bold uppercase">Tipo</span><span className="font-bold text-gray-700 uppercase">{data.type === 'z-report' ? 'Cierre Caja' : (isCourtesySale ? 'Cortesía' : 'Venta')}</span></div>
-                    </div>
-                </div>
-            )}
         </div>
-      </div>
-    </div>
-  );
+    );
 };
 
 export default Receipt;
