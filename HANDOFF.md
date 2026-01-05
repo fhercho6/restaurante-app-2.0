@@ -55,6 +55,15 @@
 
 ---
 
+9.  **Depuración y Estabilización de Impresión (Enero 2026):**
+    *   **Problema Crítico:** La vista previa de impresión salía en blanco o cortada, y la navegación fallaba tras imprimir.
+    *   **Solución (CSS):** Se implementó una estrategia de "Visibilidad Selectiva" usando `visibility: hidden` global y `visibility: visible` específico para `#attendance-ticket` y `#credential-card`. Se restauró `position: absolute` con `!important` para garantizar que los elementos salgan de su contenedor y se impriman al 100%.
+    *   **Navegación:** Se arregló el flujo para que, tras imprimir un ticket de asistencia, el sistema regrese a la vista de "Caja" y no al inicio.
+    *   **Credenciales:** Se blindó el componente `CredentialPrintView` para evitar caídas (crash) si faltan datos del empleado, usando valores por defecto ("000000").
+    *   **Reporte X (Corte Parcial):** Se habilitó la vista previa completa en formato HTML (Carta) dentro del modal, corrigiendo el problema de "Bs. 0.00" y ajustando el ancho de la ventana para mejorar la legibilidad.
+
+---
+
 ## 🛠️ Instrucciones para la Nueva PC
 
 ### 1. Requisitos Previos
@@ -81,12 +90,11 @@ npm run dev
 Si continúas la conversación con una IA en la nueva PC, dile:
 *"Estoy continuando el proyecto Sistema ZZIF. Lee el archivo HANDOFF.md para ponerte al día."*
 
-**Estado Crítico del Lector:**
-Estamos en fase de ajuste fino ("Fine Tuning") de la impresión del código de barras.
-La configuración actual (Code 128, Width 1.2) intenta compensar un sangrado de tinta (dot gain) severo. Si esto falla, considerar:
-1.  Verificar si la impresora tiene ajustes de densidad (hardware).
-2.  Probar una fuente de código de barras nativa (si fuese posible) en lugar de imagen generada.
-3.  Intentar una variante de Code 39 aún más ancha y baja densidad si el espacio lo permite.
+**Estado de Impresión:**
+El sistema de impresión es **ESTABLE**.
+-   **Tickets (80mm):** Funcionan OK.
+-   **Credenciales:** Funcionan OK (Code 128, verificadas).
+-   **CSS:** No modificar `index.css` sección `@media print` a menos que sea estrictamente necesario. La estructura actual es delicada y funciona.
 
 El sistema ya está configurado con Firebase y las credenciales están en `.env`.
 **Importante:** Si el `.env` no se copió (porque a veces son archivos ocultos), asegúrate de copiarlo manualmente o regenerarlo con las claves de Firebase.
