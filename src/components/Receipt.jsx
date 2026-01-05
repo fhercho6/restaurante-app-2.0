@@ -45,21 +45,27 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                 <td style="text-align:center;padding:6px 4px;">${p.qtySold || 0}</td>
                 <td style="text-align:center;padding:6px 4px;">${p.qtyCourtesy || 0}</td>
                 <td style="text-align:right;padding:6px 4px;">${fmt(p.totalCost)}</td>
-                <td style="text-align:right;padding:6px 4px; color:#666;">${p.qtyCourtesy > 0 ? (p.total === 0 ? '(Regalo)' : 'Mixto') : '-'}</td>
-                <td style="text-align:right;padding:6px 4px; font-weight:bold;">${fmt(p.total)}</td>
-            </tr>`;
-        }).join('') : '';
+        const soldProducts = data.soldProducts || [];
+        const productRows = soldProducts.map((p, i) => `
+                < tr style = "border-bottom:1px solid #eee;" >
+                <td style="padding:4px;">${p.name}</td>
+                <td class="text-center">${p.qtySold}</td>
+                <td class="text-center">${p.qtyCourtesy || 0}</td>
+                <td class="text-right">${fmt(parseFloat(p.cost) * (p.qtySold + (p.qtyCourtesy || 0)))}</td>
+                <td class="text-right">${fmt(p.courtesyTotal || 0)}</td>
+                <td class="text-right" style="font-weight:bold;">${fmt(p.total)}</td>
+            </tr >
+    `).join('');
 
-        // Totales
-        const totalQtySold = data.soldProducts ? data.soldProducts.reduce((a, b) => a + (b.qtySold || 0), 0) : 0;
-        const totalQtyCort = data.soldProducts ? data.soldProducts.reduce((a, b) => a + (b.qtyCourtesy || 0), 0) : 0;
+        const totalQtySold = soldProducts.reduce((sum, p) => sum + p.qtySold, 0);
+        const totalQtyCort = soldProducts.reduce((sum, p) => sum + (p.qtyCourtesy || 0), 0);
 
         const expensesRows = stats.expensesList && stats.expensesList.length > 0
-            ? stats.expensesList.map(e => `<tr><td style="padding:5px 0;">• ${e.description}</td><td style="text-align:right;padding:5px 0;">${fmt(e.amount)}</td></tr>`).join('')
+            ? stats.expensesList.map(e => `< tr ><td style="padding:5px 0;">• ${e.description}</td><td style="text-align:right;padding:5px 0;">${fmt(e.amount)}</td></tr > `).join('')
             : '<tr><td colspan="2" style="font-style:italic;padding:5px 0;">Sin gastos</td></tr>';
 
         return `
-        <html>
+    < html >
         <head>
             <title>Reporte Cierre Z</title>
             <style>
@@ -189,8 +195,8 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
             </div>
 
         </body>
-        </html>
-      `;
+        </html >
+    `;
     };
 
     // --- MODO 2: TICKET TÉRMICO (Manteniendo optimización Eco) ---
@@ -200,10 +206,10 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
         if (data.type === 'expense') title = 'VALE DE GASTO';
         if (isCourtesySale) title = 'RECIBO DE CORTESÍA';
 
-        let itemsHtml = data.items ? data.items.map(item => `<div class="row" style="margin-bottom:2px;"><div class="col-qty">${item.qty}</div><div class="col-name">${item.name}</div><div class="col-price">${isCourtesySale ? '0.00' : fmt(item.price * item.qty)}</div></div>`).join('') : '';
-        let zReportRows = data.soldProducts ? data.soldProducts.map(p => `<div class="row"><div class="col-qty">${p.qtySold + (p.qtyCourtesy || 0)}</div><div class="col-name">${p.name}</div><div class="col-price">${fmt(p.total)}</div></div>`).join('') : '';
+        let itemsHtml = data.items ? data.items.map(item => `< div class="row" style = "margin-bottom:2px;" ><div class="col-qty">${item.qty}</div><div class="col-name">${item.name}</div><div class="col-price">${isCourtesySale ? '0.00' : fmt(item.price * item.qty)}</div></div > `).join('') : '';
+        let zReportRows = data.soldProducts ? data.soldProducts.map(p => `< div class="row" ><div class="col-qty">${p.qtySold + (p.qtyCourtesy || 0)}</div><div class="col-name">${p.name}</div><div class="col-price">${fmt(p.total)}</div></div > `).join('') : '';
 
-        return `<html><head><style>
+        return `< html ><head><style>
             * { box-sizing: border-box; }
             body { font-family: 'Arial', sans-serif; margin: 0; padding: 5px 0; width: 72mm; font-size: 12px; color: ${INK_COLOR}; }
             .text-center { text-align: center; }
@@ -228,7 +234,7 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                 <div class="row bold" style="font-size:10px;border-bottom:1px solid ${BORDER_COLOR};margin-bottom:2px;"><div class="col-qty">C</div><div class="col-name">DESCRIPCION</div><div class="col-price">TOTAL</div></div>${itemsHtml}<div class="border-b" style="margin:5px 0;"></div>
                 ${isCourtesySale ? `<div class="courtesy-box"><div class="bold" style="font-size:14px;">CORTESÍA AUTORIZADA</div><div style="font-size:10px;">Total Bonificado: Bs. ${fmt(data.total)}</div></div><div class="flex-between bold" style="font-size:16px;"><span>A PAGAR:</span><span>Bs. 0.00</span></div>` : `<div class="flex-between bold" style="font-size:18px;"><span>TOTAL:</span><span>Bs. ${fmt(data.total)}</span></div>${data.payments ? `<div style="margin-top:5px;font-size:10px;">${data.payments.map(p => `<div class="flex-between"><span>PAGO ${p.method.toUpperCase()}:</span><span>${fmt(p.amount)}</span></div>`).join('')}</div>` : ''}${data.changeGiven > 0 ? `<div class="text-right bold" style="margin-top:2px;">CAMBIO: ${fmt(data.changeGiven)}</div>` : ''}`}
             `}
-            <div style="margin-top:15px;text-align:center;font-size:10px;">*** GRACIAS POR SU VISITA ***</div></body></html>`;
+            <div style="margin-top:15px;text-align:center;font-size:10px;">*** GRACIAS POR SU VISITA ***</div></body></html > `;
     };
 
     const handlePrintInNewWindow = () => {
@@ -239,7 +245,7 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
         const width = isThermal ? 400 : 1000;
         const height = isThermal ? 600 : 800;
 
-        const printWindow = window.open('', 'PRINT', `height=${height},width=${width}`);
+        const printWindow = window.open('', 'PRINT', `height = ${ height }, width = ${ width } `);
         if (!printWindow) { alert("⚠️ Permite ventanas emergentes para imprimir."); setStatus('preview'); return; }
 
         const htmlContent = isThermal ? renderThermalReport() : renderLetterReport();
@@ -268,7 +274,7 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
 
     return (
         <div className="fixed inset-0 bg-gray-900/90 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
-            <div className={`bg-white w-full ${useThermalFormat ? 'max-w-sm' : 'max-w-3xl'} shadow-2xl rounded-xl overflow-hidden flex flex-col max-h-[90vh] transition-all duration-300`}>
+            <div className={`bg - white w - full ${ useThermalFormat ? 'max-w-sm' : 'max-w-3xl' } shadow - 2xl rounded - xl overflow - hidden flex flex - col max - h - [90vh] transition - all duration - 300`}>
 
                 {status === 'preview' && (
                     <div className="bg-gray-800 p-3 flex justify-between items-center">
