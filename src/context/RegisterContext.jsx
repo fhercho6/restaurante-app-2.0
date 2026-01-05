@@ -72,8 +72,8 @@ export const RegisterProvider = ({ children }) => {
 
                 if (v.items) v.items.forEach(i => {
                     itemsProcessed++;
-                    const kn = i.name;
-                    const qt = i.qty;
+                    const kn = i.name || 'ITEM_SIN_NOMBRE';
+                    const qt = i.qty || 1; // Fallback qty
                     const pr = parseFloat(i.price);
                     const co = parseFloat(i.cost) || 0;
 
@@ -109,7 +109,7 @@ export const RegisterProvider = ({ children }) => {
                 courtesyTotal: ct,
                 courtesyCost: cc,
                 soldProducts: Object.values(pm).sort((a, b) => b.qtySold - a.qtySold),
-                debugInfo: `Docs: ${s.size}, ItemsProcessed: ${itemsProcessed}, PMKeys: ${Object.keys(pm).length}`
+                debugInfo: `DIAG: Docs ${s.size} / Items ${itemsProcessed} / Keys ${Object.keys(pm).length}`
             }));
         });
 
