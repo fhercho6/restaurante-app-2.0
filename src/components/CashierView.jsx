@@ -96,7 +96,13 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
             // 3. RECOLECTAR CÓDIGOS
             const allOrderIds = ordersToPay.map(o => o.orderId || '???');
 
-            // 4. Crear "Super Orden"
+            // 4. Determinar Staff (Si todos son del mismo, usar ese. Si no, Varios)
+            const firstStaffName = ordersToPay[0]?.staffName;
+            const sameStaff = ordersToPay.every(o => o.staffName === firstStaffName);
+            const finalStaffName = sameStaff ? firstStaffName : 'Varios';
+            const finalStaffId = sameStaff ? (ordersToPay[0]?.staffId || 'anon') : 'anon';
+
+            // 5. Crear "Super Orden"
             const superOrder = {
                 id: 'BULK_PAYMENT', // ID temporal para UI
                 ids: selectedOrders, // Lista de IDs de firestore para borrar luego en App.jsx
@@ -104,8 +110,8 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
                 type: 'bulk_sale',
                 items: mergedItems,
                 total: totalAmount,
-                staffName: 'Varios',
-                staffId: 'anon'
+                staffName: finalStaffName,
+                staffId: finalStaffId
             };
 
             onProcessPayment(superOrder, () => setSelectedOrders([]));
