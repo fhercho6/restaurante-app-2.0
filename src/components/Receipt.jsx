@@ -158,7 +158,9 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                 <div class="meta-info">${data.date} - ${staffName}</div>
             </div>
 
-            <div style="font-weight:bold; font-size:12px; margin-bottom:5px; color:#666;">IV. INVENTARIO Y VENTAS</div>
+            <div style="font-weight:bold; font-size:12px; margin-bottom:5px; color:#666;">
+                IV. INVENTARIO Y VENTAS (Items: ${soldProducts.length})
+            </div>
 
             <table class="table-products">
                 <thead>
