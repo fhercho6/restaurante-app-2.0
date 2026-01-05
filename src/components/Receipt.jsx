@@ -268,7 +268,7 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
 
     return (
         <div className="fixed inset-0 bg-gray-900/90 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
-            <div className="bg-white w-full max-w-sm shadow-2xl rounded-xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className={`bg-white w-full ${useThermalFormat ? 'max-w-sm' : 'max-w-3xl'} shadow-2xl rounded-xl overflow-hidden flex flex-col max-h-[90vh] transition-all duration-300`}>
 
                 {status === 'preview' && (
                     <div className="bg-gray-800 p-3 flex justify-between items-center">
