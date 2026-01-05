@@ -60,7 +60,8 @@
     *   **Solución (CSS):** Se implementó una estrategia de "Visibilidad Selectiva" usando `visibility: hidden` global y `visibility: visible` específico para `#attendance-ticket` y `#credential-card`. Se restauró `position: absolute` con `!important` para garantizar que los elementos salgan de su contenedor y se impriman al 100%.
     *   **Navegación:** Se arregló el flujo para que, tras imprimir un ticket de asistencia, el sistema regrese a la vista de "Caja" y no al inicio.
     *   **Credenciales:** Se blindó el componente `CredentialPrintView` para evitar caídas (crash) si faltan datos del empleado, usando valores por defecto ("000000").
-    *   **Reporte X (Corte Parcial):** Se habilitó la vista previa completa en formato HTML (Carta) dentro del modal, corrigiendo el problema de "Bs. 0.00" y ajustando el ancho de la ventana para mejorar la legibilidad.
+    *   **Reporte X (Corte Parcial):** Se habilitó la vista previa completa en formato HTML (Carta) dentro del modal.
+    *   **Pago de Comisiones:** Se implementó el cálculo y pago de comisiones a los garzones directamente desde la Caja, integrado con el sistema de Gastos y generación de recibos de firma.
 
 ---
 

@@ -1,9 +1,11 @@
+```javascript
 // src/components/CashierView.jsx - CORREGIDO (IMPORTACIÓN DE USER AGREGADA)
 import React, { useState, useEffect } from 'react';
 // CORRECCIÓN AQUÍ: Se agregó 'User' a la lista de iconos importados
-import { Search, ShoppingCart, Clock, Filter, Trash2, Printer, CheckSquare, Square, DollarSign, X, User, Users } from 'lucide-react';
+import { Search, ShoppingCart, Clock, Filter, Trash2, Printer, CheckSquare, Square, DollarSign, X, User, Users, Percent } from 'lucide-react';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { db, ROOT_COLLECTION, isPersonalProject } from '../config/firebase';
+import CommissionPaymentModal from './CommissionPaymentModal';
 
 export default function CashierView({ items, categories, tables, onProcessPayment, onVoidOrder, onReprintOrder, onStopService, onOpenExpense, onPrintReceipt }) {
     const [pendingOrders, setPendingOrders] = useState([]);
@@ -15,12 +17,13 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
     // CONTROL DE ASISTENCIA
     const [showAttendanceList, setShowAttendanceList] = useState(false);
     const [attendanceList, setAttendanceList] = useState([]);
+    const [showCommissionModal, setShowCommissionModal] = useState(false);
 
     // CARGAR PEDIDOS PENDIENTES, SERVICIOS Y ASISTENCIA
     useEffect(() => {
-        const ordersCol = isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`;
-        const servicesCol = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`;
-        const attCol = isPersonalProject ? 'attendance' : `${ROOT_COLLECTION}attendance`; // [NEW]
+        const ordersCol = isPersonalProject ? 'pending_orders' : `${ ROOT_COLLECTION } pending_orders`;
+        const servicesCol = isPersonalProject ? 'active_services' : `${ ROOT_COLLECTION } active_services`;
+        const attCol = isPersonalProject ? 'attendance' : `${ ROOT_COLLECTION } attendance`; // [NEW]
 
         const qOrders = query(collection(db, ordersCol), orderBy('date', 'desc'));
         const qServices = query(collection(db, servicesCol), orderBy('startTime', 'desc'));
@@ -148,9 +151,15 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
                 <div className="flex gap-2 w-full md:w-auto">
                     <button
                         onClick={() => setShowAttendanceList(!showAttendanceList)}
-                        className={`flex-1 md:flex-none px-4 py-2.5 font-bold rounded-lg border transition-colors flex items-center justify-center gap-2 ${showAttendanceList ? 'bg-orange-100 text-orange-700 border-orange-200' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+                        className={`flex - 1 md: flex - none px - 4 py - 2.5 font - bold rounded - lg border transition - colors flex items - center justify - center gap - 2 ${ showAttendanceList ? 'bg-orange-100 text-orange-700 border-orange-200' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50' } `}
                     >
                         <Users size={18} /> Asistencia
+                    </button>
+                    <button
+                        onClick={() => setShowCommissionModal(true)}
+                        className="flex-1 md:flex-none px-4 py-2.5 bg-purple-50 text-purple-600 font-bold rounded-lg border border-purple-100 hover:bg-purple-100 transition-colors flex items-center justify-center gap-2"
+                    >
+                        <Percent size={18} /> Comisiones
                     </button>
                     <button
                         onClick={onOpenExpense}
@@ -201,6 +210,14 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
                     </div>
                 )}
 
+                {/* MODAL DE COMISIONES */}
+                {showCommissionModal && (
+                    <CommissionPaymentModal
+                        onClose={() => setShowCommissionModal(false)}
+                        onPrintReceipt={onPrintReceipt}
+                    />
+                )}
+
                 {/* COLUMNA IZQUIERDA: SERVICIOS ACTIVOS */}
                 {activeServices.length > 0 && (
                     <div className="w-full md:w-1/3 flex flex-col gap-4 overflow-y-auto pb-20">
@@ -225,7 +242,7 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
                                         </div>
                                     </div>
                                     <button
-                                        onClick={() => onStopService(srv, cost, `${diffMins} min`)}
+                                        onClick={() => onStopService(srv, cost, `${ diffMins } min`)}
                                         className="w-full py-2 bg-red-50 text-red-600 font-bold rounded-lg hover:bg-red-600 hover:text-white transition-colors"
                                     >
                                         DETENER Y COBRAR
@@ -272,7 +289,7 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
                             filteredOrders.map(order => (
                                 <div
                                     key={order.id}
-                                    className={`p-3 rounded-xl border transition-all hover:shadow-md cursor-pointer flex flex-col sm:flex-row gap-4 items-center ${selectedOrders.includes(order.id) ? 'bg-orange-50 border-orange-200 ring-1 ring-orange-200' : 'bg-white border-gray-100'}`}
+                                    className={`p - 3 rounded - xl border transition - all hover: shadow - md cursor - pointer flex flex - col sm: flex - row gap - 4 items - center ${ selectedOrders.includes(order.id) ? 'bg-orange-50 border-orange-200 ring-1 ring-orange-200' : 'bg-white border-gray-100' } `}
                                     onClick={() => toggleSelectOrder(order.id)}
                                 >
                                     {/* CHECKBOX */}
@@ -292,7 +309,7 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
 
                                         {/* RESUMEN ITEMS */}
                                         <div className="text-xs text-gray-600 line-clamp-1">
-                                            {order.items?.map(i => `${i.qty} ${i.name}`).join(', ')}
+                                            {order.items?.map(i => `${ i.qty } ${ i.name } `).join(', ')}
                                         </div>
                                     </div>
 
@@ -319,7 +336,7 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
                                             </button>
                                             <button
                                                 onClick={() => {
-                                                    if (window.confirm(`¿Anular pedido #${order.orderId}?`)) onVoidOrder(order);
+                                                    if (window.confirm(`¿Anular pedido #${ order.orderId }?`)) onVoidOrder(order);
                                                 }}
                                                 className="p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-100"
                                                 title="Anular pedido"
