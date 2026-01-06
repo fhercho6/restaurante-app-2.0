@@ -296,7 +296,7 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                         </>
                     ) : (
                         <div className="w-full h-full flex flex-col overflow-hidden bg-white shadow-sm border border-gray-200">
-                            <div className="flex-1 overflow-y-auto p-4 bg-gray-50 scale-90 origin-top">
+                            <div className="flex-1 overflow-y-auto p-4 bg-gray-50 scale-75 origin-top">
                                 <div
                                     dangerouslySetInnerHTML={{
                                         __html: useThermalFormat ? '(Vista previa térmica no disponible, imprima para ver)' : renderLetterReport()
