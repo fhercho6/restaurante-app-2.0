@@ -36,6 +36,12 @@
         *   Utilidad Base calculada.
         *   Porcentaje de Comisión aplicado.
         *   Fecha y Cajero Responsable.
+    *   **Reimpresión:** Se añadió la opción de reimprimir tickets de pago de comisión desde el historial del turno actual.
+    *   **Adelantos:** Si el pago excede la comisión, se marca claramente como "ADELANTO" en rojo.
+
+6.  **Recibos y Anulaciones:**
+    *   **Tickets Anulados:** Al eliminar un pedido pendiente, se imprime automáticamente un ticket con marca de agua "ANULADO", título claro y total tachado para control de inventario.
+    *   **Corrección Datos Z:** Se solucionó error donde los productos no aparecían en el detalle del Reporte Z (Carta y Térmico) buscando en la ubicación correcta (`stats.soldProducts`).
 
 ---
 
@@ -46,6 +52,6 @@
 3. `npm run dev`
 
 ## 📝 Notas para el Asistente (IA)
-*   **Reportes:** La lógica de reportes Z es delicada en `RegisterContext.jsx` y `Receipt.jsx`. Usar `qtySold` para ventas consolidadas.
+*   **Reportes:** La lógica de reportes Z es delicada en `RegisterContext.jsx` y `Receipt.jsx`. Usar `qtySold` para ventas consolidadas. Verificar siempre `stats.soldProducts` o `data.soldProducts`.
 *   **Comisiones:** Dependen de `sessionStats.expensesList` para calcular saldos pendientes. NO usar estado local para trackear pagos.
-*   **Impresión:** Usar siempre `window.open` con parámetros sin espacios (`height=600,width=400`).
+*   **Impresión:** Usar siempre `window.open` con parámetros sin espacios (`height=600,width=400`). El modo "Void" usa estilos específicos en `Receipt.jsx`.
