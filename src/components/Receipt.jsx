@@ -202,10 +202,10 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
         if (data.type === 'expense') title = 'VALE DE GASTO';
         if (isCourtesySale) title = 'RECIBO DE CORTESÍA';
 
-        let itemsHtml = data.items ? data.items.map(item => `< div class="row" style = "margin-bottom:2px;" ><div class="col-qty">${item.qty}</div><div class="col-name">${item.name}</div><div class="col-price">${isCourtesySale ? '0.00' : fmt(item.price * item.qty)}</div></div > `).join('') : '';
-        let zReportRows = data.soldProducts ? data.soldProducts.map(p => `< div class="row" ><div class="col-qty">${p.qtySold + (p.qtyCourtesy || 0)}</div><div class="col-name">${p.name}</div><div class="col-price">${fmt(p.total)}</div></div > `).join('') : '';
+        let itemsHtml = data.items ? data.items.map(item => `<div class="row" style="margin-bottom:2px;"><div class="col-qty">${item.qty}</div><div class="col-name">${item.name}</div><div class="col-price">${isCourtesySale ? '0.00' : fmt(item.price * item.qty)}</div></div>`).join('') : '';
+        let zReportRows = data.soldProducts ? data.soldProducts.map(p => `<div class="row"><div class="col-qty">${p.qtySold + (p.qtyCourtesy || 0)}</div><div class="col-name">${p.name}</div><div class="col-price">${fmt(p.total)}</div></div>`).join('') : '';
 
-        return `< html ><head><style>
+        return `<html><head><style>
             * { box-sizing: border-box; }
             body { font-family: 'Arial', sans-serif; margin: 0; padding: 5px 0; width: 72mm; font-size: 12px; color: ${INK_COLOR}; }
             .text-center { text-align: center; }
@@ -230,7 +230,7 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                 <div class="row bold" style="font-size:10px;border-bottom:1px solid ${BORDER_COLOR};margin-bottom:2px;"><div class="col-qty">C</div><div class="col-name">DESCRIPCION</div><div class="col-price">TOTAL</div></div>${itemsHtml}<div class="border-b" style="margin:5px 0;"></div>
                 ${isCourtesySale ? `<div class="courtesy-box"><div class="bold" style="font-size:14px;">CORTESÍA AUTORIZADA</div><div style="font-size:10px;">Total Bonificado: Bs. ${fmt(data.total)}</div></div><div class="flex-between bold" style="font-size:16px;"><span>A PAGAR:</span><span>Bs. 0.00</span></div>` : `<div class="flex-between bold" style="font-size:18px;"><span>TOTAL:</span><span>Bs. ${fmt(data.total)}</span></div>${data.payments ? `<div style="margin-top:5px;font-size:10px;">${data.payments.map(p => `<div class="flex-between"><span>PAGO ${p.method.toUpperCase()}:</span><span>${fmt(p.amount)}</span></div>`).join('')}</div>` : ''}${data.changeGiven > 0 ? `<div class="text-right bold" style="margin-top:2px;">CAMBIO: ${fmt(data.changeGiven)}</div>` : ''}`}
             `}
-            <div style="margin-top:15px;text-align:center;font-size:10px;">*** GRACIAS POR SU VISITA ***</div></body></html > `;
+            <div style="margin-top:15px;text-align:center;font-size:10px;">*** GRACIAS POR SU VISITA ***</div></body></html>`;
     };
 
     const handlePrintInNewWindow = () => {
@@ -241,7 +241,7 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
         const width = isThermal ? 400 : 1000;
         const height = isThermal ? 600 : 800;
 
-        const printWindow = window.open('', 'PRINT', `height = ${height}, width = ${width} `);
+        const printWindow = window.open('', 'PRINT', `height=${height},width=${width},scrollbars=yes`);
         if (!printWindow) { alert("⚠️ Permite ventanas emergentes para imprimir."); setStatus('preview'); return; }
 
         const htmlContent = isThermal ? renderThermalReport() : renderLetterReport();
