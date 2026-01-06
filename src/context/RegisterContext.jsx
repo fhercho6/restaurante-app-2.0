@@ -111,7 +111,7 @@ export const RegisterProvider = ({ children }) => {
                 courtesyTotal: ct,
                 courtesyCost: cc,
                 soldProducts: soldArray,
-                debugInfo: `DIAG: CG=${cg} / ArrLen=${soldArray.length} / Keys=${Object.keys(pm).length} / itemsProc=${itemsProcessed}`
+                diagnostics: `VERCEL_WAKE_UP: CG=${cg} / ArrLen=${soldArray.length} / itemsProc=${itemsProcessed}`
             }));
         });
 
