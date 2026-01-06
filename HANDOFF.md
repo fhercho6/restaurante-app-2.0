@@ -43,6 +43,11 @@
     *   **Tickets Anulados:** Al eliminar un pedido pendiente, se imprime automáticamente un ticket con marca de agua "ANULADO", título claro y total tachado para control de inventario.
     *   **Corrección Datos Z:** Se solucionó error donde los productos no aparecían en el detalle del Reporte Z (Carta y Térmico) buscando en la ubicación correcta (`stats.soldProducts`).
 
+7.  **Estabilidad y Correcciones Críticas (Release 2.5):**
+    *   **Doble Cobro de Comisiones:** Se corrigió el error en el Cierre de Caja donde las comisiones ya pagadas se descontaban nuevamente del efectivo final. Ahora el sistema detecta pagos previos y solo descuenta lo pendiente.
+    *   **Pantalla Blanca en Menú:** Se añadió protección contra productos con datos incompletos que colgaban la app al entrar al Menú Digital.
+    *   **Auto-Actualización:** El botón de "Inicio" ahora fuerza una recarga de la página para asegurar que el sistema siempre esté fresco.
+
 ---
 
 ## 🛠️ Instrucciones para la Nueva PC
@@ -55,3 +60,16 @@
 *   **Reportes:** La lógica de reportes Z es delicada en `RegisterContext.jsx` y `Receipt.jsx`. Usar `qtySold` para ventas consolidadas. Verificar siempre `stats.soldProducts` o `data.soldProducts`.
 *   **Comisiones:** Dependen de `sessionStats.expensesList` para calcular saldos pendientes. NO usar estado local para trackear pagos.
 *   **Impresión:** Usar siempre `window.open` con parámetros sin espacios (`height=600,width=400`). El modo "Void" usa estilos específicos en `Receipt.jsx`.
+
+## 🛡️ Workflow de Desarrollo Recomendado (Anti-Roturas)
+Para evitar errores en producción ("en vivo"), sigue este flujo:
+
+1.  **NUNCA editar `main` directamente.** `main` es sagrado.
+2.  **Crear RAMA para cada cambio:**
+    *   `git checkout -b feature/nueva-cosa`
+3.  **Probar en Local:** Hacer los cambios y probar que todo funcione.
+4.  **Fusionar a Main:** Solo cuando estés 100% seguro.
+    *   `git checkout main`
+    *   `git merge feature/nueva-cosa`
+    *   `git push origin main`
+5.  **Desplegar:** Ir a la PC de Caja y hacer `git pull`.
