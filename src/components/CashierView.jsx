@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, ShoppingCart, Clock, Filter, Trash2, Printer, CheckSquare, Square, DollarSign, X, User, Users, Percent } from 'lucide-react';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { db, ROOT_COLLECTION, isPersonalProject } from '../config/firebase';
+import CommissionPaymentModal from './CommissionPaymentModal'; // [RESTORED]
 import { useRegister } from '../context/RegisterContext'; // [NEW]
 
 export default function CashierView({ items, categories, tables, onProcessPayment, onVoidOrder, onReprintOrder, onStopService, onOpenExpense, onPrintReceipt }) {
