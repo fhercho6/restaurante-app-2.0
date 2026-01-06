@@ -25,9 +25,11 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
             const paidSoFar = {}; // { staffName: amount }
             const paymentHistory = {}; // { staffName: [expenseObjects] }
 
-            if (sessionStats.expensesList) {
+            if (sessionStats && sessionStats.expensesList) {
                 sessionStats.expensesList.forEach(e => {
                     // Description format: "Pago Comisión: Name (5%)"
+                    if (!e.description || typeof e.description !== 'string') return;
+
                     const match = e.description.match(/Pago Comisión: (.+) \(\d+%\)/);
                     if (match) {
                         const name = match[1];
