@@ -200,6 +200,7 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
         const stats = data.stats || {};
         let title = (data.businessName || 'LicoBar').toUpperCase();
         if (data.type === 'expense') title = 'VALE DE GASTO';
+        if (data.type === 'void') title = '*** ANULADO ***';
         if (isCourtesySale) title = 'RECIBO DE CORTESÍA';
 
         let itemsHtml = data.items ? data.items.map(item => `<div class="row" style="margin-bottom:2px;"><div class="col-qty">${item.qty}</div><div class="col-name">${item.name}</div><div class="col-price">${isCourtesySale ? '0.00' : fmt(item.price * item.qty)}</div></div>`).join('') : '';
@@ -219,16 +220,19 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
             .col-price { width: 25%; text-align: right; }
             .code-box { font-size: 20px; font-weight: 600; text-align: center; margin: 5px 0; border: 1px solid ${BORDER_COLOR}; padding: 4px; color: ${INK_COLOR}; word-wrap: break-word; }
             .courtesy-box { border: 1px dashed ${BORDER_COLOR}; padding: 5px; margin: 10px 0; text-align: center; }
+            .void-box { border: 2px solid ${BORDER_COLOR}; padding: 5px; margin: 10px 0; text-align: center; font-weight:bold; font-size: 14px; }
             </style></head><body>
             <div class="text-center border-b">
                 <div class="bold" style="font-size:16px;">${data.type === 'z-report' ? 'CIERRE DE CAJA' : title}</div>
                 <div style="font-size:10px;">${data.date}</div>
                 <div style="font-size:10px;margin-top:2px;">Atiende: ${staffName.split(' ')[0]} | Caja: ${cashierName.split(' ')[0]}</div>
-                ${(data.type === 'order' || data.type === 'quick_sale') ? `<div class="code-box">#${displayCode}</div>` : ''}
+                ${(data.type === 'order' || data.type === 'quick_sale' || data.type === 'void') ? `<div class="code-box">#${displayCode}</div>` : ''}
             </div>
             ${data.type === 'z-report' ? `<div class="flex-between"><span>Fondo Inicial:</span><span>${fmt(data.openingAmount)}</span></div><div class="flex-between bold"><span>(+) Ventas:</span><span>${fmt((stats.cashSales || 0) + (stats.digitalSales || 0))}</span></div><div class="flex-between"><span>(-) Gastos:</span><span>${fmt(stats.totalExpenses)}</span></div><div class="border-b" style="margin:5px 0;"></div><div class="flex-between bold" style="font-size:18px;"><span>CAJA:</span><span>Bs. ${fmt(data.finalCash)}</span></div><br/><div class="bold text-center border-b">PRODUCTOS</div>${zReportRows}` : data.type === 'expense' ? `<div style="margin-top:10px;"><span style="font-size:10px;">CONCEPTO:</span><br/><span class="bold uppercase" style="font-size:14px;">${data.description}</span><div class="border-b" style="margin:5px 0;"></div><div class="flex-between bold" style="font-size:18px;"><span>RETIRO:</span><span>Bs. ${fmt(data.amount)}</span></div><br/><br/><div class="text-center" style="font-size:10px;border-top:1px solid ${BORDER_COLOR};padding-top:5px;">FIRMA</div></div>` : `
                 <div class="row bold" style="font-size:10px;border-bottom:1px solid ${BORDER_COLOR};margin-bottom:2px;"><div class="col-qty">C</div><div class="col-name">DESCRIPCION</div><div class="col-price">TOTAL</div></div>${itemsHtml}<div class="border-b" style="margin:5px 0;"></div>
-                ${isCourtesySale ? `<div class="courtesy-box"><div class="bold" style="font-size:14px;">CORTESÍA AUTORIZADA</div><div style="font-size:10px;">Total Bonificado: Bs. ${fmt(data.total)}</div></div><div class="flex-between bold" style="font-size:16px;"><span>A PAGAR:</span><span>Bs. 0.00</span></div>` : `<div class="flex-between bold" style="font-size:18px;"><span>TOTAL:</span><span>Bs. ${fmt(data.total)}</span></div>${data.payments ? `<div style="margin-top:5px;font-size:10px;">${data.payments.map(p => `<div class="flex-between"><span>PAGO ${p.method.toUpperCase()}:</span><span>${fmt(p.amount)}</span></div>`).join('')}</div>` : ''}${data.changeGiven > 0 ? `<div class="text-right bold" style="margin-top:2px;">CAMBIO: ${fmt(data.changeGiven)}</div>` : ''}`}
+                ${isCourtesySale ? `<div class="courtesy-box"><div class="bold" style="font-size:14px;">CORTESÍA AUTORIZADA</div><div style="font-size:10px;">Total Bonificado: Bs. ${fmt(data.total)}</div></div><div class="flex-between bold" style="font-size:16px;"><span>A PAGAR:</span><span>Bs. 0.00</span></div>` :
+                    data.type === 'void' ? `<div class="void-box">PEDIDO ELIMINADO<br/>(TRANSACCIÓN ANULADA)</div><div class="flex-between bold" style="font-size:18px; text-decoration: line-through;"><span>TOTAL:</span><span>Bs. ${fmt(data.total)}</span></div>` :
+                        `<div class="flex-between bold" style="font-size:18px;"><span>TOTAL:</span><span>Bs. ${fmt(data.total)}</span></div>${data.payments ? `<div style="margin-top:5px;font-size:10px;">${data.payments.map(p => `<div class="flex-between"><span>PAGO ${p.method.toUpperCase()}:</span><span>${fmt(p.amount)}</span></div>`).join('')}</div>` : ''}${data.changeGiven > 0 ? `<div class="text-right bold" style="margin-top:2px;">CAMBIO: ${fmt(data.changeGiven)}</div>` : ''}`}
             `}
             <div style="margin-top:15px;text-align:center;font-size:10px;">*** GRACIAS POR SU VISITA ***</div></body></html>`;
     };
