@@ -22,7 +22,9 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
 
         try {
             // 0. Calculate Already Paid Commissions from Expenses
-            const paidSoFar = {};
+            const paidSoFar = {}; // { staffName: amount }
+            const paymentHistory = {}; // { staffName: [expenseObjects] }
+
             if (sessionStats.expensesList) {
                 sessionStats.expensesList.forEach(e => {
                     // Description format: "Pago Comisión: Name (5%)"
@@ -30,6 +32,9 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                     if (match) {
                         const name = match[1];
                         paidSoFar[name] = (paidSoFar[name] || 0) + parseFloat(e.amount);
+
+                        if (!paymentHistory[name]) paymentHistory[name] = [];
+                        paymentHistory[name].push(e);
                     }
                 });
             }
@@ -95,6 +100,7 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                     totalCommission, // Total earned
                     paid,            // Already paid
                     pending,         // Raw pending (can be negative)
+                    history: paymentHistory[name] || [], // List of past payments
                     commissionAmount: pending > 0.01 ? pending : 0 // Payable now
                 };
             }).filter(d => d.totalCommission > 0 || d.paid > 0); // Show if they earned OR were paid (even if now negative)
@@ -133,9 +139,24 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
     };
 
 
+    const handleReprint = (expense, staffName) => {
+        const date = new Date(expense.date || expense.timestamp || Date.now());
+        onPrintReceipt({
+            type: 'expense',
+            amount: parseFloat(expense.amount),
+            description: `*** REIMPRESIÓN ***<br/><br/>FECHA ORIGINAL: ${date.toLocaleString()}<br/>----------------------<br/>${expense.description}`,
+            staffName: staffName,
+            cashierName: registerSession.openedBy || 'Cajero', // Best guess
+            date: new Date().toLocaleString(), // Reprint date
+            businessName: 'LicoBar',
+            autoPrint: true
+        });
+        toast.success("Enviando reimpresión...");
+    };
+
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
-            <div className="bg-white w-full max-w-3xl rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="bg-white w-full max-w-4xl rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
 
                 {/* HEAD */}
                 <div className="bg-purple-600 p-4 flex justify-between items-center text-white">
@@ -179,37 +200,58 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                                     </thead>
                                     <tbody className="divide-y divide-gray-100">
                                         {commissionData.map((d, i) => (
-                                            <tr key={i} className="hover:bg-gray-50 transition-colors">
-                                                <td className="px-4 py-3 font-bold text-gray-800">{d.name}</td>
-                                                <td className="px-4 py-3 text-center text-gray-500">Bs. {d.salesTotal.toFixed(2)}</td>
-                                                <td className="px-4 py-3 text-center text-gray-500">Bs. {d.utility.toFixed(2)}</td>
-                                                <td className="px-4 py-3 text-center">
-                                                    <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-xs font-bold">{(d.rate * 100).toFixed(0)}%</span>
-                                                </td>
-                                                <td className="px-4 py-3 text-right text-gray-400">Bs. {d.totalCommission.toFixed(2)}</td>
-                                                <td className="px-4 py-3 text-right text-green-600 font-medium">Bs. {d.paid.toFixed(2)}</td>
-                                                <td className={`px-4 py-3 text-right font-black text-lg ${d.pending < 0 ? 'text-red-500' : 'text-gray-900'}`}>
-                                                    {d.pending < 0 ? `(${Math.abs(d.pending).toFixed(2)})` : `Bs. ${d.pending.toFixed(2)}`}
-                                                </td>
-                                                <td className="px-4 py-3 flex justify-center">
-                                                    {d.commissionAmount > 0 ? (
-                                                        <button
-                                                            onClick={() => handlePayCommission(d)}
-                                                            className="bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1 shadow-sm transition-all active:scale-95"
-                                                        >
-                                                            <DollarSign size={14} /> PAGAR
-                                                        </button>
-                                                    ) : d.pending < -0.01 ? (
-                                                        <span className="flex items-center gap-1 text-red-600 font-bold bg-red-50 px-3 py-1 rounded-full text-xs border border-red-200" title="Se pagó más de lo generado">
-                                                            <AlertCircle size={14} /> ADELANTO
-                                                        </span>
-                                                    ) : (
-                                                        <span className="flex items-center gap-1 text-green-600 font-bold bg-green-50 px-3 py-1 rounded-full text-xs border border-green-200">
-                                                            <CheckCircle size={14} /> AL DÍA
-                                                        </span>
-                                                    )}
-                                                </td>
-                                            </tr>
+                                            <React.Fragment key={i}>
+                                                <tr className="hover:bg-gray-50 transition-colors">
+                                                    <td className="px-4 py-3 font-bold text-gray-800">{d.name}</td>
+                                                    <td className="px-4 py-3 text-center text-gray-500">Bs. {d.salesTotal.toFixed(2)}</td>
+                                                    <td className="px-4 py-3 text-center text-gray-500">Bs. {d.utility.toFixed(2)}</td>
+                                                    <td className="px-4 py-3 text-center">
+                                                        <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-xs font-bold">{(d.rate * 100).toFixed(0)}%</span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right text-gray-400">Bs. {d.totalCommission.toFixed(2)}</td>
+                                                    <td className="px-4 py-3 text-right text-green-600 font-medium">Bs. {d.paid.toFixed(2)}</td>
+                                                    <td className={`px-4 py-3 text-right font-black text-lg ${d.pending < 0 ? 'text-red-500' : 'text-gray-900'}`}>
+                                                        {d.pending < 0 ? `(${Math.abs(d.pending).toFixed(2)})` : `Bs. ${d.pending.toFixed(2)}`}
+                                                    </td>
+                                                    <td className="px-4 py-3 flex justify-center items-center gap-2">
+                                                        {d.commissionAmount > 0 ? (
+                                                            <button
+                                                                onClick={() => handlePayCommission(d)}
+                                                                className="bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1 shadow-sm transition-all active:scale-95"
+                                                            >
+                                                                <DollarSign size={14} /> PAGAR
+                                                            </button>
+                                                        ) : d.pending < -0.01 ? (
+                                                            <span className="flex items-center gap-1 text-red-600 font-bold bg-red-50 px-3 py-1 rounded-full text-xs border border-red-200" title="Se pagó más de lo generado">
+                                                                <AlertCircle size={14} /> ADELANTO
+                                                            </span>
+                                                        ) : (
+                                                            <span className="flex items-center gap-1 text-green-600 font-bold bg-green-50 px-3 py-1 rounded-full text-xs border border-green-200">
+                                                                <CheckCircle size={14} /> AL DÍA
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                                {/* History Sub-Row */}
+                                                {d.history.length > 0 && (
+                                                    <tr>
+                                                        <td colSpan="8" className="bg-gray-50/50 px-4 py-2">
+                                                            <div className="flex flex-wrap gap-2 items-center text-xs">
+                                                                <span className="font-bold text-gray-400 uppercase text-[10px]">Historial de Pagos:</span>
+                                                                {d.history.map((h, k) => (
+                                                                    <div key={k} className="flex items-center gap-2 bg-white border border-gray-200 rounded px-2 py-1 shadow-sm">
+                                                                        <span className="text-gray-500">{new Date(h.date || h.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                                        <span className="font-bold text-gray-700">Bs. {parseFloat(h.amount).toFixed(2)}</span>
+                                                                        <button onClick={() => handleReprint(h, d.name)} className="text-blue-600 hover:text-blue-800 p-0.5 rounded hover:bg-blue-50" title="Reimprimir">
+                                                                            <Printer size={12} />
+                                                                        </button>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </React.Fragment>
                                         ))}
                                     </tbody>
                                 </table>
