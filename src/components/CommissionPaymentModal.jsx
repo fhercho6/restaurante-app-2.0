@@ -94,9 +94,10 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                     rate,
                     totalCommission, // Total earned
                     paid,            // Already paid
-                    commissionAmount: pending > 0.01 ? pending : 0 // Payable now (previene float dust)
+                    pending,         // Raw pending (can be negative)
+                    commissionAmount: pending > 0.01 ? pending : 0 // Payable now
                 };
-            }).filter(d => d.totalCommission > 0); // Show if they have earned anything, even if fully paid
+            }).filter(d => d.totalCommission > 0 || d.paid > 0); // Show if they earned OR were paid (even if now negative)
 
             setCommissionData(details);
 
@@ -187,19 +188,25 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                                                 </td>
                                                 <td className="px-4 py-3 text-right text-gray-400">Bs. {d.totalCommission.toFixed(2)}</td>
                                                 <td className="px-4 py-3 text-right text-green-600 font-medium">Bs. {d.paid.toFixed(2)}</td>
-                                                <td className="px-4 py-3 text-right font-black text-gray-900 text-lg">Bs. {d.commissionAmount.toFixed(2)}</td>
+                                                <td className={`px-4 py-3 text-right font-black text-lg ${d.pending < 0 ? 'text-red-500' : 'text-gray-900'}`}>
+                                                    {d.pending < 0 ? `(${Math.abs(d.pending).toFixed(2)})` : `Bs. ${d.pending.toFixed(2)}`}
+                                                </td>
                                                 <td className="px-4 py-3 flex justify-center">
-                                                    {d.commissionAmount <= 0 ? (
-                                                        <span className="flex items-center gap-1 text-green-600 font-bold bg-green-50 px-3 py-1 rounded-full text-xs border border-green-200">
-                                                            <CheckCircle size={14} /> AL DÍA
-                                                        </span>
-                                                    ) : (
+                                                    {d.commissionAmount > 0 ? (
                                                         <button
                                                             onClick={() => handlePayCommission(d)}
                                                             className="bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1 shadow-sm transition-all active:scale-95"
                                                         >
                                                             <DollarSign size={14} /> PAGAR
                                                         </button>
+                                                    ) : d.pending < -0.01 ? (
+                                                        <span className="flex items-center gap-1 text-red-600 font-bold bg-red-50 px-3 py-1 rounded-full text-xs border border-red-200" title="Se pagó más de lo generado">
+                                                            <AlertCircle size={14} /> ADELANTO
+                                                        </span>
+                                                    ) : (
+                                                        <span className="flex items-center gap-1 text-green-600 font-bold bg-green-50 px-3 py-1 rounded-full text-xs border border-green-200">
+                                                            <CheckCircle size={14} /> AL DÍA
+                                                        </span>
                                                     )}
                                                 </td>
                                             </tr>
