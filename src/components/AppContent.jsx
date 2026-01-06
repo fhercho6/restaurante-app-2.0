@@ -614,6 +614,12 @@ export default function AppContent() {
         }
     };
 
+    // [FIX] Define filteredItems for Menu View (view === 'menu') to resolve ReferenceError
+    const filteredItems = useMemo(() => {
+        if (!filter || filter === 'Todos') return items;
+        return items.filter(i => i.category === filter);
+    }, [items, filter]);
+
     return (
         <div className="min-h-screen bg-gray-50 font-sans text-gray-900 pb-20">
             <Toaster position="top-center" reverseOrder={false} />
