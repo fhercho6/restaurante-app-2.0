@@ -253,6 +253,20 @@ export default function AppContent() {
 
         // 3. Calculate Commissions (Tiered Logic)
         try {
+            // [FIX] Map existing expenses to avoid double-charging
+            const paidCommissions = {}; // { staffName: amount }
+            if (sessionStats.expensesList) {
+                sessionStats.expensesList.forEach(e => {
+                    if (!e.description) return;
+                    // Match "Pago Comisión: Name (5%)" or similar
+                    const match = e.description.match(/Pago Comisión: (.+) \(\d+%\)/);
+                    if (match) {
+                        const name = match[1].trim();
+                        paidCommissions[name] = (paidCommissions[name] || 0) + parseFloat(e.amount);
+                    }
+                });
+            }
+
             // Find staff with commissions enabled
             const commissionedStaff = staff.filter(s => s.commissionEnabled);
 
@@ -304,10 +318,13 @@ export default function AppContent() {
                     const tier = sortedTiers.find(t => utility <= t.max);
                     const rate = tier ? tier.rate : sortedTiers[sortedTiers.length - 1].rate;
 
-                    const comm = utility * rate;
-                    if (comm > 0) {
-                        commissionDetails.push({ name, utility, rate, amount: comm });
-                        totalCommissions += comm;
+                    const commTotal = utility * rate;
+                    const paid = paidCommissions[name] || 0;
+                    const remaining = Math.max(0, commTotal - paid);
+
+                    if (commTotal > 0) {
+                        commissionDetails.push({ name, utility, rate, amount: remaining, total: commTotal, paid });
+                        if (remaining > 0) totalCommissions += remaining;
                     }
                 });
 
@@ -335,9 +352,12 @@ export default function AppContent() {
                                     <span>Bs. {baseSalaries.toFixed(2)}</span>
                                 </div>
                                 {commissionDetails.map(c => (
-                                    <div key={c.name} className="flex justify-between text-yellow-700 bg-yellow-100/50 px-1 rounded">
-                                        <span>{c.name} ({(c.rate * 100).toFixed(0)}% de {c.utility.toFixed(0)}):</span>
-                                        <span className="font-bold">Bs. {c.amount.toFixed(2)}</span>
+                                    <div key={c.name} className="flex flex-col text-yellow-700 bg-yellow-100/50 px-1 rounded text-[10px]">
+                                        <div className="flex justify-between">
+                                            <span>{c.name} ({(c.rate * 100).toFixed(0)}%):</span>
+                                            <span className="font-bold">Bs. {c.amount.toFixed(2)}</span>
+                                        </div>
+                                        {c.paid > 0 && <span className="text-gray-400 italic text-[9px] text-right">Pagado: {c.paid.toFixed(2)} | Pendiente: {c.amount.toFixed(2)}</span>}
                                     </div>
                                 ))}
                             </div>
