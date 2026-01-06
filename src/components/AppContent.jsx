@@ -125,6 +125,12 @@ export default function AppContent() {
         }
         return result;
     }, [items, filter, searchTerm]);
+
+    // [FIX] Define filteredItems for Menu View (Moved to Top Level to satisfy Rules of Hooks)
+    const filteredItems = useMemo(() => {
+        if (!filter || filter === 'Todos') return items;
+        return items.filter(i => i.category === filter);
+    }, [items, filter]);
     const isAdminMode = ['admin', 'report', 'staff_admin', 'cashier', 'register_control', 'maintenance', 'shift_history'].includes(view);
     const isCashierOnly = staffMember && staffMember.role === 'Cajero';
 
@@ -614,11 +620,7 @@ export default function AppContent() {
         }
     };
 
-    // [FIX] Define filteredItems for Menu View (view === 'menu') to resolve ReferenceError
-    const filteredItems = useMemo(() => {
-        if (!filter || filter === 'Todos') return items;
-        return items.filter(i => i.category === filter);
-    }, [items, filter]);
+
 
     return (
         <div className="min-h-screen bg-gray-50 font-sans text-gray-900 pb-20">
