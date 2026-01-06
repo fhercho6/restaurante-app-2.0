@@ -11,17 +11,29 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
     const { registerSession, sessionStats, addExpense } = useRegister();
     const [loading, setLoading] = useState(true);
     const [commissionData, setCommissionData] = useState([]);
-    const [paidWaiters, setPaidWaiters] = useState([]);
 
     useEffect(() => {
         calculateCommissions();
-    }, [registerSession, staff]);
+    }, [registerSession, staff, sessionStats.expensesList]);
 
     const calculateCommissions = async () => {
         if (!registerSession) return;
         setLoading(true);
 
         try {
+            // 0. Calculate Already Paid Commissions from Expenses
+            const paidSoFar = {};
+            if (sessionStats.expensesList) {
+                sessionStats.expensesList.forEach(e => {
+                    // Description format: "Pago Comisión: Name (5%)"
+                    const match = e.description.match(/Pago Comisión: (.+) \(\d+%\)/);
+                    if (match) {
+                        const name = match[1];
+                        paidSoFar[name] = (paidSoFar[name] || 0) + parseFloat(e.amount);
+                    }
+                });
+            }
+
             // 1. Fetch Sales for this session
             const salesColl = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`;
             const qSales = query(collection(db, salesColl), where('registerId', '==', registerSession.id));
@@ -71,14 +83,20 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                 const rate = tier ? tier.rate : sortedTiers[sortedTiers.length - 1].rate;
                 const grandTotalSales = staffSalesTotal[name] || 0;
 
+                const totalCommission = utility * rate;
+                const paid = paidSoFar[name] || 0;
+                const pending = totalCommission - paid;
+
                 return {
                     name,
                     salesTotal: grandTotalSales,
                     utility,
                     rate,
-                    commissionAmount: utility * rate
+                    totalCommission, // Total earned
+                    paid,            // Already paid
+                    commissionAmount: pending > 0.01 ? pending : 0 // Payable now (previene float dust)
                 };
-            }).filter(d => d.commissionAmount > 0);
+            }).filter(d => d.totalCommission > 0); // Show if they have earned anything, even if fully paid
 
             setCommissionData(details);
 
@@ -91,14 +109,14 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
     };
 
     const handlePayCommission = async (data) => {
-        if (paidWaiters.includes(data.name)) return;
+        if (data.commissionAmount <= 0) return;
 
         if (confirm(`¿Pagar Bs. ${data.commissionAmount.toFixed(2)} a ${data.name}? \nEsto se registrará como un GASTO en caja.`)) {
             const description = `Pago Comisión: ${data.name} (${(data.rate * 100).toFixed(0)}%)`;
             const success = await addExpense(description, data.commissionAmount);
 
             if (success) {
-                setPaidWaiters(prev => [...prev, data.name]);
+                // No need to update local state, sessionStats change will trigger re-calc
 
                 // Print Receipt for signature
                 onPrintReceipt({
@@ -114,7 +132,7 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
 
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
-            <div className="bg-white w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="bg-white w-full max-w-3xl rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
 
                 {/* HEAD */}
                 <div className="bg-purple-600 p-4 flex justify-between items-center text-white">
@@ -139,7 +157,7 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                         <div className="space-y-4">
                             <div className="bg-blue-50 border border-blue-100 p-3 rounded-lg text-xs text-blue-700 mb-4">
                                 <p className="font-bold flex items-center gap-1"><AlertCircle size={14} /> Nota:</p>
-                                <p>Al presionar "PAGAR", se descontará el dinero de la caja automáticamente y se imprimirá un recibo para firma.</p>
+                                <p>El cálculo descuenta automáticamente lo ya pagado en este turno.</p>
                             </div>
 
                             <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
@@ -150,7 +168,9 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                                             <th className="px-4 py-3 text-center">Ventas</th>
                                             <th className="px-4 py-3 text-center">Utilidad</th>
                                             <th className="px-4 py-3 text-center">%</th>
-                                            <th className="px-4 py-3 text-right">A Pagar</th>
+                                            <th className="px-4 py-3 text-right text-gray-400">Total</th>
+                                            <th className="px-4 py-3 text-right text-green-600">Pagado</th>
+                                            <th className="px-4 py-3 text-right font-black">Pendiente</th>
                                             <th className="px-4 py-3 text-center">Acción</th>
                                         </tr>
                                     </thead>
@@ -163,11 +183,13 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                                                 <td className="px-4 py-3 text-center">
                                                     <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-xs font-bold">{(d.rate * 100).toFixed(0)}%</span>
                                                 </td>
+                                                <td className="px-4 py-3 text-right text-gray-400">Bs. {d.totalCommission.toFixed(2)}</td>
+                                                <td className="px-4 py-3 text-right text-green-600 font-medium">Bs. {d.paid.toFixed(2)}</td>
                                                 <td className="px-4 py-3 text-right font-black text-gray-900 text-lg">Bs. {d.commissionAmount.toFixed(2)}</td>
                                                 <td className="px-4 py-3 flex justify-center">
-                                                    {paidWaiters.includes(d.name) ? (
+                                                    {d.commissionAmount <= 0 ? (
                                                         <span className="flex items-center gap-1 text-green-600 font-bold bg-green-50 px-3 py-1 rounded-full text-xs border border-green-200">
-                                                            <CheckCircle size={14} /> PAGADO
+                                                            <CheckCircle size={14} /> AL DÍA
                                                         </span>
                                                     ) : (
                                                         <button
