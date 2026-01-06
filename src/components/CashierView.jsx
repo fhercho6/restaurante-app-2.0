@@ -3,9 +3,10 @@ import React, { useState, useEffect } from 'react';
 import { Search, ShoppingCart, Clock, Filter, Trash2, Printer, CheckSquare, Square, DollarSign, X, User, Users, Percent } from 'lucide-react';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { db, ROOT_COLLECTION, isPersonalProject } from '../config/firebase';
-import CommissionPaymentModal from './CommissionPaymentModal';
+import { useRegister } from '../context/RegisterContext'; // [NEW]
 
 export default function CashierView({ items, categories, tables, onProcessPayment, onVoidOrder, onReprintOrder, onStopService, onOpenExpense, onPrintReceipt }) {
+    const { registerSession } = useRegister(); // [NEW]
     const [pendingOrders, setPendingOrders] = useState([]);
     const [activeServices, setActiveServices] = useState([]);
     const [selectedOrders, setSelectedOrders] = useState([]); // IDs de órdenes seleccionadas
@@ -25,11 +26,20 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
 
         const qOrders = query(collection(db, ordersCol), orderBy('date', 'desc'));
         const qServices = query(collection(db, servicesCol), orderBy('startTime', 'desc'));
-        // Asistencia: Solo del turno actual (si tuviéramos registerID global aquí, sería mejor, pero por ahora mostramos últimos 20)
-        // Lo ideal es filtrar por registerId, pero CashierView no lo recibe como prop directo siempre.
-        // Asumimos mostrar las ultimas de hoy.
-        const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
-        const qAttendance = query(collection(db, attCol), orderBy('timestamp', 'desc'), where('timestamp', '>=', startOfDay.toISOString()));
+
+        // [FIX] Filtrar asistencia por ID de Caja Actual para evitar duplicados de turnos anteriores en el mismo día
+        let qAttendance;
+        if (registerSession && registerSession.id) {
+            qAttendance = query(
+                collection(db, attCol),
+                where('registerId', '==', registerSession.id),
+                orderBy('timestamp', 'desc')
+            );
+        } else {
+            // Fallback si no hay sesión (mostrar todo hoy)
+            const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
+            qAttendance = query(collection(db, attCol), orderBy('timestamp', 'desc'), where('timestamp', '>=', startOfDay.toISOString()));
+        }
 
         const unsubOrders = onSnapshot(qOrders, (snap) => {
             setPendingOrders(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
