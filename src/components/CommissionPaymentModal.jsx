@@ -14,7 +14,7 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
 
     useEffect(() => {
         calculateCommissions();
-    }, [registerSession, staff, sessionStats.expensesList]);
+    }, [registerSession, staff, sessionStats]);
 
     const calculateCommissions = async () => {
         if (!registerSession) return;
