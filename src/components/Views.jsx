@@ -7,6 +7,7 @@ import Barcode from 'react-barcode';
 
 // --- TARJETA DE MENÚ (CLIENTE) ---
 export const MenuCard = ({ item }) => {
+    if (!item) return null; // [FIX] Prevent crash if item is undefined
     const stockNum = Number(item.stock);
     const hasStock = item.stock !== undefined && item.stock !== '';
     const isOut = hasStock && stockNum <= 0;
