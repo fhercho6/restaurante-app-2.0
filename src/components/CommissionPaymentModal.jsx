@@ -116,19 +116,21 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
             const success = await addExpense(description, data.commissionAmount);
 
             if (success) {
-                // No need to update local state, sessionStats change will trigger re-calc
-
                 // Print Receipt for signature
                 onPrintReceipt({
                     type: 'expense',
                     amount: data.commissionAmount,
-                    description: description,
-                    staffName: data.name,
+                    description: `PAGO DE COMISIÓN<br/><br/>GARZÓN: ${data.name.toUpperCase()}<br/>VENTAS: Bs. ${data.salesTotal.toFixed(2)}<br/>UTILIDAD BASE: Bs. ${data.utility.toFixed(2)}<br/>TASA: ${(data.rate * 100).toFixed(0)}%`,
+                    staffName: data.name, // "Atiende" (Garzón)
+                    cashierName: registerSession.openedBy || 'Cajero', // "Caja"
+                    date: new Date().toLocaleString(),
+                    businessName: 'LicoBar',
                     autoPrint: true
                 });
             }
         }
     };
+
 
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
