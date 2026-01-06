@@ -35,7 +35,11 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
         const stats = data.stats || {};
 
         // Filas de productos para la Página 2
-        const soldProducts = data.soldProducts || [];
+        // [FIX] Buscar soldProducts en la raíz (legacy) o dentro de stats (estructura actual)
+        const soldProducts = (data.soldProducts && data.soldProducts.length > 0)
+            ? data.soldProducts
+            : (stats.soldProducts || []);
+
         const productRows = soldProducts.map((p, i) => {
             const qtyS = p.qtySold || p.qty || 0; // Fallback para compatibilidad
             const qtyC = p.qtyCourtesy || 0;
@@ -203,8 +207,11 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
         if (data.type === 'void') title = '*** ANULADO ***';
         if (isCourtesySale) title = 'RECIBO DE CORTESÍA';
 
+        // [FIX] Buscar soldProducts correctamente
+        const soldProducts = (data.soldProducts && data.soldProducts.length > 0) ? data.soldProducts : (stats.soldProducts || []);
+
         let itemsHtml = data.items ? data.items.map(item => `<div class="row" style="margin-bottom:2px;"><div class="col-qty">${item.qty}</div><div class="col-name">${item.name}</div><div class="col-price">${isCourtesySale ? '0.00' : fmt(item.price * item.qty)}</div></div>`).join('') : '';
-        let zReportRows = data.soldProducts ? data.soldProducts.map(p => `<div class="row"><div class="col-qty">${p.qtySold + (p.qtyCourtesy || 0)}</div><div class="col-name">${p.name}</div><div class="col-price">${fmt(p.total)}</div></div>`).join('') : '';
+        let zReportRows = soldProducts ? soldProducts.map(p => `<div class="row"><div class="col-qty">${(p.qtySold || p.qty || 0) + (p.qtyCourtesy || 0)}</div><div class="col-name">${p.name}</div><div class="col-price">${fmt(p.total)}</div></div>`).join('') : '';
 
         return `<html><head><style>
             * { box-sizing: border-box; }
