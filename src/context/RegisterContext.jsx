@@ -99,6 +99,8 @@ export const RegisterProvider = ({ children }) => {
                 });
             });
 
+            const soldArray = Object.values(pm).sort((a, b) => b.qtySold - a.qtySold);
+
             setSessionStats(prev => ({
                 ...prev,
                 cashSales: c,
@@ -108,8 +110,8 @@ export const RegisterProvider = ({ children }) => {
                 totalCostOfGoods: cg,
                 courtesyTotal: ct,
                 courtesyCost: cc,
-                soldProducts: Object.values(pm).sort((a, b) => b.qtySold - a.qtySold),
-                debugInfo: `DIAG: Docs ${s.size} / Items ${itemsProcessed} / Keys ${Object.keys(pm).length}`
+                soldProducts: soldArray,
+                debugInfo: `DIAG: CG=${cg} / ArrLen=${soldArray.length} / Keys=${Object.keys(pm).length} / itemsProc=${itemsProcessed}`
             }));
         });
 
