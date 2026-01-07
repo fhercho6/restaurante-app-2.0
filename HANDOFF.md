@@ -47,6 +47,7 @@
     *   **Doble Cobro de Comisiones:** Se corrigió el error en el Cierre de Caja donde las comisiones ya pagadas se descontaban nuevamente del efectivo final. Ahora el sistema detecta pagos previos y solo descuenta lo pendiente.
     *   **Pantalla Blanca en Menú:** Se añadió protección contra productos con datos incompletos que colgaban la app al entrar al Menú Digital.
     *   **Auto-Actualización:** El botón de "Inicio" ahora fuerza una recarga de la página para asegurar que el sistema siempre esté fresco.
+    *   **Visibilidad de Servicios:** Se habilitó la categoría "Servicios" para los Garzones en el POS (antes estaba oculta por defecto).
 
 ---
 
