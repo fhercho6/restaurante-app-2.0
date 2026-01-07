@@ -48,6 +48,7 @@
     *   **Pantalla Blanca en Menú:** Se añadió protección contra productos con datos incompletos que colgaban la app al entrar al Menú Digital.
     *   **Auto-Actualización:** El botón de "Inicio" ahora fuerza una recarga de la página para asegurar que el sistema siempre esté fresco.
     *   **Visibilidad de Servicios:** Se habilitó la categoría "Servicios" para los Garzones en el POS (antes estaba oculta por defecto).
+    *   **Simplificación Apertura Caja:** Se eliminó la sección "Equipo Presente" al iniciar turno para agilizar el proceso, ya que no era utilizada.
 
 ---
 
