@@ -4,23 +4,17 @@ import { Lock, Unlock, DollarSign, Clock, User, AlertTriangle, CheckCircle, Wall
 
 const RegisterControlView = ({ session, onOpen, onClose, staff, stats, onAddExpense, onDeleteExpense, onReprintExpense }) => {
     const [amount, setAmount] = useState('');
-    const [selectedStaff, setSelectedStaff] = useState([]);
 
     // Estado para nuevo gasto
     const [expenseDesc, setExpenseDesc] = useState('');
     const [expenseAmount, setExpenseAmount] = useState('');
 
-    const toggleStaff = (id) => {
-        if (selectedStaff.includes(id)) setSelectedStaff(selectedStaff.filter(s => s !== id));
-        else setSelectedStaff([...selectedStaff, id]);
-    };
-
     const handleOpenSubmit = (e) => {
         e.preventDefault();
         if (!amount) return;
-        const activeTeam = staff.filter(m => selectedStaff.includes(m.id)).map(m => ({ id: m.id, name: m.name, role: m.role }));
-        onOpen(parseFloat(amount), activeTeam);
-        setAmount(''); setSelectedStaff([]);
+        // activeTeam removed as per user request
+        onOpen(parseFloat(amount), []);
+        setAmount('');
     };
 
     const handleExpenseSubmit = (e) => {
@@ -83,14 +77,16 @@ const RegisterControlView = ({ session, onOpen, onClose, staff, stats, onAddExpe
                                     <span className="opacity-70">Inicio</span>
                                     <span className="font-mono">{new Date(session.openedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                 </div>
-                                <div className="pt-2">
-                                    <p className="text-xs opacity-70 mb-1">Equipo en Turno:</p>
-                                    <div className="flex flex-wrap gap-1">
-                                        {session.activeTeam?.map((s, i) => (
-                                            <span key={i} className="text-[10px] bg-white/20 px-2 py-0.5 rounded">{s.name}</span>
-                                        ))}
+                                {session.activeTeam && session.activeTeam.length > 0 && (
+                                    <div className="pt-2">
+                                        <p className="text-xs opacity-70 mb-1">Equipo en Turno:</p>
+                                        <div className="flex flex-wrap gap-1">
+                                            {session.activeTeam?.map((s, i) => (
+                                                <span key={i} className="text-[10px] bg-white/20 px-2 py-0.5 rounded">{s.name}</span>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
                         ) : (
                             <p className="text-center opacity-50 py-4 text-sm">Inicia turno para ver detalles.</p>
@@ -197,17 +193,6 @@ const RegisterControlView = ({ session, onOpen, onClose, staff, stats, onAddExpe
                                         onChange={e => setAmount(e.target.value)}
                                         autoFocus
                                     />
-                                </div>
-
-                                <div className="mb-6">
-                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Equipo presente:</label>
-                                    <div className="flex flex-wrap gap-2">
-                                        {staff.map(m => (
-                                            <div key={m.id} onClick={() => toggleStaff(m.id)} className={`cursor-pointer px-3 py-2 rounded-lg border text-sm font-bold transition-colors flex items-center gap-2 ${selectedStaff.includes(m.id) ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-400'}`}>
-                                                {m.name} {selectedStaff.includes(m.id) && <CheckCircle size={14} />}
-                                            </div>
-                                        ))}
-                                    </div>
                                 </div>
 
                                 <button type="submit" disabled={!amount} className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg disabled:bg-gray-300">
