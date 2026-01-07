@@ -107,7 +107,7 @@ export default function POSInterface({ items, categories, staffMember, onCheckou
 
   const handleCheckoutSafe = async () => { if (isProcessing) return; setIsProcessing(true); try { await onCheckout(cart, setCart); } finally { setIsProcessing(false); } };
 
-  const filteredItems = items.filter(i => { const matchesCat = categoryFilter === 'Todos' ? true : i.category === categoryFilter; const matchesSearch = i.name.toLowerCase().includes(searchTerm.toLowerCase()); return matchesCat && matchesSearch && i.category !== 'Servicios'; });
+  const filteredItems = items.filter(i => { const matchesCat = categoryFilter === 'Todos' ? true : i.category === categoryFilter; const matchesSearch = i.name.toLowerCase().includes(searchTerm.toLowerCase()); return matchesCat && matchesSearch; });
   const cartTotal = cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
 
   return (
@@ -130,7 +130,7 @@ export default function POSInterface({ items, categories, staffMember, onCheckou
           <div className="relative">
             <div className={`flex flex-wrap gap-2 overflow-y-auto pr-6 transition-all ${expandCategories ? 'max-h-48' : 'max-h-12'} scrollbar-hide`}>
               <button onClick={() => setCategoryFilter('Todos')} className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap border transition-all ${categoryFilter === 'Todos' ? 'bg-black text-white border-black' : 'bg-white text-gray-600 border-gray-200'}`}>Todos</button>
-              {categories.filter(c => c !== 'Servicios').map(cat => (<button key={cat} onClick={() => setCategoryFilter(cat)} className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap border transition-all ${categoryFilter === cat ? 'bg-black text-white border-black' : 'bg-white text-gray-600 border-gray-200'}`}>{cat}</button>))}
+              {categories.map(cat => (<button key={cat} onClick={() => setCategoryFilter(cat)} className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap border transition-all ${categoryFilter === cat ? 'bg-black text-white border-black' : 'bg-white text-gray-600 border-gray-200'}`}>{cat}</button>))}
             </div>
             <button onClick={() => setExpandCategories(!expandCategories)} className="absolute right-0 top-0 bottom-0 bg-white/80 backdrop-blur-sm pl-2 flex items-start pt-1">{expandCategories ? <ChevronUp size={20} className="text-gray-500" /> : <ChevronDown size={20} className="text-gray-500" />}</button>
           </div>
