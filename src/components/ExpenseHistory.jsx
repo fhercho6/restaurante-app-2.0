@@ -8,10 +8,11 @@ import { useData } from '../context/DataContext';
 
 export default function ExpenseHistory({ onBack }) {
     // State
-    const { expenseTypes } = useData();
+    const { expenseTypes, staff } = useData();
     const [expenses, setExpenses] = useState([]);
     const [loading, setLoading] = useState(false);
     const [selectedType, setSelectedType] = useState('Todos');
+    const [selectedStaff, setSelectedStaff] = useState('Todos');
     const [startDate, setStartDate] = useState(() => {
         const d = new Date();
         d.setHours(0, 0, 0, 0);
@@ -49,7 +50,7 @@ export default function ExpenseHistory({ onBack }) {
                 ...doc.data()
             }));
 
-            // Sort client-side to avoid complex index requirements for now
+            // Sort client-side
             data.sort((a, b) => new Date(b.date) - new Date(a.date));
 
             setExpenses(data);
@@ -70,14 +71,29 @@ export default function ExpenseHistory({ onBack }) {
 
     // Filter Logic
     const filteredExpenses = expenses.filter(ex => {
-        if (selectedType === 'Todos') return true;
-        // Strong match (new records)
-        if (ex.type === selectedType) return true;
-        // Weak match (legacy records string search)
-        const term = selectedType.toLowerCase();
-        if (ex.description && ex.description.toLowerCase().includes(term)) return true;
-        if (ex.reason && ex.reason.toLowerCase().includes(term)) return true;
-        return false;
+        let matchesType = true;
+        let matchesStaff = true;
+
+        // Type Filter
+        if (selectedType !== 'Todos') {
+            if (ex.type === selectedType) matchesType = true;
+            else {
+                const term = selectedType.toLowerCase();
+                matchesType = (ex.description && ex.description.toLowerCase().includes(term)) || (ex.reason && ex.reason.toLowerCase().includes(term));
+            }
+        }
+
+        // Staff Filter
+        if (selectedStaff !== 'Todos') {
+            const staffName = selectedStaff.toLowerCase();
+            // Match if: Created By Staff OR Description contains Staff Name (Payment to staff)
+            const createdByMatch = ex.createdBy && ex.createdBy.toLowerCase() === staffName;
+            const descriptionMatch = ex.description && ex.description.toLowerCase().includes(staffName);
+
+            matchesStaff = createdByMatch || descriptionMatch;
+        }
+
+        return matchesType && matchesStaff;
     });
 
     // Stats
@@ -112,6 +128,17 @@ export default function ExpenseHistory({ onBack }) {
                             >
                                 <option value="Todos">Todos</option>
                                 {expenseTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Personal</label>
+                            <select
+                                value={selectedStaff}
+                                onChange={(e) => setSelectedStaff(e.target.value)}
+                                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 outline-none w-32"
+                            >
+                                <option value="Todos">Todos</option>
+                                {staff.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                             </select>
                         </div>
                         <div>
@@ -172,6 +199,7 @@ export default function ExpenseHistory({ onBack }) {
                 <h1 className="text-2xl font-bold uppercase">Reporte de Gastos</h1>
                 <p className="text-gray-600">Del {startDate} Al {endDate}</p>
                 {selectedType !== 'Todos' && <p className="text-sm font-bold uppercase mt-1">Categoría: {selectedType}</p>}
+                {selectedStaff !== 'Todos' && <p className="text-sm font-bold uppercase mt-1">Personal: {selectedStaff}</p>}
                 <div className="mt-4 flex justify-center gap-8 border-b border-gray-300 pb-4">
                     <div className="text-center">
                         <span className="block text-xs uppercase text-gray-500">Total Monto</span>
