@@ -106,7 +106,7 @@ export default function ExpenseHistory({ onBack }) {
     };
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-500">
+        <div className="space-y-6 animate-in fade-in duration-500 print-content">
             {/* Header / Controls */}
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 no-print">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -271,6 +271,41 @@ export default function ExpenseHistory({ onBack }) {
             <div className="text-center text-xs text-gray-400 mt-8 print:mt-16">
                 <p>Generado por Sistema Restaurante - {new Date().toLocaleString()}</p>
             </div>
+
+            <style>{`
+                @media print {
+                    @page { margin: 2cm; size: auto; }
+                    body { visibility: hidden; }
+                    .print\\:block { display: block !important; }
+                    .no-print { display: none !important; }
+                    
+                    /* Force Print Area Visibility */
+                    .animate-in { animation: none !important; opacity: 1 !important; transform: none !important; }
+                    
+                    /* Target the specific component root to be visible */
+                    .print-content, .print-content * { 
+                        visibility: visible !important; 
+                        color: black !important;
+                    }
+                    .print-content {
+                        position: absolute;
+                        left: 0;
+                        top: 0;
+                        width: 100%;
+                        background: white;
+                    }
+
+                    /* Table Specifics */
+                    table { width: 100% !important; border-collapse: collapse !important; }
+                    th, td { border-bottom: 1px solid #ddd !important; padding: 8px !important; }
+                    
+                    /* Hide scroll/overflow containers */
+                    .overflow-hidden, .overflow-x-auto { 
+                        overflow: visible !important; 
+                        height: auto !important;
+                    }
+                }
+            `}</style>
         </div>
     );
 }
