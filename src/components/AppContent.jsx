@@ -131,7 +131,7 @@ export default function AppContent() {
         if (!filter || filter === 'Todos') return items;
         return items.filter(i => i.category === filter);
     }, [items, filter]);
-    const isAdminMode = ['admin', 'report', 'staff_admin', 'cashier', 'register_control', 'maintenance', 'shift_history'].includes(view);
+    const isAdminMode = ['admin', 'report', 'staff_admin', 'cashier', 'register_control', 'maintenance', 'shift_history', 'expense_history'].includes(view);
     const isCashierOnly = staffMember && staffMember.role === 'Cajero';
 
     // 4. Handler Adaptations
