@@ -701,6 +701,7 @@ export default function AppContent() {
                                         <button onClick={() => setView('report')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'report' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><FileText size={18} /> Reporte</button>
                                         {!isCashierOnly && <button onClick={() => setView('maintenance')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'maintenance' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><Wrench size={18} /> Mantenimiento</button>}
                                         {!isCashierOnly && <button onClick={() => setView('shift_history')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'shift_history' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><Calendar size={18} /> Historial</button>}
+                                        {!isCashierOnly && <button onClick={() => setView('expense_history')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'expense_history' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><FileText size={18} /> Gastos</button>}
                                     </div>
                                 </div>
 
@@ -775,8 +776,7 @@ export default function AppContent() {
                                 />}
                                 {view === 'maintenance' && <EquipmentManager staff={staff} registerSession={registerSession} />}
                                 {view === 'shift_history' && !isCashierOnly && <ShiftHistory onReprint={(shift) => { setLastSale({ ...shift, type: 'z-report', finalCash: shift.finalCashCalculated, stats: shift.finalSalesStats, businessName: appName, date: new Date(shift.closedAt).toLocaleString(), returnTo: 'shift_history' }); setView('receipt_view'); }} />}
-
-
+                                {view === 'expense_history' && !isCashierOnly && <ExpenseHistory onBack={() => setView('admin')} />}
 
                                 {/* INVENTORY/ADMIN HOME */}
                                 {view === 'admin' && !isCashierOnly && (
