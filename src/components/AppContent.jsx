@@ -20,6 +20,7 @@ import RegisterControlView from './RegisterControlView';
 import EquipmentManager from './EquipmentManager';
 import PublicReportView from './PublicReportView';
 import ShiftHistory from './ShiftHistory';
+import ExpenseHistory from './ExpenseHistory';
 import PrinterSettingsModal from './PrinterSettingsModal';
 import { AuthModal, BrandingModal, ProductModal, CategoryManager, RoleManager, TableManager, ExpenseTypeManager, ServiceStartModal, ExpenseModal } from './Modals';
 import ServiceCalculatorModal from './ServiceCalculatorModal';
