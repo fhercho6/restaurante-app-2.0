@@ -213,8 +213,8 @@ export default function ExpenseHistory({ onBack }) {
             </div>
 
             {/* List */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="overflow-x-auto">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden print:shadow-none print:border-none print:overflow-visible">
+                <div className="overflow-x-auto print:overflow-visible">
                     <table className="w-full text-left text-sm">
                         <thead className="bg-gray-50 text-gray-500 uppercase font-bold text-xs border-b border-gray-200">
                             <tr>
