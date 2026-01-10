@@ -1,6 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart3, PieChart, X } from 'lucide-react';
 
+// HELPER: Safe Quantity Extractor (Handles 'qty' vs 'qtySold' and missing values)
+const getQty = (item) => {
+    if (!item) return 0;
+    // Prioarity: qty -> qtySold -> 0
+    const val = item.qty !== undefined ? item.qty : item.qtySold;
+    return parseFloat(val) || 0;
+};
+
 // COMPONENTE HELPER: Barra Animada Individual
 const AnimatedBar = ({ prod, percent, index }) => {
     const [width, setWidth] = useState(0);
@@ -8,16 +16,18 @@ const AnimatedBar = ({ prod, percent, index }) => {
     useEffect(() => {
         // Pequeño delay escalonado para efecto cascada
         const timer = setTimeout(() => {
-            setWidth(percent);
+            setWidth(percent || 0); // Guard against NaN percent
         }, index * 100 + 100);
         return () => clearTimeout(timer);
     }, [percent, index]);
+
+    const qty = getQty(prod);
 
     return (
         <div className="space-y-1">
             <div className="flex justify-between text-sm">
                 <span className="font-medium text-gray-700 truncate w-[60%]">{prod.name}</span>
-                <span className="font-bold text-gray-900">{prod.qty} un.</span>
+                <span className="font-bold text-gray-900">{qty} un.</span>
             </div>
             <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden shadow-inner">
                 <div
@@ -34,17 +44,28 @@ const AnimatedBar = ({ prod, percent, index }) => {
 
 // COMPONENTE HELPER: Gráfico de Torta SVG
 const DonutChart = ({ data }) => {
-    const total = data.reduce((acc, curr) => acc + curr.qty, 0);
+    // [FIX] Use getQty for robust total calculation
+    const total = data.reduce((acc, curr) => acc + getQty(curr), 0);
     const colors = ['#6366f1', '#ec4899', '#10b981', '#f59e0b', '#8b5cf6', '#3b82f6', '#14b8a6', '#f43f5e', '#84cc16', '#a855f7'];
 
     let currentAngle = 0;
+
+    // Guard against 0 total to prevent DivisionByZero (NaN)
+    if (total === 0) {
+        return (
+            <div className="flex flex-col items-center justify-center p-8 text-gray-400">
+                <p>Sin datos cuantitativos para mostrar.</p>
+            </div>
+        );
+    }
 
     return (
         <div className="flex flex-col items-center animate-in zoom-in duration-500">
             <div className="relative w-64 h-64 drop-shadow-xl">
                 <svg viewBox="0 0 100 100" className="transform -rotate-90 w-full h-full">
                     {data.map((item, i) => {
-                        const sliceAngle = (item.qty / total) * 360;
+                        const qty = getQty(item);
+                        const sliceAngle = (qty / total) * 360;
                         if (sliceAngle === 0) return null;
 
                         // Cálculo de coordenadas trigonométricas
@@ -57,7 +78,7 @@ const DonutChart = ({ data }) => {
                         const largeArcFlag = sliceAngle > 180 ? 1 : 0;
 
                         // Construir path SVG
-                        const pathData = total === item.qty
+                        const pathData = Math.abs(total - qty) < 0.01 // Floating point safety
                             ? `M 50 50 L 50 0 A 50 50 0 1 1 49.99 0 Z` // Círculo casi completo
                             : `M 50 50 L ${x1} ${y1} A 50 50 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
 
@@ -70,7 +91,7 @@ const DonutChart = ({ data }) => {
                                 strokeWidth="2"
                                 className="hover:opacity-80 transition-opacity cursor-pointer"
                             >
-                                <title>{item.name}: {item.qty} ({((item.qty / total) * 100).toFixed(1)}%)</title>
+                                <title>{item.name}: {qty} ({((qty / total) * 100).toFixed(1)}%)</title>
                             </path>
                         );
 
@@ -92,7 +113,7 @@ const DonutChart = ({ data }) => {
                     <div key={i} className="flex items-center gap-2 text-xs bg-gray-50 p-2 rounded-lg border border-gray-100">
                         <div className="w-3 h-3 rounded-full shrink-0 shadow-sm" style={{ backgroundColor: colors[i % colors.length] }}></div>
                         <span className="truncate flex-1 font-medium text-gray-600">{prod.name}</span>
-                        <span className="font-bold text-gray-900">{prod.qty}</span>
+                        <span className="font-bold text-gray-900">{getQty(prod)}</span>
                     </div>
                 ))}
             </div>
@@ -112,8 +133,9 @@ export default function ChartDisplay({ data, type, onClose, onToggleType, shiftI
         );
     }
 
-    const sortedData = [...data].sort((a, b) => b.qty - a.qty).slice(0, 10);
-    const maxQty = Math.max(...sortedData.map(p => p.qty));
+    // [FIX] Use getQty for sorting and max calculation
+    const sortedData = [...data].sort((a, b) => getQty(b) - getQty(a)).slice(0, 10);
+    const maxQty = Math.max(...sortedData.map(p => getQty(p))) || 1; // Avoid divide by zero
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -150,7 +172,7 @@ export default function ChartDisplay({ data, type, onClose, onToggleType, shiftI
                                 <AnimatedBar
                                     key={index}
                                     prod={prod}
-                                    percent={(prod.qty / maxQty) * 100}
+                                    percent={(getQty(prod) / maxQty) * 100}
                                     index={index}
                                 />
                             ))}
