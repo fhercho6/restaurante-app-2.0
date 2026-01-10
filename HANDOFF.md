@@ -50,6 +50,11 @@
     *   **Visibilidad de Servicios:** Se habilitó la categoría "Servicios" para los Garzones en el POS (antes estaba oculta por defecto).
     *   **Simplificación Apertura Caja:** Se eliminó la sección "Equipo Presente" al iniciar turno para agilizar el proceso, ya que no era utilizada.
 
+8.  **Historial de Gastos Avanzado (Filtrado y Reportes):**
+    *   **Filtro por Categoría:** Nuevo menú desplegable en el Historial de Gastos para filtrar por tipo (ej. Taxi, Insumos, Hielo).
+    *   **Filtro por Personal:** Opción para ver pagos realizados a un garzón específico o gastos creados por él. Ideal para auditoría de sueldos/comisiones.
+    *   **Reporte de Impresión Mejorado:** Se corrigió un error de estilos que ocultaba la lista de gastos al imprimir. Ahora el reporte muestra la tabla completa de registros junto con los totales filtrados.
+
 ---
 
 ## 🛠️ Instrucciones para la Nueva PC
