@@ -4,10 +4,14 @@ import { db, isPersonalProject, ROOT_COLLECTION } from '../config/firebase';
 import { Search, Calendar, DollarSign, FileText, Printer, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+import { useData } from '../context/DataContext';
+
 export default function ExpenseHistory({ onBack }) {
     // State
+    const { expenseTypes } = useData();
     const [expenses, setExpenses] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [selectedType, setSelectedType] = useState('Todos');
     const [startDate, setStartDate] = useState(() => {
         const d = new Date();
         d.setHours(0, 0, 0, 0);
@@ -64,9 +68,21 @@ export default function ExpenseHistory({ onBack }) {
         fetchExpenses();
     }, []); // Run once on mount, then user triggers via search button
 
+    // Filter Logic
+    const filteredExpenses = expenses.filter(ex => {
+        if (selectedType === 'Todos') return true;
+        // Strong match (new records)
+        if (ex.type === selectedType) return true;
+        // Weak match (legacy records string search)
+        const term = selectedType.toLowerCase();
+        if (ex.description && ex.description.toLowerCase().includes(term)) return true;
+        if (ex.reason && ex.reason.toLowerCase().includes(term)) return true;
+        return false;
+    });
+
     // Stats
-    const totalAmount = expenses.reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0);
-    const totalCount = expenses.length;
+    const totalAmount = filteredExpenses.reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0);
+    const totalCount = filteredExpenses.length;
 
     // Print Handler
     const handlePrint = () => {
@@ -87,6 +103,17 @@ export default function ExpenseHistory({ onBack }) {
                     </div>
 
                     <div className="flex flex-wrap items-end gap-2">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tipo</label>
+                            <select
+                                value={selectedType}
+                                onChange={(e) => setSelectedType(e.target.value)}
+                                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 outline-none w-32"
+                            >
+                                <option value="Todos">Todos</option>
+                                {expenseTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                            </select>
+                        </div>
                         <div>
                             <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Desde</label>
                             <input
@@ -144,6 +171,7 @@ export default function ExpenseHistory({ onBack }) {
             <div className="hidden print:block mb-8 text-center">
                 <h1 className="text-2xl font-bold uppercase">Reporte de Gastos</h1>
                 <p className="text-gray-600">Del {startDate} Al {endDate}</p>
+                {selectedType !== 'Todos' && <p className="text-sm font-bold uppercase mt-1">Categoría: {selectedType}</p>}
                 <div className="mt-4 flex justify-center gap-8 border-b border-gray-300 pb-4">
                     <div className="text-center">
                         <span className="block text-xs uppercase text-gray-500">Total Monto</span>
@@ -164,20 +192,27 @@ export default function ExpenseHistory({ onBack }) {
                             <tr>
                                 <th className="px-4 py-3">Fecha y Hora</th>
                                 <th className="px-4 py-3">Descripción / Razón</th>
+                                <th className="px-4 py-3">Categoría</th>
                                 <th className="px-4 py-3">Responsable</th>
                                 <th className="px-4 py-3 text-right">Monto</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                            {expenses.length > 0 ? (
-                                expenses.map((expense) => (
+                            {filteredExpenses.length > 0 ? (
+                                filteredExpenses.map((expense) => (
                                     <tr key={expense.id} className="hover:bg-gray-50 transition-colors">
                                         <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
                                             {new Date(expense.date).toLocaleString()}
                                         </td>
                                         <td className="px-4 py-3 font-medium text-gray-800">
                                             {expense.description || expense.reason || 'Sin descripción'}
-                                            {expense.type && <span className="ml-2 text-[10px] bg-gray-200 px-1.5 py-0.5 rounded text-gray-600">{expense.type}</span>}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            {expense.type ? (
+                                                <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-1 rounded font-bold uppercase">{expense.type}</span>
+                                            ) : (
+                                                <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-1 rounded">Varios</span>
+                                            )}
                                         </td>
                                         <td className="px-4 py-3 text-gray-600">
                                             {expense.createdBy || expense.staffNames || 'Sistema'}
@@ -189,15 +224,15 @@ export default function ExpenseHistory({ onBack }) {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="4" className="px-4 py-8 text-center text-gray-400">
-                                        {loading ? 'Cargando datos...' : 'No hay gastos registrados en este periodo.'}
+                                    <td colSpan="5" className="px-4 py-8 text-center text-gray-400">
+                                        {loading ? 'Cargando datos...' : 'No hay gastos registrados con este filtro.'}
                                     </td>
                                 </tr>
                             )}
                         </tbody>
                         <tfoot className="bg-gray-50 border-t border-gray-200 font-bold">
                             <tr>
-                                <td colSpan="3" className="px-4 py-3 text-right text-gray-600 uppercase">Total Periodo:</td>
+                                <td colSpan="4" className="px-4 py-3 text-right text-gray-600 uppercase">Total Periodo:</td>
                                 <td className="px-4 py-3 text-right text-red-700 text-base">Bs. {totalAmount.toFixed(2)}</td>
                             </tr>
                         </tfoot>

@@ -503,8 +503,8 @@ export const ExpenseModal = ({ isOpen, onClose, onSave, expenseTypes }) => {
 
     const handleSubmit = () => {
         if (amount) {
-            const finalDesc = selectedType + (detail ? ` - ${detail} ` : '');
-            onSave(finalDesc, parseFloat(amount));
+            const finalDesc = detail || selectedType;
+            onSave(finalDesc, parseFloat(amount), selectedType);
             setDetail('');
             setAmount('');
             onClose();

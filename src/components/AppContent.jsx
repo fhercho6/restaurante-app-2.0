@@ -205,10 +205,10 @@ export default function AppContent() {
         if (success) setIsOpenRegisterModalOpen(false);
     };
 
-    const handleAddExpenseWithReceipt = async (description, amount) => {
+    const handleAddExpenseWithReceipt = async (description, amount, type) => {
         const tId = toast.loading('Procesando gasto...');
         try {
-            const success = await addExpense(description, amount);
+            const success = await addExpense(description, amount, type);
             if (success) {
                 toast.dismiss(tId);
                 const expenseReceipt = {

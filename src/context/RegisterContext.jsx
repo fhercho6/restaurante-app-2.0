@@ -203,7 +203,7 @@ export const RegisterProvider = ({ children }) => {
     };
 
     // 4. Expense Actions
-    const addExpense = async (description, amount) => {
+    const addExpense = async (description, amount, type = 'Varios') => {
         if (!registerSession) {
             toast.error("Error Interno: No se detecta turno activo (registerSession lost). Refresca la página.");
             return false;
@@ -213,6 +213,7 @@ export const RegisterProvider = ({ children }) => {
                 registerId: registerSession.id,
                 description,
                 amount,
+                type,
                 date: new Date().toISOString(),
                 createdBy: staffMember ? staffMember.name : 'Admin'
             };
