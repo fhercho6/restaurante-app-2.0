@@ -12,7 +12,113 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
     const [loading, setLoading] = useState(true);
     const [bonuses, setBonuses] = useState({});
 
-    // ... existing useEffect ...
+    useEffect(() => {
+        calculateCommissions();
+    }, [registerSession, staff, sessionStats]);
+
+    const calculateCommissions = async () => {
+        setLoading(true);
+        if (!registerSession) {
+            setLoading(false);
+            return;
+        }
+
+        try {
+            // 0. Calculate Already Paid Commissions from Expenses
+            const paidSoFar = {}; // { staffName: amount }
+            const paymentHistory = {}; // { staffName: [expenseObjects] }
+
+            if (sessionStats && sessionStats.expensesList) {
+                sessionStats.expensesList.forEach(e => {
+                    // Description format: "Pago Comisión: Name (5%)"
+                    if (!e.description || typeof e.description !== 'string') return;
+
+                    const match = e.description.match(/Pago Comisión: (.+) \(\d+%\)/);
+                    if (match) {
+                        const name = match[1];
+                        paidSoFar[name] = (paidSoFar[name] || 0) + parseFloat(e.amount);
+
+                        if (!paymentHistory[name]) paymentHistory[name] = [];
+                        paymentHistory[name].push(e);
+                    }
+                });
+            }
+
+            // 1. Fetch Sales for this session
+            const salesColl = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`;
+            const qSales = query(collection(db, salesColl), where('registerId', '==', registerSession.id));
+            const snapSales = await getDocs(qSales);
+
+            const staffUtility = {}; // { staffName: utilityAmount }
+            const staffSalesTotal = {}; // { staffName: salesTotal }
+
+            // 2. Identify Commissioned Staff
+            const commissionedStaff = staff.filter(s => s.commissionEnabled);
+
+            // 3. Process Sales
+            snapSales.forEach(doc => {
+                const sale = doc.data();
+                const waiterName = sale.staffName;
+
+                if (waiterName && commissionedStaff.some(s => s.name === waiterName)) {
+                    if (!staffUtility[waiterName]) {
+                        staffUtility[waiterName] = 0;
+                        staffSalesTotal[waiterName] = 0;
+                    }
+
+                    // Calculate Utility (Profit)
+                    if (sale.items) {
+                        sale.items.forEach(item => {
+                            const price = parseFloat(item.price) || 0;
+                            const cost = parseFloat(item.cost) || 0;
+                            const qty = parseInt(item.qty) || 1;
+                            staffUtility[waiterName] += (price - cost) * qty;
+                            staffSalesTotal[waiterName] += price * qty;
+                        });
+                    }
+                }
+            });
+
+            // 4. Calculate Commission Amount based on Tiers
+            const tiers = commissionTiers || [
+                { max: 5000, rate: 0.05 },
+                { max: 5500, rate: 0.06 },
+                { max: 6000, rate: 0.07 },
+                { max: 999999, rate: 0.08 }
+            ];
+
+            const details = Object.entries(staffUtility).map(([name, utility]) => {
+                const sortedTiers = [...tiers].sort((a, b) => a.max - b.max);
+                const tier = sortedTiers.find(t => utility <= t.max);
+                const rate = tier ? tier.rate : sortedTiers[sortedTiers.length - 1].rate;
+                const grandTotalSales = staffSalesTotal[name] || 0;
+
+                const totalCommission = utility * rate;
+                const paid = paidSoFar[name] || 0;
+                const pending = totalCommission - paid;
+
+                return {
+                    name,
+                    salesTotal: grandTotalSales,
+                    utility,
+                    rate,
+                    totalCommission, // Total earned
+                    paid,            // Already paid
+                    pending,         // Raw pending (can be negative)
+                    history: paymentHistory[name] || [], // List of past payments
+                    commissionAmount: pending > 0.01 ? pending : 0 // Payable now
+                };
+            }).filter(d => d.totalCommission > 0 || d.paid > 0); // Show if they earned OR were paid (even if now negative)
+
+            setCommissionData(details);
+
+        } catch (error) {
+            console.error("Error calculating commissions:", error);
+            toast.error("Error calculando comisiones");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleBonusChange = (staffName, value) => {
         setBonuses(prev => ({
