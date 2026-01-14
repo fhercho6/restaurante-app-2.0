@@ -324,24 +324,19 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                     </div>
                 )}
 
-                <div className="p-8 flex flex-col items-center justify-center text-center bg-gray-50 min-h-[200px]">
+                <div className="flex-1 bg-gray-50 relative overflow-hidden">
                     {status === 'printing' ? (
-                        <>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center">
                             <Loader2 size={64} className="text-blue-600 animate-spin mb-4" />
                             <h3 className="text-xl font-bold text-gray-800">Imprimiendo...</h3>
                             <p className="text-gray-500">Revise la ventana emergente</p>
-                        </>
+                        </div>
                     ) : (
-                        <>
-                            <CheckCircle size={64} className="text-green-500 mb-4" />
-                            <h3 className="text-2xl font-bold text-gray-800 mb-2">
-                                {data.type === 'z-report' ? 'Turno Cerrado' : 'Transacción Exitosa'}
-                            </h3>
-                            <p className="text-4xl font-black text-gray-900 mb-2">Bs. {fmt(previewAmount)}</p>
-                            <p className="text-gray-500 uppercase text-xs tracking-wider">
-                                {data.type === 'z-report' ? 'Efectivo en Caja' : 'Monto Total'}
-                            </p>
-                        </>
+                        <iframe
+                            srcDoc={useThermalFormat ? renderThermalReport() : renderLetterReport()}
+                            className="w-full h-full border-none"
+                            title="Report Preview"
+                        />
                     )}
                 </div>
             </div>
