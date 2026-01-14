@@ -40,7 +40,15 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
 
                     if (match) {
                         const name = match[1];
-                        paidSoFar[name] = (paidSoFar[name] || 0) + parseFloat(e.amount);
+                        let amountPaid = parseFloat(e.amount);
+
+                        // Extract "Pasaje" amount if present to deduct it (it's not part of the commission debt)
+                        const bonusMatch = e.description.match(/\+ Pasaje \(Bs\. (\d+(?:\.\d+)?)\)/);
+                        if (bonusMatch) {
+                            amountPaid -= parseFloat(bonusMatch[1]);
+                        }
+
+                        paidSoFar[name] = (paidSoFar[name] || 0) + amountPaid;
 
                         if (!paymentHistory[name]) paymentHistory[name] = [];
                         paymentHistory[name].push(e);
