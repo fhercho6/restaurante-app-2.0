@@ -1,6 +1,6 @@
 # 🚀 Estado del Proyecto: Sistema ZZIF (Restaurante App)
 
-## 📅 Fecha: 05 de Enero, 2026
+## 📅 Fecha: 14 de Enero, 2026
 **Tema Actual:** Correcciones de Reportes y Comisiones 🧾💰
 
 ---
@@ -53,7 +53,14 @@
 8.  **Historial de Gastos Avanzado (Filtrado y Reportes):**
     *   **Filtro por Categoría:** Nuevo menú desplegable en el Historial de Gastos para filtrar por tipo (ej. Taxi, Insumos, Hielo).
     *   **Filtro por Personal:** Opción para ver pagos realizados a un garzón específico o gastos creados por él. Ideal para auditoría de sueldos/comisiones.
-    *   **Reporte de Impresión Mejorado:** Se corrigió un error de estilos que ocultaba la lista de gastos al imprimir. Ahora el reporte muestra la tabla completa de registros junto con los totales filtrados.
+9.  **Reingeniería del Sistema de Comisiones y Reportes Z (Híbrido):**
+    *   **Lógica Híbrida de Comisiones:**
+        *   **Combos (8%):** Se detectan automáticamente (búsqueda robusta de "combo") y pagan un 8% fijo sobre la utilidad.
+        *   **Estándar (Escalonado):** El resto de productos sigue la tabla de comisiones normal (5% - 8% según meta).
+    *   **Corrección de Pagos:** Se solucionó el error donde el bono "Pasaje" se descontaba de la deuda de comisión. Ahora se registran por separado para mantener el saldo de comisiones real.
+    *   **Reporte Z (Formato Carta):** Se reestructuró para separar claramente "Gastos Operativos" de "Comisiones y Nómina", facilitando el análisis financiero.
+    *   **Vista Previa Mejorada:** Se restauró la vista previa completa en el modal antes de imprimir y se optimizó su tamaño para pantallas grandes.
+    *   **Actualización en Tiempo Real:** La ventana de comisiones ahora escucha las ventas al instante (`onSnapshot`), sin necesidad de cerrar y abrir para ver nuevos cálculos.
 
 ---
 
