@@ -91,8 +91,8 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                             const utility = (price - cost) * qty;
                             const total = price * qty;
 
-                            // Check for Combos (Case insensitive check, defaulting to standard if no category)
-                            const isCombo = item.category && item.category.toLowerCase() === 'combos';
+                            // Check for Combos (Robust check: includes "combo", case insensitive, trimmed)
+                            const isCombo = item.category && item.category.trim().toLowerCase().includes('combo');
 
                             if (isCombo) {
                                 staffComboUtility[waiterName] += utility;
@@ -161,7 +161,7 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                     history: paymentHistory[name] || [], // List of past payments
                     commissionAmount: pending > 0.01 ? pending : 0 // Payable now
                 };
-            }).filter(d => d.totalCommission > 0 || d.paid > 0); // Show if they earned OR were paid
+            }).filter(d => d.salesTotal > 0 || d.paid > 0); // Show if they have ANY sales or were paid, even if commission is 0
 
             setCommissionData(details);
 
