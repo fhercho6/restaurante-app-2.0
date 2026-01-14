@@ -1,4 +1,4 @@
-// src/components/Receipt.jsx - FORMATO REPORTE Z EXACTO (IMAGENES 05 y 06)
+// src/components/Receipt.jsx - FORMATO REPORTE Z MEJORADO (SEPARACION GASTOS)
 import React, { useEffect, useState } from 'react';
 import { X, Printer, Loader2, CheckCircle } from 'lucide-react';
 
@@ -34,14 +34,30 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
     const renderLetterReport = () => {
         const stats = data.stats || {};
 
+        // --- LOGIC: SPLIT EXPENSES ---
+        const allExpenses = stats.expensesList || [];
+
+        const commissionKeywords = ['comisión', 'comision', 'nómina', 'nomina', 'sueldo', 'pasaje', 'adelanto'];
+
+        const commissionExpenses = allExpenses.filter(e => {
+            const desc = (e.description || '').toLowerCase();
+            const type = (e.type || '').toLowerCase();
+            return commissionKeywords.some(k => desc.includes(k) || type.includes(k));
+        });
+
+        const operatingExpenses = allExpenses.filter(e => !commissionExpenses.includes(e));
+
+        const totalCommissionExpenses = commissionExpenses.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
+        const totalOperatingExpenses = operatingExpenses.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
+
+
         // Filas de productos para la Página 2
-        // [FIX] Buscar soldProducts en la raíz (legacy) o dentro de stats (estructura actual)
         const soldProducts = (data.soldProducts && data.soldProducts.length > 0)
             ? data.soldProducts
             : (stats.soldProducts || []);
 
         const productRows = soldProducts.map((p, i) => {
-            const qtyS = p.qtySold || p.qty || 0; // Fallback para compatibilidad
+            const qtyS = p.qtySold || p.qty || 0;
             const qtyC = p.qtyCourtesy || 0;
             return `
             <tr style="border-bottom:1px solid #eee;">
@@ -58,9 +74,14 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
         const totalQtySold = soldProducts.reduce((sum, p) => sum + (p.qtySold || p.qty || 0), 0);
         const totalQtyCort = soldProducts.reduce((sum, p) => sum + (p.qtyCourtesy || 0), 0);
 
-        const expensesRows = stats.expensesList && stats.expensesList.length > 0
-            ? stats.expensesList.map(e => `<tr><td style="padding:5px 0;">• ${e.description}</td><td style="text-align:right;padding:5px 0;">${fmt(e.amount)}</td></tr>`).join('')
-            : '<tr><td colspan="2" style="font-style:italic;padding:5px 0;">Sin gastos</td></tr>';
+        // GENERATE ROWS HTML
+        const renderExpenseRows = (list) => {
+            if (list.length === 0) return '<tr><td colspan="2" style="font-style:italic;padding:5px 0;text-align:center;color:#777;">- Sin registros -</td></tr>';
+            return list.map(e => `<tr><td style="padding:5px 0;">• ${e.description}</td><td style="text-align:right;padding:5px 0;">${fmt(e.amount)}</td></tr>`).join('');
+        };
+
+        const operatingRows = renderExpenseRows(operatingExpenses);
+        const commissionRows = renderExpenseRows(commissionExpenses);
 
         return `
         <html>
@@ -90,7 +111,7 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                 .row-total td { border-top: 2px solid #000; font-weight: bold; padding-top: 8px; font-size: 13px; }
 
                 /* CAJA CORTESIA (PUNTEADA) */
-                .box-dashed { border: 2px dashed #444; padding: 10px; margin-top: 20px; }
+                .box-dashed { border: 2px dashed #444; padding: 10px; }
                 
                 /* CAJA EFECTIVO REAL (GRUESA) */
                 .box-thick { border: 3px solid #000; padding: 15px; margin-top: 20px; }
@@ -128,29 +149,40 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                             <tr class="row-total"><td>TOTAL INGRESOS</td><td class="text-right">${fmt(data.openingAmount + stats.cashSales + stats.qrSales + stats.cardSales)}</td></tr>
                         </table>
                     </div>
+
+                    <div class="box-dashed" style="margin-top: 20px;">
+                        <div class="box-header" style="border-bottom: 1px dashed #444;">IV. CONTROL DE CORTESÍAS</div>
+                        <table class="table-clean">
+                            <tr><td>• PRODUCTOS REGALADOS</td><td class="text-right">${fmt(stats.courtesyTotal)}</td></tr>
+                            <tr><td colspan="2" style="font-size: 9px; color:#555;">* Este monto NO afecta el efectivo en caja.</td></tr>
+                        </table>
+                    </div>
                 </div>
 
                 <div class="col">
                     <div class="box">
-                        <div class="box-header">II. EGRESOS (SALIDAS DE DINERO)</div>
+                        <div class="box-header">II. GASTOS OPERATIVOS</div>
                         <table class="table-clean">
-                            ${expensesRows}
-                            <tr class="row-total"><td>TOTAL GASTOS</td><td class="text-right">${fmt(stats.totalExpenses)}</td></tr>
+                            ${operatingRows}
+                            <tr class="row-total"><td>SUBTOTAL GASTOS</td><td class="text-right">${fmt(totalOperatingExpenses)}</td></tr>
                         </table>
                     </div>
 
-                    <div class="box-dashed">
-                        <div class="box-header" style="border-bottom: 1px dashed #444;">III. CONTROL DE CORTESÍAS</div>
+                    <div class="box" style="margin-top: 20px;">
+                        <div class="box-header">III. COMISIONES Y NÓMINA</div>
                         <table class="table-clean">
-                            <tr><td>• PRODUCTOS REGALADOS</td><td class="text-right">${fmt(stats.courtesyTotal)}</td></tr>
-                            <tr><td colspan="2" style="font-size: 9px; color:#555;">* Este monto NO afecta el efectivo en caja.</td></tr>
+                            ${commissionRows}
+                            <tr class="row-total"><td>SUBTOTAL NÓMINA</td><td class="text-right">${fmt(totalCommissionExpenses)}</td></tr>
                         </table>
                     </div>
 
                     <div class="box-thick">
                         <div class="real-cash-title">EFECTIVO REAL EN CAJA</div>
                         <div class="real-cash-amount">Bs. ${fmt(data.finalCash)}</div>
-                        <div class="text-right" style="font-size:10px;">(Ingresos Efectivo - Gastos Efectivo)</div>
+                        <div class="text-right" style="font-size:10px;">(Ingresos Efectivo - Total Egresos)</div>
+                        <div class="text-right" style="font-size:10px; margin-top:5px; font-weight:bold;">
+                            Total Egresos: Bs. ${fmt(stats.totalExpenses)}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -163,7 +195,7 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
             </div>
 
             <div style="font-weight:bold; font-size:12px; margin-bottom:5px; color:#666;">
-                IV. INVENTARIO Y VENTAS
+                V. INVENTARIO Y VENTAS
             </div>
 
             <table class="table-products">
@@ -207,7 +239,6 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
         if (data.type === 'void') title = '*** ANULADO ***';
         if (isCourtesySale) title = 'RECIBO DE CORTESÍA';
 
-        // [FIX] Buscar soldProducts correctamente
         const soldProducts = (data.soldProducts && data.soldProducts.length > 0) ? data.soldProducts : (stats.soldProducts || []);
 
         let itemsHtml = data.items ? data.items.map(item => `<div class="row" style="margin-bottom:2px;"><div class="col-qty">${item.qty}</div><div class="col-name">${item.name}</div><div class="col-price">${isCourtesySale ? '0.00' : fmt(item.price * item.qty)}</div></div>`).join('') : '';
@@ -298,24 +329,19 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                         <>
                             <Loader2 size={64} className="text-blue-600 animate-spin mb-4" />
                             <h3 className="text-xl font-bold text-gray-800">Imprimiendo...</h3>
-                            <p className="text-sm text-gray-500">Espere un momento</p>
-                        </>
-                    ) : status === 'done' ? (
-                        <>
-                            <CheckCircle size={64} className="text-green-500 mb-4 animate-in zoom-in" />
-                            <h3 className="text-xl font-bold text-gray-800">¡Listo!</h3>
+                            <p className="text-gray-500">Revise la ventana emergente</p>
                         </>
                     ) : (
-                        <div className="w-full h-full flex flex-col overflow-hidden bg-white shadow-sm border border-gray-200">
-                            <div className="flex-1 overflow-y-auto p-4 bg-gray-50 scale-90 origin-top">
-                                <div
-                                    dangerouslySetInnerHTML={{
-                                        __html: useThermalFormat ? '(Vista previa térmica no disponible, imprima para ver)' : renderLetterReport()
-                                    }}
-                                    className="bg-white shadow p-4 min-h-[500px]"
-                                />
-                            </div>
-                        </div>
+                        <>
+                            <CheckCircle size={64} className="text-green-500 mb-4" />
+                            <h3 className="text-2xl font-bold text-gray-800 mb-2">
+                                {data.type === 'z-report' ? 'Turno Cerrado' : 'Transacción Exitosa'}
+                            </h3>
+                            <p className="text-4xl font-black text-gray-900 mb-2">Bs. {fmt(previewAmount)}</p>
+                            <p className="text-gray-500 uppercase text-xs tracking-wider">
+                                {data.type === 'z-report' ? 'Efectivo en Caja' : 'Monto Total'}
+                            </p>
+                        </>
                     )}
                 </div>
             </div>
