@@ -135,7 +135,9 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                         : `${(stdRate * 100).toFixed(0)}%`,
                     rate: stdRate, // Keep base rate for reference
 
-                    // Breakdown for receipt
+                    // Breakdown for receipt (EXPOSED for handlePayCommission)
+                    stdSales,
+                    cmbSales,
                     stdCommission,
                     cmbCommission,
                     stdUtility,
@@ -187,19 +189,26 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                 // Prepare detailed lines for receipt
                 let breakdownHtml = '';
                 if (data.cmbCommission > 0) {
-                    breakdownHtml += `VENTAS REGULARES: Bs. ${data.salesTotal.toFixed(2)}<br/>`;
-                    breakdownHtml += `COMISIÓN REGULAR (${(data.stdRate * 100).toFixed(0)}%): Bs. ${data.stdCommission.toFixed(2)}<br/>`;
-                    breakdownHtml += `COMISIÓN COMBOS (8%): Bs. ${data.cmbCommission.toFixed(2)}<br/>`;
+                    breakdownHtml += `<b>--- COMBOS ---</b><br/>`;
+                    breakdownHtml += `VENTAS: Bs. ${data.cmbSales.toFixed(2)}<br/>`;
+                    breakdownHtml += `UTILIDAD: Bs. ${data.cmbUtility.toFixed(2)}<br/>`;
+                    breakdownHtml += `COMISIÓN (8%): Bs. ${data.cmbCommission.toFixed(2)}<br/><br/>`;
+
+                    breakdownHtml += `<b>--- RESTO CARTA ---</b><br/>`;
+                    breakdownHtml += `VENTAS: Bs. ${data.stdSales.toFixed(2)}<br/>`;
+                    breakdownHtml += `UTILIDAD: Bs. ${data.stdUtility.toFixed(2)}<br/>`;
+                    breakdownHtml += `COMISIÓN (${(data.stdRate * 100).toFixed(0)}%): Bs. ${data.stdCommission.toFixed(2)}<br/>`;
                 } else {
-                    breakdownHtml += `VENTAS: Bs. ${data.salesTotal.toFixed(2)}<br/>`;
-                    breakdownHtml += `TASA: ${(data.stdRate * 100).toFixed(0)}%<br/>`;
+                    breakdownHtml += `VENTAS TOTALES: Bs. ${data.salesTotal.toFixed(2)}<br/>`;
+                    breakdownHtml += `UTILIDAD BASE: Bs. ${data.utility.toFixed(2)}<br/>`;
+                    breakdownHtml += `TASA APLICADA: ${(data.stdRate * 100).toFixed(0)}%<br/>`;
                 }
 
                 // Print Receipt for signature
                 onPrintReceipt({
                     type: 'expense',
                     amount: totalPay,
-                    description: `PAGO DE COMISIÓN<br/><br/>GARZÓN: ${data.name.toUpperCase()}<br/>${breakdownHtml}----------------<br/>SUBTOTAL COMISIÓN: Bs. ${data.commissionAmount.toFixed(2)}<br/>PASAJE / BONO: Bs. ${bonus.toFixed(2)}`,
+                    description: `PAGO DE COMISIÓN<br/><br/>GARZÓN: ${data.name.toUpperCase()}<br/>----------------<br/>${breakdownHtml}----------------<br/>SUBTOTAL COMISIÓN: Bs. ${data.commissionAmount.toFixed(2)}<br/>PASAJE / BONO: Bs. ${bonus.toFixed(2)}`,
                     staffName: data.name,
                     cashierName: registerSession.openedBy || 'Cajero',
                     date: new Date().toLocaleString(),
