@@ -50,8 +50,10 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
             const qSales = query(collection(db, salesColl), where('registerId', '==', registerSession.id));
             const snapSales = await getDocs(qSales);
 
-            const staffUtility = {}; // { staffName: utilityAmount }
-            const staffSalesTotal = {}; // { staffName: salesTotal }
+            const staffStandardUtility = {};
+            const staffComboUtility = {};
+            const staffStandardSales = {};
+            const staffComboSales = {};
 
             // 2. Identify Commissioned Staff
             const commissionedStaff = staff.filter(s => s.commissionEnabled);
@@ -62,9 +64,11 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                 const waiterName = sale.staffName;
 
                 if (waiterName && commissionedStaff.some(s => s.name === waiterName)) {
-                    if (!staffUtility[waiterName]) {
-                        staffUtility[waiterName] = 0;
-                        staffSalesTotal[waiterName] = 0;
+                    if (!staffStandardUtility[waiterName]) {
+                        staffStandardUtility[waiterName] = 0;
+                        staffComboUtility[waiterName] = 0;
+                        staffStandardSales[waiterName] = 0;
+                        staffComboSales[waiterName] = 0;
                     }
 
                     // Calculate Utility (Profit)
@@ -73,8 +77,19 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                             const price = parseFloat(item.price) || 0;
                             const cost = parseFloat(item.cost) || 0;
                             const qty = parseInt(item.qty) || 1;
-                            staffUtility[waiterName] += (price - cost) * qty;
-                            staffSalesTotal[waiterName] += price * qty;
+                            const utility = (price - cost) * qty;
+                            const total = price * qty;
+
+                            // Check for Combos (Case insensitive check, defaulting to standard if no category)
+                            const isCombo = item.category && item.category.toLowerCase() === 'combos';
+
+                            if (isCombo) {
+                                staffComboUtility[waiterName] += utility;
+                                staffComboSales[waiterName] += total;
+                            } else {
+                                staffStandardUtility[waiterName] += utility;
+                                staffStandardSales[waiterName] += total;
+                            }
                         });
                     }
                 }
@@ -88,28 +103,52 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                 { max: 999999, rate: 0.08 }
             ];
 
-            const details = Object.entries(staffUtility).map(([name, utility]) => {
+            const details = Object.entries(staffStandardUtility).map(([name, stdUtility]) => {
+                // Standard Tier Calculation
                 const sortedTiers = [...tiers].sort((a, b) => a.max - b.max);
-                const tier = sortedTiers.find(t => utility <= t.max);
-                const rate = tier ? tier.rate : sortedTiers[sortedTiers.length - 1].rate;
-                const grandTotalSales = staffSalesTotal[name] || 0;
+                const tier = sortedTiers.find(t => stdUtility <= t.max);
+                const stdRate = tier ? tier.rate : sortedTiers[sortedTiers.length - 1].rate;
+                const stdSales = staffStandardSales[name] || 0;
 
-                const totalCommission = utility * rate;
+                // Combo Fixed 8% Calculation
+                const cmbUtility = staffComboUtility[name] || 0;
+                const cmbSales = staffComboSales[name] || 0;
+                const cmbRate = 0.08;
+
+                // Totals
+                const stdCommission = stdUtility * stdRate;
+                const cmbCommission = cmbUtility * cmbRate;
+                const totalCommission = stdCommission + cmbCommission;
+
+                const grandTotalSales = stdSales + cmbSales;
+                const grandTotalUtility = stdUtility + cmbUtility;
+
                 const paid = paidSoFar[name] || 0;
                 const pending = totalCommission - paid;
 
                 return {
                     name,
                     salesTotal: grandTotalSales,
-                    utility,
-                    rate,
+                    utility: grandTotalUtility,
+                    rateDisplay: cmbUtility > 0
+                        ? `${(stdRate * 100).toFixed(0)}% + Combos(8%)`
+                        : `${(stdRate * 100).toFixed(0)}%`,
+                    rate: stdRate, // Keep base rate for reference
+
+                    // Breakdown for receipt
+                    stdCommission,
+                    cmbCommission,
+                    stdUtility,
+                    cmbUtility,
+                    stdRate,
+
                     totalCommission, // Total earned
                     paid,            // Already paid
                     pending,         // Raw pending (can be negative)
                     history: paymentHistory[name] || [], // List of past payments
                     commissionAmount: pending > 0.01 ? pending : 0 // Payable now
                 };
-            }).filter(d => d.totalCommission > 0 || d.paid > 0); // Show if they earned OR were paid (even if now negative)
+            }).filter(d => d.totalCommission > 0 || d.paid > 0); // Show if they earned OR were paid
 
             setCommissionData(details);
 
@@ -136,17 +175,31 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
 
         if (confirm(`¿Pagar Bs. ${totalPay.toFixed(2)} a ${data.name}? \n(Comisión: Bs. ${data.commissionAmount.toFixed(2)} + Pasaje: Bs. ${bonus.toFixed(2)})`)) {
 
-            let descText = `Pago Comisión: ${data.name} (${(data.rate * 100).toFixed(0)}%)`;
+            let descText = `Pago Comisión: ${data.name}`;
+            if (data.cmbCommission > 0) descText += ` (Mix)`;
+            else descText += ` (${(data.stdRate * 100).toFixed(0)}%)`;
+
             if (bonus > 0) descText += ` + Pasaje (Bs. ${bonus})`;
 
             const success = await addExpense(descText, totalPay);
 
             if (success) {
+                // Prepare detailed lines for receipt
+                let breakdownHtml = '';
+                if (data.cmbCommission > 0) {
+                    breakdownHtml += `VENTAS REGULARES: Bs. ${data.salesTotal.toFixed(2)}<br/>`;
+                    breakdownHtml += `COMISIÓN REGULAR (${(data.stdRate * 100).toFixed(0)}%): Bs. ${data.stdCommission.toFixed(2)}<br/>`;
+                    breakdownHtml += `COMISIÓN COMBOS (8%): Bs. ${data.cmbCommission.toFixed(2)}<br/>`;
+                } else {
+                    breakdownHtml += `VENTAS: Bs. ${data.salesTotal.toFixed(2)}<br/>`;
+                    breakdownHtml += `TASA: ${(data.stdRate * 100).toFixed(0)}%<br/>`;
+                }
+
                 // Print Receipt for signature
                 onPrintReceipt({
                     type: 'expense',
                     amount: totalPay,
-                    description: `PAGO DE COMISIÓN<br/><br/>GARZÓN: ${data.name.toUpperCase()}<br/>VENTAS: Bs. ${data.salesTotal.toFixed(2)}<br/>UTILIDAD BASE: Bs. ${data.utility.toFixed(2)}<br/>TASA: ${(data.rate * 100).toFixed(0)}%<br/>----------------<br/>COMISIÓN: Bs. ${data.commissionAmount.toFixed(2)}<br/>PASAJE / BONO: Bs. ${bonus.toFixed(2)}`,
+                    description: `PAGO DE COMISIÓN<br/><br/>GARZÓN: ${data.name.toUpperCase()}<br/>${breakdownHtml}----------------<br/>SUBTOTAL COMISIÓN: Bs. ${data.commissionAmount.toFixed(2)}<br/>PASAJE / BONO: Bs. ${bonus.toFixed(2)}`,
                     staffName: data.name,
                     cashierName: registerSession.openedBy || 'Cajero',
                     date: new Date().toLocaleString(),
@@ -160,7 +213,20 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
         }
     };
 
-    // ... handleReprint ... 
+    const handleReprint = (expense, staffName) => {
+        const date = new Date(expense.date || expense.timestamp || Date.now());
+        onPrintReceipt({
+            type: 'expense',
+            amount: parseFloat(expense.amount),
+            description: `*** REIMPRESIÓN ***<br/><br/>FECHA ORIGINAL: ${date.toLocaleString()}<br/>----------------------<br/>${expense.description}`,
+            staffName: staffName,
+            cashierName: registerSession.openedBy || 'Cajero',
+            date: new Date().toLocaleString(),
+            businessName: 'LicoBar',
+            autoPrint: true
+        });
+        toast.success("Enviando reimpresión...");
+    };
 
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
@@ -213,7 +279,7 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                                                     <td className="px-4 py-3 text-center text-gray-500">Bs. {d.salesTotal.toFixed(2)}</td>
                                                     <td className="px-4 py-3 text-center text-gray-500 hidden md:table-cell">Bs. {d.utility.toFixed(2)}</td>
                                                     <td className="px-4 py-3 text-center">
-                                                        <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-xs font-bold">{(d.rate * 100).toFixed(0)}%</span>
+                                                        <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-xs font-bold">{d.rateDisplay}</span>
                                                     </td>
                                                     <td className="px-4 py-3 text-right text-gray-400 hidden sm:table-cell">Bs. {d.totalCommission.toFixed(2)}</td>
                                                     <td className="px-4 py-3 text-right text-green-600 font-medium hidden sm:table-cell">Bs. {d.paid.toFixed(2)}</td>
@@ -258,7 +324,7 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                                                 {/* History Sub-Row */}
                                                 {d.history.length > 0 && (
                                                     <tr>
-                                                        <td colSpan="8" className="bg-gray-50/50 px-4 py-2">
+                                                        <td colSpan="9" className="bg-gray-50/50 px-4 py-2">
                                                             <div className="flex flex-wrap gap-2 items-center text-xs">
                                                                 <span className="font-bold text-gray-400 uppercase text-[10px]">Historial de Pagos:</span>
                                                                 {d.history.map((h, k) => (
