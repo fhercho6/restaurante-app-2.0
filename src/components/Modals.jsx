@@ -34,6 +34,8 @@ export const ProductModal = ({ isOpen, onClose, onSave, item, categories, items 
     const [newIngredientQty, setNewIngredientQty] = useState('');
     const [isUploading, setIsUploading] = useState(false);
 
+    const [ingredientSearch, setIngredientSearch] = useState('');
+
     useEffect(() => {
         if (item) {
             setFormData(item);
@@ -42,6 +44,7 @@ export const ProductModal = ({ isOpen, onClose, onSave, item, categories, items 
             setFormData({ name: '', price: '', category: categories[0] || 'Varios', image: '', stock: '', cost: '' });
             setRecipe([]);
         }
+        setIngredientSearch(''); // Reset search on open/change
     }, [item, categories]);
 
     if (!isOpen) return null;
@@ -78,6 +81,7 @@ export const ProductModal = ({ isOpen, onClose, onSave, item, categories, items 
         setRecipe([...recipe, newIng]);
         setNewIngredientId('');
         setNewIngredientQty('');
+        setIngredientSearch(''); // Optional: clear search after adding
     };
 
     const removeIngredient = (idx) => {
@@ -114,15 +118,32 @@ export const ProductModal = ({ isOpen, onClose, onSave, item, categories, items 
                     {isComboCategory && (
                         <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
                             <h3 className="text-sm font-black text-orange-800 uppercase mb-3 flex items-center gap-2"><LayoutGrid size={16} /> Composición del Combo</h3>
-                            <div className="flex gap-2 mb-3">
-                                <select className="flex-1 p-2 text-sm border rounded-lg" value={newIngredientId} onChange={e => setNewIngredientId(e.target.value)}>
-                                    <option value="">Seleccionar Ingrediente...</option>
-                                    {items.filter(i => i.id !== item?.id && i.category.toLowerCase() !== 'combos').sort((a, b) => a.name.localeCompare(b.name)).map(i => (
-                                        <option key={i.id} value={i.id}>{i.name} ({i.stock})</option>
-                                    ))}
-                                </select>
-                                <input type="number" className="w-20 p-2 text-sm border rounded-lg" placeholder="Cant." value={newIngredientQty} onChange={e => setNewIngredientQty(e.target.value)} />
-                                <button type="button" onClick={handleAddIngredient} className="p-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"><Check size={16} /></button>
+
+                            {/* SEARCH & SELECT ROW */}
+                            <div className="flex flex-col gap-2 mb-3">
+                                <input
+                                    placeholder="🔍 Buscar ingrediente..."
+                                    className="w-full p-2 text-xs border border-orange-200 rounded-lg focus:outline-none focus:border-orange-500"
+                                    value={ingredientSearch}
+                                    onChange={e => setIngredientSearch(e.target.value)}
+                                />
+                                <div className="flex gap-2">
+                                    <select className="flex-1 p-2 text-sm border rounded-lg" value={newIngredientId} onChange={e => setNewIngredientId(e.target.value)}>
+                                        <option value="">-- Seleccionar --</option>
+                                        {items
+                                            .filter(i =>
+                                                i.id !== item?.id &&
+                                                i.category.toLowerCase() !== 'combos' &&
+                                                i.name.toLowerCase().includes(ingredientSearch.toLowerCase())
+                                            )
+                                            .sort((a, b) => a.name.localeCompare(b.name))
+                                            .map(i => (
+                                                <option key={i.id} value={i.id}>{i.name} ({i.stock})</option>
+                                            ))}
+                                    </select>
+                                    <input type="number" className="w-20 p-2 text-sm border rounded-lg" placeholder="Cant." value={newIngredientQty} onChange={e => setNewIngredientQty(e.target.value)} />
+                                    <button type="button" onClick={handleAddIngredient} className="p-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"><Check size={16} /></button>
+                                </div>
                             </div>
                             {recipe.length > 0 ? (
                                 <div className="space-y-2">
