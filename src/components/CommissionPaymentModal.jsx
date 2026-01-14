@@ -31,10 +31,13 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
 
             if (sessionStats && sessionStats.expensesList) {
                 sessionStats.expensesList.forEach(e => {
-                    // Description format: "Pago Comisión: Name (5%)"
+                    // Description format needs to match: "Pago Comisión: Name (5%)" OR "Pago Comisión: Name (Mix)"
                     if (!e.description || typeof e.description !== 'string') return;
 
-                    const match = e.description.match(/Pago Comisión: (.+) \(\d+%\)/);
+                    // Regex to capture name. Supports "(5%)" or "(Mix)" at the end.
+                    // We look for "Pago Comisión: " followed by the name, then space and the parenthesized rate/type
+                    const match = e.description.match(/Pago Comisión: (.+) \((?:\d+%|Mix)\)/);
+
                     if (match) {
                         const name = match[1];
                         paidSoFar[name] = (paidSoFar[name] || 0) + parseFloat(e.amount);
