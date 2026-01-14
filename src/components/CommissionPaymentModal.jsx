@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { X, DollarSign, Printer, CheckCircle, AlertCircle } from 'lucide-react';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db, ROOT_COLLECTION, isPersonalProject } from '../config/firebase';
 import { useData } from '../context/DataContext';
 import { useRegister } from '../context/RegisterContext';
@@ -13,17 +13,34 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
     const [commissionData, setCommissionData] = useState([]);
     const [bonuses, setBonuses] = useState({});
 
+    // Real-time listener setup using onSnapshot
     useEffect(() => {
-        calculateCommissions();
-    }, [registerSession, staff, sessionStats]);
-
-    const calculateCommissions = async () => {
-        setLoading(true);
         if (!registerSession) {
             setLoading(false);
             return;
         }
 
+        setLoading(true);
+
+        const salesColl = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`;
+        const qSales = query(collection(db, salesColl), where('registerId', '==', registerSession.id));
+
+        const unsubscribe = onSnapshot(qSales, (snapSales) => {
+            calculateCommissions(snapSales);
+            // Don't set loading false here immediately if you want smooth updates, 
+            // but for initial load we need it off.
+            setLoading(false);
+        }, (error) => {
+            console.error("Error fetching sales:", error);
+            toast.error("Error cargando ventas");
+            setLoading(false);
+        });
+
+        return () => unsubscribe();
+    }, [registerSession, staff, sessionStats]); // Dependency on sessionStats allows re-calc if expenses change (paidSoFar)
+
+    // Calculate commissions using the PROVIDED snapshot
+    const calculateCommissions = (snapSales) => {
         try {
             // 0. Calculate Already Paid Commissions from Expenses
             const paidSoFar = {}; // { staffName: amount }
@@ -31,18 +48,15 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
 
             if (sessionStats && sessionStats.expensesList) {
                 sessionStats.expensesList.forEach(e => {
-                    // Description format needs to match: "Pago Comisión: Name (5%)" OR "Pago Comisión: Name (Mix)"
                     if (!e.description || typeof e.description !== 'string') return;
 
-                    // Regex to capture name. Supports "(5%)" or "(Mix)" at the end.
-                    // We look for "Pago Comisión: " followed by the name, then space and the parenthesized rate/type
                     const match = e.description.match(/Pago Comisión: (.+) \((?:\d+%|Mix)\)/);
 
                     if (match) {
                         const name = match[1];
                         let amountPaid = parseFloat(e.amount);
 
-                        // Extract "Pasaje" amount if present to deduct it (it's not part of the commission debt)
+                        // Extract "Pasaje" amount if present to deduct it
                         const bonusMatch = e.description.match(/\+ Pasaje \(Bs\. (\d+(?:\.\d+)?)\)/);
                         if (bonusMatch) {
                             amountPaid -= parseFloat(bonusMatch[1]);
@@ -56,11 +70,6 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                 });
             }
 
-            // 1. Fetch Sales for this session
-            const salesColl = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`;
-            const qSales = query(collection(db, salesColl), where('registerId', '==', registerSession.id));
-            const snapSales = await getDocs(qSales);
-
             const staffStandardUtility = {};
             const staffComboUtility = {};
             const staffStandardSales = {};
@@ -69,7 +78,7 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
             // 2. Identify Commissioned Staff
             const commissionedStaff = staff.filter(s => s.commissionEnabled);
 
-            // 3. Process Sales
+            // 3. Process Sales (Using snapSales from listener)
             snapSales.forEach(doc => {
                 const sale = doc.data();
                 const waiterName = sale.staffName;
@@ -91,7 +100,7 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                             const utility = (price - cost) * qty;
                             const total = price * qty;
 
-                            // Check for Combos (Robust check: includes "combo", case insensitive, trimmed)
+                            // Check for Combos (Robust check)
                             const isCombo = item.category && item.category.trim().toLowerCase().includes('combo');
 
                             if (isCombo) {
@@ -146,7 +155,7 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                         : `${(stdRate * 100).toFixed(0)}%`,
                     rate: stdRate, // Keep base rate for reference
 
-                    // Breakdown for receipt (EXPOSED for handlePayCommission)
+                    // Breakdown for receipt
                     stdSales,
                     cmbSales,
                     stdCommission,
@@ -161,15 +170,13 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                     history: paymentHistory[name] || [], // List of past payments
                     commissionAmount: pending > 0.01 ? pending : 0 // Payable now
                 };
-            }).filter(d => d.salesTotal > 0 || d.paid > 0); // Show if they have ANY sales or were paid, even if commission is 0
+            }).filter(d => d.salesTotal > 0 || d.paid > 0);
 
             setCommissionData(details);
 
         } catch (error) {
             console.error("Error calculating commissions:", error);
             toast.error("Error calculando comisiones");
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -197,7 +204,6 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
             const success = await addExpense(descText, totalPay);
 
             if (success) {
-                // Prepare detailed lines for receipt
                 let breakdownHtml = '';
                 if (data.cmbCommission > 0) {
                     breakdownHtml += `<b>--- COMBOS ---</b><br/>`;
@@ -215,7 +221,6 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                     breakdownHtml += `TASA APLICADA: ${(data.stdRate * 100).toFixed(0)}%<br/>`;
                 }
 
-                // Print Receipt for signature
                 onPrintReceipt({
                     type: 'expense',
                     amount: totalPay,
@@ -228,7 +233,18 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                 });
                 // Reset bonus for this user after pay
                 handleBonusChange(data.name, 0);
-                setTimeout(calculateCommissions, 500); // Refresh list
+                // Note: We don't need to call calculateCommissions here manually because 
+                // the expense update will trigger sessionStats change, which re-checks sales
+                // (However, for instant UX, we rely on the listener if sales changed, 
+                // but if only EXPENSES changed, we rely on sessionStats dependency to re-run calculateCommissions with the same sales snapshot? 
+                // Wait. onSnapshot gives 'snapSales'. If sessionStats changes, useEffect re-runs, creating NEW onSnapshot. 
+                // This is fine, but slightly inefficient. Better way: 
+                // Store snapSales in state? No. 
+                // Let's just trust that sessionStats update will re-trigger the effect.)
+
+                // Actually, if we just paid, `sessionStats` will update (expenses list changes).
+                // This will trigger the useEffect, which will re-subscribe to sales.
+                // This will fetch sales again and re-run calculation with new expenses. Correct.
             }
         }
     };
@@ -261,7 +277,7 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                     {loading ? (
                         <div className="flex flex-col items-center py-10 text-gray-400">
                             <span className="loading loading-spinner loading-lg"></span>
-                            <p>Calculando...</p>
+                            <p>Cargando datos en tiempo real...</p>
                         </div>
                     ) : commissionData.length === 0 ? (
                         <div className="flex flex-col items-center py-10 text-gray-400 border-2 border-dashed border-gray-300 rounded-xl">
@@ -273,7 +289,7 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                         <div className="space-y-4">
                             <div className="bg-blue-50 border border-blue-100 p-3 rounded-lg text-xs text-blue-700 mb-4">
                                 <p className="font-bold flex items-center gap-1"><AlertCircle size={14} /> Nota:</p>
-                                <p>El cálculo descuenta automáticamente lo ya pagado en este turno.</p>
+                                <p>Los cálculos se actualizan automáticamente con cada nueva venta.</p>
                             </div>
 
                             <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
