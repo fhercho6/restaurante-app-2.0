@@ -10,6 +10,7 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
     const { staff, commissionTiers } = useData();
     const { registerSession, sessionStats, addExpense } = useRegister();
     const [loading, setLoading] = useState(true);
+    const [commissionData, setCommissionData] = useState([]);
     const [bonuses, setBonuses] = useState({});
 
     useEffect(() => {
