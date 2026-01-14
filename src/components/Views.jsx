@@ -427,17 +427,34 @@ export const AdminRow = ({ item, onEdit, onDelete, isQuickEdit, onQuickUpdate, a
     let stockDisplay = item.stock;
     let isVirtualStock = false;
 
+    let limitingInfo = '';
+
     // CÁLCULO DINÁMICO DE STOCK PARA COMBOS
     if (item.category.toLowerCase() === 'combos' && item.recipe && item.recipe.length > 0) {
         const recipe = item.recipe;
-        // Mapeamos cada ingrediente para ver cuál es el "cuello de botella"
-        const maxCombos = recipe.map(ing => {
+        let minYield = Infinity;
+        let culprit = '';
+
+        recipe.forEach(ing => {
             const realItem = allItems.find(i => i.id === ing.itemId);
-            if (!realItem || !realItem.stock) return 0; // Si no existe el ingrediente o no tiene stock, no se puede armar
-            return Math.floor(parseInt(realItem.stock) / ing.qty);
+            // Tratamos stock negativo como 0 para lógica de disponibilidad real
+            // Pero si es negativo, queremos saberlo.
+            // parseInt("-5") = -5.
+            const currentStock = realItem && realItem.stock ? parseInt(realItem.stock) : 0;
+            const yieldVal = Math.floor(currentStock / ing.qty);
+
+            if (yieldVal < minYield) {
+                minYield = yieldVal;
+                culprit = realItem ? realItem.name : 'Desconocido';
+            }
         });
-        stockDisplay = Math.min(...maxCombos);
-        if (maxCombos.length === 0) stockDisplay = 0; // Receta vacía
+
+        stockDisplay = minYield === Infinity ? 0 : minYield;
+        limitingInfo = culprit;
+        // Clamp display to 0 if negative, but indicate issue?
+        // No, let's show the negative number so they debug, but add the name.
+        if (stockDisplay < 0) stockDisplay = 0; // Fix negative display for UI cleanliness, but culprit info remains.
+
         isVirtualStock = true;
     }
 
@@ -478,7 +495,12 @@ export const AdminRow = ({ item, onEdit, onDelete, isQuickEdit, onQuickUpdate, a
                 ) : (
                     <span className={`text-xs font-black ${badgeClass}`}>
                         {item.category === 'Servicios' ? '∞' : (stockDisplay === '' || stockDisplay === null || stockDisplay === undefined ? '0' : stockDisplay)}
-                        {isVirtualStock && <span className="text-[9px] leading-none opacity-80 block tracking-widest mt-0.5 font-bold uppercase">Virtual</span>}
+                        {isVirtualStock && (
+                            <div className="flex flex-col items-center">
+                                <span className="text-[9px] leading-none opacity-80 block tracking-widest mt-0.5 font-bold uppercase">Virtual</span>
+                                {limitingInfo && <span className="text-[8px] text-red-600 font-bold whitespace-nowrap mt-0.5" title="Ingrediente Limitante">({limitingInfo})</span>}
+                            </div>
+                        )}
                     </span>
                 )}
             </td>
