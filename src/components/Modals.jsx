@@ -45,7 +45,7 @@ export const ProductModal = ({ isOpen, onClose, onSave, item, categories, items 
             setRecipe([]);
         }
         setIngredientSearch(''); // Reset search on open/change
-    }, [item, categories]);
+    }, [item, categories, isOpen]);
 
     if (!isOpen) return null;
     const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
