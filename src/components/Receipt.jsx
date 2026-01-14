@@ -311,8 +311,8 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
     const previewAmount = data.type === 'expense' ? data.amount : (data.type === 'z-report' ? data.finalCash : data.total);
 
     return (
-        <div className="fixed inset-0 bg-gray-900/90 backdrop-blur-sm z-50 flex items-start justify-center p-4 pt-10 animate-in fade-in">
-            <div className={`bg-white w-full ${useThermalFormat ? 'max-w-sm' : 'max-w-3xl'} shadow-2xl rounded-xl overflow-hidden flex flex-col max-h-[85vh] transition-all duration-300`}>
+        <div className="fixed inset-0 bg-gray-900/90 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
+            <div className={`bg-white w-full ${useThermalFormat ? 'max-w-sm max-h-[85vh]' : 'max-w-4xl h-[90vh]'} shadow-2xl rounded-xl overflow-hidden flex flex-col transition-all duration-300`}>
 
                 {status === 'preview' && (
                     <div className="bg-gray-800 p-3 flex justify-between items-center">
