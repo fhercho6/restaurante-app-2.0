@@ -52,10 +52,19 @@ export default function POSInterface({ items, categories, staffMember, onCheckou
       const recipe = item.recipe;
       const maxCombos = recipe.map(ing => {
         const realItem = allItems.find(i => i.id === ing.itemId);
+        // [FIX] Servicios son infinitos
+        if (realItem && realItem.category === 'Servicios') return Infinity;
+
         if (!realItem || !realItem.stock) return 0;
         return Math.floor(parseInt(realItem.stock) / ing.qty);
       });
+      // Filter out Infinity before calculating min, unless all are Infinity (unlikely for a combo but possible)
+      // If map returns [Infinity, 10], min is 10. Perfect.
+      // If map returns [Infinity, Infinity], min is Infinity.
+
       stockNum = Math.min(...maxCombos);
+      if (stockNum === Infinity) stockNum = 100; // Fallback visual
+
       if (maxCombos.length === 0) stockNum = 0;
       hasStock = true; // Siempre tiene "stock" (calculado)
     }

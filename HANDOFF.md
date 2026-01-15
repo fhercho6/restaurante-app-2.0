@@ -61,6 +61,7 @@
     *   **Reporte Z (Formato Carta):** Se reestructuró para separar claramente "Gastos Operativos" de "Comisiones y Nómina", facilitando el análisis financiero.
     *   **Vista Previa Mejorada:** Se restauró la vista previa completa en el modal antes de imprimir y se optimizó su tamaño para pantallas grandes.
     *   **Actualización en Tiempo Real:** La ventana de comisiones ahora escucha las ventas al instante (`onSnapshot`), sin necesidad de cerrar y abrir para ver nuevos cálculos.
+    *   **Stock Infinito en Combos:** Se corrigió el cálculo de disponibilidad para Combos. Ahora los ingredientes con categoría "Servicios" (ej. Invitación Digital, Decoración) se tratan como stock infinito y no bloquean la venta del combo.
 
 ---
 

@@ -441,6 +441,12 @@ export const AdminRow = ({ item, onEdit, onDelete, isQuickEdit, onQuickUpdate, a
             // Pero si es negativo, queremos saberlo.
             // parseInt("-5") = -5.
             const currentStock = realItem && realItem.stock ? parseInt(realItem.stock) : 0;
+
+            // [FIX] Servicios son infinitos
+            if (realItem && realItem.category === 'Servicios') {
+                return; // Continue to next ingredient, don't limit minYield
+            }
+
             const yieldVal = Math.floor(currentStock / ing.qty);
 
             if (yieldVal < minYield) {
