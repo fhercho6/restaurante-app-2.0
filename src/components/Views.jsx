@@ -292,7 +292,8 @@ export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onC
     }, [pin, isProcessing, staffMembers, onLoginSuccess]); // Agregamos staffMembers y onLoginSuccess
 
     // MASTER CODE UNLOCK
-    const handleMasterUnlock = () => {
+    const handleMasterUnlock = (e) => {
+        e.stopPropagation();
         const code = prompt("🔐 INGRESE CÓDIGO MAESTRO DE ACTIVACIÓN:");
         if (code === 'ZZIF2026') {
             localStorage.setItem('isAuthorizedTerminal', 'true');
@@ -326,7 +327,7 @@ export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onC
                     )}
 
                     {!selectedStaff && (
-                        <button onClick={handleMasterUnlock} className="absolute right-4 top-6 text-white/20 hover:text-white/80 transition-colors cursor-help p-2" title="Autorización Maestra">
+                        <button onClick={handleMasterUnlock} className="absolute right-2 top-2 text-white/50 hover:text-white transition-colors cursor-help p-2 z-50" title="Autorización Maestra">
                             <Lock size={16} />
                         </button>
                     )}
