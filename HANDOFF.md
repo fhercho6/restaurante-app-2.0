@@ -66,6 +66,9 @@
         *   Los cajeros solo pueden ingresar si el dispositivo ha sido "Autorizado" previamente por un Admin (desde Configuración de Impresora).
         *   **Código Maestro:** Se añadió un botón de candado en el Login para autorizar remotamente usando el código `ZZIF2026`.
         *   Esto previene accesos no autorizados desde celulares personales fuera de turno.
+    *   **Asistencia Obligatoria (Nivel 2):**
+        *   Nueva opción en Configuración para **exigir** que el personal marque entrada antes de poder vender.
+        *   Si se activa, el login se bloquea si no hay un registro de asistencia activo para el turno actual.
 
 ---
 
