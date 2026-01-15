@@ -89,6 +89,18 @@ export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onC
                             }, 1000);
                             return;
                         }
+
+                        // [SECURITY] TERMINAL CHECK
+                        const isAuthorized = localStorage.getItem('isAuthorizedTerminal') === 'true';
+                        if (selectedStaff.role === 'Cajero' && !isAuthorized) {
+                            toast.error("🚫 TERMINAL NO AUTORIZADA\nLos Cajeros solo pueden ingresar en la caja principal.", { duration: 4000 });
+                            setTimeout(() => {
+                                setPin('');
+                                setIsProcessing(false);
+                            }, 1000);
+                            return;
+                        }
+
                         onLoginSuccess(selectedStaff);
                     } else {
                         // VALIDACIÓN CAJA CERRADA (ASISTENCIA)
@@ -169,6 +181,14 @@ export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onC
 
                         if (staff) {
                             if (staff.pin === scannedPin) {
+                                // [SECURITY] TERMINAL CHECK
+                                const isAuthorized = localStorage.getItem('isAuthorizedTerminal') === 'true';
+                                if (staff.role === 'Cajero' && !isAuthorized) {
+                                    toast.error("🚫 TERMINAL NO AUTORIZADA", { duration: 4000 });
+                                    buffer = '';
+                                    return;
+                                }
+
                                 setIsProcessing(true);
                                 toast.success(`¡Hola ${staff.name}!`);
                                 // Login directo
@@ -193,6 +213,15 @@ export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onC
                         buffer = '';
                         return;
                     }
+
+                    // [SECURITY] TERMINAL CHECK
+                    const isAuthorized = localStorage.getItem('isAuthorizedTerminal') === 'true';
+                    if (staffByCard.role === 'Cajero' && !isAuthorized) {
+                        toast.error("🚫 TERMINAL NO AUTORIZADA\nAcceso denegado para Cajeros.", { duration: 4000 });
+                        buffer = '';
+                        return;
+                    }
+
                     setIsProcessing(true);
                     toast.success(`¡Hola ${staffByCard.name}!`);
                     onLoginSuccess(staffByCard);

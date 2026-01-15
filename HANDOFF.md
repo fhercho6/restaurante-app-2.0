@@ -62,6 +62,9 @@
     *   **Vista Previa Mejorada:** Se restauró la vista previa completa en el modal antes de imprimir y se optimizó su tamaño para pantallas grandes.
     *   **Actualización en Tiempo Real:** La ventana de comisiones ahora escucha las ventas al instante (`onSnapshot`), sin necesidad de cerrar y abrir para ver nuevos cálculos.
     *   **Stock Infinito en Combos:** Se corrigió el cálculo de disponibilidad para Combos. Ahora los ingredientes con categoría "Servicios" (ej. Invitación Digital, Decoración) se tratan como stock infinito y no bloquean la venta del combo.
+    *   **Seguridad de Dispositivo (Nivel 1):** Se implementó un bloqueo de terminal para Cajeros.
+        *   Los cajeros solo pueden ingresar si el dispositivo ha sido "Autorizado" previamente por un Admin (desde Configuración de Impresora).
+        *   Esto previene accesos no autorizados desde celulares personales fuera de turno.
 
 ---
 
