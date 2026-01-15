@@ -291,6 +291,17 @@ export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onC
         };
     }, [pin, isProcessing, staffMembers, onLoginSuccess]); // Agregamos staffMembers y onLoginSuccess
 
+    // MASTER CODE UNLOCK
+    const handleMasterUnlock = () => {
+        const code = prompt("🔐 INGRESE CÓDIGO MAESTRO DE ACTIVACIÓN:");
+        if (code === 'ZZIF2026') {
+            localStorage.setItem('isAuthorizedTerminal', 'true');
+            toast.success("✅ TERMINAL AUTORIZADA\nAcceso de Cajeros habilitado.", { duration: 5000, icon: '🔓' });
+        } else if (code) {
+            toast.error("❌ CÓDIGO INCORRECTO");
+        }
+    };
+
     return (
         <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 animate-in zoom-in duration-300 transition-colors ${mode === 'attendance' ? 'bg-blue-900/95 backdrop-blur-xl' : 'bg-black/90 backdrop-blur-xl'}`}>
             <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[85vh]">
@@ -311,6 +322,12 @@ export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onC
                     {selectedStaff && (
                         <button onClick={() => !isProcessing && setSelectedStaff(null)} className="absolute left-4 top-6 text-white/50 hover:text-white p-2 z-20">
                             <ArrowLeft size={24} />
+                        </button>
+                    )}
+
+                    {!selectedStaff && (
+                        <button onClick={handleMasterUnlock} className="absolute right-4 top-6 text-white/20 hover:text-white/80 transition-colors cursor-help p-2" title="Autorización Maestra">
+                            <Lock size={16} />
                         </button>
                     )}
 

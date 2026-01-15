@@ -64,6 +64,7 @@
     *   **Stock Infinito en Combos:** Se corrigió el cálculo de disponibilidad para Combos. Ahora los ingredientes con categoría "Servicios" (ej. Invitación Digital, Decoración) se tratan como stock infinito y no bloquean la venta del combo.
     *   **Seguridad de Dispositivo (Nivel 1):** Se implementó un bloqueo de terminal para Cajeros.
         *   Los cajeros solo pueden ingresar si el dispositivo ha sido "Autorizado" previamente por un Admin (desde Configuración de Impresora).
+        *   **Código Maestro:** Se añadió un botón de candado en el Login para autorizar remotamente usando el código `ZZIF2026`.
         *   Esto previene accesos no autorizados desde celulares personales fuera de turno.
 
 ---
