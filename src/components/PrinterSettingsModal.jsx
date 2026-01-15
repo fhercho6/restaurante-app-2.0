@@ -1,13 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Printer, X, FileSpreadsheet, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { Printer, X, FileSpreadsheet, ShieldCheck, ShieldAlert, Clock, Info } from 'lucide-react';
 
 const PrinterSettingsModal = ({ isOpen, onClose, currentType, onSelect }) => {
     // DEVICE AUTH STATE
     const [isAuthorized, setIsAuthorized] = useState(false);
+    // MANDATORY ATTENDANCE STATE
+    const [requireClockIn, setRequireClockIn] = useState(false);
 
     useEffect(() => {
         const storedAuth = localStorage.getItem('isAuthorizedTerminal');
         setIsAuthorized(storedAuth === 'true');
+
+        const storedClockIn = localStorage.getItem('requireClockIn');
+        setRequireClockIn(storedClockIn === 'true');
     }, [isOpen]);
 
     const toggleAuthorization = () => {
@@ -17,6 +22,16 @@ const PrinterSettingsModal = ({ isOpen, onClose, currentType, onSelect }) => {
             localStorage.setItem('isAuthorizedTerminal', 'true');
         } else {
             localStorage.removeItem('isAuthorizedTerminal');
+        }
+    };
+
+    const toggleClockInRequirement = () => {
+        const newState = !requireClockIn;
+        setRequireClockIn(newState);
+        if (newState) {
+            localStorage.setItem('requireClockIn', 'true');
+        } else {
+            localStorage.removeItem('requireClockIn');
         }
     };
 
@@ -47,10 +62,25 @@ const PrinterSettingsModal = ({ isOpen, onClose, currentType, onSelect }) => {
                                 <div className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all ${isAuthorized ? 'left-6' : 'left-1'}`}></div>
                             </div>
                         </div>
+
+                        {/* REQUIRE CLOCK-IN TOGGLE */}
+                        <div onClick={toggleClockInRequirement} className={`cursor-pointer p-3 rounded-xl border transition-all flex items-center gap-3 mt-3 ${requireClockIn ? 'bg-blue-50 border-blue-200 text-blue-800' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
+                            <div className={`p-2 rounded-full ${requireClockIn ? 'bg-blue-200 text-blue-700' : 'bg-gray-200 text-gray-500'}`}>
+                                <Clock size={20} />
+                            </div>
+                            <div className="text-left flex-1">
+                                <span className="block font-bold text-xs">{requireClockIn ? 'ASISTENCIA OBLIGATORIA' : 'ASISTENCIA OPCIONAL'}</span>
+                                <span className="text-[10px] opacity-80">{requireClockIn ? 'Exige entrada para vender' : 'Permite vender sin marcar'}</span>
+                            </div>
+                            <div className={`w-10 h-5 rounded-full relative transition-colors ${requireClockIn ? 'bg-blue-500' : 'bg-gray-300'}`}>
+                                <div className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all ${requireClockIn ? 'left-6' : 'left-1'}`}></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+
     );
 };
 

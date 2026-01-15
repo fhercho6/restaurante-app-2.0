@@ -150,9 +150,7 @@ export default function AppContent() {
             return;
         }
 
-        // AUTO-ATTENDANCE LOGIC
-        // If register is open, check if this staff member has already clocked in for this register session.
-        // If not, clock them in automatically BEFORE logging them into the POS.
+        // ATTENDANCE CHECK LOGIC
         if (registerSession && registerSession.status === 'open' && registerSession.id) {
             try {
                 const attColl = isPersonalProject ? 'attendance' : `${ROOT_COLLECTION}attendance`;
@@ -162,17 +160,23 @@ export default function AppContent() {
                     where('staffId', '==', member.id)
                 );
                 const snapshot = await getDocs(q);
+                const requireClockIn = localStorage.getItem('requireClockIn') === 'true';
 
                 if (snapshot.empty) {
-                    // Not clocked in yet for this session -> Auto Clock In
-                    const success = await markAttendance(member, registerSession.id);
-                    if (success) {
-                        toast.success("✅ Asistencia marcada automáticamente");
+                    if (requireClockIn) {
+                        // [SECURITY LEVEL 2] BLOCK LOGIN
+                        toast.error("🛑 ASISTENCIA OBLIGATORIA\nDebes marcar ENTRADA antes de vender.", { duration: 5000, icon: '⏱️' });
+                        return; // ABORT LOGIN
+                    } else {
+                        // [LEGACY] AUTO CLOCK IN
+                        const success = await markAttendance(member, registerSession.id);
+                        if (success) {
+                            toast.success("✅ Asistencia marcada automáticamente");
+                        }
                     }
                 }
             } catch (error) {
-                console.error("Auto-attendance error:", error);
-                // We don't block login if auto-attendance fails, but we log it.
+                console.error("Attendance check error:", error);
             }
         }
 
