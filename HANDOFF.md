@@ -69,6 +69,9 @@
     *   **Asistencia Obligatoria (Nivel 2):**
         *   Nueva opción en Configuración para **exigir** que el personal marque entrada antes de poder vender.
         *   Si se activa, el login se bloquea si no hay un registro de asistencia activo para el turno actual.
+    *   **Glosa de Apertura:**
+        *   Campo opcional al "Iniciar Turno" para dejar notas o observaciones iniciales (ej. falta de cambio, novedades).
+        *   Esta nota se imprime y visualiza en el **Reporte Z** (Carta y Térmico).
 
 ---
 
