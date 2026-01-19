@@ -145,14 +145,16 @@ export const RegisterProvider = ({ children }) => {
         return false;
     };
 
-    const openRegister = async (amount, activeTeam = []) => {
+    const openRegister = async (amount, activeTeam = [], note = '') => {
         try {
             const sessionData = {
                 status: 'open',
                 openedBy: staffMember ? staffMember.name : (currentUser?.email || 'Admin'),
                 openedAt: new Date().toISOString(),
                 openingAmount: amount,
-                activeTeam: activeTeam,
+                // activeTeam, // [REMOVED TEAM]
+                activeTeam: [],
+                openingNote: note, // [NEW] Save Note
                 salesTotal: 0
             };
             const docRef = await addDoc(collection(db, isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`), sessionData);
@@ -184,6 +186,7 @@ export const RegisterProvider = ({ children }) => {
                 registerId: registerSession.id,
                 openedAt: registerSession.openedAt,
                 openingAmount: registerSession.openingAmount,
+                openingNote: registerSession.openingNote || '', // [NEW] Pass Note to Report
                 finalCash: finalCash,
                 stats: sessionStats,
                 expensesList: sessionStats.expensesList,

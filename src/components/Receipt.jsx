@@ -134,6 +134,7 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                 <div class="meta-info">
                     JORNADA: ${new Date(data.openedAt || Date.now()).toLocaleDateString()} al ${data.date}<br/>
                     RESPONSABLE: ${staffName.toUpperCase()} | CAJERO: ${cashierName.toUpperCase()}
+                    ${data.openingNote ? `<br/><div style="margin-top:5px; font-style:italic; font-size:12px;">" ${data.openingNote} "</div>` : ''}
                 </div>
             </div>
 
@@ -264,6 +265,7 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                 <div class="bold" style="font-size:16px;">${data.type === 'z-report' ? 'CIERRE DE CAJA' : title}</div>
                 <div style="font-size:10px;">${data.date}</div>
                 <div style="font-size:10px;margin-top:2px;">Atiende: ${staffName.split(' ')[0]} | Caja: ${cashierName.split(' ')[0]}</div>
+                ${data.openingNote ? `<div style="font-size:10px;margin-top:4px;font-style:italic;">Nota: ${data.openingNote}</div>` : ''}
                 ${(data.type === 'order' || data.type === 'quick_sale' || data.type === 'void') ? `<div class="code-box">#${displayCode}</div>` : ''}
             </div>
             ${data.type === 'z-report' ? `<div class="flex-between"><span>Fondo Inicial:</span><span>${fmt(data.openingAmount)}</span></div><div class="flex-between bold"><span>(+) Ventas:</span><span>${fmt((stats.cashSales || 0) + (stats.digitalSales || 0))}</span></div><div class="flex-between"><span>(-) Gastos:</span><span>${fmt(stats.totalExpenses)}</span></div><div class="border-b" style="margin:5px 0;"></div><div class="flex-between bold" style="font-size:18px;"><span>CAJA:</span><span>Bs. ${fmt(data.finalCash)}</span></div><br/><div class="bold text-center border-b">PRODUCTOS</div>${zReportRows}` : data.type === 'expense' ? `<div style="margin-top:10px;"><span style="font-size:10px;">CONCEPTO:</span><br/><span class="bold uppercase" style="font-size:14px;">${data.description}</span><div class="border-b" style="margin:5px 0;"></div><div class="flex-between bold" style="font-size:18px;"><span>RETIRO:</span><span>Bs. ${fmt(data.amount)}</span></div><br/><br/><div class="text-center" style="font-size:10px;border-top:1px solid ${BORDER_COLOR};padding-top:5px;">FIRMA</div></div>` : `

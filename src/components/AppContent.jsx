@@ -204,8 +204,8 @@ export default function AppContent() {
     };
 
     // Sales & Register Logic
-    const handleOpenRegister = async (amount, activeTeam) => {
-        const success = await openRegister(amount, activeTeam);
+    const handleOpenRegister = async (amount, activeTeam, note) => {
+        const success = await openRegister(amount, activeTeam, note);
         if (success) setIsOpenRegisterModalOpen(false);
     };
 

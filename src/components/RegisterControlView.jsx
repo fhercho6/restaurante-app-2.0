@@ -4,6 +4,7 @@ import { Lock, Unlock, DollarSign, Clock, User, AlertTriangle, CheckCircle, Wall
 
 const RegisterControlView = ({ session, onOpen, onClose, staff, stats, onAddExpense, onDeleteExpense, onReprintExpense }) => {
     const [amount, setAmount] = useState('');
+    const [note, setNote] = useState(''); // Estado para Glosa
 
     // Estado para nuevo gasto
     const [expenseDesc, setExpenseDesc] = useState('');
@@ -13,8 +14,10 @@ const RegisterControlView = ({ session, onOpen, onClose, staff, stats, onAddExpe
         e.preventDefault();
         if (!amount) return;
         // activeTeam removed as per user request
-        onOpen(parseFloat(amount), []);
+        // activeTeam removed as per user request
+        onOpen(parseFloat(amount), [], note);
         setAmount('');
+        setNote('');
     };
 
     const handleExpenseSubmit = (e) => {
@@ -193,7 +196,17 @@ const RegisterControlView = ({ session, onOpen, onClose, staff, stats, onAddExpe
                                         onChange={e => setAmount(e.target.value)}
                                         autoFocus
                                     />
+
                                 </div>
+
+                                <label className="block text-sm font-bold text-gray-700 mb-2">Glosa / Observación (Opcional)</label>
+                                <textarea
+                                    className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 outline-none mb-6 resize-none"
+                                    rows="2"
+                                    placeholder="Ej: Caja inicial entregada por Gerencia..."
+                                    value={note}
+                                    onChange={e => setNote(e.target.value)}
+                                />
 
                                 <button type="submit" disabled={!amount} className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg disabled:bg-gray-300">
                                     ABRIR TURNO
