@@ -84,8 +84,9 @@ export default function AppContent() {
 
         items.forEach(item => {
             if (item.category === 'Servicios') return;
-            // EXCLUIR COMBOS DEL CÁLCULO DE INVERSIÓN (Su costo es la suma de ingredientes, ya contados)
-            if (item.category.toLowerCase() === 'combos') return;
+            // EXCLUIR COMBOS Y SIMILARES DEL CÁLCULO DE INVERSIÓN
+            const isComboLike = ['combos', 'baldes', 'paquetes de cumple'].includes(item.category.toLowerCase());
+            if (isComboLike) return;
 
             const stock = parseFloat(item.stock) || 0;
             const cost = parseFloat(item.cost) || 0;

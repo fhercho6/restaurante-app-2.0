@@ -92,14 +92,14 @@ export const ProductModal = ({ isOpen, onClose, onSave, item, categories, items 
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        const isCombo = formData.category.toLowerCase() === 'combos';
+        const isCombo = ['combos', 'baldes', 'paquetes de cumple'].includes(formData.category.toLowerCase());
         // If it's a combo, we force stock to be handled dynamically (infinity symbol usually), but user might want to track manual stock too. 
         // Usually combos don't have stock themselves, they depend on ingredients.
         // We'll pass the recipe regardless.
         onSave({ ...formData, recipe, isCombo });
     };
 
-    const isComboCategory = formData.category.toLowerCase() === 'combos';
+    const isComboCategory = ['combos', 'baldes', 'paquetes de cumple'].includes(formData.category.toLowerCase());
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in zoom-in-95 duration-200">

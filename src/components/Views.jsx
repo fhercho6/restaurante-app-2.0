@@ -476,8 +476,9 @@ export const AdminRow = ({ item, onEdit, onDelete, isQuickEdit, onQuickUpdate, a
 
     let limitingInfo = '';
 
-    // CÁLCULO DINÁMICO DE STOCK PARA COMBOS
-    if (item.category.toLowerCase() === 'combos' && item.recipe && item.recipe.length > 0) {
+    // CÁLCULO DINÁMICO DE STOCK PARA COMBOS Y NUEVAS CATEGORÍAS
+    const isComboLike = ['combos', 'baldes', 'paquetes de cumple'].includes(item.category.toLowerCase());
+    if (isComboLike && item.recipe && item.recipe.length > 0) {
         const recipe = item.recipe;
         let minYield = Infinity;
         let culprit = '';
