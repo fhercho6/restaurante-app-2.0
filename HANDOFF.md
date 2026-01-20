@@ -75,6 +75,8 @@
     *   **Botón de Actualización (Modo Kiosko):**
         *   Botón discreto en esquina superior izquierda para forzar recarga de la app.
         *   Útil para tablets en modo pantalla completa sin acceso a controles del navegador.
+    *   **Lógica de Combos Extendida:**
+        *   Las categorías "Baldes" y "Paquetes de Cumple" ahora soportan gestión de ingredientes y stock virtual, igual que los "Combos".
 
 ---
 
