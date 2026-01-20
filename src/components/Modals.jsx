@@ -99,7 +99,17 @@ export const ProductModal = ({ isOpen, onClose, onSave, item, categories, items 
         onSave({ ...formData, recipe, isCombo });
     };
 
+
     const isComboCategory = ['combos', 'baldes', 'paquetes de cumple'].includes(formData.category.toLowerCase());
+
+    // Helper para etiqueta dinámica
+    const getCategoryLabel = () => {
+        const c = formData.category.toLowerCase();
+        if (c.includes('balde')) return 'Balde';
+        if (c.includes('paquete')) return 'Paquete';
+        return 'Combo';
+    };
+    const dynamicLabel = getCategoryLabel();
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in zoom-in-95 duration-200">
@@ -117,7 +127,7 @@ export const ProductModal = ({ isOpen, onClose, onSave, item, categories, items 
                     {/* RECIPE BUILDER (ONLY FOR COMBOS) */}
                     {isComboCategory && (
                         <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
-                            <h3 className="text-sm font-black text-orange-800 uppercase mb-3 flex items-center gap-2"><LayoutGrid size={16} /> Composición del Combo</h3>
+                            <h3 className="text-sm font-black text-orange-800 uppercase mb-3 flex items-center gap-2"><LayoutGrid size={16} /> Composición del {dynamicLabel}</h3>
 
                             {/* SEARCH & SELECT ROW */}
                             <div className="flex flex-col gap-2 mb-3">
@@ -180,7 +190,7 @@ export const ProductModal = ({ isOpen, onClose, onSave, item, categories, items 
                                         USAR ESTE COSTO AUTOMÁTICO
                                     </button>
                                 </div>
-                            ) : <p className="text-xs text-orange-400 italic">Agrega productos para descontar del inventario al vender este combo.</p>}
+                            ) : <p className="text-xs text-orange-400 italic">Agrega productos para descontar del inventario al vender este {dynamicLabel.toLowerCase()}.</p>}
                         </div>
                     )}
 
