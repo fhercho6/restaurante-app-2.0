@@ -72,6 +72,9 @@
     *   **Glosa de Apertura:**
         *   Campo opcional al "Iniciar Turno" para dejar notas o observaciones iniciales (ej. falta de cambio, novedades).
         *   Esta nota se imprime y visualiza en el **Reporte Z** (Carta y Térmico).
+    *   **Botón de Actualización (Modo Kiosko):**
+        *   Botón discreto en esquina superior izquierda para forzar recarga de la app.
+        *   Útil para tablets en modo pantalla completa sin acceso a controles del navegador.
 
 ---
 
