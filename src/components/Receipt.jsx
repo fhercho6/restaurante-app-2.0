@@ -236,7 +236,7 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
     const renderThermalReport = () => {
         const stats = data.stats || {};
         let title = (data.businessName || 'LicoBar').toUpperCase();
-        if (data.type === 'expense') title = 'VALE DE GASTO';
+        if (data.type === 'expense') title = data.title || 'VALE DE GASTO'; // [MODIFIED] Allow dynamic title
         if (data.type === 'void') title = '*** ANULADO ***';
         if (isCourtesySale) title = 'RECIBO DE CORTESÍA';
 

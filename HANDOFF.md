@@ -36,7 +36,7 @@
         *   Utilidad Base calculada.
         *   Porcentaje de Comisión aplicado.
         *   Fecha y Cajero Responsable.
-    *   **Reimpresión:** Se añadió la opción de reimprimir tickets de pago de comisión desde el historial del turno actual.
+    *   **Reimpresión Mejorada:** Los tickets de comisión reimpresos ahora se titulan **"RECIBO"** (en lugar de "VALE DE GASTO") e incluyen el desglose completo HTML (Ventas, Utilidad, %).
     *   **Adelantos:** Si el pago excede la comisión, se marca claramente como "ADELANTO" en rojo.
 
 6.  **Recibos y Anulaciones:**

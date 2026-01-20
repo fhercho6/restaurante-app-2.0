@@ -201,7 +201,7 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
 
             if (bonus > 0) descText += ` + Pasaje (Bs. ${bonus})`;
 
-            const success = await addExpense(descText, totalPay);
+            const success = await addExpense(descText, totalPay, 'Comisiones', breakdownHtml);
 
             if (success) {
                 let breakdownHtml = '';
@@ -254,7 +254,8 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
         onPrintReceipt({
             type: 'expense',
             amount: parseFloat(expense.amount),
-            description: `*** REIMPRESIÓN ***<br/><br/>FECHA ORIGINAL: ${date.toLocaleString()}<br/>----------------------<br/>${expense.description}`,
+            description: expense.details ? `*** REIMPRESIÓN ***<br/><br/>${expense.details}` : `*** REIMPRESIÓN ***<br/><br/>FECHA ORIGINAL: ${date.toLocaleString()}<br/>----------------------<br/>${expense.description}`,
+            title: expense.details ? 'RECIBO' : 'VALE DE GASTO', // Force title change if it's a rich receipt
             staffName: staffName,
             cashierName: registerSession.openedBy || 'Cajero',
             date: new Date().toLocaleString(),
