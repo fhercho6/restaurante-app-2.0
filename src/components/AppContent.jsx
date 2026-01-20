@@ -4,7 +4,7 @@ import { db, ROOT_COLLECTION, isPersonalProject } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useRegister } from '../context/RegisterContext';
-import { Wifi, WifiOff, Home, LogOut, ClipboardList, Users, FileText, Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign, ArrowLeft, Lock, Unlock, Wallet, Loader2, LayoutGrid, Gift, Trees, TrendingUp, Package, Filter, X, Zap, Wrench, Calendar, PieChart, Calculator, Trash2, ChevronUp, ChevronDown, Check } from 'lucide-react';
+import { Wifi, WifiOff, Home, LogOut, ClipboardList, Users, FileText, Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign, ArrowLeft, Lock, Unlock, Wallet, Loader2, LayoutGrid, Gift, Trees, TrendingUp, Package, Filter, X, Zap, Wrench, Calendar, PieChart, Calculator, Trash2, ChevronUp, ChevronDown, Check, RefreshCw } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 
 import LandingPage from './LandingPage';
@@ -648,7 +648,15 @@ export default function AppContent() {
 
 
     return (
-        <div className="min-h-screen bg-gray-50 font-sans text-gray-900 pb-20">
+        <div className="min-h-screen bg-gray-50 font-sans text-gray-900 pb-20 relative">
+            {/* GLOBAL REFRESH BUTTON (KIOSK SUPPORT) */}
+            <button
+                onClick={() => window.location.reload(true)}
+                className="fixed top-1 left-1 z-[9999] p-2 bg-black/50 text-white/30 hover:text-white rounded-full transition-all hover:bg-black/80 shadow-lg"
+                title="Actualizar Aplicación"
+            >
+                <RefreshCw size={16} />
+            </button>
             <Toaster position="top-center" reverseOrder={false} />
 
             {/* STATUS BAR */}
