@@ -85,6 +85,8 @@
         *   **Restricciones:** Oculta botones de "Personal" y "Admin", y la barra de estado superior. Ideal para compartir el link en redes sociales.
     12. **Generador de QR Integrado:**
         *   **Nuevo Botón:** En la barra superior (ícono de escaner), permite generar e imprimir un código QR que lleva directamente al modo público del menú.
+    13. **Optimización de Carga (Modo Público):**
+        *   **Carga Selectiva:** Detecta si el usuario es un cliente (`mode=public`) y evita descargar datos innecesarios (personal, ventas, etc.), reduciendo drásticamente el tiempo de carga y consumo de datos.
 
 ---
 
