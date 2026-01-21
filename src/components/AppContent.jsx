@@ -74,6 +74,12 @@ export default function AppContent() {
     const [isQuickEditMode, setIsQuickEditMode] = useState(false);
     const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
     const [reportId, setReportId] = useState(null);
+    const [isPublicMode, setIsPublicMode] = useState(false);
+
+    React.useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('mode') === 'public') setIsPublicMode(true);
+    }, []);
 
     // 3. Computed Helpers
     const inventoryStats = useMemo(() => {
@@ -648,15 +654,8 @@ export default function AppContent() {
 
 
 
-    // 5. Public Mode Logic
-    const [isPublicMode, setIsPublicMode] = useState(false);
-
-    React.useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-        if (params.get('mode') === 'public') {
-            setIsPublicMode(true);
-        }
-    }, []);
+    // [MOVED] Public Mode logic moved to top
+    // 5. Public Mode logic was here
 
     return (
         <div className="min-h-screen bg-gray-50 font-sans text-gray-900 pb-20 relative">
