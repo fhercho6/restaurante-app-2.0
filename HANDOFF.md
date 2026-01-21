@@ -88,6 +88,12 @@
     13. **Optimización de Carga (Modo Público):**
         *   **Carga Selectiva:** Detecta si el usuario es un cliente (`mode=public`) y evita descargar datos innecesarios (personal, ventas, etc.), reduciendo drásticamente el tiempo de carga y consumo de datos.
 
+    14. **Optimización y Diseño Neón (Web App):**
+        *   **Identidad Visual:** Nuevo logo y portada estilo "Cyberpunk/Neón" para modernizar la marca.
+        *   **PWA Instalable:** La web ahora permite instalación nativa ("Agregar a Inicio") en Android/iOS con icono personalizado.
+        *   **Tailwind Local:** Eliminada dependencia de CDN. Ahora los estilos cargan instantáneamente sin internet.
+        *   **SEO Social:** Al compartir el link en WhatsApp/Facebook, aparece una tarjeta profesional con la nueva imagen de portada.
+
 ---
 
 ## 🛠️ Instrucciones para la Nueva PC
