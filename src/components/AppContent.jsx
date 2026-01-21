@@ -648,6 +648,16 @@ export default function AppContent() {
 
 
 
+    // 5. Public Mode Logic
+    const [isPublicMode, setIsPublicMode] = useState(false);
+
+    React.useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('mode') === 'public') {
+            setIsPublicMode(true);
+        }
+    }, []);
+
     return (
         <div className="min-h-screen bg-gray-50 font-sans text-gray-900 pb-20 relative">
             {/* GLOBAL REFRESH BUTTON (KIOSK SUPPORT) */}
@@ -660,8 +670,8 @@ export default function AppContent() {
             </button>
             <Toaster position="top-center" reverseOrder={false} />
 
-            {/* STATUS BAR */}
-            {view !== 'landing' && (
+            {/* STATUS BAR - HIDE IN PUBLIC MODE */}
+            {view !== 'landing' && !isPublicMode && (
                 <div className={`w-full p-1 text-[10px] text-center font-bold text-white flex justify-center items-center gap-2 shadow-md sticky top-0 z-50 ${registerSession ? 'bg-green-600' : 'bg-red-600'}`}>
                     {registerSession ? (
                         <>
@@ -679,7 +689,14 @@ export default function AppContent() {
             )}
 
             {view === 'landing' ? (
-                <LandingPage appName={appName || 'Cargando...'} logo={logo} onSelectClient={handleEnterMenu} onSelectStaff={handleEnterStaff} onSelectAdmin={handleEnterAdmin} />
+                <LandingPage
+                    appName={appName || 'Cargando...'}
+                    logo={logo}
+                    onSelectClient={handleEnterMenu}
+                    onSelectStaff={handleEnterStaff}
+                    onSelectAdmin={handleEnterAdmin}
+                    isPublicMode={isPublicMode}
+                />
             ) : (
                 <>
                     {/* HEADER */}

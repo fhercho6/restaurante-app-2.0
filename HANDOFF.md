@@ -80,6 +80,9 @@
     10. **Mejoras Rápidas (Stock y Historial):**
         *   **Stock Infinito en Servicios:** Los productos de categoría "Servicios" (ej. decoración) ahora siempre muestran stock 999 en el POS.
         *   **Glosa en Historial:** La nota de apertura de caja ahora se visualiza en la tabla de "Historial de Turnos" bajo el responsable.
+    11. **Modo Público (Web Separada):**
+        *   **Parámetro URL:** Al agregar `?mode=public` al final de la URL, la app entra en modo "Solo Clientes".
+        *   **Restricciones:** Oculta botones de "Personal" y "Admin", y la barra de estado superior. Ideal para compartir el link en redes sociales.
 
 ---
 

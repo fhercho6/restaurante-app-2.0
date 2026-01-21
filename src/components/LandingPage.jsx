@@ -46,7 +46,7 @@ const Confetti = () => {
 };
 
 
-export default function LandingPage({ appName, logo, onSelectClient, onSelectStaff, onSelectAdmin }) {
+export default function LandingPage({ appName, logo, onSelectClient, onSelectStaff, onSelectAdmin, isPublicMode = false }) {
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
 
   return (
@@ -79,17 +79,19 @@ export default function LandingPage({ appName, logo, onSelectClient, onSelectSta
             <Calculator size={24} className="drop-shadow-[0_0_5px_rgba(253,224,71,0.8)]" />
           </button>
 
-          {/* BOTÓN ADMIN */}
-          <button
-            onClick={onSelectAdmin}
-            className="relative group p-2 text-gray-400 hover:text-white transition-all hover:scale-110"
-            title="Acceso Administrativo"
-          >
-            <div className="absolute -top-1 -right-1 transform rotate-12 text-yellow-500 drop-shadow-[0_0_2px_rgba(255,255,255,0.8)]">
-              <Clock size={16} />
-            </div>
-            <Settings size={24} className="group-hover:rotate-90 transition-transform duration-500 drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]" />
-          </button>
+          {/* BOTÓN ADMIN (OCULTO EN MODO PÚBLICO) */}
+          {!isPublicMode && (
+            <button
+              onClick={onSelectAdmin}
+              className="relative group p-2 text-gray-400 hover:text-white transition-all hover:scale-110"
+              title="Acceso Administrativo"
+            >
+              <div className="absolute -top-1 -right-1 transform rotate-12 text-yellow-500 drop-shadow-[0_0_2px_rgba(255,255,255,0.8)]">
+                <Clock size={16} />
+              </div>
+              <Settings size={24} className="group-hover:rotate-90 transition-transform duration-500 drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -138,22 +140,24 @@ export default function LandingPage({ appName, logo, onSelectClient, onSelectSta
             <Sparkles size={24} className="text-yellow-200 drop-shadow-[0_0_5px_rgba(253,224,71,0.8)] group-hover:rotate-180 transition-transform duration-700" />
           </button>
 
-          {/* BOTÓN 2: PERSONAL */}
-          <button
-            onClick={onSelectStaff}
-            className="group w-full relative bg-black/60 text-white py-5 rounded-xl font-bold text-lg tracking-widest uppercase 
+          {/* BOTÓN 2: PERSONAL (OCULTO EN MODO PÚBLICO) */}
+          {!isPublicMode && (
+            <button
+              onClick={onSelectStaff}
+              className="group w-full relative bg-black/60 text-white py-5 rounded-xl font-bold text-lg tracking-widest uppercase 
                 border border-blue-500/40 hover:border-blue-400 transition-all duration-500
                 shadow-[0_0_20px_-5px_rgba(59,130,246,0.3)]
                 hover:shadow-[0_0_30px_-5px_rgba(59,130,246,0.6)]
                 active:scale-95 flex items-center justify-center gap-4"
-          >
-            <div className="absolute top-[-8px] right-4 transform rotate-12 text-blue-500 drop-shadow-[0_0_2px_rgba(255,255,255,0.8)]">
-              <Clock size={16} />
-            </div>
-            <User size={24} className="text-blue-400 drop-shadow-[0_0_5px_rgba(96,165,250,0.8)]" />
-            <span className="text-gray-200">PERSONAL</span>
-            <Star size={24} className="text-blue-300 drop-shadow-[0_0_5px_rgba(147,197,253,0.8)] group-hover:scale-125 transition-transform" />
-          </button>
+            >
+              <div className="absolute top-[-8px] right-4 transform rotate-12 text-blue-500 drop-shadow-[0_0_2px_rgba(255,255,255,0.8)]">
+                <Clock size={16} />
+              </div>
+              <User size={24} className="text-blue-400 drop-shadow-[0_0_5px_rgba(96,165,250,0.8)]" />
+              <span className="text-gray-200">PERSONAL</span>
+              <Star size={24} className="text-blue-300 drop-shadow-[0_0_5px_rgba(147,197,253,0.8)] group-hover:scale-125 transition-transform" />
+            </button>
+          )}
 
         </div>
       </div>
