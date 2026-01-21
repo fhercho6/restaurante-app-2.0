@@ -53,9 +53,14 @@ export const DataProvider = ({ children }) => {
         }
         setDbStatus('connected');
 
-        const unsub1 = onSnapshot(collection(db, getCollName('items')), (s) => setItems(s.docs.map(d => ({ ...d.data(), id: d.id }))));
-        const unsub2 = onSnapshot(collection(db, getCollName('staff')), (s) => setStaff(s.docs.map(d => ({ ...d.data(), id: d.id }))));
+        // OPTIMIZATION: Detect Public Mode to reduce bandwidth
+        const params = new URLSearchParams(window.location.search);
+        const isPublicMode = params.get('mode') === 'public';
 
+        // 1. ITEMS (ALWAYS FETCH)
+        const unsub1 = onSnapshot(collection(db, getCollName('items')), (s) => setItems(s.docs.map(d => ({ ...d.data(), id: d.id }))));
+
+        // 2. SETTINGS (ALWAYS FETCH)
         const unsub3 = onSnapshot(collection(db, getCollName('settings')), (s) => {
             s.docs.forEach(d => {
                 const dt = d.data();
@@ -76,8 +81,17 @@ export const DataProvider = ({ children }) => {
             setIsLoadingData(false);
         });
 
-        const activeServicesColl = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`;
-        const unsub4 = onSnapshot(collection(db, activeServicesColl), (s) => setActiveServices(s.docs.map(d => ({ id: d.id, ...d.data() }))));
+        // 3. INTERNAL DATA (SKIP IN PUBLIC MODE)
+        let unsub2 = () => { };
+        let unsub4 = () => { };
+
+        if (!isPublicMode) {
+            unsub2 = onSnapshot(collection(db, getCollName('staff')), (s) => setStaff(s.docs.map(d => ({ ...d.data(), id: d.id }))));
+            const activeServicesColl = isPersonalProject ? 'active_services' : `${ROOT_COLLECTION}active_services`;
+            unsub4 = onSnapshot(collection(db, activeServicesColl), (s) => setActiveServices(s.docs.map(d => ({ id: d.id, ...d.data() }))));
+        } else {
+            console.log("⚡ Public Mode: Skipping Staff & Service Data Load");
+        }
 
         return () => {
             unsub1(); unsub2(); unsub3(); unsub4();
