@@ -83,6 +83,8 @@
     11. **Modo Público (Web Separada):**
         *   **Parámetro URL:** Al agregar `?mode=public` al final de la URL, la app entra en modo "Solo Clientes".
         *   **Restricciones:** Oculta botones de "Personal" y "Admin", y la barra de estado superior. Ideal para compartir el link en redes sociales.
+    12. **Generador de QR Integrado:**
+        *   **Nuevo Botón:** En la barra superior (ícono de escaner), permite generar e imprimir un código QR que lleva directamente al modo público del menú.
 
 ---
 
