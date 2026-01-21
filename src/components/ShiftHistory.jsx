@@ -161,6 +161,11 @@ export default function ShiftHistory({ onReprint }) {
                                                     </div>
                                                     <span className="font-medium text-gray-700">{shift.openedBy}</span>
                                                 </div>
+                                                {shift.openingNote && (
+                                                    <div className="text-[10px] text-gray-400 italic mt-0.5 ml-8 max-w-[150px] truncate" title={shift.openingNote}>
+                                                        "{shift.openingNote}"
+                                                    </div>
+                                                )}
                                             </td>
                                             <td className="p-4 text-right">
                                                 <div className="font-bold text-green-600">Bs. {totalSale.toFixed(2)}</div>

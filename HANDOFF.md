@@ -77,6 +77,9 @@
         *   Útil para tablets en modo pantalla completa sin acceso a controles del navegador.
     *   **Lógica de Combos Extendida:**
         *   Las categorías "Baldes" y "Paquetes de Cumple" ahora soportan gestión de ingredientes y stock virtual, igual que los "Combos".
+    10. **Mejoras Rápidas (Stock y Historial):**
+        *   **Stock Infinito en Servicios:** Los productos de categoría "Servicios" (ej. decoración) ahora siempre muestran stock 999 en el POS.
+        *   **Glosa en Historial:** La nota de apertura de caja ahora se visualiza en la tabla de "Historial de Turnos" bajo el responsable.
 
 ---
 
