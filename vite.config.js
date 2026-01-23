@@ -13,6 +13,10 @@ export default defineConfig({
         short_name: 'Zzif',
         description: 'Sistema de gestión para restaurantes inteligente y simplificado.',
         theme_color: '#f97316',
+        background_color: '#ffffff',
+        display: 'standalone',
+        orientation: 'any',
+        start_url: '/',
         icons: [
           {
             src: 'pwa-192x192.png',
@@ -23,6 +27,12 @@ export default defineConfig({
             src: 'pwa-512x512.png',
             sizes: '512x512',
             type: 'image/png'
+          },
+          {
+            src: 'pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any maskable'
           }
         ]
       }
