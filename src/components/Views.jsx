@@ -4,6 +4,7 @@ import { Clock, User, ArrowLeft, Trash2, Edit2, Plus, Minus, Lock, LogIn, LogOut
 import toast from 'react-hot-toast';
 import { QRCodeSVG } from 'qrcode.react';
 import Barcode from 'react-barcode';
+import ImageWithLoader from './ImageWithLoader'; // [NEW]
 
 // --- TARJETA DE MENÚ (CLIENTE) ---
 export const MenuCard = ({ item }) => {
@@ -19,7 +20,7 @@ export const MenuCard = ({ item }) => {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent z-10"></div>
                 {isOut && <div className="absolute inset-0 z-20 flex items-center justify-center"><span className="bg-red-600 text-white font-black px-3 py-1 rounded text-xs uppercase tracking-widest rotate-[-10deg]">Agotado</span></div>}
                 {item.image ? (
-                    <img src={item.image} alt={item.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" />
+                    <ImageWithLoader src={item.image} alt={item.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                 ) : (
                     <div className="w-full h-full flex items-center justify-center bg-gray-800"><Clock size={32} className="text-gray-600" /></div>
                 )}
@@ -36,6 +37,9 @@ export const MenuCard = ({ item }) => {
         </div>
     );
 };
+
+
+
 
 // --- PANTALLA DE LOGIN CON PIN (OPTIMIZADA) ---
 export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onClockAction, onCancel }) => {

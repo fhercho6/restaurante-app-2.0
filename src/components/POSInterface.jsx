@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, ShoppingCart, Trash2, ChevronLeft, Send, ChefHat, ChevronDown, ChevronUp, Plus, Minus, Lock } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ImageWithLoader from './ImageWithLoader'; // [NEW]
 
 // AHORA RECIBE "autoLockTime" COMO PROP
 export default function POSInterface({ items, categories, staffMember, onCheckout, onPrintOrder, onExit, autoLockTime = 45 }) {
@@ -86,7 +87,7 @@ export default function POSInterface({ items, categories, staffMember, onCheckou
       >
         <div className="h-24 bg-gray-50 flex items-center justify-center overflow-hidden relative p-2">
           {item.image ? (
-            <img src={item.image} alt={item.name} className="w-full h-full object-contain mix-blend-multiply" loading="lazy" onError={(e) => e.target.style.display = 'none'} />
+            <ImageWithLoader src={item.image} alt={item.name} className="w-full h-full object-contain mix-blend-multiply" />
           ) : (
             <ChefHat className="text-gray-300" size={32} />
           )}
