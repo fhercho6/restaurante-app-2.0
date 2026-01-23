@@ -294,11 +294,14 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
         printWindow.focus();
 
         setTimeout(() => {
-            printWindow.print();
-            printWindow.close();
+            if (printWindow) {
+                printWindow.print();
+                printWindow.close();
+            }
             if (data.autoPrint) {
                 setStatus('done');
-                setTimeout(onClose, 2000);
+                // [OPTIMIZED] Reduced close time from 2000ms to 500ms
+                setTimeout(onClose, 500);
             }
         }, 100);
     };
@@ -306,7 +309,8 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
     useEffect(() => {
         if (data && data.autoPrint) {
             setStatus('printing');
-            setTimeout(handlePrintInNewWindow, 300);
+            // [OPTIMIZED] Reduced start time from 300ms to 100ms
+            setTimeout(handlePrintInNewWindow, 100);
         }
     }, [data]);
 
