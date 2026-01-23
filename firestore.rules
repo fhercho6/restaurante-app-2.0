@@ -1,0 +1,13 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Regla General:
+    // 1. Lectura Pública: Cualquiera puede leer (necesario para ver el menú sin loguearse)
+    // 2. Escritura Protegida: Solo usuarios autenticados pueden crear/editar/borrar
+    match /{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+  }
+}
