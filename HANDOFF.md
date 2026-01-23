@@ -94,6 +94,13 @@
         *   **Tailwind Local:** Eliminada dependencia de CDN. Ahora los estilos cargan instantáneamente sin internet.
         *   **SEO Social:** Al compartir el link en WhatsApp/Facebook, aparece una tarjeta profesional con la nueva imagen de portada.
 
+    15. **Sesión: 23 de Enero 2026 (Fixes Críticos & Optimización):**
+        *   **Corrección Pago Comisiones:** Se solucionó el `ReferenceError` que impedía pagar comisiones. Ahora el desglose se genera antes de la transacción.
+        *   **App Nativa (Standalone):** Se configuró el manifiesto PWA (`display: standalone`) para ocultar la barra de navegación del navegador al instalar la app.
+        *   **Seguridad Firebase:** Se implementaron reglas persistentes (`storage.rules` y `firestore.rules`) para proteger la base de datos y evitar el bloqueo de imágenes por caducidad del modo prueba.
+        *   **Impresión Instantánea:** Se redujeron los tiempos de espera en `Receipt.jsx` (0.3s -> 0.1s) para impresión ultra-rápida. Se documentó el modo Kiosko en `GUIA_IMPRESION_SILENCIOSA.md`.
+        *   **Optimización Imágenes:** Implementación de `ImageWithLoader` con lazy loading y esqueletos de carga (pulse) para evitar que la interfaz se congele al entrar al menú. Pre-conexión a servidores de Google.
+
 ---
 
 ## 🛠️ Instrucciones para la Nueva PC
