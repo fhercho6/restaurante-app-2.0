@@ -194,16 +194,14 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
         const totalPay = data.commissionAmount + bonus;
 
         if (confirm(`¿Pagar Bs. ${totalPay.toFixed(2)} a ${data.name}? \n(Comisión: Bs. ${data.commissionAmount.toFixed(2)} + Pasaje: Bs. ${bonus.toFixed(2)})`)) {
+            try {
+                let descText = `Pago Comisión: ${data.name}`;
+                if (data.cmbCommission > 0) descText += ` (Mix)`;
+                else descText += ` (${(data.stdRate * 100).toFixed(0)}%)`;
 
-            let descText = `Pago Comisión: ${data.name}`;
-            if (data.cmbCommission > 0) descText += ` (Mix)`;
-            else descText += ` (${(data.stdRate * 100).toFixed(0)}%)`;
+                if (bonus > 0) descText += ` + Pasaje (Bs. ${bonus})`;
 
-            if (bonus > 0) descText += ` + Pasaje (Bs. ${bonus})`;
-
-            const success = await addExpense(descText, totalPay, 'Comisiones', breakdownHtml);
-
-            if (success) {
+                // [FIX] Generate breakdownHtml BEFORE calling addExpense
                 let breakdownHtml = '';
                 if (data.cmbCommission > 0) {
                     breakdownHtml += `<b>--- COMBOS ---</b><br/>`;
@@ -221,30 +219,25 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                     breakdownHtml += `TASA APLICADA: ${(data.stdRate * 100).toFixed(0)}%<br/>`;
                 }
 
-                onPrintReceipt({
-                    type: 'expense',
-                    amount: totalPay,
-                    description: `PAGO DE COMISIÓN<br/><br/>GARZÓN: ${data.name.toUpperCase()}<br/>----------------<br/>${breakdownHtml}----------------<br/>SUBTOTAL COMISIÓN: Bs. ${data.commissionAmount.toFixed(2)}<br/>PASAJE / BONO: Bs. ${bonus.toFixed(2)}`,
-                    staffName: data.name,
-                    cashierName: registerSession.openedBy || 'Cajero',
-                    date: new Date().toLocaleString(),
-                    businessName: 'LicoBar',
-                    autoPrint: true
-                });
-                // Reset bonus for this user after pay
-                handleBonusChange(data.name, 0);
-                // Note: We don't need to call calculateCommissions here manually because 
-                // the expense update will trigger sessionStats change, which re-checks sales
-                // (However, for instant UX, we rely on the listener if sales changed, 
-                // but if only EXPENSES changed, we rely on sessionStats dependency to re-run calculateCommissions with the same sales snapshot? 
-                // Wait. onSnapshot gives 'snapSales'. If sessionStats changes, useEffect re-runs, creating NEW onSnapshot. 
-                // This is fine, but slightly inefficient. Better way: 
-                // Store snapSales in state? No. 
-                // Let's just trust that sessionStats update will re-trigger the effect.)
+                const success = await addExpense(descText, totalPay, 'Comisiones', breakdownHtml);
 
-                // Actually, if we just paid, `sessionStats` will update (expenses list changes).
-                // This will trigger the useEffect, which will re-subscribe to sales.
-                // This will fetch sales again and re-run calculation with new expenses. Correct.
+                if (success) {
+                    onPrintReceipt({
+                        type: 'expense',
+                        amount: totalPay,
+                        description: `PAGO DE COMISIÓN<br/><br/>GARZÓN: ${data.name.toUpperCase()}<br/>----------------<br/>${breakdownHtml}----------------<br/>SUBTOTAL COMISIÓN: Bs. ${data.commissionAmount.toFixed(2)}<br/>PASAJE / BONO: Bs. ${bonus.toFixed(2)}`,
+                        staffName: data.name,
+                        cashierName: registerSession.openedBy || 'Cajero',
+                        date: new Date().toLocaleString(),
+                        businessName: 'LicoBar',
+                        autoPrint: true
+                    });
+                    // Reset bonus for this user after pay
+                    handleBonusChange(data.name, 0);
+                }
+            } catch (error) {
+                console.error("Error paying commission:", error);
+                toast.error("Error al pagar comisión");
             }
         }
     };
