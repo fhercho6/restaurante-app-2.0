@@ -1,0 +1,17 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // 1. LECTURA PÚBLICA (Para que se vean las fotos del menú)
+    // Permitir ver imágenes a cualquiera (clientes y staff)
+    match /{allPaths=**} {
+      allow read: if true;
+    }
+
+    // 2. ESCRITURA RESTRINGIDA (Solo Staff Autenticado)
+    // Solo permitir subir/borrar si el usuario tiene sesión iniciada (uid existe)
+    // Esto previene que gente de afuera suba virus o borre tu base de datos
+    match /{allPaths=**} {
+      allow write: if request.auth != null;
+    }
+  }
+}
