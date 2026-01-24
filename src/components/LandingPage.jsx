@@ -5,6 +5,20 @@ import ServiceCalculatorModal from './ServiceCalculatorModal';
 
 export default function LandingPage({ appName, logo, onSelectClient, onSelectStaff, onSelectAdmin, onSelectReservations, isPublicMode = false }) {
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [pin, setPin] = useState('');
+
+  const handlePinSubmit = (e) => {
+    e.preventDefault();
+    if (pin === '1234') {
+      setIsPinModalOpen(false);
+      setPin('');
+      onSelectReservations();
+    } else {
+      alert('Código incorrecto');
+      setPin('');
+    }
+  };
 
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden font-sans bg-[#020202] text-white">
@@ -35,6 +49,14 @@ export default function LandingPage({ appName, logo, onSelectClient, onSelectSta
             title="Cotizar Costo"
           >
             <Calculator size={22} />
+          </button>
+
+          <button
+            onClick={() => setIsPinModalOpen(true)}
+            className="p-3 rounded-full bg-white/5 hover:bg-white/10 text-indigo-400 hover:text-white transition-all hover:scale-110 hover:shadow-[0_0_15px_rgba(99,102,241,0.4)] border border-indigo-500/20"
+            title="Acceso Reservas"
+          >
+            <Calendar size={22} />
           </button>
 
           {!isPublicMode && (
@@ -104,25 +126,6 @@ export default function LandingPage({ appName, logo, onSelectClient, onSelectSta
             </div>
           </button>
 
-          {/* BOTÓN RESERVAS (INDIGO NEON) */}
-          <button
-            onClick={onSelectReservations}
-            className="group w-full relative h-16 bg-black hover:bg-indigo-950/20 text-white rounded-xl font-bold text-lg tracking-widest uppercase 
-              border border-indigo-500/50 hover:border-indigo-400 transition-all duration-300
-              shadow-[0_0_20px_-5px_rgba(99,102,241,0.3)]
-              hover:shadow-[0_0_30px_0px_rgba(99,102,241,0.6)]
-              active:scale-95 flex items-center justify-between px-8"
-          >
-            <span className="flex items-center gap-3">
-              <Calendar size={20} className="text-indigo-400" />
-              <span className="text-gray-300 group-hover:text-white transition-colors">RESERVAS</span>
-            </span>
-
-            <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center group-hover:bg-indigo-400 group-hover:text-black transition-colors">
-              <Plus size={16} />
-            </div>
-          </button>
-
           {/* BOTÓN 2: PERSONAL (PURPLE NEON) */}
           {!isPublicMode && (
             <button
@@ -156,6 +159,33 @@ export default function LandingPage({ appName, logo, onSelectClient, onSelectSta
         isOpen={isCalculatorOpen}
         onClose={() => setIsCalculatorOpen(false)}
       />
+
+      {/* RESERVATION PIN MODAL */}
+      {isPinModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 w-full max-w-sm text-center shadow-2xl relative">
+            <button onClick={() => setIsPinModalOpen(false)} className="absolute top-4 right-4 text-gray-500 hover:text-white"><Zap size={20} /></button>
+            <div className="mb-4 flex justify-center"><Calendar size={48} className="text-indigo-500" /></div>
+            <h3 className="text-xl font-bold text-white mb-2">Acceso Reservas</h3>
+            <p className="text-gray-400 text-sm mb-6">Ingresa el código de seguridad</p>
+
+            <form onSubmit={handlePinSubmit}>
+              <input
+                type="password"
+                autoFocus
+                className="w-full bg-black/50 border border-gray-700 rounded-xl p-4 text-center text-2xl tracking-[10px] text-white outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all mb-4"
+                value={pin}
+                onChange={e => setPin(e.target.value)}
+                maxLength={4}
+                placeholder="••••"
+              />
+              <button type="submit" className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors">
+                ENTRAR
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
