@@ -273,80 +273,19 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                 ${isCourtesySale ? `<div class="courtesy-box"><div class="bold" style="font-size:14px;">CORTESÍA AUTORIZADA</div><div style="font-size:10px;">Total Bonificado: Bs. ${fmt(data.total)}</div></div><div class="flex-between bold" style="font-size:16px;"><span>A PAGAR:</span><span>Bs. 0.00</span></div>` :
                     data.type === 'void' ? `<div class="void-box">PEDIDO ELIMINADO<br/>(TRANSACCIÓN ANULADA)</div><div class="flex-between bold" style="font-size:18px; text-decoration: line-through;"><span>TOTAL:</span><span>Bs. ${fmt(data.total)}</span></div>` :
                         `<div class="flex-between bold" style="font-size:18px;"><span>TOTAL:</span><span>Bs. ${fmt(data.total)}</span></div>${data.payments ? `<div style="margin-top:5px;font-size:10px;">${data.payments.map(p => `<div class="flex-between"><span>PAGO ${p.method.toUpperCase()}:</span><span>${fmt(p.amount)}</span></div>`).join('')}</div>` : ''}${data.changeGiven > 0 ? `<div class="text-right bold" style="margin-top:2px;">CAMBIO: ${fmt(data.changeGiven)}</div>` : ''}`}
-            `}
             <div style="margin-top:15px;text-align:center;font-size:10px;">*** GRACIAS POR SU VISITA ***</div></body></html>`;
     };
 
-    // --- PRINTING LOGIC (UPDATED) ---
+    // --- PRINTING LOGIC (RESTORED & FIXED) ---
+    // Volvemos a window.open como pide el HANDOFF, pero usando onload para evitar tickets en blanco.
     const handlePrint = () => {
-        const isThermal = useThermalFormat;
-        const htmlContent = isThermal ? renderThermalReport() : renderLetterReport();
-
-        // 1. SILENT PRINT (IFRAME) - Best for AutoPrint/Kiosks
-        if (data.autoPrint) {
-            let printFrame = document.getElementById('silent-print-frame');
-
-            // Create frame if not exists
-            if (!printFrame) {
-                printFrame = document.createElement('iframe');
-                printFrame.id = 'silent-print-frame';
-                printFrame.style.position = 'fixed';
-                printFrame.style.bottom = '0';
-                printFrame.style.right = '0';
-                printFrame.style.width = '0px';
-                printFrame.style.height = '0px';
-                printFrame.style.border = 'none';
-                printFrame.style.visibility = 'hidden'; // Use visibility hidden to ensure it renders but isn't seen
-                document.body.appendChild(printFrame);
-            }
-
-            const doc = printFrame.contentWindow.document;
-            doc.open();
-            doc.write(htmlContent);
-            doc.close();
-
-            // Wait for resources (even if mostly text, good practice)
-            // Using small timeout as fallback if onload doesn't fire for some reason
-            let printed = false;
-
-            printFrame.contentWindow.onload = () => {
-                if (printed) return;
-                printed = true;
-                try {
-                    printFrame.contentWindow.focus();
-                    printFrame.contentWindow.print();
-
-                    // Auto-close modal after print signal sent
-                    setTimeout(() => {
-                        setStatus('done');
-                        onClose();
-                    }, 500);
-                } catch (e) {
-                    console.error("Silent Print Error:", e);
-                    // Fallback to window if silent fails
-                    handlePrintWindow();
-                }
-            };
-
-            // Failsafe: Print anyway after 500ms if onload stuck
-            setTimeout(() => {
-                if (!printed) {
-                    printFrame.contentWindow.onload();
-                }
-            }, 500);
-
-        } else {
-            // 2. MANUAL PRINT (POPUP WINDOW) - Fallback or explicit user action
-            handlePrintWindow();
-        }
-    };
-
-    const handlePrintWindow = () => {
         const isThermal = useThermalFormat;
         const width = isThermal ? 400 : 1000;
         const height = isThermal ? 600 : 800;
         const htmlContent = isThermal ? renderThermalReport() : renderLetterReport();
 
+        // 1. ABRIR VENTANA (POPUP)
+        // Usamos una variable global o referencia si es posible, pero aquí es local.
         const printWindow = window.open('', 'PRINT', `height=${height},width=${width},scrollbars=yes`);
 
         if (!printWindow) {
@@ -355,21 +294,43 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
             return;
         }
 
+        // 2. ESCRIBIR CONTENIDO
         printWindow.document.write(htmlContent);
-        printWindow.document.close();
+        printWindow.document.close(); // Importante para terminar la carga
         printWindow.focus();
 
-        // [FIX] Use onload instead of arbitrary timeout
-        printWindow.onload = () => {
-            printWindow.print();
-            printWindow.close();
+        // 3. IMPRIMIR AL CARGAR (Fiabilidad)
+        // Usamos una bandera para no imprimir doble si el timeout dispara antes
+        let executed = false;
+
+        const doPrint = () => {
+            if (executed) return;
+            executed = true;
+            try {
+                printWindow.focus();
+                printWindow.print();
+
+                // Cerrar después de imprimir (especialmente útil para Kiosk Mode)
+                // Le damos 500ms al spooler del navegador
+                setTimeout(() => {
+                    if (printWindow) printWindow.close();
+                    if (data.autoPrint) {
+                        setStatus('done');
+                        onClose();
+                    }
+                }, 500);
+            } catch (e) {
+                console.error("Print error:", e);
+            }
         };
 
-        // Fallback for older browsers
+        printWindow.onload = doPrint;
+
+        // 4. FALLBACK POR SI ONLOAD FALLA (Seguridad)
         setTimeout(() => {
-            if (printWindow && !printWindow.closed) {
-                printWindow.print();
-                printWindow.close();
+            if (!executed) {
+                // Si pasaron 500ms y no disparó onload, forzamos
+                doPrint();
             }
         }, 500);
     };
@@ -392,7 +353,7 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                     <div className="bg-gray-800 p-3 flex justify-between items-center">
                         <h3 className="text-white font-bold text-sm">{useThermalFormat ? 'TICKET' : 'REPORTE CARTA'}</h3>
                         <div className="flex gap-2">
-                            <button onClick={handlePrintInNewWindow} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 shadow-lg"><Printer size={18} /> IMPRIMIR</button>
+                            <button onClick={handlePrint} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 shadow-lg"><Printer size={18} /> IMPRIMIR</button>
                             <button onClick={onClose} className="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-lg"><X size={18} /></button>
                         </div>
                     </div>
