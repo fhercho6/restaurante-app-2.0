@@ -544,8 +544,9 @@ export const AdminRow = ({ item, onEdit, onDelete, isQuickEdit, onQuickUpdate, a
             <td className="p-4 text-center">
                 {isQuickEdit && item.category !== 'Servicios' && !isVirtualStock ? (
                     <input
+                        key={`${item.id}-stock-${item.stock}`} /* Force re-render if external stock changes */
                         type="number"
-                        defaultValue={item.stock}
+                        defaultValue={item.stock !== undefined && item.stock !== null ? item.stock : 0}
                         onBlur={(e) => onQuickUpdate(item.id, 'stock', e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, 'stock')}
                         className="w-16 p-1 border rounded text-center font-bold bg-white focus:ring-2 ring-blue-500 outline-none"

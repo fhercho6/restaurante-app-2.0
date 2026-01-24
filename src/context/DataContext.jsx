@@ -99,7 +99,31 @@ export const DataProvider = ({ children }) => {
     }, [currentUser]);
 
     // CRUD OPERATIONS
-    const handleQuickUpdate = async (id, field, value) => { try { let valToSave = value; if (field === 'price' || field === 'cost') { valToSave = parseFloat(value); if (isNaN(valToSave)) valToSave = 0; } if (field === 'stock') { valToSave = parseInt(value); if (isNaN(valToSave)) valToSave = 0; } await updateDoc(doc(db, getCollName('items'), id), { [field]: valToSave }); toast.success('Actualizado', { icon: '💾', duration: 1000 }); } catch (error) { toast.error('Error al actualizar'); } };
+    const handleQuickUpdate = async (id, field, value) => {
+        try {
+            let valToSave = value;
+            if (field === 'price' || field === 'cost') {
+                valToSave = value === '' ? 0 : parseFloat(value);
+                if (isNaN(valToSave)) valToSave = 0;
+            }
+            if (field === 'stock') {
+                valToSave = value === '' ? 0 : parseFloat(value); // Allow float temporarily but preferred int.
+                // Actually, let's stick to int for stock, but if they enter 5.5, maybe floor it?
+                // Better: parseFloat to handle "5.0" correctly, then Math.round is cleaner?
+                // Let's keep it simple: parseInt for stock.
+                valToSave = value === '' ? 0 : parseInt(value);
+                if (isNaN(valToSave)) valToSave = 0;
+            }
+
+            console.log(`Updating ${id} [${field}] to ${valToSave}`);
+
+            await updateDoc(doc(db, getCollName('items'), id), { [field]: valToSave });
+            toast.success('Actualizado', { icon: '💾', duration: 1000 });
+        } catch (error) {
+            console.error("Quick Update Error:", error);
+            toast.error('Error al actualizar');
+        }
+    };
 
     const handleSaveItem = async (d, id = null) => { try { if (id) await setDoc(doc(db, getCollName('items'), id), d); else await addDoc(collection(db, getCollName('items')), d); toast.success('Guardado'); return true; } catch { toast.error('Error'); return false; } };
     const handleDeleteItem = async (id) => { try { await deleteDoc(doc(db, getCollName('items'), id)); toast.success('Eliminado'); } catch { toast.error('Error'); } };
