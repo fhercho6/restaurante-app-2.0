@@ -116,7 +116,8 @@ export default function POSInterface({ items, categories, staffMember, onCheckou
     setIsProcessing(true);
     try {
       await onPrintOrder(cart, setCart);
-      setTimeout(() => { onExit(); }, 1000);
+      // [FIX] Removed premature onExit() that killed printing. 
+      // AppContent handles transition to Receipt view.
     } finally {
       setIsProcessing(false);
     }
