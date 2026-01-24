@@ -236,7 +236,7 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
     const renderThermalReport = () => {
         const stats = data.stats || {};
         let title = (data.businessName || 'LicoBar').toUpperCase();
-        if (data.type === 'expense') title = data.title || 'VALE DE GASTO'; // [MODIFIED] Allow dynamic title
+        if (data.type === 'expense') title = data.title || 'VALE DE GASTO';
         if (data.type === 'void') title = '*** ANULADO ***';
         if (isCourtesySale) title = 'RECIBO DE CORTESÍA';
 
@@ -244,6 +244,52 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
 
         let itemsHtml = data.items ? data.items.map(item => `<div class="row" style="margin-bottom:2px;"><div class="col-qty">${item.qty}</div><div class="col-name">${item.name}</div><div class="col-price">${isCourtesySale ? '0.00' : fmt(item.price * item.qty)}</div></div>`).join('') : '';
         let zReportRows = soldProducts ? soldProducts.map(p => `<div class="row"><div class="col-qty">${(p.qtySold || p.qty || 0) + (p.qtyCourtesy || 0)}</div><div class="col-name">${p.name}</div><div class="col-price">${fmt(p.total)}</div></div>`).join('') : '';
+
+        // GENERAR CUERPO DEL REPORTE SEGÚN TIPO
+        let reportBody = '';
+
+        if (data.type === 'z-report') {
+            reportBody = `
+                <div class="flex-between"><span>Fondo Inicial:</span><span>${fmt(data.openingAmount)}</span></div>
+                <div class="flex-between bold"><span>(+) Ventas:</span><span>${fmt((stats.cashSales || 0) + (stats.digitalSales || 0))}</span></div>
+                <div class="flex-between"><span>(-) Gastos:</span><span>${fmt(stats.totalExpenses)}</span></div>
+                <div class="border-b" style="margin:5px 0;"></div>
+                <div class="flex-between bold" style="font-size:18px;"><span>CAJA:</span><span>Bs. ${fmt(data.finalCash)}</span></div>
+                <br/><div class="bold text-center border-b">PRODUCTOS</div>${zReportRows}
+            `;
+        } else if (data.type === 'expense') {
+            reportBody = `
+                <div style="margin-top:10px;">
+                    <span style="font-size:10px;">CONCEPTO:</span><br/>
+                    <span class="bold uppercase" style="font-size:14px;">${data.description}</span>
+                    <div class="border-b" style="margin:5px 0;"></div>
+                    <div class="flex-between bold" style="font-size:18px;"><span>RETIRO:</span><span>Bs. ${fmt(data.amount)}</span></div>
+                    <br/><br/>
+                    <div class="text-center" style="font-size:10px;border-top:1px solid ${BORDER_COLOR};padding-top:5px;">FIRMA</div>
+                </div>
+            `;
+        } else {
+            // ORDER, QUICK_SALE, VOID
+            let footer = '';
+            if (isCourtesySale) {
+                footer = `<div class="courtesy-box"><div class="bold" style="font-size:14px;">CORTESÍA AUTORIZADA</div><div style="font-size:10px;">Total Bonificado: Bs. ${fmt(data.total)}</div></div><div class="flex-between bold" style="font-size:16px;"><span>A PAGAR:</span><span>Bs. 0.00</span></div>`;
+            } else if (data.type === 'void') {
+                footer = `<div class="void-box">PEDIDO ELIMINADO<br/>(TRANSACCIÓN ANULADA)</div><div class="flex-between bold" style="font-size:18px; text-decoration: line-through;"><span>TOTAL:</span><span>Bs. ${fmt(data.total)}</span></div>`;
+            } else {
+                let paymentsHtml = data.payments ? `<div style="margin-top:5px;font-size:10px;">${data.payments.map(p => `<div class="flex-between"><span>PAGO ${p.method.toUpperCase()}:</span><span>${fmt(p.amount)}</span></div>`).join('')}</div>` : '';
+                let changeHtml = data.changeGiven > 0 ? `<div class="text-right bold" style="margin-top:2px;">CAMBIO: ${fmt(data.changeGiven)}</div>` : '';
+                footer = `<div class="flex-between bold" style="font-size:18px;"><span>TOTAL:</span><span>Bs. ${fmt(data.total)}</span></div>${paymentsHtml}${changeHtml}`;
+            }
+
+            reportBody = `
+                <div class="row bold" style="font-size:10px;border-bottom:1px solid ${BORDER_COLOR};margin-bottom:2px;">
+                    <div class="col-qty">C</div><div class="col-name">DESCRIPCION</div><div class="col-price">TOTAL</div>
+                </div>
+                ${itemsHtml}
+                <div class="border-b" style="margin:5px 0;"></div>
+                ${footer}
+            `;
+        }
 
         return `<html><head><style>
             * { box-sizing: border-box; }
@@ -268,12 +314,8 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                 ${data.openingNote ? `<div style="font-size:10px;margin-top:4px;font-style:italic;">Nota: ${data.openingNote}</div>` : ''}
                 ${(data.type === 'order' || data.type === 'quick_sale' || data.type === 'void') ? `<div class="code-box">#${displayCode}</div>` : ''}
             </div>
-            ${data.type === 'z-report' ? `<div class="flex-between"><span>Fondo Inicial:</span><span>${fmt(data.openingAmount)}</span></div><div class="flex-between bold"><span>(+) Ventas:</span><span>${fmt((stats.cashSales || 0) + (stats.digitalSales || 0))}</span></div><div class="flex-between"><span>(-) Gastos:</span><span>${fmt(stats.totalExpenses)}</span></div><div class="border-b" style="margin:5px 0;"></div><div class="flex-between bold" style="font-size:18px;"><span>CAJA:</span><span>Bs. ${fmt(data.finalCash)}</span></div><br/><div class="bold text-center border-b">PRODUCTOS</div>${zReportRows}` : data.type === 'expense' ? `<div style="margin-top:10px;"><span style="font-size:10px;">CONCEPTO:</span><br/><span class="bold uppercase" style="font-size:14px;">${data.description}</span><div class="border-b" style="margin:5px 0;"></div><div class="flex-between bold" style="font-size:18px;"><span>RETIRO:</span><span>Bs. ${fmt(data.amount)}</span></div><br/><br/><div class="text-center" style="font-size:10px;border-top:1px solid ${BORDER_COLOR};padding-top:5px;">FIRMA</div></div>` : `
-                <div class="row bold" style="font-size:10px;border-bottom:1px solid ${BORDER_COLOR};margin-bottom:2px;"><div class="col-qty">C</div><div class="col-name">DESCRIPCION</div><div class="col-price">TOTAL</div></div>${itemsHtml}<div class="border-b" style="margin:5px 0;"></div>
-                ${isCourtesySale ? `<div class="courtesy-box"><div class="bold" style="font-size:14px;">CORTESÍA AUTORIZADA</div><div style="font-size:10px;">Total Bonificado: Bs. ${fmt(data.total)}</div></div><div class="flex-between bold" style="font-size:16px;"><span>A PAGAR:</span><span>Bs. 0.00</span></div>` :
-                    data.type === 'void' ? `<div class="void-box">PEDIDO ELIMINADO<br/>(TRANSACCIÓN ANULADA)</div><div class="flex-between bold" style="font-size:18px; text-decoration: line-through;"><span>TOTAL:</span><span>Bs. ${fmt(data.total)}</span></div>` :
-                        `<div class="flex-between bold" style="font-size:18px;"><span>TOTAL:</span><span>Bs. ${fmt(data.total)}</span></div>${data.payments ? `<div style="margin-top:5px;font-size:10px;">${data.payments.map(p => `<div class="flex-between"><span>PAGO ${p.method.toUpperCase()}:</span><span>${fmt(p.amount)}</span></div>`).join('')}</div>` : ''}${data.changeGiven > 0 ? `<div class="text-right bold" style="margin-top:2px;">CAMBIO: ${fmt(data.changeGiven)}</div>` : ''}}`
-                        < div style = "margin-top:15px;text-align:center;font-size:10px;" >*** GRACIAS POR SU VISITA ***</div ></body ></html > `}`;
+            ${reportBody}
+            <div style="margin-top:15px;text-align:center;font-size:10px;">*** GRACIAS POR SU VISITA ***</div></body></html>`;
     };
 
     // --- PRINTING LOGIC (RESTORED & FIXED) ---
