@@ -272,8 +272,8 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                 <div class="row bold" style="font-size:10px;border-bottom:1px solid ${BORDER_COLOR};margin-bottom:2px;"><div class="col-qty">C</div><div class="col-name">DESCRIPCION</div><div class="col-price">TOTAL</div></div>${itemsHtml}<div class="border-b" style="margin:5px 0;"></div>
                 ${isCourtesySale ? `<div class="courtesy-box"><div class="bold" style="font-size:14px;">CORTESÍA AUTORIZADA</div><div style="font-size:10px;">Total Bonificado: Bs. ${fmt(data.total)}</div></div><div class="flex-between bold" style="font-size:16px;"><span>A PAGAR:</span><span>Bs. 0.00</span></div>` :
                     data.type === 'void' ? `<div class="void-box">PEDIDO ELIMINADO<br/>(TRANSACCIÓN ANULADA)</div><div class="flex-between bold" style="font-size:18px; text-decoration: line-through;"><span>TOTAL:</span><span>Bs. ${fmt(data.total)}</span></div>` :
-                        `<div class="flex-between bold" style="font-size:18px;"><span>TOTAL:</span><span>Bs. ${fmt(data.total)}</span></div>${data.payments ? `<div style="margin-top:5px;font-size:10px;">${data.payments.map(p => `<div class="flex-between"><span>PAGO ${p.method.toUpperCase()}:</span><span>${fmt(p.amount)}</span></div>`).join('')}</div>` : ''}${data.changeGiven > 0 ? `<div class="text-right bold" style="margin-top:2px;">CAMBIO: ${fmt(data.changeGiven)}</div>` : ''}`}
-            <div style="margin-top:15px;text-align:center;font-size:10px;">*** GRACIAS POR SU VISITA ***</div></body></html>`;
+                        `<div class="flex-between bold" style="font-size:18px;"><span>TOTAL:</span><span>Bs. ${fmt(data.total)}</span></div>${data.payments ? `<div style="margin-top:5px;font-size:10px;">${data.payments.map(p => `<div class="flex-between"><span>PAGO ${p.method.toUpperCase()}:</span><span>${fmt(p.amount)}</span></div>`).join('')}</div>` : ''}${data.changeGiven > 0 ? `<div class="text-right bold" style="margin-top:2px;">CAMBIO: ${fmt(data.changeGiven)}</div>` : ''}}`
+                        < div style = "margin-top:15px;text-align:center;font-size:10px;" >*** GRACIAS POR SU VISITA ***</div ></body ></html > `}`;
     };
 
     // --- PRINTING LOGIC (RESTORED & FIXED) ---
@@ -286,7 +286,7 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
 
         // 1. ABRIR VENTANA (POPUP)
         // Usamos una variable global o referencia si es posible, pero aquí es local.
-        const printWindow = window.open('', 'PRINT', `height=${height},width=${width},scrollbars=yes`);
+        const printWindow = window.open('', 'PRINT', `height = ${height}, width = ${width}, scrollbars = yes`);
 
         if (!printWindow) {
             alert("⚠️ Permite ventanas emergentes para imprimir.");
@@ -347,7 +347,7 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
 
     return (
         <div className="fixed inset-0 bg-gray-900/90 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
-            <div className={`bg-white w-full ${useThermalFormat ? 'max-w-sm max-h-[85vh]' : 'max-w-4xl h-[90vh]'} shadow-2xl rounded-xl overflow-hidden flex flex-col transition-all duration-300`}>
+            <div className={`bg - white w - full ${useThermalFormat ? 'max-w-sm max-h-[85vh]' : 'max-w-4xl h-[90vh]'} shadow - 2xl rounded - xl overflow - hidden flex flex - col transition - all duration - 300`}>
 
                 {status === 'preview' && (
                     <div className="bg-gray-800 p-3 flex justify-between items-center">
