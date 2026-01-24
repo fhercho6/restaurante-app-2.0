@@ -12,9 +12,9 @@ export default defineConfig({
         name: 'Sistema Zzif',
         short_name: 'Zzif',
         description: 'Sistema de gestión para restaurantes inteligente y simplificado.',
-        theme_color: '#000000',
-        background_color: '#000000',
-        display: 'standalone',
+        theme_color: '#f97316',
+        background_color: '#ffffff',
+        display: 'fullscreen',
         orientation: 'any',
         start_url: '/',
         icons: [
