@@ -328,7 +328,7 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
 
         // 1. ABRIR VENTANA (POPUP)
         // Usamos una variable global o referencia si es posible, pero aquí es local.
-        const printWindow = window.open('', 'PRINT', `height = ${height}, width = ${width}, scrollbars = yes`);
+        const printWindow = window.open('', 'PRINT', `height=${height},width=${width},scrollbars=yes`);
 
         if (!printWindow) {
             alert("⚠️ Permite ventanas emergentes para imprimir.");
