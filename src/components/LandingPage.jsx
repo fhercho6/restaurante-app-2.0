@@ -72,7 +72,7 @@ export default function LandingPage({ appName, logo, onSelectClient, onSelectSta
 
           <button
             onClick={toggleFullscreen}
-            className="p-3 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all hover:scale-110 border border-white/10"
+            className="p-3 rounded-full bg-white/5 hover:bg-white/10 text-green-400 hover:text-white transition-all hover:scale-110 hover:shadow-[0_0_15px_rgba(74,222,128,0.4)] border border-green-500/20"
             title={isFullscreen ? "Salir de Pantalla Completa" : "Pantalla Completa (Ocultar Barras)"}
           >
             {isFullscreen ? <Minimize size={22} /> : <Maximize size={22} />}
