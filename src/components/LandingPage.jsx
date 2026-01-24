@@ -1,6 +1,6 @@
 // src/components/LandingPage.jsx - EDICIÓN CYBERPUNK NEON
 import React, { useState } from 'react';
-import { ChefHat, User, Settings, UtensilsCrossed, Sparkles, Clock, Calculator, Zap, Crown, Calendar, Plus } from 'lucide-react';
+import { ChefHat, User, Settings, UtensilsCrossed, Sparkles, Clock, Calculator, Zap, Crown, Calendar, Plus, Maximize, Minimize } from 'lucide-react';
 import ServiceCalculatorModal from './ServiceCalculatorModal';
 
 export default function LandingPage({ appName, logo, onSelectClient, onSelectStaff, onSelectAdmin, onSelectReservations, isPublicMode = false }) {
@@ -17,6 +17,17 @@ export default function LandingPage({ appName, logo, onSelectClient, onSelectSta
     } else {
       alert('Código incorrecto');
       setPin('');
+    }
+  };
+
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().then(() => setIsFullscreen(true)).catch(err => console.log(err));
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().then(() => setIsFullscreen(false));
+      }
     }
   };
 
@@ -57,6 +68,14 @@ export default function LandingPage({ appName, logo, onSelectClient, onSelectSta
             title="Acceso Reservas"
           >
             <Calendar size={22} />
+          </button>
+
+          <button
+            onClick={toggleFullscreen}
+            className="p-3 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all hover:scale-110 border border-white/10"
+            title={isFullscreen ? "Salir de Pantalla Completa" : "Pantalla Completa (Ocultar Barras)"}
+          >
+            {isFullscreen ? <Minimize size={22} /> : <Maximize size={22} />}
           </button>
 
           {!isPublicMode && (
