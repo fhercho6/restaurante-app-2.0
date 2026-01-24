@@ -44,7 +44,7 @@ export const RegisterProvider = ({ children }) => {
         const qE = query(collection(db, isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`), where('registerId', '==', registerSession.id));
 
         const uS = onSnapshot(qS, (s) => {
-            let c = 0, q = 0, k = 0, d = 0, ct = 0, cc = 0, cg = 0;
+            let c = 0, q = 0, k = 0, r = 0, d = 0, ct = 0, cc = 0, cg = 0;
             const pm = {};
 
             s.forEach(d => {
@@ -58,6 +58,7 @@ export const RegisterProvider = ({ children }) => {
                             const m = (p.method || '').toLowerCase();
                             if (m.includes('efectivo')) c += a;
                             else if (m.includes('qr')) q += a;
+                            else if (m.includes('reserva')) r += a;
                             else k += a;
                         });
                         if (v.changeGiven) c -= parseFloat(v.changeGiven);
@@ -66,6 +67,7 @@ export const RegisterProvider = ({ children }) => {
                         const m = (v.paymentMethod || '').toLowerCase();
                         if (m.includes('efectivo')) c += t;
                         else if (m.includes('qr')) q += t;
+                        else if (m.includes('reserva')) r += t;
                         else k += t;
                     }
                 }
@@ -104,8 +106,9 @@ export const RegisterProvider = ({ children }) => {
                 ...prev,
                 cashSales: c,
                 qrSales: q,
-                cardSales: k,
-                digitalSales: q + k,
+                cardSales: k, // Tarjetas
+                reservationSales: r, // [NEW] Reservas
+                digitalSales: q + k + r, // Total no efectivo (incluye reservas)
                 totalCostOfGoods: cg,
                 courtesyTotal: ct,
                 courtesyCost: cc,

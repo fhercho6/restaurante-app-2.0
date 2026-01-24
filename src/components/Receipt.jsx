@@ -147,7 +147,8 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                             <tr><td>VENTAS EFECTIVO</td><td class="text-right">${fmt(stats.cashSales)}</td></tr>
                             <tr><td>VENTAS QR / TRANSF.</td><td class="text-right">${fmt(stats.qrSales)}</td></tr>
                             <tr><td>VENTAS TARJETA</td><td class="text-right">${fmt(stats.cardSales)}</td></tr>
-                            <tr class="row-total"><td>TOTAL INGRESOS</td><td class="text-right">${fmt(data.openingAmount + stats.cashSales + stats.qrSales + stats.cardSales)}</td></tr>
+                            <tr><td>VENTAS RESERVA</td><td class="text-right">${fmt(stats.reservationSales || 0)}</td></tr>
+                            <tr class="row-total"><td>TOTAL INGRESOS</td><td class="text-right">${fmt(data.openingAmount + stats.cashSales + stats.qrSales + stats.cardSales + (stats.reservationSales || 0))}</td></tr>
                         </table>
                     </div>
 
@@ -252,6 +253,11 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
             reportBody = `
                 <div class="flex-between"><span>Fondo Inicial:</span><span>${fmt(data.openingAmount)}</span></div>
                 <div class="flex-between bold"><span>(+) Ventas:</span><span>${fmt((stats.cashSales || 0) + (stats.digitalSales || 0))}</span></div>
+                <div style="font-size:10px; margin-left:10px;">
+                    <div class="flex-between"><span>- Efectivo:</span><span>${fmt(stats.cashSales)}</span></div>
+                    <div class="flex-between"><span>- Digital:</span><span>${fmt((stats.qrSales || 0) + (stats.cardSales || 0))}</span></div>
+                    <div class="flex-between font-bold"><span>- Reservas:</span><span>${fmt(stats.reservationSales)}</span></div>
+                </div>
                 <div class="flex-between"><span>(-) Gastos:</span><span>${fmt(stats.totalExpenses)}</span></div>
                 <div class="border-b" style="margin:5px 0;"></div>
                 <div class="flex-between bold" style="font-size:18px;"><span>CAJA:</span><span>Bs. ${fmt(data.finalCash)}</span></div>
