@@ -1,7 +1,7 @@
 # 🚀 Estado del Proyecto: Sistema ZZIF (Restaurante App)
 
-## 📅 Fecha: 14 de Enero, 2026
-**Tema Actual:** Correcciones de Reportes y Comisiones 🧾💰
+## 📅 Fecha: 24 de Enero, 2026
+**Tema Actual:** Sistema de Reservas & PWA Fullscreen 📅📱
 
 ---
 
@@ -100,6 +100,20 @@
         *   **Seguridad Firebase:** Se implementaron reglas persistentes (`storage.rules` y `firestore.rules`) para proteger la base de datos y evitar el bloqueo de imágenes por caducidad del modo prueba.
         *   **Impresión Instantánea:** Se redujeron los tiempos de espera en `Receipt.jsx` (0.3s -> 0.1s) para impresión ultra-rápida. Se documentó el modo Kiosko en `GUIA_IMPRESION_SILENCIOSA.md`.
         *   **Optimización Imágenes:** Implementación de `ImageWithLoader` con lazy loading y esqueletos de carga (pulse) para evitar que la interfaz se congele al entrar al menú. Pre-conexión a servidores de Google.
+
+    16. **Sesión: 24 de Enero 2026 (Reservas y PWA):**
+        *   **Gestión de Reservas:** Nueva pestaña completa para administrar reservas.
+            *   **Impresión de Tickets:** Botón en cada reserva para imprimir ticket físico (80mm/58mm) con detalles para la comanda.
+            *   **Acceso Global:** Botón de "Reservas" en la barra superior (visible para todo el personal autorizado).
+        *   **Botón de Reservas (Landing Page):**
+            *   Se añadió un acceso directo discreto en la pantalla de bienvenida (ícono de calendario).
+            *   **Protección con PIN:** Al hacer clic, pide la clave `1234` para evitar accesos de clientes curiosos.
+        *   **Refinamiento PWA (Pantalla Completa):**
+            *   **Modo Fullscreen:** Se activó `display: fullscreen` para ocultar la barra de navegación de Android/Windows Taskbar.
+            *   **Botón Toggle:** Se añadió un botón manual (flechas verdes ⤢) en la pantalla de bienvenida para forzar el modo pantalla completa si el navegador no lo hace automáticamente.
+            *   **Estética:** Se mantuvo el borde naranja (`theme-color: #f97316`) por preferencia del usuario.
+        *   **Corrección Bug Admin:**
+            *   **Edición Rápida de Stock:** Se arregló el fallo donde al editar el stock desde la tabla principal no se guardaba o no refrescaba la vista. Ahora usa inputs controlados y feedback de guardado (icono diskette).
 
 ---
 
