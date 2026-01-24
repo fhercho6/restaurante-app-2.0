@@ -697,6 +697,7 @@ export default function AppContent() {
                     onSelectClient={handleEnterMenu}
                     onSelectStaff={handleEnterStaff}
                     onSelectAdmin={handleEnterAdmin}
+                    onSelectReservations={() => setView('reservations')}
                     isPublicMode={isPublicMode}
                 />
             ) : (

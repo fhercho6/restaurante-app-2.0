@@ -1,9 +1,9 @@
 // src/components/LandingPage.jsx - EDICIÓN CYBERPUNK NEON
 import React, { useState } from 'react';
-import { ChefHat, User, Settings, UtensilsCrossed, Sparkles, Clock, Calculator, Zap, Crown } from 'lucide-react';
+import { ChefHat, User, Settings, UtensilsCrossed, Sparkles, Clock, Calculator, Zap, Crown, Calendar, Plus } from 'lucide-react';
 import ServiceCalculatorModal from './ServiceCalculatorModal';
 
-export default function LandingPage({ appName, logo, onSelectClient, onSelectStaff, onSelectAdmin, isPublicMode = false }) {
+export default function LandingPage({ appName, logo, onSelectClient, onSelectStaff, onSelectAdmin, onSelectReservations, isPublicMode = false }) {
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
 
   return (
@@ -101,6 +101,25 @@ export default function LandingPage({ appName, logo, onSelectClient, onSelectSta
 
             <div className="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center group-hover:bg-cyan-400 group-hover:text-black transition-colors">
               <Sparkles size={16} />
+            </div>
+          </button>
+
+          {/* BOTÓN RESERVAS (INDIGO NEON) */}
+          <button
+            onClick={onSelectReservations}
+            className="group w-full relative h-16 bg-black hover:bg-indigo-950/20 text-white rounded-xl font-bold text-lg tracking-widest uppercase 
+              border border-indigo-500/50 hover:border-indigo-400 transition-all duration-300
+              shadow-[0_0_20px_-5px_rgba(99,102,241,0.3)]
+              hover:shadow-[0_0_30px_0px_rgba(99,102,241,0.6)]
+              active:scale-95 flex items-center justify-between px-8"
+          >
+            <span className="flex items-center gap-3">
+              <Calendar size={20} className="text-indigo-400" />
+              <span className="text-gray-300 group-hover:text-white transition-colors">RESERVAS</span>
+            </span>
+
+            <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center group-hover:bg-indigo-400 group-hover:text-black transition-colors">
+              <Plus size={16} />
             </div>
           </button>
 
