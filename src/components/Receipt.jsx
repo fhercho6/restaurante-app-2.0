@@ -410,7 +410,19 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                         </div>
                     ) : (
                         <iframe
-                            srcDoc={useThermalFormat ? renderThermalReport() : renderLetterReport()}
+                            srcDoc={(() => {
+                                try {
+                                    console.log("Rendering Receipt with data:", data);
+                                    return useThermalFormat ? renderThermalReport() : renderLetterReport();
+                                } catch (err) {
+                                    console.error("Receipt Render Error:", err);
+                                    return `<html><body style="color:red; font-family:sans-serif; padding:20px;">
+                                        <h3>Error al generar recibo</h3>
+                                        <p>${err.toString()}</p>
+                                        <pre>${err.stack}</pre>
+                                    </body></html>`;
+                                }
+                            })()}
                             className="w-full h-full border-none"
                             title="Report Preview"
                         />
