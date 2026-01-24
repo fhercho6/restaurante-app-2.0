@@ -26,6 +26,7 @@ import { AuthModal, BrandingModal, ProductModal, CategoryManager, RoleManager, T
 import ServiceCalculatorModal from './ServiceCalculatorModal';
 import { MenuCard, PinLoginView, CredentialPrintView, PrintableView, AdminRow, AttendanceTicket } from './Views';
 import ClientQRModal from './ClientQRModal'; // [NEW]
+import ReservationManager from './ReservationManager'; // [NEW]
 
 // Hooks & Contexts
 
@@ -141,7 +142,7 @@ export default function AppContent() {
         if (!filter || filter === 'Todos') return items;
         return items.filter(i => i.category === filter);
     }, [items, filter]);
-    const isAdminMode = ['admin', 'report', 'staff_admin', 'cashier', 'register_control', 'maintenance', 'shift_history', 'expense_history'].includes(view);
+    const isAdminMode = ['admin', 'report', 'staff_admin', 'cashier', 'register_control', 'maintenance', 'shift_history', 'expense_history', 'reservations'].includes(view);
     const isCashierOnly = staffMember && staffMember.role === 'Cajero';
 
     // 4. Handler Adaptations
@@ -733,8 +734,9 @@ export default function AppContent() {
 
                                         <button onClick={() => setView('report')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'report' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><FileText size={18} /> Reporte</button>
                                         {!isCashierOnly && <button onClick={() => setView('maintenance')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'maintenance' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><Wrench size={18} /> Mantenimiento</button>}
-                                        {!isCashierOnly && <button onClick={() => setView('shift_history')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'shift_history' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><Calendar size={18} /> Historial</button>}
-                                        {!isCashierOnly && <button onClick={() => setView('expense_history')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'expense_history' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><FileText size={18} /> Gastos</button>}
+                                        <button onClick={() => setView('shift_history')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'shift_history' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><Calendar size={18} /> Historial</button>
+                                        <button onClick={() => setView('expense_history')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'expense_history' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><FileText size={18} /> Gastos</button>
+                                        <button onClick={() => setView('reservations')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'reservations' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><Users size={18} /> Reservas</button>
                                     </div>
                                 </div>
 
@@ -815,6 +817,7 @@ export default function AppContent() {
                                 {view === 'maintenance' && <EquipmentManager staff={staff} registerSession={registerSession} />}
                                 {view === 'shift_history' && !isCashierOnly && <ShiftHistory onReprint={(shift) => { setLastSale({ ...shift, type: 'z-report', finalCash: shift.finalCashCalculated, stats: shift.finalSalesStats, businessName: appName, date: new Date(shift.closedAt).toLocaleString(), returnTo: 'shift_history' }); setView('receipt_view'); }} />}
                                 {view === 'expense_history' && !isCashierOnly && <ExpenseHistory onBack={() => setView('admin')} />}
+                                {view === 'reservations' && <ReservationManager />}
 
                                 {/* INVENTORY/ADMIN HOME */}
                                 {view === 'admin' && !isCashierOnly && (
