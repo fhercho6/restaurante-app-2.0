@@ -277,40 +277,108 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
             <div style="margin-top:15px;text-align:center;font-size:10px;">*** GRACIAS POR SU VISITA ***</div></body></html>`;
     };
 
-    const handlePrintInNewWindow = () => {
-        // Si NO es Z-Report, siempre es térmico
+    // --- PRINTING LOGIC (UPDATED) ---
+    const handlePrint = () => {
         const isThermal = useThermalFormat;
+        const htmlContent = isThermal ? renderThermalReport() : renderLetterReport();
 
-        // Dimensiones de ventana
+        // 1. SILENT PRINT (IFRAME) - Best for AutoPrint/Kiosks
+        if (data.autoPrint) {
+            let printFrame = document.getElementById('silent-print-frame');
+
+            // Create frame if not exists
+            if (!printFrame) {
+                printFrame = document.createElement('iframe');
+                printFrame.id = 'silent-print-frame';
+                printFrame.style.position = 'fixed';
+                printFrame.style.bottom = '0';
+                printFrame.style.right = '0';
+                printFrame.style.width = '0px';
+                printFrame.style.height = '0px';
+                printFrame.style.border = 'none';
+                printFrame.style.visibility = 'hidden'; // Use visibility hidden to ensure it renders but isn't seen
+                document.body.appendChild(printFrame);
+            }
+
+            const doc = printFrame.contentWindow.document;
+            doc.open();
+            doc.write(htmlContent);
+            doc.close();
+
+            // Wait for resources (even if mostly text, good practice)
+            // Using small timeout as fallback if onload doesn't fire for some reason
+            let printed = false;
+
+            printFrame.contentWindow.onload = () => {
+                if (printed) return;
+                printed = true;
+                try {
+                    printFrame.contentWindow.focus();
+                    printFrame.contentWindow.print();
+
+                    // Auto-close modal after print signal sent
+                    setTimeout(() => {
+                        setStatus('done');
+                        onClose();
+                    }, 500);
+                } catch (e) {
+                    console.error("Silent Print Error:", e);
+                    // Fallback to window if silent fails
+                    handlePrintWindow();
+                }
+            };
+
+            // Failsafe: Print anyway after 500ms if onload stuck
+            setTimeout(() => {
+                if (!printed) {
+                    printFrame.contentWindow.onload();
+                }
+            }, 500);
+
+        } else {
+            // 2. MANUAL PRINT (POPUP WINDOW) - Fallback or explicit user action
+            handlePrintWindow();
+        }
+    };
+
+    const handlePrintWindow = () => {
+        const isThermal = useThermalFormat;
         const width = isThermal ? 400 : 1000;
         const height = isThermal ? 600 : 800;
+        const htmlContent = isThermal ? renderThermalReport() : renderLetterReport();
 
         const printWindow = window.open('', 'PRINT', `height=${height},width=${width},scrollbars=yes`);
-        if (!printWindow) { alert("⚠️ Permite ventanas emergentes para imprimir."); setStatus('preview'); return; }
 
-        const htmlContent = isThermal ? renderThermalReport() : renderLetterReport();
+        if (!printWindow) {
+            alert("⚠️ Permite ventanas emergentes para imprimir.");
+            setStatus('preview');
+            return;
+        }
+
         printWindow.document.write(htmlContent);
         printWindow.document.close();
         printWindow.focus();
 
+        // [FIX] Use onload instead of arbitrary timeout
+        printWindow.onload = () => {
+            printWindow.print();
+            printWindow.close();
+        };
+
+        // Fallback for older browsers
         setTimeout(() => {
-            if (printWindow) {
+            if (printWindow && !printWindow.closed) {
                 printWindow.print();
                 printWindow.close();
             }
-            if (data.autoPrint) {
-                setStatus('done');
-                // [OPTIMIZED] Reduced close time from 2000ms to 500ms
-                setTimeout(onClose, 500);
-            }
-        }, 100);
+        }, 500);
     };
 
     useEffect(() => {
         if (data && data.autoPrint) {
             setStatus('printing');
-            // [OPTIMIZED] Reduced start time from 300ms to 100ms
-            setTimeout(handlePrintInNewWindow, 100);
+            // Small delay to ensure state and DOM is ready
+            setTimeout(handlePrint, 100);
         }
     }, [data]);
 
