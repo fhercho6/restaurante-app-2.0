@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db, ROOT_COLLECTION, isPersonalProject } from '../config/firebase';
-import { Calendar, Plus, Search, MessageCircle, Trash2, Edit2, X, Clock, User, Phone, Tag } from 'lucide-react';
+import { Calendar, Plus, Search, MessageCircle, Trash2, Edit2, X, Clock, User, Phone, Tag, Printer, Home } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const ReservationManager = () => {
@@ -99,6 +99,52 @@ const ReservationManager = () => {
         window.open(url, '_blank');
     };
 
+    const handlePrint = (res) => {
+        const printWindow = window.open('', 'PRINT', 'height=600,width=400');
+        const html = `
+            <html>
+            <head>
+                <title>Comprobante de Reserva</title>
+                <style>
+                    body { font-family: 'Courier New', monospace; padding: 20px; text-align: center; }
+                    .header { font-weight: bold; font-size: 18px; margin-bottom: 10px; }
+                    .info { margin: 10px 0; font-size: 14px; text-align: left; }
+                    .label { font-weight: bold; }
+                    .divider { border-top: 1px dashed #000; margin: 15px 0; }
+                    .footer { font-size: 12px; margin-top: 20px; }
+                </style>
+            </head>
+            <body>
+                <div class="header">RESERVA CONFIRMADA</div>
+                <div class="divider"></div>
+                
+                <div class="info">
+                    <div><span class="label">CLIENTE:</span> ${res.name}</div>
+                    <div><span class="label">FECHA:</span> ${new Date(res.date).toLocaleDateString()}</div>
+                    <div><span class="label">HORA:</span> ${res.time}</div>
+                    <div><span class="label">TIPO:</span> ${res.type}</div>
+                    <div><span class="label">TEL:</span> ${res.phone}</div>
+                </div>
+
+                ${res.notes ? `<div class="divider"></div><div class="info"><span class="label">NOTAS:</span><br/>${res.notes}</div>` : ''}
+
+                <div class="divider"></div>
+                <div class="footer">
+                    Por favor presentar este ticket al llegar.<br/>
+                    ¡Gracias por su preferencia!
+                </div>
+            </body>
+            </html>
+        `;
+        printWindow.document.write(html);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+        }, 500);
+    };
+
     const filteredReservations = reservations.filter(r =>
         r.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (r.phone && r.phone.includes(searchTerm))
@@ -108,10 +154,13 @@ const ReservationManager = () => {
         <div className="max-w-6xl mx-auto pb-20 animate-in fade-in">
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                 <div>
-                    <h2 className="text-3xl font-black text-gray-800 flex items-center gap-2">
-                        <Calendar className="text-indigo-600" size={32} /> Gestión de Reservas
-                    </h2>
-                    <p className="text-gray-500 text-sm">Administra citas y contacta clientes por WhatsApp.</p>
+                    <div className="flex items-center gap-3">
+                        <button onClick={() => window.location.reload()} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 text-gray-600"><Home size={20} /></button>
+                        <h2 className="text-3xl font-black text-gray-800 flex items-center gap-2">
+                            <Calendar className="text-indigo-600" size={32} /> Reservas
+                        </h2>
+                    </div>
+                    <p className="text-gray-500 text-sm ml-12">Administra citas y contacta clientes.</p>
                 </div>
                 <div className="flex gap-2 w-full md:w-auto">
                     <div className="relative flex-1">
@@ -151,6 +200,7 @@ const ReservationManager = () => {
                                     </div>
                                 </div>
                                 <div className="flex gap-1">
+                                    <button onClick={() => handlePrint(res)} className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg hover:text-gray-800" title="Imprimir"><Printer size={16} /></button>
                                     <button onClick={() => handleOpenModal(res)} className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg hover:text-blue-500"><Edit2 size={16} /></button>
                                     <button onClick={() => handleDelete(res.id)} className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg hover:text-red-500"><Trash2 size={16} /></button>
                                 </div>

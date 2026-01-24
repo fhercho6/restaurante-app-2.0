@@ -714,6 +714,7 @@ export default function AppContent() {
                                 {isAdminMode && !isCashierOnly && <button onClick={handlePurgeDuplicates} className="p-2 rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition-colors" title="Limpiar Duplicados"><Trash2 size={20} /></button>}
                                 <button onClick={() => setIsQRModalOpen(true)} className="p-2 rounded-full hover:bg-gray-100 text-gray-500 hover:text-blue-600 transition-colors" title="Ver QR Menú"><Scan size={20} /></button>
                                 <button onClick={() => setIsCalculatorOpen(true)} className="p-2 rounded-full hover:bg-gray-100 text-gray-500 hover:text-purple-600 transition-colors" title="Cotizar Servicio"><Calculator size={20} /></button>
+                                {!isAdminMode && <button onClick={() => setView('reservations')} className="p-2 rounded-full hover:bg-gray-100 text-gray-500 hover:text-indigo-600 transition-colors" title="Reservas"><Calendar size={20} /></button>}
                                 {!isAdminMode && <button aria-label="Ir al inicio" onClick={() => window.location.reload()} className="p-2 rounded-full hover:bg-gray-100 text-gray-500"><Home size={20} /></button>}
                                 {isAdminMode && <button aria-label="Cerrar sesión" onClick={onLogout} className="flex items-center gap-2 px-4 py-2 rounded-full text-sm bg-red-50 text-red-600"><LogOut size={16} />Salir</button>}
                             </div>
