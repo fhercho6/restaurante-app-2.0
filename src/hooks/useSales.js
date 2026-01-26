@@ -25,15 +25,28 @@ export const useSales = () => {
         const toastId = toast.loading('Procesando pago...');
 
         const itemsToProcess = orderToPay ? orderToPay.items : pendingSale.cart;
-        const { paymentsList, totalPaid, change } = paymentResult;
+        const { paymentsList, totalPaid, change, assignedWaiter } = paymentResult;
         const totalToProcess = totalPaid - change;
 
         try {
             const batchPromises = [];
             const timestamp = new Date();
             let cashierName = staffMember ? staffMember.name : 'Administrador';
-            const waiterName = orderToPay ? (orderToPay.staffName || 'Barra') : (staffMember ? staffMember.name : 'Barra');
-            const waiterId = orderToPay ? (orderToPay.staffId || 'anon') : (staffMember ? staffMember.id : 'anon');
+
+            // PRIORITY: 1. Manually Assigned (Payment Modal) -> 2. Order Owner -> 3. Current User (Quick Sale) -> 4. Barra
+            let waiterName = 'Barra';
+            let waiterId = 'anon';
+
+            if (assignedWaiter && assignedWaiter.id) {
+                waiterName = assignedWaiter.name;
+                waiterId = assignedWaiter.id;
+            } else if (orderToPay) {
+                waiterName = orderToPay.staffName || 'Barra';
+                waiterId = orderToPay.staffId || 'anon';
+            } else if (staffMember) {
+                waiterName = staffMember.name;
+                waiterId = staffMember.id;
+            }
 
             let originalOrderId = 'ORD-' + Math.floor(Math.random() * 10000);
             if (orderToPay) {

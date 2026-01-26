@@ -237,6 +237,14 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
     const renderThermalReport = () => {
         const stats = data.stats || {};
         let title = (data.businessName || 'LicoBar').toUpperCase();
+
+        // [FIX] Distinguish between PAID (Receipt) and UNPAID (Command/Pre-check)
+        if (data.type === 'order' || data.type === 'quick_sale') {
+            // If we have payments or totalPaid > 0, it is a finalized SALE
+            const hasPayments = (data.payments && data.payments.length > 0) || (data.totalPaid > 0);
+            title = hasPayments ? 'PAGADO' : 'COMANDA';
+        }
+
         if (data.type === 'expense') title = data.title || 'VALE DE GASTO';
         if (data.type === 'void') title = '*** ANULADO ***';
         if (isCourtesySale) title = 'RECIBO DE CORTESÍA';

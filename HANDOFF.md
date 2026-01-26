@@ -124,6 +124,15 @@
             *   Formato optimizado para impresora térmica (Cant | Prod | Tot).
         *   **Transparencia:** El garzón puede ver exactamente qué vendió y de dónde sale su comisión.
 
+    18. **Sesión: 26 de Enero 2026 (Corrección Comisiones & Tickets):**
+        *   **Selector de Garzón en Caja:**
+            *   **Problema:** Las "Ventas Rápidas" en Caja se asignaban al Cajero, haciendo que los garzones perdieran su comisión si dictaban el pedido.
+            *   **Solución:** Se añadió un menú desplegable **"Atendido Por"** en la ventana de Cobro. Ahora la Cajera puede asignar la venta a "Yoly" (o cualquier otro) antes de cobrar.
+        *   **Títulos de Tickets Claros:**
+            *   **COMANDA:** Para pedidos enviados a cocina/barra (sin cobrar).
+            *   **PAGADO:** Para tickets finales entregados al cliente tras el cobro.
+            *   Se eliminó el nombre del negocio del título para dar prioridad al estado del documento.
+
 ---
 
 ## 🛠️ Instrucciones para la Nueva PC

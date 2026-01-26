@@ -1,19 +1,31 @@
 // src/components/PaymentModal.jsx - SOPORTE MULTI-PAGO Y CORTESÍA CORRECTA
 import React, { useState, useEffect } from 'react';
-import { X, DollarSign, CreditCard, Grid, Gift, Check, Trash2, Calendar } from 'lucide-react';
+import { X, DollarSign, CreditCard, Grid, Gift, Check, Trash2, Calendar, User, ChevronDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-export default function PaymentModal({ isOpen, onClose, total, onConfirm }) {
+export default function PaymentModal({ isOpen, onClose, total, onConfirm, staff = [], initialWaiter = null }) {
     const [currentAmount, setCurrentAmount] = useState(''); // Lo que se escribe en el input
     const [payments, setPayments] = useState([]); // Lista de pagos acumulados
+    const [selectedWaiterId, setSelectedWaiterId] = useState(''); // [NEW] Selected Waiter
 
     // Reiniciar al abrir
     useEffect(() => {
         if (isOpen) {
             setCurrentAmount(total.toFixed(2));
             setPayments([]);
+            // Default waiter logic: Use initialWaiter (the one who created the order)
+            // If strictly 'Cajero' created it (or null), we might want to leave it empty or default to 'Barra' check? 
+            // Better: default to initialWaiter (e.g. 'Yoly') if present.
+            if (initialWaiter && initialWaiter.id) {
+                setSelectedWaiterId(initialWaiter.id);
+            } else {
+                // If checking out as generic or quick sale, maybe default to "Barra" or empty?
+                // Let's default to empty to force selection? No, that slows down "Quick Sale".
+                // Default to empty string -> "Sin Asignar" (Barra/Caja will take it implicitly)
+                setSelectedWaiterId('');
+            }
         }
-    }, [isOpen, total]);
+    }, [isOpen, total, initialWaiter]);
 
     // Cálculos dinámicos
     const totalPaid = payments.reduce((acc, p) => acc + p.amount, 0);
@@ -74,18 +86,25 @@ export default function PaymentModal({ isOpen, onClose, total, onConfirm }) {
             return;
         }
 
+        // Find the selected staff object
+        const assignedWaiter = selectedWaiterId ? staff.find(s => s.id === selectedWaiterId) : null;
+
         const finalData = {
             paymentsList: payments,
             totalPaid: hasCourtesy ? 0 : totalPaid, // Si es cortesía, el dinero real es 0
             change: change,
             amountReceived: totalPaid,
-            isCourtesy: hasCourtesy
+            isCourtesy: hasCourtesy,
+            assignedWaiter: assignedWaiter // [NEW] Pass assigned waiter
         };
 
         onConfirm(finalData);
     };
 
     if (!isOpen) return null;
+
+    // Filter staff for dropdown (exclude admins/checkers maybe? no, allow all just in case)
+    const availableStaff = staff.filter(s => s.role !== 'Cocina');
 
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
@@ -101,6 +120,28 @@ export default function PaymentModal({ isOpen, onClose, total, onConfirm }) {
                 </div>
 
                 <div className="p-6 flex-1 overflow-y-auto">
+
+                    {/* SELECTOR DE GARZÓN (NUEVO) */}
+                    <div className="mb-6 bg-orange-50 p-2 rounded-lg border border-orange-100 mb-4">
+                        <label className="text-[10px] font-bold text-orange-800 uppercase mb-1 block flex items-center gap-1">
+                            <User size={12} /> Atendido Por (Comisión):
+                        </label>
+                        <div className="relative">
+                            <select
+                                value={selectedWaiterId}
+                                onChange={(e) => setSelectedWaiterId(e.target.value)}
+                                className="w-full p-2 bg-white border border-orange-200 rounded font-bold text-gray-800 text-sm focus:outline-none focus:border-orange-500 appearance-none"
+                            >
+                                <option value="">-- Caja / Barra --</option>
+                                {availableStaff.map(s => (
+                                    <option key={s.id} value={s.id}>
+                                        {s.name} ({s.role})
+                                    </option>
+                                ))}
+                            </select>
+                            <ChevronDown className="absolute right-2 top-2.5 text-orange-400 pointer-events-none" size={16} />
+                        </div>
+                    </div>
 
                     {/* VISOR DE ESTADO */}
                     <div className="flex justify-between items-end mb-6 border-b border-gray-100 pb-4">
