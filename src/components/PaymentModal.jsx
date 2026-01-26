@@ -1,12 +1,17 @@
 // src/components/PaymentModal.jsx - SOPORTE MULTI-PAGO Y CORTESÍA CORRECTA
 import React, { useState, useEffect } from 'react';
-import { X, DollarSign, CreditCard, Grid, Gift, Check, Trash2, Calendar, User, ChevronDown } from 'lucide-react';
+import { X, DollarSign, CreditCard, Grid, Gift, Check, Trash2, Calendar, User, ChevronDown, Lock, Unlock } from 'lucide-react'; // [UPDATED] Added Lock/Unlock
 import toast from 'react-hot-toast';
 
 export default function PaymentModal({ isOpen, onClose, total, onConfirm, staff = [], initialWaiter = null }) {
     const [currentAmount, setCurrentAmount] = useState(''); // Lo que se escribe en el input
     const [payments, setPayments] = useState([]); // Lista de pagos acumulados
     const [selectedWaiterId, setSelectedWaiterId] = useState(''); // [NEW] Selected Waiter
+
+    // [NEW] PIN Protection States
+    const [isLocked, setIsLocked] = useState(false);
+    const [showUnlockInput, setShowUnlockInput] = useState(false);
+    const [unlockPin, setUnlockPin] = useState('');
 
     // Reiniciar al abrir
     useEffect(() => {
@@ -16,9 +21,13 @@ export default function PaymentModal({ isOpen, onClose, total, onConfirm, staff 
             // Default waiter logic: Use initialWaiter (ID passed from AppContent)
             if (initialWaiter) {
                 setSelectedWaiterId(initialWaiter);
+                setIsLocked(true); // [NEW] Lock if auto-assigned
             } else {
                 setSelectedWaiterId('');
+                setIsLocked(false);
             }
+            setShowUnlockInput(false);
+            setUnlockPin('');
         }
     }, [isOpen, total, initialWaiter]);
 
@@ -56,8 +65,19 @@ export default function PaymentModal({ isOpen, onClose, total, onConfirm, staff 
             return;
         }
 
+        // Validación tarjeta/qr exacto
+        if ((method === 'Tarjeta' || method === 'QR') && amountToAdd > remaining && remaining > 0) {
+            // Permitir sobrepago en tarjeta? Usualmente no se da cambio de tarjeta.
+            // Asumimos que si pagan mas, es propina o error, pero el sistema calcula cambio.
+            // Advertencia opcional.
+        }
+
         // Agregar a la lista
-        const newPayment = { method, amount: amountToAdd };
+        const newPayment = {
+            id: Date.now(),
+            method,
+            amount: amountToAdd
+        };
         setPayments([...payments, newPayment]);
 
         // Calcular lo que falta para el próximo pago
@@ -66,9 +86,8 @@ export default function PaymentModal({ isOpen, onClose, total, onConfirm, staff 
         setCurrentAmount(newRemaining > 0 ? newRemaining.toFixed(2) : ''); // Limpiar o poner restante
     };
 
-    const removePayment = (index) => {
-        const newPayments = [...payments];
-        newPayments.splice(index, 1);
+    const removePayment = (id) => {
+        const newPayments = payments.filter(p => p.id !== id);
         setPayments(newPayments);
         // Al borrar, sugerimos el monto faltante nuevamente
         const currentPaid = newPayments.reduce((acc, p) => acc + p.amount, 0);
@@ -94,6 +113,21 @@ export default function PaymentModal({ isOpen, onClose, total, onConfirm, staff 
         };
 
         onConfirm(finalData);
+    };
+
+    // [NEW] PIN Verification Logic
+    const handleVerifyPin = () => {
+        // Find staff with this PIN
+        const validStaff = staff.find(s => s.pin === unlockPin);
+        if (validStaff) {
+            setIsLocked(false);
+            setShowUnlockInput(false);
+            setUnlockPin('');
+            toast.success("Desbloqueado");
+        } else {
+            toast.error("PIN Incorrecto");
+            setUnlockPin('');
+        }
     };
 
     if (!isOpen) return null;
@@ -122,19 +156,53 @@ export default function PaymentModal({ isOpen, onClose, total, onConfirm, staff 
                             <User size={12} /> Atendido Por (Comisión):
                         </label>
                         <div className="relative">
-                            <select
-                                value={selectedWaiterId}
-                                onChange={(e) => setSelectedWaiterId(e.target.value)}
-                                className="w-full p-2 bg-white border border-orange-200 rounded font-bold text-gray-800 text-sm focus:outline-none focus:border-orange-500 appearance-none"
-                            >
-                                <option value="">-- Caja / Barra --</option>
-                                {availableStaff.map(s => (
-                                    <option key={s.id} value={s.id}>
-                                        {s.name} ({s.role})
-                                    </option>
-                                ))}
-                            </select>
-                            <ChevronDown className="absolute right-2 top-2.5 text-orange-400 pointer-events-none" size={16} />
+                            {showUnlockInput ? (
+                                <div className="flex gap-2 animate-in slide-in-from-right">
+                                    <input
+                                        type="password"
+                                        placeholder="PIN Supervisor"
+                                        className="flex-1 p-2 border border-gray-300 rounded-lg text-sm text-center tracking-widest"
+                                        autoFocus
+                                        value={unlockPin}
+                                        onChange={e => setUnlockPin(e.target.value)}
+                                        onKeyDown={e => e.key === 'Enter' && handleVerifyPin()}
+                                    />
+                                    <button onClick={handleVerifyPin} className="bg-orange-600 text-white p-2 rounded-lg font-bold text-xs">OK</button>
+                                    <button onClick={() => setShowUnlockInput(false)} className="text-gray-400 p-2"><X size={16} /></button>
+                                </div>
+                            ) : (
+                                <div className="flex gap-2">
+                                    <div className="relative flex-1">
+                                        <select
+                                            value={selectedWaiterId}
+                                            onChange={(e) => setSelectedWaiterId(e.target.value)}
+                                            disabled={isLocked}
+                                            className={`w-full p-2.5 bg-gray-50 border ${isLocked ? 'border-gray-200 text-gray-500 bg-gray-100' : 'border-gray-200 text-gray-800'} rounded-lg text-sm font-bold appearance-none outline-none focus:ring-2 focus:ring-orange-500 transition-all`}
+                                        >
+                                            <option value="">-- Caja / Barra --</option>
+                                            {availableStaff.map(s => (
+                                                <option key={s.id} value={s.id}>
+                                                    {s.name} ({s.role})
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <ChevronDown className="absolute right-3 top-3 text-gray-400 pointer-events-none" size={16} />
+                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            if (isLocked) setShowUnlockInput(true);
+                                            else setIsLocked(true);
+                                        }}
+                                        className={`p-2 rounded-lg transition-colors ${isLocked ? 'bg-gray-200 text-gray-500 hover:bg-gray-300' : 'bg-green-100 text-green-600 hover:bg-green-200'}`}
+                                        title={isLocked ? "Desbloquear (Requiere PIN)" : "Bloquear selección"}
+                                    >
+                                        {isLocked ? <Lock size={18} /> : <Unlock size={18} />}
+                                    </button>
+                                </div>
+                            )}
+                            <p className="text-[10px] text-gray-400 mt-1 pl-1">
+                                {isLocked ? "🔒 Selección bloqueada por seguridad" : "🔓 Selección habilitada"}
+                            </p>
                         </div>
                     </div>
 
@@ -184,7 +252,7 @@ export default function PaymentModal({ isOpen, onClose, total, onConfirm, staff 
                     {payments.length > 0 && (
                         <div className="bg-gray-50 rounded-xl p-3 mb-4 space-y-2 max-h-40 overflow-y-auto">
                             {payments.map((p, idx) => (
-                                <div key={idx} className="flex justify-between items-center bg-white p-2 rounded border border-gray-200 shadow-sm animate-in slide-in-from-left-2">
+                                <div key={p.id} className="flex justify-between items-center bg-white p-2 rounded border border-gray-200 shadow-sm animate-in slide-in-from-left-2">
                                     <span className="font-bold text-xs text-gray-700 uppercase flex items-center gap-2">
                                         {p.method === 'Cortesía' ? <Gift size={14} className="text-yellow-500" /> : <Check size={14} className="text-green-500" />}
                                         {p.method}
