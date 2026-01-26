@@ -36,7 +36,7 @@ export default function AppContent() {
     // 1. Context Consumption
     const { currentUser, staffMember, setStaffMember, isAuthModalOpen, setIsAuthModalOpen, login, logout, staffLogin, prepareCredentialPrint, credentialToPrint, markAttendance } = useAuth();
     const {
-        items, staff, categories, roles, tables, expenseTypes, activeServices,
+        items, staff, categories, roles, tables, tableZones, expenseTypes, activeServices,
         logo, appName, autoLockTime, printerType, commissionTiers,
         isLoadingData, dbStatus,
         handleQuickUpdate, handleSaveItem, handleDeleteItem,
