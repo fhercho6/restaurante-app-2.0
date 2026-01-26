@@ -74,6 +74,7 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
             const staffComboUtility = {};
             const staffStandardSales = {};
             const staffComboSales = {};
+            const staffSoldItems = {}; // { waiterName: { itemId: { name, qty, total } } }
 
             // 2. Identify Commissioned Staff
             const commissionedStaff = staff.filter(s => s.commissionEnabled);
@@ -110,6 +111,15 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                                 staffStandardUtility[waiterName] += utility;
                                 staffStandardSales[waiterName] += total;
                             }
+
+                            // Aggregate Items for Receipt
+                            if (!staffSoldItems[waiterName]) staffSoldItems[waiterName] = {};
+                            const key = item.name; // Agrupar por nombre exacto
+                            if (!staffSoldItems[waiterName][key]) {
+                                staffSoldItems[waiterName][key] = { name: item.name, qty: 0, total: 0, isCombo };
+                            }
+                            staffSoldItems[waiterName][key].qty += qty;
+                            staffSoldItems[waiterName][key].total += total;
                         });
                     }
                 }
@@ -138,10 +148,14 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                 // Totals
                 const stdCommission = stdUtility * stdRate;
                 const cmbCommission = cmbUtility * cmbRate;
-                const totalCommission = stdCommission + cmbCommission;
+                const staffMember = staff.find(s => s.name === name);
+                const baseSalary = (staffMember && staffMember.salaryEnabled) ? (staffMember.dailySalary || 0) : 0;
 
                 const grandTotalSales = stdSales + cmbSales;
                 const grandTotalUtility = stdUtility + cmbUtility;
+                const totalCommission = stdCommission + cmbCommission + baseSalary;
+
+                const soldItemsList = Object.values(staffSoldItems[name] || {}).sort((a, b) => b.total - a.total);
 
                 const paid = paidSoFar[name] || 0;
                 const pending = totalCommission - paid;
@@ -168,9 +182,11 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                     paid,            // Already paid
                     pending,         // Raw pending (can be negative)
                     history: paymentHistory[name] || [], // List of past payments
-                    commissionAmount: pending > 0.01 ? pending : 0 // Payable now
+                    commissionAmount: pending > 0.01 ? pending : 0, // Payable now
+                    soldItemsList, // [NEW] Detailed list
+                    baseSalary // [NEW] Fixed Daily Salary
                 };
-            }).filter(d => d.salesTotal > 0 || d.paid > 0);
+            }).filter(d => d.salesTotal > 0 || d.paid > 0 || d.baseSalary > 0);
 
             setCommissionData(details);
 
@@ -213,10 +229,38 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                     breakdownHtml += `VENTAS: Bs. ${data.stdSales.toFixed(2)}<br/>`;
                     breakdownHtml += `UTILIDAD: Bs. ${data.stdUtility.toFixed(2)}<br/>`;
                     breakdownHtml += `COMISIÓN (${(data.stdRate * 100).toFixed(0)}%): Bs. ${data.stdCommission.toFixed(2)}<br/>`;
+                    breakdownHtml += `COMISIÓN (${(data.stdRate * 100).toFixed(0)}%): Bs. ${data.stdCommission.toFixed(2)}<br/>`;
                 } else {
+                    // Standard Logic
                     breakdownHtml += `VENTAS TOTALES: Bs. ${data.salesTotal.toFixed(2)}<br/>`;
                     breakdownHtml += `UTILIDAD BASE: Bs. ${data.utility.toFixed(2)}<br/>`;
                     breakdownHtml += `TASA APLICADA: ${(data.stdRate * 100).toFixed(0)}%<br/>`;
+                    breakdownHtml += `COMISIÓN: Bs. ${data.stdCommission.toFixed(2)}<br/>`;
+                }
+
+                if (data.baseSalary > 0) {
+                    breakdownHtml += `<br/><b>SUELDO BASE: Bs. ${data.baseSalary.toFixed(2)}</b><br/>`;
+                }
+
+                // [NEW] Product Detail Table
+                if (data.soldItemsList && data.soldItemsList.length > 0) {
+                    breakdownHtml += `<br/><b>--- DETALLE VENTAS ---</b><br/>`;
+                    breakdownHtml += `<table style="width:100%; font-size: 0.9em; border-collapse: collapse;">`;
+                    // Header
+                    breakdownHtml += `<tr style="border-bottom: 1px dashed #000;">
+                        <td style="text-align:left; width:15%">Cant</td>
+                        <td style="text-align:left; width:60%">Prod</td>
+                        <td style="text-align:right; width:25%">Tot</td>
+                    </tr>`;
+
+                    data.soldItemsList.forEach(item => {
+                        breakdownHtml += `<tr>
+                            <td style="text-align:left">${item.qty}</td>
+                            <td style="text-align:left">${item.name.substring(0, 18)}</td>
+                            <td style="text-align:right">${item.total.toFixed(0)}</td>
+                        </tr>`;
+                    });
+                    breakdownHtml += `</table><br/>`;
                 }
 
                 const success = await addExpense(descText, totalPay, 'Comisiones', breakdownHtml);
@@ -296,6 +340,7 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                                             <th className="px-4 py-3 text-center">%</th>
                                             <th className="px-4 py-3 text-right text-gray-400 hidden sm:table-cell">Total</th>
                                             <th className="px-4 py-3 text-right text-green-600 hidden sm:table-cell">Pagado</th>
+                                            <th className="px-4 py-3 text-right text-gray-400 hidden sm:table-cell">Sueldo Base</th>
                                             <th className="px-4 py-3 text-right font-black">Pendiente</th>
                                             <th className="px-4 py-3 text-center bg-orange-50 text-orange-800 border-l border-orange-100">Pasaje (Bs)</th>
                                             <th className="px-4 py-3 text-center">Acción</th>
@@ -313,6 +358,7 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                                                     </td>
                                                     <td className="px-4 py-3 text-right text-gray-400 hidden sm:table-cell">Bs. {d.totalCommission.toFixed(2)}</td>
                                                     <td className="px-4 py-3 text-right text-green-600 font-medium hidden sm:table-cell">Bs. {d.paid.toFixed(2)}</td>
+                                                    <td className="px-4 py-3 text-right text-gray-500 font-medium hidden sm:table-cell">{d.baseSalary > 0 ? `Bs. ${d.baseSalary.toFixed(2)}` : '-'}</td>
                                                     <td className={`px-4 py-3 text-right font-black text-lg ${d.pending < 0 ? 'text-red-500' : 'text-gray-900'}`}>
                                                         {d.pending < 0 ? `(${Math.abs(d.pending).toFixed(2)})` : `Bs. ${d.pending.toFixed(2)}`}
                                                     </td>

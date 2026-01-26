@@ -14,7 +14,7 @@ export default function StaffManagerView({
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [currentMember, setCurrentMember] = useState(null);
-  const [formData, setFormData] = useState({ name: '', role: 'Garzón', pin: '', cardId: '', dailySalary: '', commissionEnabled: false, photoUrl: '' });
+  const [formData, setFormData] = useState({ name: '', role: 'Garzón', pin: '', cardId: '', dailySalary: '', commissionEnabled: false, salaryEnabled: false, photoUrl: '' });
 
   // Commission Modal State
   const [isCommissionModalOpen, setIsCommissionModalOpen] = useState(false);
@@ -86,7 +86,7 @@ export default function StaffManagerView({
   };
 
   const resetForm = () => {
-    setFormData({ name: '', role: 'Garzón', pin: '', cardId: '', dailySalary: '', commissionEnabled: false, photoUrl: '' });
+    setFormData({ name: '', role: 'Garzón', pin: '', cardId: '', dailySalary: '', commissionEnabled: false, salaryEnabled: false, photoUrl: '' });
     setIsEditing(false);
     setCurrentMember(null);
   };
@@ -99,6 +99,7 @@ export default function StaffManagerView({
       cardId: member.cardId || '',
       dailySalary: member.dailySalary || '',
       commissionEnabled: !!member.commissionEnabled,
+      salaryEnabled: !!member.salaryEnabled,
       photoUrl: member.photoUrl || ''
     });
     setCurrentMember(member);
@@ -222,6 +223,10 @@ export default function StaffManagerView({
                   <span className="absolute left-3 top-2.5 text-gray-400 font-bold text-sm">Bs.</span>
                   <input type="number" placeholder="0.00" className="w-full pl-10 p-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition-all font-mono font-bold text-green-700 text-lg" value={formData.dailySalary} onChange={e => setFormData({ ...formData, dailySalary: e.target.value })} disabled={isSaving} />
                 </div>
+                <div className="flex items-center gap-2 mt-2">
+                  <input type="checkbox" id="salaryEnabled" className="w-4 h-4 text-green-600 rounded focus:ring-green-500" checked={formData.salaryEnabled || false} onChange={e => setFormData({ ...formData, salaryEnabled: e.target.checked })} disabled={isSaving} />
+                  <label htmlFor="salaryEnabled" className="text-xs font-bold text-gray-700 select-none cursor-pointer">Habilitar Sueldo Base</label>
+                </div>
               </div>
 
               <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
@@ -286,6 +291,11 @@ export default function StaffManagerView({
               <div>
                 <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">Pago Diario</p>
                 <p className="font-mono font-bold text-gray-700">Bs. {parseFloat(member.dailySalary || 0).toFixed(2)}</p>
+                {member.salaryEnabled ? (
+                  <span className="text-[9px] font-bold text-white bg-green-500 px-1.5 py-0.5 rounded ml-1">ACTIVO</span>
+                ) : (
+                  <span className="text-[9px] font-bold text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded ml-1">OFF</span>
+                )}
               </div>
               <div>
                 <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">Comisiones</p>

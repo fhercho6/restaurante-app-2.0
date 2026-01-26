@@ -115,6 +115,15 @@
         *   **Corrección Bug Admin:**
             *   **Edición Rápida de Stock:** Se arregló el fallo donde al editar el stock desde la tabla principal no se guardaba o no refrescaba la vista. Ahora usa inputs controlados y feedback de guardado (icono diskette).
 
+    17. **Sesión: 25 de Enero 2026 (Comisiones y Sueldos):**
+        *   **Sueldo Base + Comisión:** Se implementó un modelo híbrido para días con baja venta.
+            *   **Configuración:** Nuevo toggle "Habilitar Sueldo Base" en la ficha de Personal.
+            *   **Lógica:** Si está activo, el sistema suma `Comisión + Sueldo Diario` al total a pagar.
+        *   **Recibos de Comisión Detallados:**
+            *   Ahora el ticket de pago incluye una tabla compacta con el **Detalle de Productos Vendidos** por el garzón.
+            *   Formato optimizado para impresora térmica (Cant | Prod | Tot).
+        *   **Transparencia:** El garzón puede ver exactamente qué vendió y de dónde sale su comisión.
+
 ---
 
 ## 🛠️ Instrucciones para la Nueva PC

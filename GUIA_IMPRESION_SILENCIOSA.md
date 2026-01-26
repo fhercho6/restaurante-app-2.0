@@ -33,11 +33,21 @@ Esto se llama **"Kiosk Printing"** y es ideal para Puntos de Venta.
 3. Intenta reimprimir un ticket.
 4. **¡Debería salir directo!** ⚡
 
----
+## ⚠️ ¿No funciona con "chrome_proxy.exe"? (Solución Definitiva)
 
-## 💡 Nota sobre Pantalla Completa
-Si además quieres que la app inicie siempre en pantalla completa (sin bordes), puedes agregar también:
+Si al agregar el comando sigue saliendo la ventana de impresión, es porque Chrome Proxy ignora esa configuración.
 
-`--kiosk --kiosk-printing`
+**Solución: Crear Acceso Directo Manual**
 
-Esto bloqueará el uso de otras ventanas (ideal para cajeros). Para salir de este modo, usa `Alt + F4`.
+1.  **Borra** el acceso directo que no funciona.
+2.  Haz click derecho en el Escritorio > **Nuevo** > **Acceso directo**.
+3.  En "Escriba la ubicación del elemento", pega esto (ajustando la ruta si es necesario):
+
+    ```
+    "C:\Program Files\Google\Chrome\Application\chrome.exe" --app=https://restaurante-app-2-0.vercel.app --kiosk-printing
+    ```
+
+    *(Asegúrate de que la URL `https://...` sea la correcta de tu sistema).*
+
+4.  Dale a **Siguiente**, ponle nombre "Caja Zzif" y **Finalizar**.
+5.  ¡Listo! Este acceso directo obliga a Chrome a usar el modo silencioso.
