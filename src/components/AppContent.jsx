@@ -1058,7 +1058,14 @@ export default function AppContent() {
 
             {/* SHARED MODALS */}
             <OpenRegisterModal isOpen={isOpenRegisterModalOpen} onClose={() => { }} onOpenRegister={handleOpenRegister} />
-            <PaymentModal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} total={orderToPay ? orderToPay.total : (pendingSale ? pendingSale.cart.reduce((acc, i) => acc + (i.price * i.qty), 0) : 0)} onConfirm={handleFinalizeSale} />
+            <PaymentModal
+                isOpen={isPaymentModalOpen}
+                onClose={() => setIsPaymentModalOpen(false)}
+                total={orderToPay ? orderToPay.total : (pendingSale ? pendingSale.cart.reduce((acc, i) => acc + (i.price * i.qty), 0) : 0)}
+                onConfirm={handleFinalizeSale}
+                staff={staff}
+                initialWaiter={orderToPay?.staffId || staffMember?.id}
+            />
             <PrinterSettingsModal isOpen={isPrinterSettingsOpen} onClose={() => setIsPrinterSettingsOpen(false)} currentType={printerType} onSelect={onSavePrinterFormat} />
 
             <ProductModal
