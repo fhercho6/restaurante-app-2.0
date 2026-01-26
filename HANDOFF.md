@@ -133,6 +133,18 @@
             *   **PAGADO:** Para tickets finales entregados al cliente tras el cobro.
             *   Se eliminó el nombre del negocio del título para dar prioridad al estado del documento.
 
+    19. **Sesión: 26 de Enero 2026 (Separación de Ambientes - Salón/Licobar):**
+        *   **Zonificación de Ingresos:**
+            *   **Configuración:** En "Gestionar Mesas" ahora se puede asignar cada mesa a una **Zona** ('Salón' o 'Licobar').
+            *   **Automático:** Al seleccionar una mesa en el POS, la venta se vincula internamente a esa zona.
+        *   **Punto de Venta (POS):**
+            *   **Selector Obligatorio:** Se añadió un dropdown de "Mesa" en la comanda. Esto previene ventas "huérfanas" y asegura que todo ingreso tenga una zona asignada.
+        *   **Reporte Z Detallado:**
+            *   **Desglose por Ambientes:** El cierre de caja ahora incluye una nueva sección **"VENTAS POR ZONA"** que separa cuánto se vendió en Salón vs Licobar.
+            *   **Multi-formato:** Disponible tanto en el reporte impreso (térmico) como en la vista previa (carta).
+        *   **Corrección de Bugs:**
+            *   **ReferenceError:** Se solucionó el error crítico `tableZones is not defined` que impedía cargar la app tras la actualización.
+
 ---
 
 ## 🛠️ Instrucciones para la Nueva PC
