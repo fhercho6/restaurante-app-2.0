@@ -313,8 +313,9 @@ export const RoleManager = ({ isOpen, onClose, roles, onAdd, onRename, onDelete 
 };
 
 // --- 5. TABLE MANAGER ---
-export const TableManager = ({ isOpen, onClose, tables, onAdd, onRename, onDelete }) => {
+export const TableManager = ({ isOpen, onClose, tables, tableZones = {}, onAdd, onRename, onDelete, onUpdateZone }) => {
     const [newTable, setNewTable] = useState('');
+    const [newZone, setNewZone] = useState('Salón');
     const [editingIndex, setEditingIndex] = useState(null);
     const [editName, setEditName] = useState('');
 
@@ -334,33 +335,53 @@ export const TableManager = ({ isOpen, onClose, tables, onAdd, onRename, onDelet
                         placeholder="Ej. Terraza 1"
                         value={newTable}
                         onChange={e => setNewTable(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter' && newTable) { onAdd(newTable); setNewTable('') } }}
+                        onKeyDown={e => { if (e.key === 'Enter' && newTable) { onAdd(newTable, newZone); setNewTable('') } }}
                     />
-                    <button onClick={() => { if (newTable) { onAdd(newTable); setNewTable('') } }} className="bg-purple-600 text-white p-2 rounded-lg hover:bg-purple-700"><Plus size={20} /></button>
+                    <select
+                        className="p-2 border rounded-lg text-sm font-bold text-gray-700 outline-none focus:ring-2 focus:ring-purple-500"
+                        value={newZone}
+                        onChange={e => setNewZone(e.target.value)}
+                    >
+                        <option value="Salón">Salón</option>
+                        <option value="Licobar">Licobar</option>
+                    </select>
+                    <button onClick={() => { if (newTable) { onAdd(newTable, newZone); setNewTable('') } }} className="bg-purple-600 text-white p-2 rounded-lg hover:bg-purple-700"><Plus size={20} /></button>
                 </div>
 
                 <div className="max-h-[60vh] overflow-y-auto p-2 space-y-2">
-                    {tables.map((table, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-3 bg-white border rounded-xl shadow-sm group hover:border-purple-200 transition-colors">
-                            {editingIndex === idx ? (
-                                <input
-                                    className="flex-1 border-b-2 border-purple-500 outline-none font-bold text-purple-900 uppercase"
-                                    autoFocus
-                                    value={editName}
-                                    onChange={e => setEditName(e.target.value)}
-                                    onBlur={() => { if (editName) onRename(idx, editName); setEditingIndex(null) }}
-                                    onKeyDown={e => { if (e.key === 'Enter' && editName) { onRename(idx, editName); setEditingIndex(null) } }}
-                                />
-                            ) : (
-                                <span className="font-bold text-gray-700 flex-1 uppercase">{table}</span>
-                            )}
+                    {tables.map((table, idx) => {
+                        const currentZone = tableZones[table] || 'Salón';
+                        const isLicobar = currentZone === 'Licobar';
+                        return (
+                            <div key={idx} className="flex items-center justify-between p-3 bg-white border rounded-xl shadow-sm group hover:border-purple-200 transition-colors">
+                                <div className="flex-1 flex flex-col">
+                                    {editingIndex === idx ? (
+                                        <input
+                                            className="border-b-2 border-purple-500 outline-none font-bold text-purple-900 uppercase"
+                                            autoFocus
+                                            value={editName}
+                                            onChange={e => setEditName(e.target.value)}
+                                            onBlur={() => { if (editName) onRename(idx, editName); setEditingIndex(null) }}
+                                            onKeyDown={e => { if (e.key === 'Enter' && editName) { onRename(idx, editName); setEditingIndex(null) } }}
+                                        />
+                                    ) : (
+                                        <span className="font-bold text-gray-700 uppercase">{table}</span>
+                                    )}
+                                    <button
+                                        onClick={() => onUpdateZone && onUpdateZone(table, isLicobar ? 'Salón' : 'Licobar')}
+                                        className={`text-[10px] font-black uppercase w-fit px-1.5 py-0.5 rounded mt-1 border ${isLicobar ? 'bg-purple-50 text-purple-600 border-purple-100' : 'bg-green-50 text-green-600 border-green-100'}`}
+                                    >
+                                        {currentZone} <span className="underline opacity-50 cursor-pointer hover:opacity-100">(Cambiar)</span>
+                                    </button>
+                                </div>
 
-                            <div className="flex gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={() => { setEditingIndex(idx); setEditName(table) }} className="text-blue-500 hover:bg-blue-50 p-1.5 rounded"><Edit2 size={16} /></button>
-                                <button onClick={() => { if (window.confirm('¿Borrar esta mesa?')) onDelete(idx) }} className="text-red-500 hover:bg-red-50 p-1.5 rounded"><Trash2 size={16} /></button>
+                                <div className="flex gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={() => { setEditingIndex(idx); setEditName(table) }} className="text-blue-500 hover:bg-blue-50 p-1.5 rounded"><Edit2 size={16} /></button>
+                                    <button onClick={() => { if (window.confirm('¿Borrar esta mesa?')) onDelete(idx) }} className="text-red-500 hover:bg-red-50 p-1.5 rounded"><Trash2 size={16} /></button>
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                     {tables.length === 0 && <p className="text-center text-gray-400 py-4 text-sm">No hay mesas registradas</p>}
                 </div>
             </div>

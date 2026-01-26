@@ -80,8 +80,15 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
             return list.map(e => `<tr><td style="padding:5px 0;">• ${e.description}</td><td style="text-align:right;padding:5px 0;">${fmt(e.amount)}</td></tr>`).join('');
         };
 
+        const renderZoneRows = () => {
+            const zones = data.zoneStats || {};
+            if (Object.keys(zones).length === 0) return '<tr><td colspan="2" style="font-style:italic;text-align:center;">- Sin datos -</td></tr>';
+            return Object.entries(zones).map(([zone, amount]) => `<tr><td>${zone}</td><td class="text-right">${fmt(amount)}</td></tr>`).join('');
+        };
+
         const operatingRows = renderExpenseRows(operatingExpenses);
         const commissionRows = renderExpenseRows(commissionExpenses);
+        const zoneRows = renderZoneRows();
 
         return `
         <html>
@@ -149,6 +156,13 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                             <tr><td>VENTAS TARJETA</td><td class="text-right">${fmt(stats.cardSales)}</td></tr>
                             <tr><td>VENTAS RESERVA</td><td class="text-right">${fmt(stats.reservationSales || 0)}</td></tr>
                             <tr class="row-total"><td>TOTAL INGRESOS</td><td class="text-right">${fmt(data.openingAmount + stats.cashSales + stats.qrSales + stats.cardSales + (stats.reservationSales || 0))}</td></tr>
+                        </table>
+                    </div>
+
+                    <div class="box" style="margin-top: 20px;">
+                        <div class="box-header">IA. VENTAS POR ZONA</div>
+                        <table class="table-clean">
+                            ${zoneRows}
                         </table>
                     </div>
 
@@ -258,6 +272,10 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
         let reportBody = '';
 
         if (data.type === 'z-report') {
+            // New Zone Breakdown for Thermal
+            const zones = data.zoneStats || {};
+            const zoneHtml = Object.entries(zones).map(([z, a]) => `<div class="flex-between"><span>> ${z}:</span><span>${fmt(a)}</span></div>`).join('');
+
             reportBody = `
                 <div class="flex-between"><span>Fondo Inicial:</span><span>${fmt(data.openingAmount)}</span></div>
                 <div class="flex-between bold"><span>(+) Ventas:</span><span>${fmt((stats.cashSales || 0) + (stats.digitalSales || 0))}</span></div>
@@ -266,6 +284,7 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                     <div class="flex-between"><span>- Digital:</span><span>${fmt((stats.qrSales || 0) + (stats.cardSales || 0))}</span></div>
                     <div class="flex-between font-bold"><span>- Reservas:</span><span>${fmt(stats.reservationSales)}</span></div>
                 </div>
+                ${zoneHtml ? `<div class="border-b" style="margin:5px 0;"></div><div class="bold text-center">POR ZONA</div><div style="font-size:10px;">${zoneHtml}</div>` : ''}
                 <div class="flex-between"><span>(-) Gastos:</span><span>${fmt(stats.totalExpenses)}</span></div>
                 <div class="border-b" style="margin:5px 0;"></div>
                 <div class="flex-between bold" style="font-size:18px;"><span>CAJA:</span><span>Bs. ${fmt(data.finalCash)}</span></div>

@@ -25,6 +25,7 @@ export const DataProvider = ({ children }) => {
     const [categories, setCategories] = useState(INITIAL_CATEGORIES);
     const [roles, setRoles] = useState(INITIAL_ROLES);
     const [tables, setTables] = useState(INITIAL_TABLES);
+    const [tableZones, setTableZones] = useState({}); // { "Mesa 1": "Salón", ... }
     const [expenseTypes, setExpenseTypes] = useState(INITIAL_EXPENSE_TYPES);
     const [activeServices, setActiveServices] = useState([]);
     const [logo, setLogo] = useState(null);
@@ -66,7 +67,10 @@ export const DataProvider = ({ children }) => {
                 const dt = d.data();
                 if (d.id === 'categories') setCategories(dt.list);
                 else if (d.id === 'roles') setRoles(dt.list);
-                else if (d.id === 'tables') setTables(dt.list);
+                else if (d.id === 'tables') {
+                    setTables(dt.list || []);
+                    setTableZones(dt.zones || {});
+                }
                 else if (d.id === 'expenses') setExpenseTypes(dt.list);
                 else if (d.id === 'branding') {
                     setLogo(dt.logo);
@@ -133,7 +137,7 @@ export const DataProvider = ({ children }) => {
     const handleDeleteStaff = async (id) => { if (window.confirm("¿Eliminar?")) { await deleteDoc(doc(db, getCollName('staff'), id)); toast.success('Borrado'); } };
 
     // Settings logic helpers... could be refactored further but kept here for now
-    const updateSettingsList = (docId, list) => setDoc(doc(db, getCollName('settings'), docId), { list });
+    const updateSettingsList = (docId, list) => setDoc(doc(db, getCollName('settings'), docId), { list }, { merge: true });
 
     const handleAddCategory = (n) => updateSettingsList('categories', [...categories, n]);
     const handleRenameCategory = (i, n) => { const l = [...categories]; l[i] = n; updateSettingsList('categories', l); };
@@ -143,9 +147,42 @@ export const DataProvider = ({ children }) => {
     const handleRenameRole = (i, n) => { const l = [...roles]; l[i] = n; updateSettingsList('roles', l); };
     const handleDeleteRole = (i) => { const l = roles.filter((_, x) => x !== i); updateSettingsList('roles', l); };
 
-    const handleAddTable = (n) => updateSettingsList('tables', [...tables, n]);
-    const handleRenameTable = (i, n) => { const l = [...tables]; l[i] = n; updateSettingsList('tables', l); };
-    const handleDeleteTable = (i) => { const l = tables.filter((_, x) => x !== i); updateSettingsList('tables', l); };
+    // Table & Zone Management
+    const handleAddTable = (n, zone = 'Salón') => {
+        const newTables = [...tables, n];
+        const newZones = { ...tableZones, [n]: zone };
+        setDoc(doc(db, getCollName('settings'), 'tables'), { list: newTables, zones: newZones });
+    };
+
+    const handleRenameTable = (i, n) => {
+        const oldName = tables[i];
+        const newTables = [...tables];
+        newTables[i] = n;
+
+        const newZones = { ...tableZones };
+        // Transfer zone to new name
+        if (newZones[oldName]) {
+            newZones[n] = newZones[oldName];
+            delete newZones[oldName];
+        } else {
+            newZones[n] = 'Salón'; // Default if missing
+        }
+
+        setDoc(doc(db, getCollName('settings'), 'tables'), { list: newTables, zones: newZones });
+    };
+
+    const handleDeleteTable = (i) => {
+        const nameToDelete = tables[i];
+        const newTables = tables.filter((_, x) => x !== i);
+        const newZones = { ...tableZones };
+        delete newZones[nameToDelete];
+        setDoc(doc(db, getCollName('settings'), 'tables'), { list: newTables, zones: newZones });
+    };
+
+    const handleUpdateTableZone = (tableName, zone) => {
+        const newZones = { ...tableZones, [tableName]: zone };
+        setDoc(doc(db, getCollName('settings'), 'tables'), { list: tables, zones: newZones }, { merge: true });
+    };
 
     const handleAddExpenseType = (n) => updateSettingsList('expenses', [...expenseTypes, n]);
     const handleRenameExpenseType = (i, n) => { const l = [...expenseTypes]; l[i] = n; updateSettingsList('expenses', l); };
@@ -156,14 +193,14 @@ export const DataProvider = ({ children }) => {
     const handleSaveCommissionTiers = (tiers) => { setCommissionTiers(tiers); setDoc(doc(db, getCollName('settings'), 'commissions'), { tiers }); toast.success('Tabla de Comisiones Guardada'); };
 
     const value = {
-        items, staff, categories, roles, tables, expenseTypes, activeServices,
+        items, staff, categories, roles, tables, tableZones, expenseTypes, activeServices,
         logo, appName, autoLockTime, printerType, commissionTiers,
         isLoadingData, dbStatus,
         handleQuickUpdate, handleSaveItem, handleDeleteItem,
         handleAddStaff, handleUpdateStaff, handleDeleteStaff,
         handleAddCategory, handleRenameCategory, handleDeleteCategory,
         handleAddRole, handleRenameRole, handleDeleteRole,
-        handleAddTable, handleRenameTable, handleDeleteTable,
+        handleAddTable, handleRenameTable, handleDeleteTable, handleUpdateTableZone,
         handleAddExpenseType, handleRenameExpenseType, handleDeleteExpenseType,
         handleSaveBranding, handleSavePrinterType, handleSaveCommissionTiers,
         getCollName // Exporting if needed by other components

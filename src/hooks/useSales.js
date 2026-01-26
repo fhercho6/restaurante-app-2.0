@@ -8,7 +8,7 @@ import { useRegister } from '../context/RegisterContext';
 
 export const useSales = () => {
     const { currentUser, staffMember } = useAuth();
-    const { items, getCollName, appName } = useData();
+    const { items, getCollName, appName, tableZones } = useData();
     const { registerSession, setSessionStats } = useRegister();
 
     const processSale = async (paymentResult, orderToPay, pendingSale) => {
@@ -57,6 +57,18 @@ export const useSales = () => {
                 }
             }
 
+            // Determine Table and Zone
+            let finalTableName = null;
+            let finalZone = 'Salón'; // Default
+
+            if (orderToPay) {
+                finalTableName = orderToPay.tableName || null;
+                finalZone = orderToPay.zone || (finalTableName ? (tableZones[finalTableName] || 'Salón') : 'Salón');
+            } else if (pendingSale) {
+                finalTableName = pendingSale.tableName || null;
+                finalZone = pendingSale.zone || (finalTableName ? (tableZones[finalTableName] || 'Salón') : 'Salón');
+            }
+
             // Limpiar items para guardar en historial
             const cleanItems = itemsToProcess.map(item => ({
                 id: item.id || 'unknown',
@@ -84,7 +96,9 @@ export const useSales = () => {
                 payments: paymentsList || [],
                 totalPaid: parseFloat(totalPaid) || 0,
                 changeGiven: parseFloat(change) || 0,
-                orderId: originalOrderId
+                orderId: originalOrderId,
+                tableName: finalTableName,
+                zone: finalZone
             };
 
             const docRef = await addDoc(collection(db, isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`), saleData);
@@ -138,7 +152,9 @@ export const useSales = () => {
                 total: totalToProcess,
                 payments: paymentsList,
                 change: change,
-                autoPrint: true
+                autoPrint: true,
+                tableName: finalTableName,
+                zone: finalZone
             };
 
             toast.success('Cobro exitoso', { id: toastId });
@@ -168,7 +184,7 @@ export const useSales = () => {
         }
     };
 
-    const createOrder = async (cart, clearCart) => {
+    const createOrder = async (cart, clearCart, tableName = null) => {
         if (!registerSession) return null;
         if (cart.length === 0) return null;
 
@@ -180,6 +196,9 @@ export const useSales = () => {
             const waiterId = staffMember ? staffMember.id : 'anon';
             const waiterName = staffMember ? staffMember.name : 'Mesero';
 
+            // Resolve Zone
+            const zone = tableName ? (tableZones[tableName] || 'Salón') : 'Salón';
+
             const orderData = {
                 date: new Date().toISOString(),
                 staffId: waiterId,
@@ -187,7 +206,9 @@ export const useSales = () => {
                 orderId: orderIdVal,
                 items: cart,
                 total: totalOrder,
-                status: 'pending' // Esto hace que aparezca en caja
+                status: 'pending', // Esto hace que aparezca en caja
+                tableName: tableName,
+                zone: zone
             };
 
             await addDoc(collection(db, isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`), orderData);

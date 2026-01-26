@@ -22,7 +22,8 @@ export const RegisterProvider = ({ children }) => {
         cashSales: 0, qrSales: 0, cardSales: 0, digitalSales: 0,
         totalExpenses: 0, totalCostOfGoods: 0,
         courtesyTotal: 0, courtesyCost: 0,
-        expensesList: [], soldProducts: []
+        expensesList: [], soldProducts: [],
+        zoneStats: {} // [NEW] Track Zone Revenue
     });
     const [isOpenRegisterModalOpen, setIsOpenRegisterModalOpen] = useState(false);
 
@@ -46,12 +47,25 @@ export const RegisterProvider = ({ children }) => {
         const uS = onSnapshot(qS, (s) => {
             let c = 0, q = 0, k = 0, r = 0, d = 0, ct = 0, cc = 0, cg = 0;
             const pm = {};
+            const zs = {}; // Zone Stats accumulator
 
             s.forEach(d => {
                 const v = d.data();
                 const ic = v.payments?.some(p => p.method === 'Cortesía');
+                const zone = v.zone || 'Salón'; // Default zone
 
+                // Track Zone Revenue (Only active sales, exclude voids if they exist here? Query gets everything?)
+                // Assuming "sales" collection only has valid sales. Voids are usually deleted or moved?
+                // useSales: processSale adds to sales. voidOrder deletes from pending_orders.
+                // Does voidOrder delete from sales? No, voidOrder is for pending.
+                // If a sale is refunded? We don't have refund logic yet in these files.
+
+                // Aggregating Totals
                 if (!ic) {
+                    const totalSale = parseFloat(v.total) || 0;
+                    if (!zs[zone]) zs[zone] = 0;
+                    zs[zone] += totalSale;
+
                     if (v.payments) {
                         v.payments.forEach(p => {
                             const a = parseFloat(p.amount);
@@ -112,7 +126,8 @@ export const RegisterProvider = ({ children }) => {
                 totalCostOfGoods: cg,
                 courtesyTotal: ct,
                 courtesyCost: cc,
-                soldProducts: soldArray
+                soldProducts: soldArray,
+                zoneStats: zs // [NEW]
             }));
         });
 
@@ -192,13 +207,14 @@ export const RegisterProvider = ({ children }) => {
                 openingNote: registerSession.openingNote || '', // [NEW] Pass Note to Report
                 finalCash: finalCash,
                 stats: sessionStats,
+                zoneStats: sessionStats.zoneStats || {}, // [NEW] Pass Zone Stats
                 expensesList: sessionStats.expensesList,
                 soldProducts: sessionStats.soldProducts,
                 autoPrint: true
             };
 
             setRegisterSession(null);
-            setSessionStats({ cashSales: 0, qrSales: 0, cardSales: 0, digitalSales: 0, totalExpenses: 0, totalCostOfGoods: 0, courtesyTotal: 0, courtesyCost: 0, expensesList: [], soldProducts: [] });
+            setSessionStats({ cashSales: 0, qrSales: 0, cardSales: 0, digitalSales: 0, totalExpenses: 0, totalCostOfGoods: 0, courtesyTotal: 0, courtesyCost: 0, expensesList: [], soldProducts: [], zoneStats: {} });
 
             return zReportData; // Return Z-Report for printing
         } catch (error) {

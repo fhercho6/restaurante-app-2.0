@@ -1,16 +1,17 @@
 // src/components/POSInterface.jsx - TIEMPO DE CIERRE CONFIGURABLE
 import React, { useState, useEffect } from 'react';
-import { Search, ShoppingCart, Trash2, ChevronLeft, Send, ChefHat, ChevronDown, ChevronUp, Plus, Minus, Lock } from 'lucide-react';
+import { Search, ShoppingCart, Trash2, ChevronLeft, Send, ChefHat, ChevronDown, ChevronUp, Plus, Minus, Lock, LayoutGrid } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ImageWithLoader from './ImageWithLoader'; // [NEW]
 
 // AHORA RECIBE "autoLockTime" COMO PROP
-export default function POSInterface({ items, categories, staffMember, onCheckout, onPrintOrder, onExit, autoLockTime = 45 }) {
+export default function POSInterface({ items, categories, staffMember, tables = [], onCheckout, onPrintOrder, onExit, autoLockTime = 45 }) {
   const [cart, setCart] = useState([]);
   const [categoryFilter, setCategoryFilter] = useState('Todos');
   const [searchTerm, setSearchTerm] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [expandCategories, setExpandCategories] = useState(false);
+  const [selectedTable, setSelectedTable] = useState(''); // [NEW] Selected Table
 
   const canCharge = staffMember?.role === 'Cajero' || staffMember?.role === 'Administrador';
 
@@ -113,17 +114,29 @@ export default function POSInterface({ items, categories, staffMember, onCheckou
   // --- AUTO-LOGOUT AL ENVIAR ---
   const handleSendOrderSafe = async () => {
     if (isProcessing) return;
+    // [NEW] Require table selection if tables exist
+    if (tables.length > 0 && !selectedTable && !canCharge) {
+      toast.error("Selecciona una mesa por favor 🛑");
+      return;
+    }
+
     setIsProcessing(true);
     try {
-      await onPrintOrder(cart, setCart);
-      // [FIX] Removed premature onExit() that killed printing. 
-      // AppContent handles transition to Receipt view.
+      await onPrintOrder(cart, setCart, selectedTable); // [UPDATED] Pass selectedTable
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const handleCheckoutSafe = async () => { if (isProcessing) return; setIsProcessing(true); try { await onCheckout(cart, setCart); } finally { setIsProcessing(false); } };
+  const handleCheckoutSafe = async () => {
+    if (isProcessing) return;
+    setIsProcessing(true);
+    try {
+      await onCheckout(cart, setCart, selectedTable);  // [UPDATED] Pass selectedTable
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const filteredItems = items.filter(i => { const matchesCat = categoryFilter === 'Todos' ? true : i.category === categoryFilter; const matchesSearch = i.name.toLowerCase().includes(searchTerm.toLowerCase()); return matchesCat && matchesSearch; });
   const cartTotal = cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
@@ -160,7 +173,28 @@ export default function POSInterface({ items, categories, staffMember, onCheckou
 
       {/* DERECHA: COMANDA */}
       <div className="w-80 bg-white shadow-xl flex flex-col border-l border-gray-200 z-20">
-        <div className="p-3 bg-gray-50 border-b border-gray-200 flex justify-between items-center"><h3 className="font-bold text-gray-700 flex items-center gap-2 text-sm"><ShoppingCart size={16} /> Comanda</h3><button onClick={() => setCart([])} className="text-[10px] text-red-500 hover:underline font-bold" disabled={isProcessing}>LIMPIAR</button></div>
+        <div className="p-3 bg-gray-50 border-b border-gray-200 space-y-2">
+          <div className="flex justify-between items-center">
+            <h3 className="font-bold text-gray-700 flex items-center gap-2 text-sm"><ShoppingCart size={16} /> Comanda</h3>
+            <button onClick={() => { setCart([]); setSelectedTable(''); }} className="text-[10px] text-red-500 hover:underline font-bold" disabled={isProcessing}>LIMPIAR</button>
+          </div>
+
+          {/* SELECTOR DE MESA */}
+          {tables.length > 0 && (
+            <div className="relative">
+              <select
+                value={selectedTable}
+                onChange={e => setSelectedTable(e.target.value)}
+                className={`w-full p-2 text-sm font-bold border rounded-lg appearance-none outline-none focus:ring-2 focus:ring-black transition-all ${!selectedTable ? 'text-gray-400 border-red-300 bg-red-50' : 'text-gray-800 border-gray-200 bg-white'}`}
+              >
+                <option value="">-- MESA --</option>
+                {tables.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+              <LayoutGrid className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={16} />
+            </div>
+          )}
+        </div>
+
         <div className="flex-1 overflow-y-auto p-3 space-y-2">
           {cart.length === 0 ? (<div className="h-full flex flex-col items-center justify-center text-gray-300"><ShoppingCart size={32} className="mb-2 opacity-20" /><p className="text-xs">Vacío</p></div>) : (cart.map(item => (
             <div key={item.id} className="flex items-center justify-between bg-white p-2 rounded-lg border border-gray-100 shadow-sm">

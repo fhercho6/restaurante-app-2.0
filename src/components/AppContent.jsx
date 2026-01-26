@@ -43,7 +43,7 @@ export default function AppContent() {
         handleAddStaff, handleUpdateStaff, handleDeleteStaff,
         handleAddCategory, handleRenameCategory, handleDeleteCategory,
         handleAddRole, handleRenameRole, handleDeleteRole,
-        handleAddTable, handleRenameTable, handleDeleteTable,
+        handleAddTable, handleRenameTable, handleDeleteTable, handleUpdateTableZone,
         handleAddExpenseType, handleRenameExpenseType, handleDeleteExpenseType,
         handleSaveBranding, handleSavePrinterType
     } = useData();
@@ -1010,6 +1010,7 @@ export default function AppContent() {
                         {view === 'pos' && (
                             <POSInterface
                                 items={items} categories={categories} staffMember={staffMember}
+                                tables={tables} // [NEW] Pass tables for selection
                                 onCheckout={handlePOSCheckout}
                                 onPrintOrder={async (cart, clearCart) => {
                                     const receipt = await createOrder(cart, clearCart);
@@ -1084,7 +1085,7 @@ export default function AppContent() {
 
             <CategoryManager isOpen={isCategoryModalOpen} onClose={() => setIsCategoryModalOpen(false)} categories={categories} onAdd={handleAddCategory} onRename={handleRenameCategory} onDelete={handleDeleteCategory} />
             <RoleManager isOpen={isRoleModalOpen} onClose={() => setIsRoleModalOpen(false)} roles={roles} onAdd={handleAddRole} onRename={handleRenameRole} onDelete={handleDeleteRole} />
-            <TableManager isOpen={isTableModalOpen} onClose={() => setIsTableModalOpen(false)} tables={tables} onAdd={handleAddTable} onRename={handleRenameTable} onDelete={handleDeleteTable} />
+            <TableManager isOpen={isTableModalOpen} onClose={() => setIsTableModalOpen(false)} tables={tables} tableZones={tableZones} onAdd={handleAddTable} onRename={handleRenameTable} onDelete={handleDeleteTable} onUpdateZone={handleUpdateTableZone} />
             <ExpenseTypeManager isOpen={isExpenseTypeModalOpen} onClose={() => setIsExpenseTypeModalOpen(false)} expenseTypes={expenseTypes} onAdd={handleAddExpenseType} onRename={handleRenameExpenseType} onDelete={handleDeleteExpenseType} />
             <BrandingModal isOpen={isBrandingModalOpen} onClose={() => setIsBrandingModalOpen(false)} onSave={handleSaveBranding} currentLogo={logo} currentName={appName} currentAutoLock={autoLockTime} />
             <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onLogin={onLogin} />
