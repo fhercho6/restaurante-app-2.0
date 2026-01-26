@@ -293,6 +293,21 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
                         )}
                     </div>
 
+                    {/* SUMARIO POR MOZO (SOLICITUD DE USUARIO) */}
+                    {filteredOrders.length > 0 && (
+                        <div className="px-4 py-2 bg-white border-b border-gray-100 flex gap-2 overflow-x-auto scrollbar-hide">
+                            {Object.entries(filteredOrders.reduce((acc, order) => {
+                                const name = (order.staffName || 'Barra').split(' ')[0];
+                                acc[name] = (acc[name] || 0) + (parseFloat(order.total) || 0);
+                                return acc;
+                            }, {})).sort((a, b) => b[1] - a[1]).map(([name, total]) => (
+                                <div key={name} className="flex-shrink-0 px-3 py-1 bg-gray-50 rounded-full border border-gray-200 text-xs font-bold text-gray-500 shadow-sm">
+                                    {name}: <span className="text-gray-900">Bs. {total.toFixed(2)}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
                     {/* LISTA DE PEDIDOS */}
                     <div className="flex-1 overflow-y-auto p-2 space-y-2">
                         {filteredOrders.length === 0 ? (
