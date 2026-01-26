@@ -13,15 +13,10 @@ export default function PaymentModal({ isOpen, onClose, total, onConfirm, staff 
         if (isOpen) {
             setCurrentAmount(total.toFixed(2));
             setPayments([]);
-            // Default waiter logic: Use initialWaiter (the one who created the order)
-            // If strictly 'Cajero' created it (or null), we might want to leave it empty or default to 'Barra' check? 
-            // Better: default to initialWaiter (e.g. 'Yoly') if present.
-            if (initialWaiter && initialWaiter.id) {
-                setSelectedWaiterId(initialWaiter.id);
+            // Default waiter logic: Use initialWaiter (ID passed from AppContent)
+            if (initialWaiter) {
+                setSelectedWaiterId(initialWaiter);
             } else {
-                // If checking out as generic or quick sale, maybe default to "Barra" or empty?
-                // Let's default to empty to force selection? No, that slows down "Quick Sale".
-                // Default to empty string -> "Sin Asignar" (Barra/Caja will take it implicitly)
                 setSelectedWaiterId('');
             }
         }
