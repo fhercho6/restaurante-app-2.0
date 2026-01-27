@@ -144,6 +144,8 @@
             *   **Multi-formato:** Disponible tanto en el reporte impreso (térmico) como en la vista previa (carta).
         *   **Corrección de Bugs:**
             *   **ReferenceError:** Se solucionó el error crítico `tableZones is not defined` que impedía cargar la app tras la actualización.
+        *   **Glosa de Apertura:**
+            *   Ahora se puede ingresar un "Detalle/Nota" (ej: "Lluvia", "Evento") al abrir la caja. Se muestra en el Reporte Z.
 
 ---
 
