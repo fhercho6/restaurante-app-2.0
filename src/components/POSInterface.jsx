@@ -1,11 +1,11 @@
 // src/components/POSInterface.jsx - TIEMPO DE CIERRE CONFIGURABLE
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, ShoppingCart, Trash2, ChevronLeft, Send, ChefHat, ChevronDown, ChevronUp, Plus, Minus, Lock, LayoutGrid } from 'lucide-react';
+import { Search, ShoppingCart, Trash2, ChevronLeft, Send, ChefHat, ChevronDown, ChevronUp, Plus, Minus, Lock, LayoutGrid, MapPin } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ImageWithLoader from './ImageWithLoader'; // [NEW]
 
 // AHORA RECIBE "autoLockTime", "staffZone" y "tableZones"
-export default function POSInterface({ items, categories, staffMember, tables = [], tableZones = {}, onCheckout, onPrintOrder, onExit, autoLockTime = 45, staffZone = '' }) {
+export default function POSInterface({ items, categories, staffMember, tables = [], tableZones = {}, onCheckout, onPrintOrder, onExit, autoLockTime = 45, staffZone = '', onManageZones }) {
   const [cart, setCart] = useState([]);
   const [categoryFilter, setCategoryFilter] = useState('Todos');
   const [searchTerm, setSearchTerm] = useState('');

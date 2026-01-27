@@ -107,34 +107,11 @@ export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onC
                             return;
                         }
 
-                        // [NEW] CHECK FOR ZONE SELECTION (Waiters Only)
-                        const needsZoneSelection = (selectedStaff.role === 'Mesero' || selectedStaff.role === 'Garzon' || selectedStaff.role === 'Garzón');
-
-                        // Check if we already know the zone
-                        const cachedZone = activeZones ? activeZones[selectedStaff.id] : null;
-
-                        // Function to proceed with specific action
-                        const proceedWithAction = (zone) => {
-                            if (mode === 'system') {
-                                onLoginSuccess(selectedStaff, zone);
-                            } else {
-                                onClockAction(selectedStaff, 'clock-in', zone);
-                            }
-                        };
-
-                        if (needsZoneSelection && !cachedZone) {
-                            // Temporarily override onLoginSuccess to capture the choice for WHATEVER mode
-                            setIsProcessing(false);
-                            setShowZoneSelection(true);
-
-                            // We need to pass the "pending action" to the zone selector?
-                            // Currently Zone Selector buttons call onLoginSuccess directly.
-                            // We should update the Zone Selector buttons to call a handler that checks 'mode'.
-
-                            // Let's modify the Zone Selector render part instead of here.
-                            // Here we just show the selector.
+                        // DIRECT LOGIN (No Zone Check here anymore)
+                        if (mode === 'system') {
+                            onLoginSuccess(selectedStaff);
                         } else {
-                            proceedWithAction(cachedZone);
+                            onClockAction(selectedStaff, 'clock-in');
                         }
                     } else {
                         // VALIDACIÓN CAJA CERRADA (ASISTENCIA)
@@ -204,21 +181,6 @@ export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onC
             if (e.key === 'Enter') {
                 const buffer = bufferRef.current; // Snapshot current buffer
 
-                // Helper: Process Login with Zone Check
-                const processScanLogin = (staffMember) => {
-                    const needsZoneSelection = (staffMember.role === 'Mesero' || staffMember.role === 'Garzon' || staffMember.role === 'Garzón');
-                    const cachedZone = activeZones ? activeZones[staffMember.id] : null;
-
-                    if (needsZoneSelection && !cachedZone) {
-                        setIsProcessing(false);
-                        setSelectedStaff(staffMember); // Set staff so Modal knows who
-                        setShowZoneSelection(true);
-                        toast("⚠️ Selecciona tu zona", { icon: '📍' });
-                    } else {
-                        onLoginSuccess(staffMember, cachedZone);
-                    }
-                };
-
                 // Verificar si es un código de autenticación
                 if (buffer.startsWith('AUTH:')) {
                     const parts = buffer.split(':');
@@ -239,7 +201,7 @@ export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onC
 
                                 setIsProcessing(true);
                                 toast.success(`¡Hola ${staff.name}!`);
-                                processScanLogin(staff);
+                                onLoginSuccess(staff); // [REVERT] Direct Login
                             } else {
                                 toast.error('PIN de credencial inválido');
                             }
@@ -268,7 +230,7 @@ export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onC
 
                     setIsProcessing(true);
                     toast.success(`¡Hola ${staffByCard.name}!`);
-                    processScanLogin(staffByCard);
+                    onLoginSuccess(staffByCard);
                     bufferRef.current = '';
                     return;
                 }
@@ -281,7 +243,7 @@ export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onC
                     if (staff) {
                         setIsProcessing(true);
                         toast.success(`¡Hola ${staff.name}!`);
-                        processScanLogin(staff);
+                        onLoginSuccess(staff);
                         bufferRef.current = '';
                         return;
                     }
@@ -297,7 +259,7 @@ export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onC
                         if (staff) {
                             setIsProcessing(true);
                             toast.success(`¡Hola ${staff.name}!`);
-                            processScanLogin(staff); // [FIX] Use processScanLogin here too
+                            onLoginSuccess(staff);
                         } else {
                             toast.error('Credencial no reconocida');
                         }

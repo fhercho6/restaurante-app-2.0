@@ -202,11 +202,6 @@ export default function AppContent() {
 
         const result = await staffLogin(member);
         if (result) {
-            if (effectiveZone) {
-                setStaffZone(effectiveZone);
-                setActiveZones(prev => ({ ...prev, [member.id]: effectiveZone })); // Cache it
-                toast(`Zona: ${effectiveZone}`, { icon: '📍' });
-            }
             setView(result);
         }
     };
