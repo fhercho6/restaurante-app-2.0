@@ -1,6 +1,6 @@
 // src/components/Views.jsx - LOGIN FLUIDO Y SIN CONGELAMIENTOS
 import React, { useState } from 'react';
-import { Clock, User, ArrowLeft, Trash2, Edit2, Plus, Minus, Lock, LogIn, LogOut, Briefcase, Loader2, Image as ImageIcon } from 'lucide-react';
+import { Clock, User, ArrowLeft, Trash2, Edit2, Plus, Minus, Lock, LogIn, LogOut, Briefcase, Loader2, Image as ImageIcon, Users, LayoutGrid } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { QRCodeSVG } from 'qrcode.react';
 import Barcode from 'react-barcode';
