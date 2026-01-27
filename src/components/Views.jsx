@@ -338,7 +338,7 @@ export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onC
             window.removeEventListener('keydown', handleKeyDown);
             clearTimeout(timeout);
         };
-    }, [pin, isProcessing, staffMembers, onLoginSuccess]); // Agregamos staffMembers y onLoginSuccess
+    }, [pin, isProcessing, staffMembers, onLoginSuccess, activeZones]); // Agregamos activeZones
 
     // MASTER CODE UNLOCK
     const handleMasterUnlock = (e) => {
