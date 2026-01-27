@@ -262,8 +262,8 @@ export default function AppContent() {
     };
 
 
+
     const handleCloseRegisterAction = async () => {
-        if (!registerSession) return;
 
         // 1. Calculate Expected Cash
         let cashFinal = (registerSession.openingAmount || 0) + sessionStats.cashSales - sessionStats.totalExpenses;

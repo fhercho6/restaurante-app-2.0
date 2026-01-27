@@ -57,6 +57,12 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
         return () => { unsubOrders(); unsubServices(); unsubAttendance(); };
     }, []);
 
+    // [DEBUG] Check if component mounts
+    useEffect(() => {
+        console.log("CashierView Mounted");
+        toast.success("Vista Cajero Cargada", { id: 'cashier-mount', duration: 3000 });
+    }, []);
+
     // --- LÓGICA DE SELECCIÓN MÚLTIPLE ---
     const toggleSelectOrder = (orderId) => {
         setSelectedOrders(prev =>
