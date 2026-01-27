@@ -149,11 +149,11 @@ export default function AppContent() {
     const onLogin = (u) => { login(u); setTimeout(() => setView('admin'), 10); };
     const onLogout = () => logout();
     const handleEnterMenu = () => { setFilter('Todos'); setView('menu'); };
-    const handleEnterStaff = () => setView('pin_login');
+    const handleEnterStaff = () => { setStaffZone(''); setView('pin_login'); }; // Reset Zone on new login
     const handleEnterAdmin = () => { if (currentUser && !currentUser.isAnonymous) setView('admin'); else setIsAuthModalOpen(true); };
 
     // Auth & Staff Logic
-    const onStaffPinLogin = async (member) => {
+    const onStaffPinLogin = async (member, zone = '') => { // Accept Zone
         // [MODIFIED] Prevent login if register is closed, unless Admin/Cashier
         if ((!registerSession || registerSession.status !== 'open') && member.role !== 'Administrador' && member.role !== 'Cajero') {
             toast.error("⚠️ La CAJA ESTÁ CERRADA.\nNo se pueden tomar pedidos.");
@@ -191,7 +191,13 @@ export default function AppContent() {
         }
 
         const result = await staffLogin(member);
-        if (result) setView(result);
+        if (result) {
+            if (zone) {
+                setStaffZone(zone);
+                toast(`Zona asignada: ${zone}`, { icon: '📍' });
+            }
+            setView(result);
+        }
     };
 
     const handleClockAction = async (member, type) => {
@@ -1011,6 +1017,8 @@ export default function AppContent() {
                             <POSInterface
                                 items={items} categories={categories} staffMember={staffMember}
                                 tables={tables} // [NEW] Pass tables for selection
+                                tableZones={tableZones} // [NEW] Pass Zone Map
+                                staffZone={staffZone} // [NEW] Pass selected zone
                                 onCheckout={handlePOSCheckout}
                                 onPrintOrder={async (cart, clearCart) => {
                                     const receipt = await createOrder(cart, clearCart);

@@ -1,11 +1,11 @@
 // src/components/POSInterface.jsx - TIEMPO DE CIERRE CONFIGURABLE
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Search, ShoppingCart, Trash2, ChevronLeft, Send, ChefHat, ChevronDown, ChevronUp, Plus, Minus, Lock, LayoutGrid } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ImageWithLoader from './ImageWithLoader'; // [NEW]
 
-// AHORA RECIBE "autoLockTime" COMO PROP
-export default function POSInterface({ items, categories, staffMember, tables = [], onCheckout, onPrintOrder, onExit, autoLockTime = 45 }) {
+// AHORA RECIBE "autoLockTime", "staffZone" y "tableZones"
+export default function POSInterface({ items, categories, staffMember, tables = [], tableZones = {}, onCheckout, onPrintOrder, onExit, autoLockTime = 45, staffZone = '' }) {
   const [cart, setCart] = useState([]);
   const [categoryFilter, setCategoryFilter] = useState('Todos');
   const [searchTerm, setSearchTerm] = useState('');
@@ -14,6 +14,19 @@ export default function POSInterface({ items, categories, staffMember, tables = 
   const [selectedTable, setSelectedTable] = useState(''); // [NEW] Selected Table
 
   const canCharge = staffMember?.role === 'Cajero' || staffMember?.role === 'Administrador';
+
+  // --- FILTER TABLES BY ZONE ---
+  const filteredTables = useMemo(() => {
+    if (!staffZone || tables.length === 0) return tables;
+
+    // Filter tables that belong to the Staff's Zone
+    // tableZones is { "Mesa 1": "Salón", "Mesa 5": "Licobar" }
+    // staffZone is "Salón" or "Licobar"
+    return tables.filter(tableName => {
+      const zone = tableZones[tableName] || 'Salón'; // Default to Salón if undefined
+      return zone === staffZone;
+    });
+  }, [tables, tableZones, staffZone]);
 
   // --- SEGURIDAD 1: TEMPORIZADOR DE INACTIVIDAD (CONFIGURABLE) ---
   useEffect(() => {
@@ -115,6 +128,8 @@ export default function POSInterface({ items, categories, staffMember, tables = 
   const handleSendOrderSafe = async () => {
     if (isProcessing) return;
     // [NEW] Require table selection if tables exist
+    // If filteredTables is empty but tables exist, it is weird, but we respect filteredTables.
+    // Actually we should check if tables existed originally.
     if (tables.length > 0 && !selectedTable && !canCharge) {
       toast.error("Selecciona una mesa por favor 🛑");
       return;
@@ -179,7 +194,7 @@ export default function POSInterface({ items, categories, staffMember, tables = 
             <button onClick={() => { setCart([]); setSelectedTable(''); }} className="text-[10px] text-red-500 hover:underline font-bold" disabled={isProcessing}>LIMPIAR</button>
           </div>
 
-          {/* SELECTOR DE MESA */}
+          {/* SELECTOR DE MESA (FILTERED) */}
           {tables.length > 0 && (
             <div className="relative">
               <select
@@ -187,12 +202,13 @@ export default function POSInterface({ items, categories, staffMember, tables = 
                 onChange={e => setSelectedTable(e.target.value)}
                 className={`w-full p-2 text-sm font-bold border rounded-lg appearance-none outline-none focus:ring-2 focus:ring-black transition-all ${!selectedTable ? 'text-gray-400 border-red-300 bg-red-50' : 'text-gray-800 border-gray-200 bg-white'}`}
               >
-                <option value="">-- MESA --</option>
-                {tables.map(t => <option key={t} value={t}>{t}</option>)}
+                <option value="">{staffZone ? `-- ${staffZone.toUpperCase()} --` : '-- MESA --'}</option>
+                {filteredTables.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
               <LayoutGrid className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={16} />
             </div>
           )}
+          {staffZone && <p className="text-[10px] text-gray-400 text-center uppercase tracking-widest mt-1">Zona: {staffZone}</p>}
         </div>
 
         <div className="flex-1 overflow-y-auto p-3 space-y-2">

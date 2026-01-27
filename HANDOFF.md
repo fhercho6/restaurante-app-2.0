@@ -146,6 +146,9 @@
             *   **ReferenceError:** Se solucionó el error crítico `tableZones is not defined` que impedía cargar la app tras la actualización.
         *   **Glosa de Apertura:**
             *   Ahora se puede ingresar un "Detalle/Nota" (ej: "Lluvia", "Evento") al abrir la caja. Se muestra en el Reporte Z.
+        *   **Selección de Zona (Login Meseros):**
+            *   Al ingresar con PIN, si el usuario es Mesero/Garzón, el sistema pregunta: **"¿Dónde trabajarás?"** (Salón o Licobar).
+            *   El POS filtra automáticamente las mesas para mostrar solo las de esa zona.
 
 ---
 

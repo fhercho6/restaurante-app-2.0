@@ -47,6 +47,7 @@ export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onC
     const [pin, setPin] = useState('');
     const [mode, setMode] = useState('system'); // 'system' (Vender) | 'attendance' (Reloj)
     const [showAttendanceOptions, setShowAttendanceOptions] = useState(false);
+    const [showZoneSelection, setShowZoneSelection] = useState(false); // [NEW] Zone State
     const [shuffledKeys, setShuffledKeys] = useState(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']);
 
     // ESTADO DE PROCESAMIENTO
@@ -65,6 +66,7 @@ export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onC
         setSelectedStaff(member);
         setPin('');
         setShowAttendanceOptions(false);
+        setShowZoneSelection(false); // Reset Zone
         setShuffledKeys(shuffleArray(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']));
     };
 
@@ -105,7 +107,19 @@ export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onC
                             return;
                         }
 
-                        onLoginSuccess(selectedStaff);
+                        // [NEW] CHECK FOR ZONE SELECTION (Waiters Only)
+                        const needsZoneSelection = (selectedStaff.role === 'Mesero' || selectedStaff.role === 'Garzon' || selectedStaff.role === 'Garzón');
+
+                        // Check if we already know the zone
+                        const cachedZone = activeZones ? activeZones[selectedStaff.id] : null;
+
+                        if (needsZoneSelection && !cachedZone) {
+                            setIsProcessing(false);
+                            setShowZoneSelection(true); // [NEW] Show Zone Modal
+                        } else {
+                            // Pass cachedZone if available, or just call success
+                            onLoginSuccess(selectedStaff, cachedZone);
+                        }
                     } else {
                         // VALIDACIÓN CAJA CERRADA (ASISTENCIA)
                         if (registerStatus !== 'open') {
@@ -392,6 +406,23 @@ export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onC
                                 </>
                             )}
                         </div>
+                    ) : showZoneSelection ? (
+                        // [NEW] ZONE SELECTION UI
+                        <div className="flex flex-col gap-4 h-full justify-center p-6 animate-in fade-in slide-in-from-right-4">
+                            <p className="text-center text-gray-500 font-bold mb-4 uppercase tracking-widest text-xs">Selecciona tu Zona de Trabajo</p>
+
+                            <button onClick={() => onLoginSuccess(selectedStaff, 'Salón')} className="bg-orange-500 hover:bg-orange-600 text-white p-6 rounded-2xl shadow-lg flex items-center justify-between transition-transform active:scale-95 group">
+                                <span className="block text-2xl font-black uppercase">Salón</span>
+                                <div className="bg-white/20 p-2 rounded-full"><Users size={24} className="text-white" /></div>
+                            </button>
+
+                            <button onClick={() => onLoginSuccess(selectedStaff, 'Licobar')} className="bg-purple-600 hover:bg-purple-700 text-white p-6 rounded-2xl shadow-lg flex items-center justify-between transition-transform active:scale-95 group">
+                                <span className="block text-2xl font-black uppercase">Licobar</span>
+                                <div className="bg-white/20 p-2 rounded-full"><LayoutGrid size={24} className="text-white" /></div>
+                            </button>
+
+                            <button onClick={() => setShowZoneSelection(false)} className="mt-4 text-gray-400 text-xs font-bold hover:text-gray-600 underline">Cambiar Usuario</button>
+                        </div>
                     ) : (
                         // TECLADO NUMÉRICO (SE BLOQUEA AL COMPLETAR 4 DÍGITOS)
                         <div className="flex flex-col items-center justify-center h-full p-4">
@@ -637,6 +668,11 @@ export const AttendanceTicket = ({ data }) => {
             <div style={{ marginBottom: '15px' }}>
                 <span style={{ fontWeight: 'bold' }}>ROL:</span> {data.role}
             </div>
+            {data.zone && (
+                <div style={{ marginBottom: '15px' }}>
+                    <span style={{ fontWeight: 'bold' }}>ZONA:</span> {data.zone}
+                </div>
+            )}
 
             <div style={{ textAlign: 'center', marginTop: '40px', paddingTop: '10px', borderTop: '1px solid #000' }}>
                 _________________________<br />

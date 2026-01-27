@@ -68,7 +68,7 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    const markAttendance = async (member, registerId) => {
+    const markAttendance = async (member, registerId, zone = '') => { // [UPDATED] Accept Zone
         if (!member || !registerId) return false;
         try {
             await addDoc(collection(db, getCollName('attendance')), {
@@ -78,7 +78,8 @@ export const AuthProvider = ({ children }) => {
                 role: member.role,
                 timestamp: new Date().toISOString(),
                 dailySalary: parseFloat(member.dailySalary || 0),
-                type: 'clock-in' // Future proofing for clock-out
+                type: 'clock-in',
+                zone: zone || null // [NEW] Save Zone
             });
             toast.success(`Asistencia marcada: ${member.name}`);
             return true;
