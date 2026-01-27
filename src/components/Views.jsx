@@ -113,12 +113,28 @@ export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onC
                         // Check if we already know the zone
                         const cachedZone = activeZones ? activeZones[selectedStaff.id] : null;
 
+                        // Function to proceed with specific action
+                        const proceedWithAction = (zone) => {
+                            if (mode === 'system') {
+                                onLoginSuccess(selectedStaff, zone);
+                            } else {
+                                onClockAction(selectedStaff, 'clock-in', zone);
+                            }
+                        };
+
                         if (needsZoneSelection && !cachedZone) {
+                            // Temporarily override onLoginSuccess to capture the choice for WHATEVER mode
                             setIsProcessing(false);
-                            setShowZoneSelection(true); // [NEW] Show Zone Modal
+                            setShowZoneSelection(true);
+
+                            // We need to pass the "pending action" to the zone selector?
+                            // Currently Zone Selector buttons call onLoginSuccess directly.
+                            // We should update the Zone Selector buttons to call a handler that checks 'mode'.
+
+                            // Let's modify the Zone Selector render part instead of here.
+                            // Here we just show the selector.
                         } else {
-                            // Pass cachedZone if available, or just call success
-                            onLoginSuccess(selectedStaff, cachedZone);
+                            proceedWithAction(cachedZone);
                         }
                     } else {
                         // VALIDACIÓN CAJA CERRADA (ASISTENCIA)

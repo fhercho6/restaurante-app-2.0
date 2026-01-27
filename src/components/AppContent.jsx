@@ -211,14 +211,14 @@ export default function AppContent() {
         }
     };
 
-    const handleClockAction = async (member, type) => {
+    const handleClockAction = async (member, type, zone = '') => { // [UPDATED] Accept Zone
         // Enforce Register Open Constraint
         if (!registerSession || registerSession.status !== 'open') {
             toast.error("⚠️ La caja debe estar ABIERTA para marcar asistencia.");
             return;
         }
 
-        const success = await markAttendance(member, registerSession.id);
+        const success = await markAttendance(member, registerSession.id, zone);
         if (success) {
             // Optional: Auto-login after clock-in if desired, or just stay on pin screen
             // For now, staying on pin screen is safer so others can clock in
@@ -988,7 +988,8 @@ export default function AppContent() {
                                                     role: member.role,
                                                     timestamp: new Date().toISOString(),
                                                     dailySalary: parseFloat(member.dailySalary || 0),
-                                                    type: 'clock-in'
+                                                    type: 'clock-in',
+                                                    zone: activeZones[member.id] || null // [FIX] Add Zone if cached
                                                 };
 
                                                 await addDoc(collection(db, attColl), record);
