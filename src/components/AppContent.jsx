@@ -761,44 +761,49 @@ export default function AppContent() {
 
                                 {/* CASHIER VIEW */}
                                 {view === 'cashier' && (
-                                    <CashierView
-                                        activeServices={activeServices}
-                                        onOpenServiceModal={() => setIsServiceModalOpen(true)}
-                                        onProcessPayment={handleStartPaymentFromCashier}
-                                        onVoidOrder={handleVoidAndPrint}
-                                        onReprintOrder={(order) => { setLastSale({ ...order, type: 'order', businessName: appName }); setView('receipt_view'); }}
-                                        onStopService={() => { /* Service logic is specific, leaving it to specialized components or context if refined */ }}
-                                        onOpenExpense={() => setIsExpenseModalOpen(true)}
-                                        onPrintReceipt={(doc) => {
-                                            let reportData = { ...doc, businessName: appName };
+                                    // <CashierView
+                                    //     activeServices={activeServices}
+                                    //     onOpenServiceModal={() => setIsServiceModalOpen(true)}
+                                    //     onProcessPayment={handleStartPaymentFromCashier}
+                                    //     onVoidOrder={handleVoidAndPrint}
+                                    //     onReprintOrder={(order) => { setLastSale({ ...order, type: 'order', businessName: appName }); setView('receipt_view'); }}
+                                    //     onStopService={() => { /* Service logic is specific, leaving it to specialized components or context if refined */ }}
+                                    //     onOpenExpense={() => setIsExpenseModalOpen(true)}
+                                    //     onPrintReceipt={(doc) => {
+                                    //         let reportData = { ...doc, businessName: appName };
 
-                                            // [NEW] Handle Attendance Reprint
-                                            if (doc.type === 'attendance-reprint') {
-                                                setLastSale(reportData);
-                                                setView('attendance_print');
-                                                setTimeout(() => window.print(), 500);
-                                                return;
-                                            }
+                                    //         // [NEW] Handle Attendance Reprint
+                                    //         if (doc.type === 'attendance-reprint') {
+                                    //             setLastSale(reportData);
+                                    //             setView('attendance_print');
+                                    //             setTimeout(() => window.print(), 500);
+                                    //             return;
+                                    //         }
 
-                                            if (doc.type === 'z-report-preview') {
-                                                reportData = {
-                                                    type: 'z-report', // Use z-report type for Receipt component
-                                                    businessName: appName,
-                                                    date: new Date().toLocaleString(),
-                                                    openedAt: registerSession?.openedAt,
-                                                    openingAmount: registerSession?.openingAmount || 0,
-                                                    finalCash: getCalculatedCash(),
-                                                    stats: sessionStats,
-                                                    soldProducts: sessionStats.soldProducts,
-                                                    staffName: staffMember?.name || currentUser?.displayName || currentUser?.email || 'Cajero',
-                                                    cashierName: staffMember?.name || currentUser?.displayName || currentUser?.email || 'Cajero',
-                                                    status: 'preview'
-                                                };
-                                            }
-                                            setLastSale({ ...reportData, returnTo: 'cashier' });
-                                            setView('receipt_view');
-                                        }}
-                                    />
+                                    //         if (doc.type === 'z-report-preview') {
+                                    //             reportData = {
+                                    //                 type: 'z-report', // Use z-report type for Receipt component
+                                    //                 businessName: appName,
+                                    //                 date: new Date().toLocaleString(),
+                                    //                 openedAt: registerSession?.openedAt,
+                                    //                 openingAmount: registerSession?.openingAmount || 0,
+                                    //                 finalCash: getCalculatedCash(),
+                                    //                 stats: sessionStats,
+                                    //                 soldProducts: sessionStats.soldProducts,
+                                    //                 staffName: staffMember?.name || currentUser?.displayName || currentUser?.email || 'Cajero',
+                                    //                 cashierName: staffMember?.name || currentUser?.displayName || currentUser?.email || 'Cajero',
+                                    //                 status: 'preview'
+                                    //             };
+                                    //         }
+                                    //         setLastSale({ ...reportData, returnTo: 'cashier' });
+                                    //         setView('receipt_view');
+                                    //     }}
+                                    // />
+                                    <div className="p-10 text-center">
+                                        <h1 className="text-2xl font-bold">VISTA CAJERO (MODO DEBUG)</h1>
+                                        <p>Si ves esto, CashierView causaba el error.</p>
+                                        <button onClick={() => setView('landing')} className="mt-4 p-2 bg-gray-200 rounded">Volver</button>
+                                    </div>
                                 )}
 
                                 {/* OTHER ADMIN VIEWS */}
