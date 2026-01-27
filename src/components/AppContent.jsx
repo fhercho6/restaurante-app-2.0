@@ -15,6 +15,7 @@ import Receipt from './Receipt';
 import PaymentModal from './PaymentModal';
 import HRDashboardView from './HRDashboardView'; // [NEW]
 import CashierView from './CashierView';
+import ZoneManagementModal from './ZoneManagementModal'; // [NEW]
 import OpenRegisterModal from './OpenRegisterModal';
 import RegisterControlView from './RegisterControlView';
 import EquipmentManager from './EquipmentManager';
@@ -66,6 +67,7 @@ export default function AppContent() {
     const [isBrandingModalOpen, setIsBrandingModalOpen] = useState(false);
     const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
     const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
+    const [isZoneModalOpen, setIsZoneModalOpen] = useState(false); // [NEW]
     const [currentItem, setCurrentItem] = useState(null);
     const [filter, setFilter] = useState('Todos');
     const [searchTerm, setSearchTerm] = useState('');

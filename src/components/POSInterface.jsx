@@ -166,6 +166,13 @@ export default function POSInterface({ items, categories, staffMember, tables = 
             <div className="flex items-center gap-2">
               <button onClick={onExit} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 text-gray-600" title="Cerrar Sesión"><ChevronLeft size={20} /></button>
               <div><h2 className="font-bold text-lg leading-none text-gray-800">{staffMember?.name?.split(' ')[0]}</h2><span className="text-[10px] text-green-600 font-bold uppercase">{staffMember?.role || 'Personal'}</span></div>
+
+              {/* [NEW] ZONE MANAGER BUTTON */}
+              {canCharge && (
+                <button onClick={onManageZones} className="ml-2 p-2 bg-gray-100 hover:bg-orange-100 text-gray-500 hover:text-orange-600 rounded-lg transition-colors" title="Gestionar Zonas">
+                  <MapPin size={20} />
+                </button>
+              )}
             </div>
             {/* Indicador de Tiempo Restante */}
             <div className="text-[9px] text-gray-400 flex items-center gap-1 bg-gray-50 px-2 py-1 rounded-full border">
