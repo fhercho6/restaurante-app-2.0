@@ -181,27 +181,29 @@ export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onC
     };
 
     // SOPORTE PARA LECTOR DE CÓDIGO (TECLADO FÍSICO + SCANNER)
-    React.useEffect(() => {
-        let buffer = '';
-        let timeout = null;
+    // [FIX] Use useRef for buffer to persist across re-renders induced by setPin
+    const bufferRef = React.useRef('');
+    const timeoutRef = React.useRef(null);
 
+    React.useEffect(() => {
         const handleKeyDown = (e) => {
             if (isProcessing) return;
 
             // 1. SI ES UNA TECLA CLAVE DEL SCANNER (Letras, símbolos, números)
-            // Los scanners suelen mandar todo muy rápido.
             if (e.key.length === 1) {
-                buffer += e.key;
+                bufferRef.current += e.key;
 
                 // Reiniciamos el buffer si pasa mucho tiempo sin teclas (no es un scanner)
-                clearTimeout(timeout);
-                timeout = setTimeout(() => {
-                    buffer = '';
+                if (timeoutRef.current) clearTimeout(timeoutRef.current);
+                timeoutRef.current = setTimeout(() => {
+                    bufferRef.current = '';
                 }, 100);
             }
 
             // 2. DETECTAR ENTER (Fin del escaneo)
             if (e.key === 'Enter') {
+                const buffer = bufferRef.current; // Snapshot current buffer
+
                 // Helper: Process Login with Zone Check
                 const processScanLogin = (staffMember) => {
                     const needsZoneSelection = (staffMember.role === 'Mesero' || staffMember.role === 'Garzon' || staffMember.role === 'Garzón');
@@ -219,13 +221,10 @@ export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onC
 
                 // Verificar si es un código de autenticación
                 if (buffer.startsWith('AUTH:')) {
-                    // Formato: AUTH:USER_ID:PIN
                     const parts = buffer.split(':');
                     if (parts.length === 3) {
                         const scannedId = parts[1];
                         const scannedPin = parts[2];
-
-                        // Buscar empleado
                         const staff = staffMembers.find(m => m.id === scannedId);
 
                         if (staff) {
@@ -234,13 +233,12 @@ export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onC
                                 const isAuthorized = localStorage.getItem('isAuthorizedTerminal') === 'true';
                                 if (staff.role === 'Cajero' && !isAuthorized) {
                                     toast.error("🚫 TERMINAL NO AUTORIZADA", { duration: 4000 });
-                                    buffer = '';
+                                    bufferRef.current = '';
                                     return;
                                 }
 
                                 setIsProcessing(true);
                                 toast.success(`¡Hola ${staff.name}!`);
-                                // Login con chequeo de zona
                                 processScanLogin(staff);
                             } else {
                                 toast.error('PIN de credencial inválido');
@@ -249,79 +247,72 @@ export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onC
                             toast.error('Credencial no reconocida');
                         }
                     }
-                    buffer = ''; // Limpiar tras procesar
+                    bufferRef.current = '';
                     return;
                 }
 
-                // MODO: CARD ID (8 NÚMEROS) - PRIORIDAD ALTA
+                // MODO: CARD ID (8 NÚMEROS)
                 const staffByCard = staffMembers.find(m => m.cardId && m.cardId === buffer);
                 if (staffByCard) {
-                    // VALIDACIÓN CAJA CERRADA
                     if (registerStatus !== 'open' && staffByCard.role !== 'Administrador' && staffByCard.role !== 'Cajero') {
                         toast.error("⚠️ CAJA CERRADA\nDebes abrir la caja para ingresar.");
-                        buffer = '';
+                        bufferRef.current = '';
                         return;
                     }
-
-                    // [SECURITY] TERMINAL CHECK
                     const isAuthorized = localStorage.getItem('isAuthorizedTerminal') === 'true';
                     if (staffByCard.role === 'Cajero' && !isAuthorized) {
-                        toast.error("🚫 TERMINAL NO AUTORIZADA\nAcceso denegado para Cajeros.", { duration: 4000 });
-                        buffer = '';
+                        toast.error("🚫 TERMINAL NO AUTORIZADA", { duration: 4000 });
+                        bufferRef.current = '';
                         return;
                     }
 
                     setIsProcessing(true);
                     toast.success(`¡Hola ${staffByCard.name}!`);
                     processScanLogin(staffByCard);
-                    buffer = '';
+                    bufferRef.current = '';
                     return;
                 }
 
-                // MODO 2: ULTRA-SHORT ID (Detectar cadenas de 6 caracteres que coincidan con un ID)
-                // Se asume que el ID de firebase tiene al menos 6 chars.
-                // Si el buffer tiene longitud 6 (o un poco más por seguridad) y coincide con el inicio de un ID
+                // MODO 2: ULTRA-SHORT ID
                 if (buffer.length >= 6) {
-                    const potentialId = buffer.slice(-6).toLowerCase(); // Convertimos a minúsculas por si el scanner manda CODE39 (Mayúsculas)
-                    // Búsqueda insensible a mayúsculas/minúsculas para seguridad
+                    const potentialId = buffer.slice(-6).toLowerCase();
                     const staff = staffMembers.find(m => m.id.toLowerCase().startsWith(potentialId));
 
                     if (staff) {
                         setIsProcessing(true);
                         toast.success(`¡Hola ${staff.name}!`);
                         processScanLogin(staff);
-                        buffer = '';
+                        bufferRef.current = '';
                         return;
                     }
                 }
 
-                // MODO 3 (LEGACY): USR:SHORT_ID (Por compatibilidad si alguien ya imprimió)
+                // MODO 3 (LEGACY): USR:SHORT_ID
                 if (buffer.startsWith('USR:')) {
                     const parts = buffer.split(':');
                     if (parts.length === 2) {
                         const scannedShortId = parts[1];
-                        // Buscamos coincidencia parcial (los primeros 8 caracteres)
                         const staff = staffMembers.find(m => m.id.startsWith(scannedShortId));
 
                         if (staff) {
                             setIsProcessing(true);
                             toast.success(`¡Hola ${staff.name}!`);
-                            onLoginSuccess(staff);
+                            processScanLogin(staff); // [FIX] Use processScanLogin here too
                         } else {
                             toast.error('Credencial no reconocida');
                         }
                     }
-                    buffer = '';
+                    bufferRef.current = '';
                     return;
                 }
 
-                // Si no fue escaneo, quizas fue enter manual (no hacemos nada por ahora en el teclado numérico)
-                buffer = '';
+                bufferRef.current = '';
             }
 
             // 3. COMPORTAMIENTO ORIGINAL (SOLO NÚMEROS MANUALES)
             // Si el buffer está vacío o corto, permitimos interacción manual
-            if (buffer.length < 2) {
+            // [FIX] Check bufferRef instead of local var
+            if (bufferRef.current.length < 2) {
                 // Números 0-9
                 if (/^[0-9]$/.test(e.key)) {
                     handleNumClick(e.key);
@@ -336,9 +327,9 @@ export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onC
         window.addEventListener('keydown', handleKeyDown);
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
-            clearTimeout(timeout);
+            if (timeoutRef.current) clearTimeout(timeoutRef.current);
         };
-    }, [pin, isProcessing, staffMembers, onLoginSuccess, activeZones]); // Agregamos activeZones
+    }, [pin, isProcessing, staffMembers, onLoginSuccess, activeZones]);
 
     // MASTER CODE UNLOCK
     const handleMasterUnlock = (e) => {
