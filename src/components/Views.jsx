@@ -42,7 +42,7 @@ export const MenuCard = ({ item }) => {
 
 
 // --- PANTALLA DE LOGIN CON PIN (OPTIMIZADA) ---
-export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onClockAction, onCancel }) => {
+export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onClockAction, onCancel, activeZones = {} }) => {
     const [selectedStaff, setSelectedStaff] = useState(null);
     const [pin, setPin] = useState('');
     const [mode, setMode] = useState('system'); // 'system' (Vender) | 'attendance' (Reloj)
