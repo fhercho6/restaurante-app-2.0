@@ -78,6 +78,8 @@ export default function AppContent() {
     const [reportId, setReportId] = useState(null);
     const [isPublicMode, setIsPublicMode] = useState(false);
     const [isQRModalOpen, setIsQRModalOpen] = useState(false); // [NEW]
+    const [staffZone, setStaffZone] = useState(''); // [NEW] Staff Zone
+    const [activeZones, setActiveZones] = useState({}); // [NEW] Zone Cache
 
     React.useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -160,6 +162,13 @@ export default function AppContent() {
             return;
         }
 
+        let effectiveZone = zone;
+
+        // If no zone provided, check cache
+        if (!effectiveZone && activeZones[member.id]) {
+            effectiveZone = activeZones[member.id];
+        }
+
         // ATTENDANCE CHECK LOGIC
         if (registerSession && registerSession.status === 'open' && registerSession.id) {
             try {
@@ -179,9 +188,10 @@ export default function AppContent() {
                         return; // ABORT LOGIN
                     } else {
                         // [LEGACY] AUTO CLOCK IN
-                        const success = await markAttendance(member, registerSession.id);
+                        // Pass effectiveZone to markAttendance
+                        const success = await markAttendance(member, registerSession.id, effectiveZone);
                         if (success) {
-                            toast.success("✅ Asistencia marcada automáticamente");
+                            toast.success("✅ Asistencia marcada");
                         }
                     }
                 }
@@ -192,9 +202,10 @@ export default function AppContent() {
 
         const result = await staffLogin(member);
         if (result) {
-            if (zone) {
-                setStaffZone(zone);
-                toast(`Zona asignada: ${zone}`, { icon: '📍' });
+            if (effectiveZone) {
+                setStaffZone(effectiveZone);
+                setActiveZones(prev => ({ ...prev, [member.id]: effectiveZone })); // Cache it
+                toast(`Zona: ${effectiveZone}`, { icon: '📍' });
             }
             setView(result);
         }
