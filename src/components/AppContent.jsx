@@ -969,6 +969,26 @@ export default function AppContent() {
                                 onCancel={() => setView('landing')}
                                 onScan={async (member) => {
                                     // GLOBAL AUTO-SCAN LOGIC
+                                    // [NEW] WAITERS ZONE CHECK
+                                    const isWaiter = ['Mesero', 'Garzon', 'Garzón'].includes(member.role);
+                                    const cachedZone = activeZones[member.id];
+
+                                    // If Waiter AND No Zone cached -> DO NOT AUTO-LOGIN. 
+                                    // Instead, simulate selection of this staff member in PinLoginView to trigger Zone Prompt.
+                                    if (isWaiter && !cachedZone) {
+                                        // We need a way to tell PinLoginView to select this member and show Zone Modal.
+                                        // Since we can't easily drive internal state of PinLoginView from here, 
+                                        // we might need to rely on the user to manually select or 
+                                        // trigger a "partial login" state?
+
+                                        // BETTER APPROACH: Force user to interact with UI for zone.
+                                        toast("⚠️ SELECCIONA TU ZONA\nEscaneo detectado, pero falta asignar zona.", { icon: '📍' });
+                                        return;
+                                        // NOTE: This will stop the auto-scan action. The user will see the toast 
+                                        // and must interact with the screen (enter PIN or select user) to pick Zone.
+                                        // Ideally, we would auto-select the user in the UI, but PinLoginView manages that state internally.
+                                    }
+
                                     // 1. If Register Open -> Check Attendance
                                     if (registerSession && registerSession.status === 'open') {
                                         try {
@@ -989,7 +1009,7 @@ export default function AppContent() {
                                                     timestamp: new Date().toISOString(),
                                                     dailySalary: parseFloat(member.dailySalary || 0),
                                                     type: 'clock-in',
-                                                    zone: activeZones[member.id] || null // [FIX] Add Zone if cached
+                                                    zone: cachedZone || null // Use cached zone (or null if not waiter/not required)
                                                 };
 
                                                 await addDoc(collection(db, attColl), record);
