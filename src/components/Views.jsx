@@ -202,6 +202,21 @@ export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onC
 
             // 2. DETECTAR ENTER (Fin del escaneo)
             if (e.key === 'Enter') {
+                // Helper: Process Login with Zone Check
+                const processScanLogin = (staffMember) => {
+                    const needsZoneSelection = (staffMember.role === 'Mesero' || staffMember.role === 'Garzon' || staffMember.role === 'Garzón');
+                    const cachedZone = activeZones ? activeZones[staffMember.id] : null;
+
+                    if (needsZoneSelection && !cachedZone) {
+                        setIsProcessing(false);
+                        setSelectedStaff(staffMember); // Set staff so Modal knows who
+                        setShowZoneSelection(true);
+                        toast("⚠️ Selecciona tu zona", { icon: '📍' });
+                    } else {
+                        onLoginSuccess(staffMember, cachedZone);
+                    }
+                };
+
                 // Verificar si es un código de autenticación
                 if (buffer.startsWith('AUTH:')) {
                     // Formato: AUTH:USER_ID:PIN
@@ -225,8 +240,8 @@ export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onC
 
                                 setIsProcessing(true);
                                 toast.success(`¡Hola ${staff.name}!`);
-                                // Login directo
-                                onLoginSuccess(staff);
+                                // Login con chequeo de zona
+                                processScanLogin(staff);
                             } else {
                                 toast.error('PIN de credencial inválido');
                             }
@@ -258,7 +273,7 @@ export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onC
 
                     setIsProcessing(true);
                     toast.success(`¡Hola ${staffByCard.name}!`);
-                    onLoginSuccess(staffByCard);
+                    processScanLogin(staffByCard);
                     buffer = '';
                     return;
                 }
@@ -274,7 +289,7 @@ export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onC
                     if (staff) {
                         setIsProcessing(true);
                         toast.success(`¡Hola ${staff.name}!`);
-                        onLoginSuccess(staff);
+                        processScanLogin(staff);
                         buffer = '';
                         return;
                     }
