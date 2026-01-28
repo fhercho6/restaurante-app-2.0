@@ -323,55 +323,66 @@ export default function AppContent() {
                 const qSales = query(collection(db, salesColl), where('registerId', '==', registerSession.id));
                 const snapSales = await getDocs(qSales);
 
-                const staffUtility = {}; // { staffName: utilityAmount }
+                const staffStandardUtility = {};
+                const staffComboUtility = {};
 
                 snapSales.forEach(doc => {
                     const sale = doc.data();
-                    // Identify waiter. Priority: sale.staffName -> sale.waiterName -> 'Barra'
-                    // We need to match precise names or IDs. Best to use staffName from sale which usually matches staff.name
                     const waiterName = sale.staffName;
-                    if (waiterName && commissionedStaff.some(s => s.name === waiterName)) {
-                        if (!staffUtility[waiterName]) staffUtility[waiterName] = 0;
 
-                        // Calculate Utility for this sale
+                    if (waiterName && commissionedStaff.some(s => s.name === waiterName)) {
+                        if (!staffStandardUtility[waiterName]) staffStandardUtility[waiterName] = 0;
+                        if (!staffComboUtility[waiterName]) staffComboUtility[waiterName] = 0;
+
                         if (sale.items) {
                             sale.items.forEach(item => {
                                 const price = parseFloat(item.price) || 0;
                                 const cost = parseFloat(item.cost) || 0;
                                 const qty = parseInt(item.qty) || 1;
-                                // Only count profit if price > cost, else 0 or negative? usually profit is net
-                                staffUtility[waiterName] += (price - cost) * qty;
+                                const utility = (price - cost) * qty;
+
+                                const isCombo = item.category && item.category.toLowerCase().includes('combo');
+
+                                if (isCombo) {
+                                    staffComboUtility[waiterName] += utility;
+                                } else {
+                                    staffStandardUtility[waiterName] += utility;
+                                }
                             });
                         }
                     }
                 });
 
-                // Apply Dynamic Tiers
+                // Apply Dynamic Tiers (MATCHING MODAL DEFAULTS)
                 const tiers = commissionTiers || [
-                    { max: 5000, rate: 0.05 },
-                    { max: 5500, rate: 0.06 },
-                    { max: 6000, rate: 0.07 },
+                    { max: 1500, rate: 0.04 },
+                    { max: 3000, rate: 0.05 },
+                    { max: 4500, rate: 0.06 },
                     { max: 999999, rate: 0.08 }
                 ];
 
-                Object.entries(staffUtility).forEach(([name, utility]) => {
-                    // Find applicable tier
-                    // Tiers should be sorted by max ASC. e.g. 5000, 5500, 6000.
-                    // If utility is 5200:
-                    // 5000 < 5200? yes, but we want the bracket it falls into?
-                    // The rule is: 0-5000 (5%), 5001-5500 (6%).
-                    // So we find the first tier where utility <= max.
+                Object.keys(staffStandardUtility).forEach((name) => {
+                    const stdUtility = staffStandardUtility[name] || 0;
+                    const cmbUtility = staffComboUtility[name] || 0;
 
+                    // 1. Standard Tier
                     const sortedTiers = [...tiers].sort((a, b) => a.max - b.max);
-                    const tier = sortedTiers.find(t => utility <= t.max);
-                    const rate = tier ? tier.rate : sortedTiers[sortedTiers.length - 1].rate;
+                    const tier = sortedTiers.find(t => stdUtility <= t.max);
+                    const stdRate = tier ? tier.rate : sortedTiers[sortedTiers.length - 1].rate;
 
-                    const commTotal = utility * rate;
+                    // 2. Combo Fixed Rate
+                    const cmbRate = 0.08;
+
+                    // 3. Total
+                    const commTotal = (stdUtility * stdRate) + (cmbUtility * cmbRate);
                     const paid = paidCommissions[name] || 0;
                     const remaining = Math.max(0, commTotal - paid);
 
+                    // Effective Rate for Display (Weighted Average if mixed, or just show Tier)
+                    // We'll show the Standard Tier Rate as the "Level"
+
                     if (commTotal > 0) {
-                        commissionDetails.push({ name, utility, rate, amount: remaining, total: commTotal, paid });
+                        commissionDetails.push({ name, utility: stdUtility + cmbUtility, rate: stdRate, amount: remaining, total: commTotal, paid });
                         if (remaining > 0) totalCommissions += remaining;
                     }
                 });
