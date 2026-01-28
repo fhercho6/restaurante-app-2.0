@@ -124,20 +124,25 @@ export default function POSInterface({ items, categories, staffMember, tables = 
   const updateQty = (id, delta) => { setCart(prev => prev.map(item => { if (item.id === id) return { ...item, qty: Math.max(1, item.qty + delta) }; return item; })); };
   const removeFromCart = (id) => setCart(prev => prev.filter(i => i.id !== id));
 
-  // --- AUTO-LOGOUT AL ENVIAR ---
+  // --- AUTO-SELECT TABLE IF ONLY ONE ---
+  useEffect(() => {
+    if (filteredTables.length === 1) {
+      setSelectedTable(filteredTables[0]);
+    }
+  }, [filteredTables]);
+
   const handleSendOrderSafe = async () => {
     if (isProcessing) return;
-    // [NEW] Require table selection if tables exist
-    // If filteredTables is empty but tables exist, it is weird, but we respect filteredTables.
-    // Actually we should check if tables existed originally.
-    if (tables.length > 0 && !selectedTable && !canCharge) {
+
+    // [UPDATED] Only require table if there are tables AVAILABLE for this zone
+    if (filteredTables.length > 0 && !selectedTable && !canCharge) {
       toast.error("Selecciona una mesa por favor 🛑");
       return;
     }
 
     setIsProcessing(true);
     try {
-      await onPrintOrder(cart, setCart, selectedTable); // [UPDATED] Pass selectedTable
+      await onPrintOrder(cart, setCart, selectedTable);
     } finally {
       setIsProcessing(false);
     }
