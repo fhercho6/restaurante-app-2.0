@@ -344,6 +344,7 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                 <div class="bold" style="font-size:16px;">${data.type === 'z-report' ? 'CIERRE DE CAJA' : title}</div>
                 <div style="font-size:10px;">${data.date}</div>
                 <div style="font-size:10px;margin-top:2px;">Atiende: ${staffName.split(' ')[0]} | Caja: ${cashierName.split(' ')[0]}</div>
+                ${data.zone ? `<div style="font-size:11px;font-weight:bold;margin-top:2px;text-transform:uppercase;">ZONA: ${data.zone}</div>` : ''}
                 ${data.openingNote ? `<div style="font-size:10px;margin-top:4px;font-style:italic;">Nota: ${data.openingNote}</div>` : ''}
                 ${(data.type === 'order' || data.type === 'quick_sale' || data.type === 'void') ? `<div class="code-box">#${displayCode}</div>` : ''}
             </div>

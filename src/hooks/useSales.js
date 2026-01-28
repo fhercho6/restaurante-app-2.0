@@ -184,7 +184,7 @@ export const useSales = () => {
         }
     };
 
-    const createOrder = async (cart, clearCart, tableName = null) => {
+    const createOrder = async (cart, clearCart, tableName = null, manualZone = null) => {
         if (!registerSession) return null;
         if (cart.length === 0) return null;
 
@@ -196,8 +196,8 @@ export const useSales = () => {
             const waiterId = staffMember ? staffMember.id : 'anon';
             const waiterName = staffMember ? staffMember.name : 'Mesero';
 
-            // Resolve Zone
-            const zone = tableName ? (tableZones[tableName] || 'Salón') : 'Salón';
+            // Resolve Zone: Manual > Table > Default
+            const zone = manualZone || (tableName ? (tableZones[tableName] || 'Salón') : 'Salón');
 
             const orderData = {
                 date: new Date().toISOString(),

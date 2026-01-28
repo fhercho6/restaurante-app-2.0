@@ -978,8 +978,8 @@ export default function AppContent() {
                                 tableZones={tableZones} // [NEW] Pass Zone Map
                                 staffZone={staffZone} // [NEW] Pass selected zone
                                 onCheckout={handlePOSCheckout}
-                                onPrintOrder={async (cart, clearCart) => {
-                                    const receipt = await createOrder(cart, clearCart);
+                                onPrintOrder={async (cart, clearCart, tableName) => {
+                                    const receipt = await createOrder(cart, clearCart, tableName, staffZone);
                                     if (receipt) {
                                         setLastSale(receipt);
                                         setView('receipt_view');
