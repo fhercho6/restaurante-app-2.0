@@ -811,6 +811,7 @@ export default function AppContent() {
                                                     openingAmount: registerSession?.openingAmount || 0,
                                                     finalCash: getCalculatedCash(),
                                                     stats: sessionStats,
+                                                    zoneStats: sessionStats.zoneStats, // [FIX] Explicitly pass zoneStats
                                                     soldProducts: sessionStats.soldProducts,
                                                     staffName: staffMember?.name || currentUser?.displayName || currentUser?.email || 'Cajero',
                                                     cashierName: staffMember?.name || currentUser?.displayName || currentUser?.email || 'Cajero',
