@@ -164,6 +164,10 @@ export default function CashierView({ items, categories, tables, tableZones = {}
             const finalStaffId = sameStaff ? (ordersToPay[0]?.staffId || 'anon') : 'anon';
 
             // 5. Crear "Super Orden"
+            // [FIX] Inject Current Zone
+            const staffRecord = attendanceList.find(a => (a.staffId && a.staffId === finalStaffId) || (a.staffName === finalStaffName));
+            const currentZone = staffRecord?.zone || 'Salón';
+
             const superOrder = {
                 id: 'BULK_PAYMENT', // ID temporal para UI
                 ids: selectedOrders, // Lista de IDs de firestore para borrar luego en App.jsx
@@ -173,9 +177,7 @@ export default function CashierView({ items, categories, tables, tableZones = {}
                 total: totalAmount,
                 staffName: finalStaffName,
                 staffId: finalStaffId,
-                // Pass the validated zone if single staff, otherwise mixed?
-                // Actually AppContent/useSales might fetch it again or simple use what's there.
-                // But for validation we are good.
+                zone: currentZone // [FIXED] Force correct zone
             };
 
             onProcessPayment(superOrder, () => setSelectedOrders([]));
@@ -425,7 +427,16 @@ export default function CashierView({ items, categories, tables, tableZones = {}
                                             <button
                                                 onClick={() => {
                                                     if (validateZoneBeforePayment(order)) {
-                                                        onProcessPayment(order);
+                                                        // [FIX] Inject Current Zone from Attendance to override stale order zone
+                                                        const attRecord = attendanceList.find(a =>
+                                                            (a.staffId && a.staffId === order.staffId) ||
+                                                            (a.staffName === order.staffName)
+                                                        );
+                                                        const orderWithZone = {
+                                                            ...order,
+                                                            zone: attRecord?.zone || order.zone || 'Salón'
+                                                        };
+                                                        onProcessPayment(orderWithZone);
                                                     }
                                                 }}
                                                 className="p-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200"
