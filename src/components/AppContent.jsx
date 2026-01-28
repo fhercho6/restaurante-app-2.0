@@ -775,6 +775,7 @@ export default function AppContent() {
                                         items={items}
                                         categories={categories}
                                         tables={tables}
+                                        tableZones={tableZones} // [NEW] Pass zones for attendance
                                         onOpenServiceModal={() => setIsServiceModalOpen(true)}
                                         onProcessPayment={handleStartPaymentFromCashier}
                                         onVoidOrder={handleVoidAndPrint}

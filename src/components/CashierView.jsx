@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 // CORRECCIÓN AQUÍ: Se agregó 'User' a la lista de iconos importados
 import { Search, ShoppingCart, Clock, Filter, Trash2, Printer, CheckSquare, Square, DollarSign, X, User, Users, Percent } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, updateDoc, doc } from 'firebase/firestore';
 import { db, ROOT_COLLECTION, isPersonalProject } from '../config/firebase';
 import CommissionPaymentModal from './CommissionPaymentModal'; // [RESTORED]
 import { useRegister } from '../context/RegisterContext'; // [NEW]
 
-export default function CashierView({ items, categories, tables, onProcessPayment, onVoidOrder, onReprintOrder, onStopService, onOpenExpense, onPrintReceipt }) {
+// [UPDATED] Received tableZones
+export default function CashierView({ items, categories, tables, tableZones = {}, onProcessPayment, onVoidOrder, onReprintOrder, onStopService, onOpenExpense, onPrintReceipt }) {
     const { registerSession } = useRegister(); // [NEW]
     const [pendingOrders, setPendingOrders] = useState([]);
     const [activeServices, setActiveServices] = useState([]);
@@ -213,18 +214,37 @@ export default function CashierView({ items, categories, tables, onProcessPaymen
                                 <p className="text-center text-xs text-gray-400 py-4">Sin registros hoy</p>
                             ) : (
                                 attendanceList.map(rec => (
-                                    <div key={rec.id} className="p-2 border border-gray-100 rounded-lg bg-gray-50 flex justify-between items-center group hover:border-orange-200 hover:bg-white transition-colors">
-                                        <div>
-                                            <p className="font-bold text-gray-800 text-sm">{rec.staffName}</p>
-                                            <p className="text-[10px] text-gray-500">{new Date(rec.timestamp).toLocaleTimeString()}</p>
+                                    <div key={rec.id} className="p-2 border border-gray-100 rounded-lg bg-gray-50 flex flex-col gap-2 group hover:border-orange-200 hover:bg-white transition-colors">
+                                        <div className="flex justify-between items-center">
+                                            <div>
+                                                <p className="font-bold text-gray-800 text-sm">{rec.staffName}</p>
+                                                <p className="text-[10px] text-gray-500">{new Date(rec.timestamp).toLocaleTimeString()}</p>
+                                            </div>
+                                            <button
+                                                onClick={() => onPrintReceipt({ ...rec, type: 'attendance-reprint', returnTo: 'cashier' })}
+                                                className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                                title="Reimprimir Ticket"
+                                            >
+                                                <Printer size={16} />
+                                            </button>
                                         </div>
-                                        <button
-                                            onClick={() => onPrintReceipt({ ...rec, type: 'attendance-reprint', returnTo: 'cashier' })} // Usamos el prop existente para pasar la data
-                                            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                                            title="Reimprimir Ticket"
+                                        {/* ZONE SELECTOR */}
+                                        <select
+                                            value={rec.zone || ''}
+                                            onChange={async (e) => {
+                                                try {
+                                                    const attCol = isPersonalProject ? 'attendance' : `${ROOT_COLLECTION}attendance`;
+                                                    await updateDoc(doc(db, attCol, rec.id), { zone: e.target.value });
+                                                    toast.success("Zona actualizada");
+                                                } catch (err) { console.error(err); toast.error("Error al guardar zona"); }
+                                            }}
+                                            className="w-full text-xs p-1 border border-gray-200 rounded bg-white text-gray-700 outline-none focus:border-orange-500"
                                         >
-                                            <Printer size={16} />
-                                        </button>
+                                            <option value="">-- Asignar Zona --</option>
+                                            {[...new Set(Object.values(tableZones || {}))].sort().map(z => (
+                                                <option key={z} value={z}>{z}</option>
+                                            ))}
+                                        </select>
                                     </div>
                                 ))
                             )}
