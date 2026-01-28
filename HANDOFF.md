@@ -150,6 +150,21 @@
             *   Al ingresar con PIN, si el usuario es Mesero/Garzón, el sistema pregunta: **"¿Dónde trabajarás?"** (Salón o Licobar).
             *   El POS filtra automáticamente las mesas para mostrar solo las de esa zona.
 
+    20. **Sesión: 28 de Enero 2026 (Gamificación y Coherencia Financiera):**
+        *   **Gamificación de Ventas:**
+            *   **Barra de Progreso (Garzón):** Nueva barra amarilla en la parte superior del POS que muestra al garzón cuánto le falta vender para subir de nivel de comisión.
+            *   **Monitor en Caja:** El cajero ahora ve esa misma barra de progreso en la lista de "Asistencia", permitiendo monitorear qué tan cerca está cada garzón de su meta.
+            *   **Estrella Dorada ⭐:** Icono visual en el menú para productos de alta utilidad (>15Bs ganancia) o Combos, incentivando su venta.
+        *   **Sincronización Crítica de Comisiones:**
+            *   **Problema:** El Reporte Z calculaba comisiones usando solo porcentajes variables (4-8%), ignorando que los Combos pagan fijo el 8%. Esto subestimaba la deuda real.
+            *   **Solución:** Se unificó la lógica matemática entre el Reporte Z y el Módulo de Pagos. Ahora ambos sistemas respetan la regla: **Combos = 8% Fijo** | **Otros = % Variable según Utilidad**.
+        *   **Mejoras de Estabilidad (Cajero):**
+            *   **Acceso a Historial:** Se habilitaron las pestañas "Historial" y "Gastos" para el perfil Cajero (antes salían en blanco).
+            *   **Corrección de Crashes:** Se arreglaron errores `ReferenceError` que cerraban la app al entrar como Cajero o Garzón debido a imports faltantes.
+        *   **Zonificación Robusta:**
+            *   **Smart Table Selection:** Si un mesero entra a una zona con una sola mesa (o ninguna), el sistema auto-selecciona la opción disponible para ahorrar clics.
+            *   **Inyección de Zona:** El sistema ahora asegura que la zona operativa del garzón se guarde en `sales` y `z-reports`, arreglando discrepancias en el "Reporte por Ambientes".
+
 ---
 
 ## 🛠️ Instrucciones para la Nueva PC
