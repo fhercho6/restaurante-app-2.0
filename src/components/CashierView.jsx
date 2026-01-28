@@ -80,6 +80,45 @@ export default function CashierView({ items, categories, tables, tableZones = {}
         }
     };
 
+    // --- VALIDACIÓN DE ZONA (REQUISITO: CAJERO DEBE ASIGNAR ZONA) ---
+    const validateZoneBeforePayment = (ordersToCheck) => {
+        // Convert to array if single order
+        const orders = Array.isArray(ordersToCheck) ? ordersToCheck : [ordersToCheck];
+
+        for (const order of orders) {
+            // Skip validation for admin or specific cases if needed, but strict is requested
+            // We need to find the staff in the attendance list
+            // Match primarily by ID, fallback to Name
+            const staffId = order.staffId;
+            const staffName = order.staffName;
+
+            // If no staff assigned (e.g. self-service? shouldn't happen for waiters), skip?
+            // Assuming waiter orders always have staff info.
+            if (!staffId && !staffName) continue;
+
+            const attRecord = attendanceList.find(a =>
+                (a.staffId && a.staffId === staffId) ||
+                (a.staffName === staffName)
+            );
+
+            if (!attRecord) {
+                // Not even clocked in? 
+                // Currently specific requirement is ZONE. If not clocked in, maybe let it pass or fail?
+                // Request said: "el cajero defina primero en que zona esta trabjando"
+                // This implies they must be in the list AND have a zone.
+                toast.error(`⚠️ ${staffName} no ha marcado asistencia.\nDebe estar en la lista para asignarle zona.`);
+                return false;
+            }
+
+            if (!attRecord.zone) {
+                toast.error(`⚠️ Falta asignar Zona a: ${staffName}\nPor favor asígnale una zona en "Asistencia Turno".`, { duration: 5000 });
+                setShowAttendanceList(true); // Open the list helper
+                return false;
+            }
+        }
+        return true;
+    };
+
     // --- COBRAR (INDIVIDUAL O MÚLTIPLE) ---
     const handleProcessSelection = () => {
         if (selectedOrders.length === 0) return;
@@ -87,12 +126,15 @@ export default function CashierView({ items, categories, tables, tableZones = {}
         // Filtrar las órdenes completas seleccionadas
         const ordersToPay = pendingOrders.filter(o => selectedOrders.includes(o.id));
 
+        // [VALIDATION]
+        if (!validateZoneBeforePayment(ordersToPay)) return;
+
         if (ordersToPay.length === 1) {
             // COBRO INDIVIDUAL (Normal)
             onProcessPayment(ordersToPay[0], () => setSelectedOrders([]));
         } else {
             // COBRO MASIVO (Fusión)
-
+            // ... (rest of logic)
             // 1. Fusionar Items
             const mergedItems = [];
             ordersToPay.forEach(order => {
@@ -130,7 +172,10 @@ export default function CashierView({ items, categories, tables, tableZones = {}
                 items: mergedItems,
                 total: totalAmount,
                 staffName: finalStaffName,
-                staffId: finalStaffId
+                staffId: finalStaffId,
+                // Pass the validated zone if single staff, otherwise mixed?
+                // Actually AppContent/useSales might fetch it again or simple use what's there.
+                // But for validation we are good.
             };
 
             onProcessPayment(superOrder, () => setSelectedOrders([]));
@@ -378,7 +423,11 @@ export default function CashierView({ items, categories, tables, tableZones = {}
 
                                         <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                                             <button
-                                                onClick={() => onProcessPayment(order)}
+                                                onClick={() => {
+                                                    if (validateZoneBeforePayment(order)) {
+                                                        onProcessPayment(order);
+                                                    }
+                                                }}
                                                 className="p-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200"
                                                 title="Cobrar este pedido"
                                             >
