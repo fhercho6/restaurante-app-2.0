@@ -33,10 +33,10 @@ export const DataProvider = ({ children }) => {
     const [autoLockTime, setAutoLockTime] = useState(45);
     const [printerType, setPrinterType] = useState('thermal');
     const [commissionTiers, setCommissionTiers] = useState([
-        { max: 5000, rate: 0.05 },
-        { max: 5500, rate: 0.06 },
-        { max: 6000, rate: 0.07 },
-        { max: 999999, rate: 0.08 }
+        { max: 1500, rate: 0.04 }, // 4% (0 - 1500)
+        { max: 3000, rate: 0.05 }, // 5% (1501 - 3000)
+        { max: 4500, rate: 0.06 }, // 6% (3001 - 4500)
+        { max: 999999, rate: 0.08 } // 8% (4500+)
     ]);
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [dbStatus, setDbStatus] = useState('connecting');

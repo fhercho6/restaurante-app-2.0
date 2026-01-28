@@ -127,9 +127,9 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
 
             // 4. Calculate Commission Amount based on Tiers
             const tiers = commissionTiers || [
-                { max: 5000, rate: 0.05 },
-                { max: 5500, rate: 0.06 },
-                { max: 6000, rate: 0.07 },
+                { max: 1500, rate: 0.04 },
+                { max: 3000, rate: 0.05 },
+                { max: 4500, rate: 0.06 },
                 { max: 999999, rate: 0.08 }
             ];
 
