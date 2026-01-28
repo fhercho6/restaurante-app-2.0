@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 // CORRECCIÓN AQUÍ: Se agregó 'User' a la lista de iconos importados
 import { Search, ShoppingCart, Clock, Filter, Trash2, Printer, CheckSquare, Square, DollarSign, X, User, Users, Percent } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { db, ROOT_COLLECTION, isPersonalProject } from '../config/firebase';
 import CommissionPaymentModal from './CommissionPaymentModal'; // [RESTORED]
