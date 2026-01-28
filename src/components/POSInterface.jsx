@@ -94,6 +94,13 @@ export default function POSInterface({ items, categories, staffMember, tables = 
     const isLowStock = hasStock && stockNum < 5 && stockNum > 0;
     const isOut = hasStock && stockNum <= 0;
 
+    // [VISUAL UTILITY INDICATOR] "Golden Star"
+    // Logic: High Commission (Combos) OR High Profit (> 15 Bs)
+    const cost = parseFloat(item.cost) || 0;
+    const price = parseFloat(item.price) || 0;
+    const utility = price - cost;
+    const isHighUtility = !isOut && (utility >= 15 || isComboLike);
+
     return (
       <div
         onClick={!isOut ? onClick : undefined}
@@ -106,6 +113,16 @@ export default function POSInterface({ items, categories, staffMember, tables = 
             <ChefHat className="text-gray-300" size={32} />
           )}
           <div className="absolute top-1 right-1 bg-black/80 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">Bs. {Number(item.price).toFixed(2)}</div>
+
+          {/* GOLDEN STAR INDICATOR */}
+          {isHighUtility && (
+            <div className="absolute top-1 left-1 text-yellow-500 drop-shadow-md animate-pulse" title="¡Producto Ganador! (Alta Comisión)">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
+              </svg>
+            </div>
+          )}
+
           {isLowStock && !isOut && (<div className="absolute bottom-0 w-full bg-red-600 text-white text-[9px] font-black text-center py-0.5 uppercase tracking-wider animate-pulse">¡SOLO {stockNum}!</div>)}
           {isOut && (<div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white font-black uppercase tracking-widest text-sm transform -rotate-12 backdrop-blur-[1px]">AGOTADO</div>)}
         </div>
