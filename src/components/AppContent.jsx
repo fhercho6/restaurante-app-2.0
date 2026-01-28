@@ -166,9 +166,14 @@ export default function AppContent() {
 
         let effectiveZone = zone;
 
-        // If no zone provided, check cache
+        // 1. Try provided zone
+        // 2. Try cache (activeZones) - usually empty on reload
+        // 3. Try LocalStorage (Persistence)
         if (!effectiveZone && activeZones[member.id]) {
             effectiveZone = activeZones[member.id];
+        } else if (!effectiveZone) {
+            const savedZone = localStorage.getItem(`staffZone_${member.id}`);
+            if (savedZone) effectiveZone = savedZone;
         }
 
         // ATTENDANCE CHECK LOGIC
@@ -204,6 +209,11 @@ export default function AppContent() {
 
         const result = await staffLogin(member);
         if (result) {
+            // [CRITICAL FIX] Set the Zone State!
+            if (effectiveZone) {
+                setStaffZone(effectiveZone);
+                toast.success(`Zona asignada: ${effectiveZone}`);
+            }
             setView(result);
         }
     };
@@ -981,6 +991,12 @@ export default function AppContent() {
                                 onPrintOrder={async (cart, clearCart, tableName) => {
                                     const receipt = await createOrder(cart, clearCart, tableName, staffZone);
                                     if (receipt) {
+                                        // [NEW] Persist Zone for Waiter
+                                        if (receipt.zone && staffMember && staffMember.id) {
+                                            localStorage.setItem(`staffZone_${staffMember.id}`, receipt.zone);
+                                            // Auto-update current session if it was empty
+                                            if (!staffZone) setStaffZone(receipt.zone);
+                                        }
                                         setLastSale(receipt);
                                         setView('receipt_view');
                                     }
