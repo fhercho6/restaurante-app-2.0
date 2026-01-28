@@ -178,82 +178,145 @@ export default function POSInterface({ items, categories, staffMember, tables = 
   const filteredItems = items.filter(i => { const matchesCat = categoryFilter === 'Todos' ? true : i.category === categoryFilter; const matchesSearch = i.name.toLowerCase().includes(searchTerm.toLowerCase()); return matchesCat && matchesSearch; });
   const cartTotal = cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
 
+  // --- MOTIVATION BAR (Commission Progress) ---
+  const { sessionStats } = useRegister();
+  const { commissionTiers } = useData();
+
+  // Determine Next Tier Logic
+  // Tiers: 0-1500 (4%), 1500-3000 (5%), etc.
+  // We need to find the NEXT milestone.
+  const myUtility = (sessionStats?.staffUtility?.[staffMember?.name] || 0);
+
+  // Find current rate index
+  // commissionTiers are sorted? usually yes.
+  // Tiers: [{max: 1500, rate: 0.04}, {max: 3000, rate: 0.05}, ...]
+  const sortedTiers = [...commissionTiers].sort((a, b) => a.max - b.max);
+  const nextTier = sortedTiers.find(t => t.max > myUtility);
+  const highestTier = sortedTiers[sortedTiers.length - 1];
+  const isMaxLevel = !nextTier;
+
+  const currentRate = isMaxLevel ? highestTier.rate : (sortedTiers.find(t => myUtility <= t.max)?.rate || sortedTiers[0].rate);
+  const nextRate = nextTier ? nextTier.rate : highestTier.rate;
+
+  // Progress Calculation
+  const maxGoal = nextTier ? nextTier.max : highestTier.max; // If max level, just show full?
+  // Let's make "current level start" the 0 of the progress bar for better psychology? 
+  // No, absolute progress is clearer.
+  // Wait, if I have 1600 utility, I am in 5% tier. Next goal is 3000.
+  // Progress should be (1600 / 3000) * 100 ? 
+  // Or relative to the step? (1600 - 1500) / (3000 - 1500)?
+  // Absolute is simpler to implement and understand. "Falta Vender X para llegar."
+
+  const progressPercent = isMaxLevel ? 100 : Math.min(100, (myUtility / maxGoal) * 100);
+  const utilityNeeded = isMaxLevel ? 0 : (maxGoal - myUtility);
+
+  // Motivational Message
+  let motMsg = "";
+  if (isMaxLevel) motMsg = "🚀 ¡MODO BESTIA ACTIVADO! (Máxima Comisión)";
+  else motMsg = `Faltan Bs. ${utilityNeeded.toFixed(0)} de Exp. para saltar al ${(nextRate * 100).toFixed(0)}% 🔥`;
+
+
   return (
-    <div className="flex h-[85vh] bg-gray-100 rounded-xl overflow-hidden border border-gray-300 animate-in fade-in">
+    <div className="flex h-[85vh] bg-gray-100 rounded-xl overflow-hidden border border-gray-300 animate-in fade-in flex-col">
+      {/* MOTIVATION BAR HEADER */}
+      {!canCharge && (
+        <div className="bg-gray-900 text-white px-3 py-1 flex items-center justify-between text-xs">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-yellow-500">Nivel Actual: {(currentRate * 100).toFixed(0)}%</span>
+            <span className="text-gray-400">|</span>
+            <span className="text-gray-300">Exp: Bs. {myUtility.toFixed(0)}</span>
+          </div>
 
-      {/* IZQUIERDA: CATÁLOGO */}
-      <div className="flex-1 flex flex-col min-w-0 bg-gray-50">
-        <div className="bg-white p-3 shadow-sm z-10 space-y-3">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <button onClick={onExit} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 text-gray-600" title="Cerrar Sesión"><ChevronLeft size={20} /></button>
-              <div><h2 className="font-bold text-lg leading-none text-gray-800">{staffMember?.name?.split(' ')[0]}</h2><span className="text-[10px] text-green-600 font-bold uppercase">{staffMember?.role || 'Personal'}</span></div>
-
-              {/* [NEW] ZONE MANAGER BUTTON */}
-              {canCharge && (
-                <button onClick={onManageZones} className="ml-2 p-2 bg-gray-100 hover:bg-orange-100 text-gray-500 hover:text-orange-600 rounded-lg transition-colors" title="Gestionar Zonas">
-                  <MapPin size={20} />
-                </button>
-              )}
-            </div>
-            {/* Indicador de Tiempo Restante */}
-            <div className="text-[9px] text-gray-400 flex items-center gap-1 bg-gray-50 px-2 py-1 rounded-full border">
-              <Lock size={10} /> Cierre en: {autoLockTime}s
+          <div className="flex items-center gap-2 flex-1 max-w-xs mx-4">
+            <div className="flex-1 h-2 bg-gray-700 rounded-full overflow-hidden relative">
+              <div
+                className="absolute top-0 left-0 h-full bg-gradient-to-r from-yellow-600 to-yellow-400 transition-all duration-1000"
+                style={{ width: `${progressPercent}%` }}
+              />
             </div>
           </div>
-          <div className="relative"><Search className="absolute left-3 top-2.5 text-gray-400" size={16} /><input type="text" placeholder="Buscar..." className="w-full pl-9 pr-4 py-2 bg-gray-100 rounded-lg text-sm outline-none focus:ring-1 focus:ring-orange-500" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /></div>
-          <div className="relative">
-            <div className={`flex flex-wrap gap-2 overflow-y-auto pr-6 transition-all ${expandCategories ? 'max-h-48' : 'max-h-12'} scrollbar-hide`}>
-              <button onClick={() => setCategoryFilter('Todos')} className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap border transition-all ${categoryFilter === 'Todos' ? 'bg-black text-white border-black' : 'bg-white text-gray-600 border-gray-200'}`}>Todos</button>
-              {categories.map(cat => (<button key={cat} onClick={() => setCategoryFilter(cat)} className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap border transition-all ${categoryFilter === cat ? 'bg-black text-white border-black' : 'bg-white text-gray-600 border-gray-200'}`}>{cat}</button>))}
-            </div>
-            <button onClick={() => setExpandCategories(!expandCategories)} className="absolute right-0 top-0 bottom-0 bg-white/80 backdrop-blur-sm pl-2 flex items-start pt-1">{expandCategories ? <ChevronUp size={20} className="text-gray-500" /> : <ChevronDown size={20} className="text-gray-500" />}</button>
-          </div>
+
+          <div className="font-bold text-[10px] text-yellow-200 animate-pulse">{motMsg}</div>
         </div>
-        <div className="flex-1 overflow-y-auto p-3 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 content-start">
-          {filteredItems.map(item => (<POSCard key={item.id} item={item} allItems={items} onClick={() => addToCart(item)} />))}
-        </div>
-      </div>
+      )}
 
-      {/* DERECHA: COMANDA */}
-      <div className="w-80 bg-white shadow-xl flex flex-col border-l border-gray-200 z-20">
-        <div className="p-3 bg-gray-50 border-b border-gray-200 space-y-2">
-          <div className="flex justify-between items-center">
-            <h3 className="font-bold text-gray-700 flex items-center gap-2 text-sm"><ShoppingCart size={16} /> Comanda</h3>
-            <button onClick={() => { setCart([]); setSelectedTable(''); }} className="text-[10px] text-red-500 hover:underline font-bold" disabled={isProcessing}>LIMPIAR</button>
-          </div>
+      <div className="flex flex-1 overflow-hidden">
 
-          {/* SELECTOR DE MESA (FILTERED) */}
-          {tables.length > 0 && (
+
+        {/* IZQUIERDA: CATÁLOGO */}
+        <div className="flex-1 flex flex-col min-w-0 bg-gray-50">
+          <div className="bg-white p-3 shadow-sm z-10 space-y-3">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <button onClick={onExit} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 text-gray-600" title="Cerrar Sesión"><ChevronLeft size={20} /></button>
+                <div><h2 className="font-bold text-lg leading-none text-gray-800">{staffMember?.name?.split(' ')[0]}</h2><span className="text-[10px] text-green-600 font-bold uppercase">{staffMember?.role || 'Personal'}</span></div>
+
+                {/* [NEW] ZONE MANAGER BUTTON */}
+                {canCharge && (
+                  <button onClick={onManageZones} className="ml-2 p-2 bg-gray-100 hover:bg-orange-100 text-gray-500 hover:text-orange-600 rounded-lg transition-colors" title="Gestionar Zonas">
+                    <MapPin size={20} />
+                  </button>
+                )}
+              </div>
+              {/* Indicador de Tiempo Restante */}
+              <div className="text-[9px] text-gray-400 flex items-center gap-1 bg-gray-50 px-2 py-1 rounded-full border">
+                <Lock size={10} /> Cierre en: {autoLockTime}s
+              </div>
+            </div>
+            <div className="relative"><Search className="absolute left-3 top-2.5 text-gray-400" size={16} /><input type="text" placeholder="Buscar..." className="w-full pl-9 pr-4 py-2 bg-gray-100 rounded-lg text-sm outline-none focus:ring-1 focus:ring-orange-500" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /></div>
             <div className="relative">
-              <select
-                value={selectedTable}
-                onChange={e => setSelectedTable(e.target.value)}
-                className={`w-full p-2 text-sm font-bold border rounded-lg appearance-none outline-none focus:ring-2 focus:ring-black transition-all ${!selectedTable ? 'text-gray-400 border-red-300 bg-red-50' : 'text-gray-800 border-gray-200 bg-white'}`}
-              >
-                <option value="">{staffZone ? `-- ${staffZone.toUpperCase()} --` : '-- MESA --'}</option>
-                {filteredTables.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-              <LayoutGrid className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={16} />
+              <div className={`flex flex-wrap gap-2 overflow-y-auto pr-6 transition-all ${expandCategories ? 'max-h-48' : 'max-h-12'} scrollbar-hide`}>
+                <button onClick={() => setCategoryFilter('Todos')} className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap border transition-all ${categoryFilter === 'Todos' ? 'bg-black text-white border-black' : 'bg-white text-gray-600 border-gray-200'}`}>Todos</button>
+                {categories.map(cat => (<button key={cat} onClick={() => setCategoryFilter(cat)} className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap border transition-all ${categoryFilter === cat ? 'bg-black text-white border-black' : 'bg-white text-gray-600 border-gray-200'}`}>{cat}</button>))}
+              </div>
+              <button onClick={() => setExpandCategories(!expandCategories)} className="absolute right-0 top-0 bottom-0 bg-white/80 backdrop-blur-sm pl-2 flex items-start pt-1">{expandCategories ? <ChevronUp size={20} className="text-gray-500" /> : <ChevronDown size={20} className="text-gray-500" />}</button>
             </div>
-          )}
-          {staffZone && <p className="text-[10px] text-gray-400 text-center uppercase tracking-widest mt-1">Zona: {staffZone}</p>}
+          </div>
+          <div className="flex-1 overflow-y-auto p-3 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 content-start">
+            {filteredItems.map(item => (<POSCard key={item.id} item={item} allItems={items} onClick={() => addToCart(item)} />))}
+          </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-3 space-y-2">
-          {cart.length === 0 ? (<div className="h-full flex flex-col items-center justify-center text-gray-300"><ShoppingCart size={32} className="mb-2 opacity-20" /><p className="text-xs">Vacío</p></div>) : (cart.map(item => (
-            <div key={item.id} className="flex items-center justify-between bg-white p-2 rounded-lg border border-gray-100 shadow-sm">
-              <div className="flex-1 min-w-0 mr-2"><div className="font-bold text-gray-800 text-sm truncate">{item.name}</div><div className="text-[10px] text-gray-500">Bs. {item.price}</div></div>
-              <div className="flex items-center gap-1 bg-gray-100 rounded px-1"><button onClick={(e) => { e.stopPropagation(); updateQty(item.id, -1) }} disabled={isProcessing} className="w-6 h-6 flex items-center justify-center text-gray-500 hover:bg-white rounded transition-colors"><Minus size={12} /></button><span className="font-bold w-4 text-center text-xs">{item.qty}</span><button onClick={(e) => { e.stopPropagation(); updateQty(item.id, 1) }} disabled={isProcessing} className="w-6 h-6 flex items-center justify-center text-blue-600 hover:bg-white rounded transition-colors"><Plus size={12} /></button></div>
-              <button onClick={(e) => { e.stopPropagation(); removeFromCart(item.id) }} disabled={isProcessing} className="ml-2 text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
+        {/* DERECHA: COMANDA */}
+        <div className="w-80 bg-white shadow-xl flex flex-col border-l border-gray-200 z-20">
+          <div className="p-3 bg-gray-50 border-b border-gray-200 space-y-2">
+            <div className="flex justify-between items-center">
+              <h3 className="font-bold text-gray-700 flex items-center gap-2 text-sm"><ShoppingCart size={16} /> Comanda</h3>
+              <button onClick={() => { setCart([]); setSelectedTable(''); }} className="text-[10px] text-red-500 hover:underline font-bold" disabled={isProcessing}>LIMPIAR</button>
             </div>
-          )))}
-        </div>
-        <div className="p-3 bg-gray-50 border-t border-gray-200 space-y-2">
-          <div className="flex justify-between items-end mb-1"><span className="text-gray-500 font-medium text-sm">Total</span><span className="text-2xl font-black text-gray-900">Bs. {cartTotal.toFixed(2)}</span></div>
-          <div className={`grid ${canCharge ? 'grid-cols-2' : 'grid-cols-1'} gap-2`}>
-            <button onClick={handleSendOrderSafe} disabled={cart.length === 0 || isProcessing} className="bg-gray-800 text-white py-3 rounded-lg font-bold shadow hover:bg-gray-900 disabled:opacity-50 text-xs flex flex-col items-center justify-center">{isProcessing ? 'Enviando...' : <><Send size={16} className="mb-1" /> ENVIAR + SALIR</>}</button>
-            {canCharge && (<button onClick={handleCheckoutSafe} disabled={cart.length === 0 || isProcessing} className="bg-green-600 text-white py-3 rounded-lg font-bold shadow hover:bg-green-700 disabled:opacity-50 text-xs flex flex-col items-center justify-center">{isProcessing ? 'Cobrando...' : <><div className="text-sm">COBRAR</div><span className="text-[9px] opacity-80">Directo</span></>}</button>)}
+
+            {/* SELECTOR DE MESA (FILTERED) */}
+            {tables.length > 0 && (
+              <div className="relative">
+                <select
+                  value={selectedTable}
+                  onChange={e => setSelectedTable(e.target.value)}
+                  className={`w-full p-2 text-sm font-bold border rounded-lg appearance-none outline-none focus:ring-2 focus:ring-black transition-all ${!selectedTable ? 'text-gray-400 border-red-300 bg-red-50' : 'text-gray-800 border-gray-200 bg-white'}`}
+                >
+                  <option value="">{staffZone ? `-- ${staffZone.toUpperCase()} --` : '-- MESA --'}</option>
+                  {filteredTables.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+                <LayoutGrid className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={16} />
+              </div>
+            )}
+            {staffZone && <p className="text-[10px] text-gray-400 text-center uppercase tracking-widest mt-1">Zona: {staffZone}</p>}
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-3 space-y-2">
+            {cart.length === 0 ? (<div className="h-full flex flex-col items-center justify-center text-gray-300"><ShoppingCart size={32} className="mb-2 opacity-20" /><p className="text-xs">Vacío</p></div>) : (cart.map(item => (
+              <div key={item.id} className="flex items-center justify-between bg-white p-2 rounded-lg border border-gray-100 shadow-sm">
+                <div className="flex-1 min-w-0 mr-2"><div className="font-bold text-gray-800 text-sm truncate">{item.name}</div><div className="text-[10px] text-gray-500">Bs. {item.price}</div></div>
+                <div className="flex items-center gap-1 bg-gray-100 rounded px-1"><button onClick={(e) => { e.stopPropagation(); updateQty(item.id, -1) }} disabled={isProcessing} className="w-6 h-6 flex items-center justify-center text-gray-500 hover:bg-white rounded transition-colors"><Minus size={12} /></button><span className="font-bold w-4 text-center text-xs">{item.qty}</span><button onClick={(e) => { e.stopPropagation(); updateQty(item.id, 1) }} disabled={isProcessing} className="w-6 h-6 flex items-center justify-center text-blue-600 hover:bg-white rounded transition-colors"><Plus size={12} /></button></div>
+                <button onClick={(e) => { e.stopPropagation(); removeFromCart(item.id) }} disabled={isProcessing} className="ml-2 text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
+              </div>
+            )))}
+          </div>
+          <div className="p-3 bg-gray-50 border-t border-gray-200 space-y-2">
+            <div className="flex justify-between items-end mb-1"><span className="text-gray-500 font-medium text-sm">Total</span><span className="text-2xl font-black text-gray-900">Bs. {cartTotal.toFixed(2)}</span></div>
+            <div className={`grid ${canCharge ? 'grid-cols-2' : 'grid-cols-1'} gap-2`}>
+              <button onClick={handleSendOrderSafe} disabled={cart.length === 0 || isProcessing} className="bg-gray-800 text-white py-3 rounded-lg font-bold shadow hover:bg-gray-900 disabled:opacity-50 text-xs flex flex-col items-center justify-center">{isProcessing ? 'Enviando...' : <><Send size={16} className="mb-1" /> ENVIAR + SALIR</>}</button>
+              {canCharge && (<button onClick={handleCheckoutSafe} disabled={cart.length === 0 || isProcessing} className="bg-green-600 text-white py-3 rounded-lg font-bold shadow hover:bg-green-700 disabled:opacity-50 text-xs flex flex-col items-center justify-center">{isProcessing ? 'Cobrando...' : <><div className="text-sm">COBRAR</div><span className="text-[9px] opacity-80">Directo</span></>}</button>)}
+            </div>
           </div>
         </div>
       </div>

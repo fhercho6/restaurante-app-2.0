@@ -260,87 +260,117 @@ export default function CashierView({ items, categories, tables, tableZones = {}
                             {attendanceList.length === 0 ? (
                                 <p className="text-center text-xs text-gray-400 py-4">Sin registros hoy</p>
                             ) : (
-                                attendanceList.map(rec => (
-                                    <div key={rec.id} className="p-2 border border-gray-100 rounded-lg bg-gray-50 flex flex-col gap-2 group hover:border-orange-200 hover:bg-white transition-colors">
-                                        <div className="flex justify-between items-center">
-                                            <div>
-                                                <p className="font-bold text-gray-800 text-sm">{rec.staffName}</p>
-                                                <p className="text-[10px] text-gray-500">{new Date(rec.timestamp).toLocaleTimeString()}</p>
+                                attendanceList.map(rec => {
+                                    // [NEW] PROGRESS BAR LOGIC
+                                    const myUtility = (sessionStats?.staffUtility?.[rec.staffName] || 0);
+                                    const sortedTiers = [...(commissionTiers || [])].sort((a, b) => a.max - b.max);
+
+                                    // Default tiers if missing
+                                    const tiersToUse = sortedTiers.length > 0 ? sortedTiers : [{ max: 1500, rate: 0.04 }, { max: 3000, rate: 0.05 }, { max: 4500, rate: 0.06 }, { max: 999999, rate: 0.08 }];
+
+                                    const nextTier = tiersToUse.find(t => t.max > myUtility);
+                                    const highestTier = tiersToUse[tiersToUse.length - 1];
+                                    const isMaxLevel = !nextTier;
+                                    const currentRate = isMaxLevel ? highestTier.rate : (tiersToUse.find(t => myUtility <= t.max)?.rate || tiersToUse[0].rate);
+                                    const maxGoal = nextTier ? nextTier.max : highestTier.max;
+                                    const progressPercent = isMaxLevel ? 100 : Math.min(100, (myUtility / maxGoal) * 100);
+
+                                    return (
+                                        <div key={rec.id} className="p-2 border border-gray-100 rounded-lg bg-gray-50 flex flex-col gap-2 group hover:border-orange-200 hover:bg-white transition-colors">
+                                            <div className="flex justify-between items-center">
+                                                <div>
+                                                    <p className="font-bold text-gray-800 text-sm">{rec.staffName}</p>
+                                                    <p className="text-[10px] text-gray-500">{new Date(rec.timestamp).toLocaleTimeString()}</p>
+                                                </div>
+                                                <button
+                                                    onClick={() => onPrintReceipt({ ...rec, type: 'attendance-reprint', returnTo: 'cashier' })}
+                                                    className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                                    title="Reimprimir Ticket"
+                                                >
+                                                    <Printer size={16} />
+                                                </button>
                                             </div>
-                                            <button
-                                                onClick={() => onPrintReceipt({ ...rec, type: 'attendance-reprint', returnTo: 'cashier' })}
-                                                className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                                                title="Reimprimir Ticket"
+
+                                            {/* PROGRESS BAR */}
+                                            <div className="w-full bg-gray-200 rounded-full h-1.5 mb-1 overflow-hidden relative">
+                                                <div className="bg-gradient-to-r from-yellow-500 to-orange-500 h-1.5 rounded-full transition-all duration-1000" style={{ width: `${progressPercent}%` }}></div>
+                                            </div>
+                                            <div className="flex justify-between text-[10px] items-center mb-1">
+                                                <span className="font-bold text-orange-600">Nivel {(currentRate * 100).toFixed(0)}%</span>
+                                                <span className="text-gray-400">Exp: {myUtility.toFixed(0)} / {isMaxLevel ? 'MAX' : maxGoal}</span>
+                                            </div>
+
+                                            {/* ZONE SELECTOR */}
+                                            <select
+                                                value={rec.zone || ''}
+                                                onChange={async (e) => {
+                                                    try {
+                                                        const attCol = isPersonalProject ? 'attendance' : `${ROOT_COLLECTION}attendance`;
+                                                        await updateDoc(doc(db, attCol, rec.id), { zone: e.target.value });
+                                                        toast.success("Zona actualizada");
+                                                    } catch (err) { console.error(err); toast.error("Error al guardar zona"); }
+                                                }}
+                                                className="w-full text-xs p-1 border border-gray-200 rounded bg-white text-gray-700 outline-none focus:border-orange-500"
                                             >
-                                                <Printer size={16} />
-                                            </button>
+                                                <option value="">-- Asignar Zona --</option>
+                                                {[...new Set(Object.values(tableZones || {}))].sort().map(z => (
+                                                    <option key={z} value={z}>{z}</option>
+                                                ))}
+                                            </select>
                                         </div>
-                                        {/* ZONE SELECTOR */}
-                                        <select
-                                            value={rec.zone || ''}
-                                            onChange={async (e) => {
-                                                try {
-                                                    const attCol = isPersonalProject ? 'attendance' : `${ROOT_COLLECTION}attendance`;
-                                                    await updateDoc(doc(db, attCol, rec.id), { zone: e.target.value });
-                                                    toast.success("Zona actualizada");
-                                                } catch (err) { console.error(err); toast.error("Error al guardar zona"); }
-                                            }}
-                                            className="w-full text-xs p-1 border border-gray-200 rounded bg-white text-gray-700 outline-none focus:border-orange-500"
-                                        >
-                                            <option value="">-- Asignar Zona --</option>
-                                            {[...new Set(Object.values(tableZones || {}))].sort().map(z => (
-                                                <option key={z} value={z}>{z}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                ))
+                                    );
+                                })
                             )}
                         </div>
                     </div>
                 )}
 
                 {/* MODAL DE COMISIONES */}
-                {showCommissionModal && (
-                    <CommissionPaymentModal
-                        onClose={() => setShowCommissionModal(false)}
-                        onPrintReceipt={onPrintReceipt}
-                    />
-                )}
+                {
+                    showCommissionModal && (
+                        <CommissionPaymentModal
+                            onClose={() => setShowCommissionModal(false)}
+                            onPrintReceipt={onPrintReceipt}
+                        />
+                    )
+                }
 
                 {/* COLUMNA IZQUIERDA: SERVICIOS ACTIVOS */}
-                {activeServices.length > 0 && (
-                    <div className="w-full md:w-1/3 flex flex-col gap-4 overflow-y-auto pb-20">
-                        <h3 className="font-bold text-gray-500 uppercase text-xs flex items-center gap-2 px-1"><Clock size={14} /> Servicios en Curso ({activeServices.length})</h3>
-                        {filteredServices.map(srv => {
-                            const start = new Date(srv.startTime);
-                            const now = new Date();
-                            const diffMs = now - start;
-                            const diffMins = Math.floor(diffMs / 60000);
-                            const cost = (diffMins / 60) * srv.pricePerHour;
+                {
+                    activeServices.length > 0 && (
+                        <div className="w-full md:w-1/3 flex flex-col gap-4 overflow-y-auto pb-20">
+                            <h3 className="font-bold text-gray-500 uppercase text-xs flex items-center gap-2 px-1"><Clock size={14} /> Servicios en Curso ({activeServices.length})</h3>
+                            {filteredServices.map(srv => {
+                                const start = new Date(srv.startTime);
+                                const now = new Date();
+                                const diffMs = now - start;
+                                const diffMins = Math.floor(diffMs / 60000);
+                                const cost = (diffMins / 60) * srv.pricePerHour;
 
-                            return (
-                                <div key={srv.id} className="bg-white p-4 rounded-xl border-l-4 border-purple-500 shadow-sm relative group">
-                                    <div className="flex justify-between items-start mb-2">
-                                        <div>
-                                            <h4 className="font-bold text-gray-800">{srv.serviceName}</h4>
-                                            <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded font-bold">{srv.note}</span>
+                                return (
+                                    <div key={srv.id} className="bg-white p-4 rounded-xl border-l-4 border-purple-500 shadow-sm relative group">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div>
+                                                <h4 className="font-bold text-gray-800">{srv.serviceName}</h4>
+                                                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded font-bold">{srv.note}</span>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="text-2xl font-black text-gray-900">Bs. {cost.toFixed(2)}</div>
+                                                <div className="text-xs text-gray-400">{diffMins} min</div>
+                                            </div>
                                         </div>
-                                        <div className="text-right">
-                                            <div className="text-2xl font-black text-gray-900">Bs. {cost.toFixed(2)}</div>
-                                            <div className="text-xs text-gray-400">{diffMins} min</div>
-                                        </div>
+                                        <button
+                                            onClick={() => onStopService(srv, cost, `${diffMins} min`)}
+                                            className="w-full py-2 bg-red-50 text-red-600 font-bold rounded-lg hover:bg-red-600 hover:text-white transition-colors"
+                                        >
+                                            DETENER Y COBRAR
+                                        </button>
                                     </div>
-                                    <button
-                                        onClick={() => onStopService(srv, cost, `${diffMins} min`)}
-                                        className="w-full py-2 bg-red-50 text-red-600 font-bold rounded-lg hover:bg-red-600 hover:text-white transition-colors"
-                                    >
-                                        DETENER Y COBRAR
-                                    </button>
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
+                                );
+                            })}
+                        </div>
+                    )
+                }
 
                 {/* COLUMNA DERECHA: PEDIDOS PENDIENTES */}
                 <div className="flex-1 flex flex-col overflow-hidden bg-white rounded-2xl shadow-sm border border-gray-200">
@@ -467,7 +497,7 @@ export default function CashierView({ items, categories, tables, tableZones = {}
                         )}
                     </div>
                 </div>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 }

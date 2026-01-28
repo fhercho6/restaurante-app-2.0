@@ -48,11 +48,13 @@ export const RegisterProvider = ({ children }) => {
             let c = 0, q = 0, k = 0, r = 0, d = 0, ct = 0, cc = 0, cg = 0;
             const pm = {};
             const zs = {}; // Zone Stats accumulator
+            const su = {}; // [NEW] Staff Utility accumulator { 'Juan': 120, 'Ana': 500 }
 
             s.forEach(d => {
                 const v = d.data();
                 const ic = v.payments?.some(p => p.method === 'Cortesía');
                 const zone = v.zone || 'Salón'; // Default zone
+                const waiterName = v.staffName; // Get staff name
 
                 // Track Zone Revenue (Only active sales, exclude voids if they exist here? Query gets everything?)
                 // Assuming "sales" collection only has valid sales. Voids are usually deleted or moved?
@@ -84,6 +86,23 @@ export const RegisterProvider = ({ children }) => {
                         else if (m.includes('reserva')) r += t;
                         else k += t;
                     }
+                }
+
+                // [NEW] Calculate Utility for Staff Progress Bar (Only meaningful sales, maybe exclude courtesy?)
+                // Usually commission implies paying for courtesy? No, typically not.
+                // We'll follow commission logic: Standard logic seems to exclude courtesy from cash totals but utility calculation in Modal might include it? 
+                // Let's assume COMMISSIONABLE sales only. Usually sold items.
+                if (!ic && waiterName) {
+                    if (!su[waiterName]) su[waiterName] = 0;
+
+                    if (v.items) v.items.forEach(i => {
+                        const pr = parseFloat(i.price) || 0;
+                        const co = parseFloat(i.cost) || 0;
+                        const qty = i.qty || 1;
+                        // Utility = (Price - Cost) * Qty
+                        const ut = (pr - co) * qty;
+                        su[waiterName] += ut;
+                    });
                 }
 
                 if (v.items) v.items.forEach(i => {
@@ -127,7 +146,8 @@ export const RegisterProvider = ({ children }) => {
                 courtesyTotal: ct,
                 courtesyCost: cc,
                 soldProducts: soldArray,
-                zoneStats: zs // [NEW]
+                zoneStats: zs, // [NEW]
+                staffUtility: su // [NEW]
             }));
         });
 
