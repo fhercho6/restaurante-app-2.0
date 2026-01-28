@@ -855,8 +855,8 @@ export default function AppContent() {
                                     }}
                                 />}
                                 {view === 'maintenance' && <EquipmentManager staff={staff} registerSession={registerSession} />}
-                                {view === 'shift_history' && !isCashierOnly && <ShiftHistory onReprint={(shift) => { setLastSale({ ...shift, type: 'z-report', finalCash: shift.finalCashCalculated, stats: shift.finalSalesStats, businessName: appName, date: new Date(shift.closedAt).toLocaleString(), returnTo: 'shift_history' }); setView('receipt_view'); }} />}
-                                {view === 'expense_history' && !isCashierOnly && <ExpenseHistory onBack={() => setView('admin')} />}
+                                {view === 'shift_history' && <ShiftHistory onReprint={(shift) => { setLastSale({ ...shift, type: 'z-report', finalCash: shift.finalCashCalculated, stats: shift.finalSalesStats, businessName: appName, date: new Date(shift.closedAt).toLocaleString(), returnTo: 'shift_history' }); setView('receipt_view'); }} />}
+                                {view === 'expense_history' && <ExpenseHistory onBack={() => setView('admin')} />}
                                 {view === 'reservations' && <ReservationManager />}
 
                                 {/* INVENTORY/ADMIN HOME */}
