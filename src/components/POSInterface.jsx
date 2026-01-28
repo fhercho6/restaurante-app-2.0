@@ -3,6 +3,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Search, ShoppingCart, Trash2, ChevronLeft, Send, ChefHat, ChevronDown, ChevronUp, Plus, Minus, Lock, LayoutGrid, MapPin } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ImageWithLoader from './ImageWithLoader'; // [NEW]
+import { useRegister } from '../context/RegisterContext';
+import { useData } from '../context/DataContext';
 
 // AHORA RECIBE "autoLockTime", "staffZone" y "tableZones"
 export default function POSInterface({ items, categories, staffMember, tables = [], tableZones = {}, onCheckout, onPrintOrder, onExit, autoLockTime = 45, staffZone = '', onManageZones }) {
