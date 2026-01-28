@@ -201,6 +201,15 @@ export default function AppContent() {
                             toast.success("✅ Asistencia marcada");
                         }
                     }
+                } else {
+                    // [SYNC FIX] If already clocked in, USE THE SERVER ZONE (Cashier Authority)
+                    // This solves the issue where Cashier sets "Licobar" but Waiter has "Salon" locally
+                    const serverRecord = snapshot.docs[0].data();
+                    if (serverRecord.zone) {
+                        effectiveZone = serverRecord.zone;
+                        // Update local cache to match server
+                        localStorage.setItem(`staffZone_${member.id}`, effectiveZone);
+                    }
                 }
             } catch (error) {
                 console.error("Attendance check error:", error);
@@ -992,12 +1001,6 @@ export default function AppContent() {
                                 onPrintOrder={async (cart, clearCart, tableName) => {
                                     const receipt = await createOrder(cart, clearCart, tableName, staffZone);
                                     if (receipt) {
-                                        // [NEW] Persist Zone for Waiter
-                                        if (receipt.zone && staffMember && staffMember.id) {
-                                            localStorage.setItem(`staffZone_${staffMember.id}`, receipt.zone);
-                                            // Auto-update current session if it was empty
-                                            if (!staffZone) setStaffZone(receipt.zone);
-                                        }
                                         setLastSale(receipt);
                                         setView('receipt_view');
                                     }
