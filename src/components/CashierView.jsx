@@ -6,10 +6,12 @@ import { collection, query, where, onSnapshot, orderBy, updateDoc, doc } from 'f
 import { db, ROOT_COLLECTION, isPersonalProject } from '../config/firebase';
 import CommissionPaymentModal from './CommissionPaymentModal'; // [RESTORED]
 import { useRegister } from '../context/RegisterContext'; // [NEW]
+import { useData } from '../context/DataContext'; // [NEW]
 
 // [UPDATED] Received tableZones
 export default function CashierView({ items, categories, tables, tableZones = {}, onProcessPayment, onVoidOrder, onReprintOrder, onStopService, onOpenExpense, onPrintReceipt }) {
-    const { registerSession } = useRegister(); // [NEW]
+    const { registerSession, sessionStats } = useRegister(); // [NEW]
+    const { commissionTiers } = useData(); // [NEW]
     const [pendingOrders, setPendingOrders] = useState([]);
     const [activeServices, setActiveServices] = useState([]);
     const [selectedOrders, setSelectedOrders] = useState([]); // IDs de órdenes seleccionadas
