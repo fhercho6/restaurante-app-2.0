@@ -61,10 +61,12 @@ export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onC
         return newArr;
     };
 
-    setSelectedStaff(member);
-    setPin('');
-    setShowAttendanceOptions(false);
-    setShuffledKeys(shuffleArray(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']));
+    const handleSelectStaff = (member) => {
+        setSelectedStaff(member);
+        setPin('');
+        setShowAttendanceOptions(false);
+        setShuffledKeys(shuffleArray(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']));
+    };
 
     const handleNumClick = (num) => {
         // Si ya estamos procesando, ignorar clics (ANTI-REBOTE)
