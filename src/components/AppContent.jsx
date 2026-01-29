@@ -807,9 +807,10 @@ export default function AppContent() {
                                     staff={staff}
                                     stats={sessionStats}
                                     onAddExpense={handleAddExpenseWithReceipt}
-                                    onDeleteExpense={handleDeleteExpense}
+                                    onDeleteExpense={deleteExpense}
                                     onReprintExpense={(ex) => {
                                         const expenseReceipt = {
+
                                             type: 'expense',
                                             businessName: appName,
                                             date: new Date(ex.date).toLocaleString(),
@@ -992,10 +993,11 @@ export default function AppContent() {
                             <HRDashboardView
                                 staff={staff}
                                 roles={roles}
-                                onAddStaff={addStaff}
-                                onUpdateStaff={updateStaff}
-                                onDeleteStaff={deleteStaff}
+                                onAddStaff={handleAddStaff}
+                                onUpdateStaff={handleUpdateStaff}
+                                onDeleteStaff={handleDeleteStaff}
                                 onManageRoles={() => setIsRoleModalOpen(true)}
+
                                 onPrintCredential={onPrintCredential}
                                 onBack={() => setView('admin')}
                             />
@@ -1038,11 +1040,12 @@ export default function AppContent() {
                 items={items}
             />
 
-            <CategoryManager isOpen={isCategoryModalOpen} onClose={() => setIsCategoryModalOpen(false)} categories={categories} onAdd={addCategory} onRename={renameCategory} onDelete={deleteCategory} />
-            <RoleManager isOpen={isRoleModalOpen} onClose={() => setIsRoleModalOpen(false)} roles={roles} onAdd={addRole} onRename={renameRole} onDelete={deleteRole} />
-            <TableManager isOpen={isTableModalOpen} onClose={() => setIsTableModalOpen(false)} tables={tables} tableZones={tableZones} onAdd={addTable} onRename={renameTable} onDelete={deleteTable} onUpdateZone={handleUpdateTableZone} />
-            <ExpenseTypeManager isOpen={isExpenseTypeModalOpen} onClose={() => setIsExpenseTypeModalOpen(false)} expenseTypes={expenseTypes} onAdd={addExpenseType} onRename={renameExpenseType} onDelete={deleteExpenseType} />
+            <CategoryManager isOpen={isCategoryModalOpen} onClose={() => setIsCategoryModalOpen(false)} categories={categories} onAdd={handleAddCategory} onRename={handleRenameCategory} onDelete={handleDeleteCategory} />
+            <RoleManager isOpen={isRoleModalOpen} onClose={() => setIsRoleModalOpen(false)} roles={roles} onAdd={handleAddRole} onRename={handleRenameRole} onDelete={handleDeleteRole} />
+            <TableManager isOpen={isTableModalOpen} onClose={() => setIsTableModalOpen(false)} tables={tables} tableZones={tableZones} onAdd={handleAddTable} onRename={handleRenameTable} onDelete={handleDeleteTable} onUpdateZone={handleUpdateTableZone} />
+            <ExpenseTypeManager isOpen={isExpenseTypeModalOpen} onClose={() => setIsExpenseTypeModalOpen(false)} expenseTypes={expenseTypes} onAdd={handleAddExpenseType} onRename={handleRenameExpenseType} onDelete={handleDeleteExpenseType} />
             <BrandingModal
+
                 isOpen={isBrandingModalOpen}
                 onClose={() => setIsBrandingModalOpen(false)}
                 onSave={handleSaveBranding}
