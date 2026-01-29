@@ -259,7 +259,7 @@ export default function PaymentModal({ isOpen, onClose, total, onConfirm, staff 
                                     </span>
                                     <div className="flex items-center gap-3">
                                         <span className="font-mono font-bold">Bs. {p.amount.toFixed(2)}</span>
-                                        <button onClick={() => removePayment(idx)} className="text-red-400 hover:text-red-600"><Trash2 size={16} /></button>
+                                        <button onClick={() => removePayment(p.id)} className="text-red-400 hover:text-red-600"><Trash2 size={16} /></button>
                                     </div>
                                 </div>
                             ))}
