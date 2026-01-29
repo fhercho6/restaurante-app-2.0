@@ -16,6 +16,8 @@ const INITIAL_CATEGORIES = ['Bebidas', 'Comidas', 'Servicios', 'Combos'];
 const INITIAL_ROLES = ['Garzón', 'Cajero', 'Cocinero', 'Administrador'];
 const INITIAL_TABLES = ['Barra', 'Mesa 1', 'Mesa 2', 'Mesa 3', 'Mesa 4', 'VIP 1'];
 const INITIAL_EXPENSE_TYPES = ['Hielo', 'Taxi', 'Insumos', 'Limpieza', 'Adelanto Sueldo', 'Proveedores'];
+const INITIAL_CHECKLIST = ['Apagar Luces', 'Cerrar Llave de Gas', 'Apagar Aire Acondicionado', 'Verificar Baños', 'Activar Alarma', 'Cerrar Puerta Principal'];
+
 
 export const DataProvider = ({ children }) => {
     const { currentUser } = useAuth();
@@ -32,6 +34,9 @@ export const DataProvider = ({ children }) => {
     const [appName, setAppName] = useState("");
     const [autoLockTime, setAutoLockTime] = useState(45);
     const [printerType, setPrinterType] = useState('thermal');
+    const [ownerPhone, setOwnerPhone] = useState('');
+    const [closingChecklist, setClosingChecklist] = useState(INITIAL_CHECKLIST);
+
     const [commissionTiers, setCommissionTiers] = useState([
         { max: 1500, rate: 0.04 }, // 4% (0 - 1500)
         { max: 3000, rate: 0.05 }, // 5% (1501 - 3000)
@@ -77,6 +82,8 @@ export const DataProvider = ({ children }) => {
                     setAppName(dt.appName);
                     setAutoLockTime(dt.autoLockTime);
                     if (dt.printerType) setPrinterType(dt.printerType);
+                    if (dt.ownerPhone) setOwnerPhone(dt.ownerPhone);
+                    if (dt.closingChecklist) setClosingChecklist(dt.closingChecklist);
                 }
                 else if (d.id === 'commissions') {
                     if (dt.tiers) setCommissionTiers(dt.tiers);
@@ -188,14 +195,26 @@ export const DataProvider = ({ children }) => {
     const handleRenameExpenseType = (i, n) => { const l = [...expenseTypes]; l[i] = n; updateSettingsList('expenses', l); };
     const handleDeleteExpenseType = (i) => { const l = expenseTypes.filter((_, x) => x !== i); updateSettingsList('expenses', l); };
 
-    const handleSaveBranding = (l, n, t) => { setDoc(doc(db, getCollName('settings'), 'branding'), { logo: l, appName: n, autoLockTime: t, printerType: printerType }, { merge: true }); setLogo(l); setAppName(n); setAutoLockTime(t); toast.success('Marca y Configuración actualizadas'); };
+    const handleSaveBranding = (l, n, t, p, c) => {
+        const dataToSave = { logo: l, appName: n, autoLockTime: t, printerType: printerType };
+        if (p) dataToSave.ownerPhone = p;
+        if (c) dataToSave.closingChecklist = c;
+
+        setDoc(doc(db, getCollName('settings'), 'branding'), dataToSave, { merge: true });
+        setLogo(l); setAppName(n); setAutoLockTime(t);
+        if (p) setOwnerPhone(p);
+        if (c) setClosingChecklist(c);
+        toast.success('Marca y Configuración actualizadas');
+    };
+
     const handleSavePrinterType = (type) => { setPrinterType(type); setDoc(doc(db, getCollName('settings'), 'branding'), { printerType: type }, { merge: true }); toast.success(`Formato: ${type === 'thermal' ? 'Ticket' : 'Carta'}`); };
     const handleSaveCommissionTiers = (tiers) => { setCommissionTiers(tiers); setDoc(doc(db, getCollName('settings'), 'commissions'), { tiers }); toast.success('Tabla de Comisiones Guardada'); };
 
     const value = {
         items, staff, categories, roles, tables, tableZones, expenseTypes, activeServices,
-        logo, appName, autoLockTime, printerType, commissionTiers,
+        logo, appName, autoLockTime, printerType, commissionTiers, ownerPhone, closingChecklist,
         isLoadingData, dbStatus,
+
         handleQuickUpdate, handleSaveItem, handleDeleteItem,
         handleAddStaff, handleUpdateStaff, handleDeleteStaff,
         handleAddCategory, handleRenameCategory, handleDeleteCategory,

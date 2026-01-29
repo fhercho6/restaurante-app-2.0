@@ -23,7 +23,9 @@ import PublicReportView from './PublicReportView';
 import ShiftHistory from './ShiftHistory';
 import ExpenseHistory from './ExpenseHistory';
 import PrinterSettingsModal from './PrinterSettingsModal';
+import ClosingWizardModal from './ClosingWizardModal';
 import { AuthModal, BrandingModal, ProductModal, CategoryManager, RoleManager, TableManager, ExpenseTypeManager, ServiceStartModal, ExpenseModal } from './Modals';
+
 import ServiceCalculatorModal from './ServiceCalculatorModal';
 import { MenuCard, PinLoginView, CredentialPrintView, PrintableView, AdminRow, AttendanceTicket } from './Views';
 import ClientQRModal from './ClientQRModal'; // [NEW]
@@ -38,8 +40,9 @@ export default function AppContent() {
     const { currentUser, staffMember, setStaffMember, isAuthModalOpen, setIsAuthModalOpen, login, logout, staffLogin, prepareCredentialPrint, credentialToPrint, markAttendance } = useAuth();
     const {
         items, staff, categories, roles, tables, tableZones, expenseTypes, activeServices,
-        logo, appName, autoLockTime, printerType, commissionTiers,
+        logo, appName, autoLockTime, printerType, commissionTiers, ownerPhone, closingChecklist,
         isLoadingData, dbStatus,
+
         handleQuickUpdate, handleSaveItem, handleDeleteItem,
         handleAddStaff, handleUpdateStaff, handleDeleteStaff,
         handleAddCategory, handleRenameCategory, handleDeleteCategory,
@@ -68,7 +71,10 @@ export default function AppContent() {
     const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
     const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
     const [isZoneModalOpen, setIsZoneModalOpen] = useState(false); // [NEW]
+    const [isClosingWizardOpen, setIsClosingWizardOpen] = useState(false); // [NEW] Closing Wizard
+    const [closingData, setClosingData] = useState(null); // Store data for wizard
     const [currentItem, setCurrentItem] = useState(null);
+
     const [filter, setFilter] = useState('Todos');
     const [searchTerm, setSearchTerm] = useState('');
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -394,106 +400,57 @@ export default function AppContent() {
         const baseSalaries = attendanceList.reduce((acc, curr) => acc + (parseFloat(curr.dailySalary) || 0), 0);
         totalSalaries = baseSalaries + totalCommissions;
 
-        toast((t) => (
-            <div className="flex flex-col gap-3 min-w-[300px]">
-                <div className="border-b pb-3">
-                    <p className="font-bold text-gray-800 text-lg mb-2">Resumen de Cierre</p>
-
-                    {/* Salary Section */}
-                    {totalSalaries > 0 && (
-                        <div className="bg-yellow-50 p-3 rounded-lg mb-2 border border-yellow-100 text-xs">
-                            <p className="text-yellow-800 font-bold uppercase mb-2 flex items-center gap-1"><Users size={12} /> Nómina & Comisiones</p>
-
-                            {/* Breakdown */}
-                            <div className="space-y-1 mb-2 border-b border-yellow-200 pb-2">
-                                <div className="flex justify-between text-gray-600">
-                                    <span>Salarios Fijos ({attendanceList.length}):</span>
-                                    <span>Bs. {baseSalaries.toFixed(2)}</span>
-                                </div>
-                                {commissionDetails.map(c => (
-                                    <div key={c.name} className="flex flex-col text-yellow-700 bg-yellow-100/50 px-1 rounded text-[10px]">
-                                        <div className="flex justify-between">
-                                            <span>{c.name} ({(c.rate * 100).toFixed(0)}%):</span>
-                                            <span className="font-bold">Bs. {c.amount.toFixed(2)}</span>
-                                        </div>
-                                        {c.paid > 0 && <span className="text-gray-400 italic text-[9px] text-right">Pagado: {c.paid.toFixed(2)} | Pendiente: {c.amount.toFixed(2)}</span>}
-                                    </div>
-                                ))}
-                            </div>
-
-                            <div className="flex justify-between items-end pt-1">
-                                <span className="font-bold text-gray-700">TOTAL A PAGAR:</span>
-                                <span className="font-black text-yellow-600 text-lg">Bs. {totalSalaries.toFixed(2)}</span>
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="bg-gray-50 p-2 rounded mb-3 grid grid-cols-2 gap-2 text-xs">
-                        <div className="bg-white p-2 rounded border border-gray-100"><span className="text-gray-500 block uppercase text-[10px]">Total QR</span><span className="font-bold text-blue-600 text-sm">Bs. {sessionStats.qrSales.toFixed(2)}</span></div>
-                        <div className="bg-white p-2 rounded border border-gray-100"><span className="text-gray-500 block uppercase text-[10px]">Total Tarjeta</span><span className="font-bold text-purple-600 text-sm">Bs. {sessionStats.cardSales.toFixed(2)}</span></div>
-                    </div>
-
-                    <div className="px-2">
-                        <p className="text-xs text-gray-500 uppercase font-bold">Efectivo en Caja (Antes de pagos):</p>
-                        <p className="text-xl font-black text-gray-400">Bs. {cashFinal.toFixed(2)}</p>
-                    </div>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                    {totalSalaries > 0 && (
-                        <button onClick={async () => {
-                            toast.dismiss(t.id);
-                            const toastId = toast.loading("Registrando pagos...");
-
-                            // 1. Create Expense
-                            try {
-                                const expColl = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`;
-                                await addDoc(collection(db, expColl), {
-                                    amount: totalSalaries,
-                                    reason: `Nómina Turno (Inc. Comisiones)`,
-                                    type: 'Adelanto Sueldo',
-                                    registerId: registerSession.id,
-                                    timestamp: new Date().toISOString(),
-                                    staffNames: attendanceList.map(a => a.staffName).join(', '),
-                                    details: { base: baseSalaries, commissions: commissionDetails }
-                                });
-
-                                await new Promise(r => setTimeout(r, 1500));
-
-                                const newCashFinal = cashFinal - totalSalaries;
-
-                                const zReport = await confirmCloseRegister(newCashFinal);
-                                if (zReport) {
-                                    setLastSale(zReport);
-                                    setView('receipt_view');
-                                }
-                                toast.dismiss(toastId);
-                            } catch (error) {
-                                toast.error("Error al procesar pago");
-                                console.error(error);
-                            }
-                        }} className="bg-green-600 text-white px-4 py-3 rounded-lg text-xs font-bold shadow-sm hover:bg-green-700 transition-colors flex items-center justify-center gap-2">
-                            <DollarSign size={16} /> PAGAR Y CERRAR (Bs. {totalSalaries.toFixed(0)})
-                        </button>
-                    )}
-
-                    <div className="flex gap-2">
-                        <button onClick={async () => {
-                            const zReport = await confirmCloseRegister(cashFinal);
-                            if (zReport) {
-                                setLastSale(zReport);
-                                setView('receipt_view');
-                            }
-                            toast.dismiss(t.id);
-                        }} className={`${totalSalaries > 0 ? 'bg-gray-100 text-gray-600' : 'bg-red-600 text-white'} px-4 py-3 rounded-lg text-xs font-bold shadow-sm flex-1 hover:opacity-80 transition-colors`}>
-                            {totalSalaries > 0 ? 'Cerrar SIN Pagar' : 'CERRAR TURNO'}
-                        </button>
-                        <button onClick={() => toast.dismiss(t.id)} className="bg-gray-200 text-gray-800 px-4 py-3 rounded-lg text-xs font-bold flex-1 hover:bg-gray-300 transition-colors">CANCELAR</button>
-                    </div>
-                </div>
-            </div>
-        ), { duration: null, position: 'top-center', icon: null });
+        // NEW: Launch Wizard instead of direct Toast
+        setClosingData({
+            cashFinal,
+            totalSalaries,
+            baseSalaries,
+            commissionDetails,
+            attendanceList
+        });
+        setIsClosingWizardOpen(true);
     };
+
+    const handleConfirmWizardClose = async (shouldPay) => {
+        setIsClosingWizardOpen(false);
+        const { cashFinal, totalSalaries, baseSalaries, commissionDetails, attendanceList } = closingData;
+        const tId = toast.loading(shouldPay ? "Procesando pagos y cerrando..." : "Cerrando turno...");
+
+        try {
+            if (shouldPay && totalSalaries > 0) {
+                const expColl = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`;
+                await addDoc(collection(db, expColl), {
+                    amount: totalSalaries,
+                    reason: `Nómina Turno (Inc. Comisiones)`,
+                    type: 'Adelanto Sueldo',
+                    registerId: registerSession.id,
+                    timestamp: new Date().toISOString(),
+                    staffNames: attendanceList.map(a => a.staffName).join(', '),
+                    details: { base: baseSalaries, commissions: commissionDetails }
+                });
+                // Recalculate Final Cash after payment
+                const newCashFinal = cashFinal - totalSalaries;
+                const zReport = await confirmCloseRegister(newCashFinal);
+                if (zReport) {
+                    setLastSale(zReport);
+                    setView('receipt_view');
+                }
+            } else {
+                // Close without paying (or no salaries to pay)
+                const zReport = await confirmCloseRegister(cashFinal);
+                if (zReport) {
+                    setLastSale(zReport);
+                    setView('receipt_view');
+                }
+            }
+            toast.dismiss(tId);
+        } catch (error) {
+            console.error("Error closing:", error);
+            toast.error("Error al cerrar caja");
+            toast.dismiss(tId);
+        }
+    };
+
 
     // Transaction Handlers
     const handleStartPaymentFromCashier = (order, clearCartCallback) => {
@@ -850,7 +807,7 @@ export default function AppContent() {
                                     staff={staff}
                                     stats={sessionStats}
                                     onAddExpense={handleAddExpenseWithReceipt}
-                                    onDeleteExpense={deleteExpense}
+                                    onDeleteExpense={handleDeleteExpense}
                                     onReprintExpense={(ex) => {
                                         const expenseReceipt = {
                                             type: 'expense',
@@ -932,8 +889,8 @@ export default function AppContent() {
                                             <table className="w-full text-left">
                                                 <thead><tr className="bg-gray-50 text-xs uppercase text-gray-500 border-b border-gray-200"><th className="p-4 text-center">Imagen</th><th className="p-4">Producto</th><th className="p-4 text-center">Stock</th><th className="p-4 text-right">Costo</th><th className="p-4 text-right">Precio</th><th className="p-4 text-right">Margen</th><th className="p-4 text-right">Acciones</th></tr></thead>
                                                 <tbody className="divide-y divide-gray-100">
-                                                    {itemsToDisplay.length > 0 ? (
-                                                        itemsToDisplay.map(item => (<AdminRow key={item.id} item={item} allItems={items} onEdit={(i) => { setCurrentItem(i); setIsModalOpen(true); }} onDelete={handleDeleteItem} isQuickEdit={isQuickEditMode} onQuickUpdate={handleQuickUpdate} />))
+                                                    {filteredItems.length > 0 ? (
+                                                        filteredItems.map(item => (<AdminRow key={item.id} item={item} allItems={items} onEdit={(i) => { setCurrentItem(i); setIsModalOpen(true); }} onDelete={handleDeleteItem} isQuickEdit={isQuickEditMode} onQuickUpdate={handleQuickUpdate} />))
                                                     ) : (
                                                         <tr><td colSpan="6" className="p-8 text-center text-gray-400">No se encontraron productos en "{filter}".</td></tr>
                                                     )}
@@ -1035,9 +992,9 @@ export default function AppContent() {
                             <HRDashboardView
                                 staff={staff}
                                 roles={roles}
-                                onAddStaff={handleAddStaff}
-                                onUpdateStaff={handleUpdateStaff}
-                                onDeleteStaff={handleDeleteStaff}
+                                onAddStaff={addStaff}
+                                onUpdateStaff={updateStaff}
+                                onDeleteStaff={deleteStaff}
                                 onManageRoles={() => setIsRoleModalOpen(true)}
                                 onPrintCredential={onPrintCredential}
                                 onBack={() => setView('admin')}
@@ -1046,7 +1003,7 @@ export default function AppContent() {
 
                         {/* MENU VIEW */}
                         {view === 'menu' && (
-                            <>{/* ... MENÚ CLIENTES ... */}<div className="fixed inset-0 z-0 pointer-events-none bg-[#0a0a0a]"><div className="absolute top-[-20%] left-[-20%] w-[50%] h-[50%] bg-red-600/20 blur-[100px] rotate-45 animate-pulse"></div><div className="absolute bottom-[-20%] right-[-20%] w-[50%] h-[50%] bg-green-600/20 blur-[100px] rotate-[-45] animate-pulse delay-500"></div><div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '30px 30px', animation: 'snowfallNative 10s linear infinite', opacity: 0.3 }}></div><style jsx>{`@keyframes snowfallNative { from {background-position: 0 0;} to {background-position: 20px 100vh;} }`}</style></div>{filter === 'Todos' ? (<div className="animate-in fade-in pb-20 relative z-10 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 pt-6"><button onClick={() => window.location.reload()} className="absolute top-4 left-4 z-50 p-3 text-white/50 hover:text-white bg-black/20 hover:bg-black/40 backdrop-blur-md rounded-full transition-all" title="Salir del Menú"><Home size={24} /></button><div className="text-center mb-10 mt-4"><div className="flex items-center justify-center gap-3 mb-2"><Trees size={28} className="text-red-500 drop-shadow-[0_0_8px_rgba(220,38,38,0.8)]" /><h2 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-white to-green-400 tracking-tight drop-shadow-[0_0_10px_rgba(255,255,255,0.5)] uppercase">NUESTRO MENÚ</h2><Trees size={28} className="text-green-500 drop-shadow-[0_0_8px_rgba(34,197,94,0.8)] scale-x-[-1]" /></div><p className="text-gray-400 font-bold uppercase tracking-widest text-sm flex justify-center items-center gap-2 before:h-px before:w-6 before:bg-red-500 after:h-px after:w-6 after:bg-green-500 opacity-80"><Gift size={14} className="text-red-400" /> Selecciona una categoría <Gift size={14} className="text-green-400" /></p></div><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 px-2 max-w-5xl mx-auto">{categories.map((cat, index) => { const borderColors = ['border-red-500/60 shadow-[0_0_15px_-3px_rgba(220,38,38,0.5)] text-red-100', 'border-green-500/60 shadow-[0_0_15px_-3px_rgba(34,197,94,0.5)] text-green-100', 'border-yellow-500/60 shadow-[0_0_15px_-3px_rgba(234,179,8,0.5)] text-yellow-100', 'border-purple-500/60 shadow-[0_0_15px_-3px_rgba(168,85,247,0.5)] text-purple-100']; const currentStyle = borderColors[index % borderColors.length]; return (<button key={cat} onClick={() => setFilter(cat)} className={`relative h-40 rounded-3xl overflow-hidden bg-black/60 backdrop-blur-md group border-2 border-dashed transition-all duration-500 hover:scale-[1.03] active:scale-95 hover:shadow-[0_0_30px_-5px_rgba(255,255,255,0.3)] ${currentStyle}`}><div className={`absolute top-2 left-2 w-2 h-2 rounded-full animate-pulse ${index % 2 ? 'bg-red-500 shadow-[0_0_5px_red]' : 'bg-green-500 shadow-[0_0_5px_green]'}`}></div><div className={`absolute bottom-2 right-2 w-2 h-2 rounded-full animate-pulse delay-500 ${index % 3 ? 'bg-blue-500 shadow-[0_0_5px_blue]' : 'bg-yellow-500 shadow-[0_0_5px_yellow]'}`}></div><div className="absolute inset-0 flex flex-col items-center justify-center z-10 p-4"><Gift size={20} className={`mb-2 opacity-50 group-hover:opacity-100 transition-opacity drop-shadow-[0_0_5px_currentColor] ${index % 2 ? 'text-green-400' : 'text-red-400'}`} /><span className="font-black text-2xl uppercase tracking-wider drop-shadow-md text-center">{cat}</span></div></button>) })}</div></div>) : (<div className="animate-in slide-in-from-right duration-300 relative z-10 min-h-screen -mx-4 sm:-mx-6 lg:-mx-8"><div className="sticky top-16 z-20 bg-black/70 backdrop-blur-xl py-4 mb-6 border-b border-white/10 shadow-[0_4px_20px_-5px_rgba(0,0,0,0.5)] px-4 sm:px-6 lg:px-8"><div className="flex items-center gap-4 max-w-7xl mx-auto"><button aria-label="Volver al menú" onClick={() => setFilter('Todos')} className="p-3 bg-white/10 text-white rounded-full hover:bg-white/20 border border-white/10 shadow-lg transition-transform active:scale-90 group backdrop-blur-md"><ArrowLeft size={24} className="group-hover:-translate-x-1 transition-transform" /></button><div><h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-400 uppercase tracking-wide leading-none drop-shadow-[0_0_5px_rgba(249,115,22,0.5)]">{filter}</h2><p className="text-xs text-gray-400 font-bold uppercase tracking-widest flex items-center gap-1"><Trees size={10} className="text-green-500" /> Explora nuestros productos</p></div></div></div><div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6 pb-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">{filteredItems.length > 0 ? (filteredItems.map(item => (<div key={item.id} className="rounded-2xl overflow-hidden p-1 bg-gradient-to-br from-white/10 to-transparent border border-white/5 shadow-lg"><MenuCard item={item} /></div>))) : (<div className="col-span-full text-center py-20 text-gray-500 flex flex-col items-center"><Search size={48} className="mb-2 opacity-20 text-white" /><p className="text-gray-400">No hay productos en esta categoría.</p></div>)}</div></div>)}</>
+                            <>{/* ... MENÚ CLIENTES ... */}<div className="fixed inset-0 z-0 pointer-events-none bg-[#0a0a0a]"><div className="absolute top-[-20%] left-[-20%] w-[50%] h-[50%] bg-red-600/20 blur-[100px] rotate-45 animate-pulse"></div><div className="absolute bottom-[-20%] right-[-20%] w-[50%] h-[50%] bg-green-600/20 blur-[100px] rotate-[-45] animate-pulse delay-500"></div><div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '30px 30px', animation: 'snowfallNative 10s linear infinite', opacity: 0.3 }}></div><style jsx>{`@keyframes snowfallNative { from {background-position: 0 0;} to {background-position: 20px 100vh;} }`}</style></div>{filter === 'Todos' ? (<div className="animate-in fade-in pb-20 relative z-10 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 pt-6"><button onClick={() => window.location.reload()} className="absolute top-4 left-4 z-50 p-3 text-white/50 hover:text-white bg-black/20 hover:bg-black/40 backdrop-blur-md rounded-full transition-all" title="Salir del Menú"><Home size={24} /></button><div className="text-center mb-10 mt-4"><div className="flex items-center justify-center gap-3 mb-2"><Trees size={28} className="text-red-500 drop-shadow-[0_0_8px_rgba(220,38,38,0.8)]" /><h2 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-white to-green-400 tracking-tight drop-shadow-[0_0_10px_rgba(255,255,255,0.5)] uppercase">NUESTRO MENÚ</h2><Trees size={28} className="text-green-500 drop-shadow-[0_0_8px_rgba(34,197,94,0.8)] scale-x-[-1]" /></div><p className="text-gray-400 font-bold uppercase tracking-widest text-sm flex justify-center items-center gap-2 before:h-px before:w-6 before:bg-red-500 after:h-px after:w-6 after:bg-green-500 opacity-80"><Gift size={14} className="text-red-400" /> Selecciona una categoría <Gift size={14} className="text-green-400" /></p></div><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 px-2 max-w-5xl mx-auto">{categories.map((cat, index) => { const borderColors = ['border-red-500/60 shadow-[0_0_15px_-3px_rgba(220,38,38,0.5)] text-red-100', 'border-green-500/60 shadow-[0_0_15px_-3px_rgba(34,197,94,0.5)] text-green-100', 'border-yellow-500/60 shadow-[0_0_15px_-3px_rgba(234,179,8,0.5)] text-yellow-100', 'border-purple-500/60 shadow-[0_0_15px_-3px_rgba(168,85,247,0.5)] text-purple-100']; const currentStyle = borderColors[index % borderColors.length]; return (<button key={cat} onClick={() => setFilter(cat)} className={`relative h-40 rounded-3xl overflow-hidden bg-black/60 backdrop-blur-md group border-2 border-dashed transition-all duration-500 hover:scale-[1.03] active:scale-95 hover:shadow-[0_0_30px_-5px_rgba(255,255,255,0.3)] ${currentStyle}`}><div className={`absolute top-2 left-2 w-2 h-2 rounded-full animate-pulse ${index % 2 ? 'bg-red-500 shadow-[0_0_5px_red]' : 'bg-green-500 shadow-[0_0_5px_green]'}`}></div><div className={`absolute bottom-2 right-2 w-2 h-2 rounded-full animate-pulse delay-500 ${index % 3 ? 'bg-blue-500 shadow-[0_0_5px_blue]' : 'bg-yellow-500 shadow-[0_0_5px_yellow]'}`}></div><div className="absolute inset-0 flex flex-col items-center justify-center z-10 p-4"><Gift size={20} className={`mb-2 opacity-50 group-hover:opacity-100 transition-opacity drop-shadow-[0_0_5px_currentColor] ${index % 2 ? 'text-green-400' : 'text-red-400'}`} /><span className="font-black text-2xl uppercase tracking-wider drop-shadow-md text-center">{cat}</span></div></button>) })}</div></div>) : (<div className="animate-in slide-in-from-right duration-300 relative z-10 min-h-screen -mx-4 sm:-mx-6 lg:-mx-8"><div className="sticky top-16 z-20 bg-black/70 backdrop-blur-xl py-4 mb-6 border-b border-white/10 shadow-[0_4px_20px_-5px_rgba(0,0,0,0.5)] px-4 sm:px-6 lg:px-8"><div className="flex items-center gap-4 max-w-7xl mx-auto"><button aria-label="Volver al menú" onClick={() => setFilter('Todos')} className="p-3 bg-white/10 text-white rounded-full hover:bg-white/20 border border-white/10 shadow-lg transition-transform active:scale-90 group backdrop-blur-md"><ArrowLeft size={24} className="group-hover:-translate-x-1 transition-transform" /></button><div><h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-400 uppercase tracking-wide leading-none drop-shadow-[0_0_5px_rgba(249,115,22,0.5)]">{filter}</h2><p className="text-xs text-gray-400 font-bold uppercase tracking-widest flex items-center gap-1"><Trees size={10} className="text-green-500" /> Explora nuestros productos</p></div></div></div><div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6 pb-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">{menuItems.length > 0 ? (menuItems.map(item => (<div key={item.id} className="rounded-2xl overflow-hidden p-1 bg-gradient-to-br from-white/10 to-transparent border border-white/5 shadow-lg"><MenuCard item={item} /></div>))) : (<div className="col-span-full text-center py-20 text-gray-500 flex flex-col items-center"><Search size={48} className="mb-2 opacity-20 text-white" /><p className="text-gray-400">No hay productos en esta categoría.</p></div>)}</div></div>)}</>
                         )}
                     </main>
 
@@ -1081,16 +1038,38 @@ export default function AppContent() {
                 items={items}
             />
 
-            <CategoryManager isOpen={isCategoryModalOpen} onClose={() => setIsCategoryModalOpen(false)} categories={categories} onAdd={handleAddCategory} onRename={handleRenameCategory} onDelete={handleDeleteCategory} />
-            <RoleManager isOpen={isRoleModalOpen} onClose={() => setIsRoleModalOpen(false)} roles={roles} onAdd={handleAddRole} onRename={handleRenameRole} onDelete={handleDeleteRole} />
-            <TableManager isOpen={isTableModalOpen} onClose={() => setIsTableModalOpen(false)} tables={tables} tableZones={tableZones} onAdd={handleAddTable} onRename={handleRenameTable} onDelete={handleDeleteTable} onUpdateZone={handleUpdateTableZone} />
-            <ExpenseTypeManager isOpen={isExpenseTypeModalOpen} onClose={() => setIsExpenseTypeModalOpen(false)} expenseTypes={expenseTypes} onAdd={handleAddExpenseType} onRename={handleRenameExpenseType} onDelete={handleDeleteExpenseType} />
-            <BrandingModal isOpen={isBrandingModalOpen} onClose={() => setIsBrandingModalOpen(false)} onSave={handleSaveBranding} currentLogo={logo} currentName={appName} currentAutoLock={autoLockTime} />
+            <CategoryManager isOpen={isCategoryModalOpen} onClose={() => setIsCategoryModalOpen(false)} categories={categories} onAdd={addCategory} onRename={renameCategory} onDelete={deleteCategory} />
+            <RoleManager isOpen={isRoleModalOpen} onClose={() => setIsRoleModalOpen(false)} roles={roles} onAdd={addRole} onRename={renameRole} onDelete={deleteRole} />
+            <TableManager isOpen={isTableModalOpen} onClose={() => setIsTableModalOpen(false)} tables={tables} tableZones={tableZones} onAdd={addTable} onRename={renameTable} onDelete={deleteTable} onUpdateZone={handleUpdateTableZone} />
+            <ExpenseTypeManager isOpen={isExpenseTypeModalOpen} onClose={() => setIsExpenseTypeModalOpen(false)} expenseTypes={expenseTypes} onAdd={addExpenseType} onRename={renameExpenseType} onDelete={deleteExpenseType} />
+            <BrandingModal
+                isOpen={isBrandingModalOpen}
+                onClose={() => setIsBrandingModalOpen(false)}
+                onSave={handleSaveBranding}
+                currentLogo={logo}
+                currentName={appName}
+                currentAutoLock={autoLockTime}
+                currentPhone={ownerPhone}
+                currentChecklist={closingChecklist}
+            />
             <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onLogin={onLogin} />
             <ServiceStartModal isOpen={isServiceModalOpen} onClose={() => setIsServiceModalOpen(false)} services={items.filter(i => i.category === 'Servicios')} onStart={() => { /* Service start logic */ }} occupiedLocations={activeServices.map(s => s.note)} />
             <ExpenseModal isOpen={isExpenseModalOpen} onClose={() => setIsExpenseModalOpen(false)} onSave={handleAddExpenseWithReceipt} expenseTypes={expenseTypes} />
 
             <ServiceCalculatorModal isOpen={isCalculatorOpen} onClose={() => setIsCalculatorOpen(false)} />
+            {isClosingWizardOpen && closingData && (
+                <ClosingWizardModal
+                    isOpen={isClosingWizardOpen}
+                    onClose={() => setIsClosingWizardOpen(false)}
+                    registerSession={registerSession}
+                    sessionStats={sessionStats}
+                    cashExpected={closingData.cashFinal}
+                    totalSalaries={closingData.totalSalaries}
+                    attendanceList={closingData.attendanceList}
+                    commissionDetails={closingData.commissionDetails}
+                    onConfirmClose={handleConfirmWizardClose}
+                />
+            )}
         </div >
     );
 }
