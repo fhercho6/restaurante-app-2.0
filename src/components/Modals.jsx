@@ -457,6 +457,8 @@ export const BrandingModal = ({ isOpen, onClose, onSave, currentLogo, currentNam
     const [ownerPhone, setOwnerPhone] = useState('');
     const [closingChecklist, setClosingChecklist] = useState('');
 
+    const [activeTab, setActiveTab] = useState('general'); // 'general' | 'checklist'
+
     // Actualizar estados al abrir
     useEffect(() => {
         setLogoUrl(currentLogo || '');
@@ -466,79 +468,109 @@ export const BrandingModal = ({ isOpen, onClose, onSave, currentLogo, currentNam
         setClosingChecklist(currentChecklist ? currentChecklist.join(', ') : '');
     }, [isOpen, currentLogo, currentName, currentAutoLock, currentPhone, currentChecklist]);
 
-
     if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
-            <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl">
-                <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-black text-gray-800">Configuración del Sistema</h3>
+            <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+                {/* Header */}
+                <div className="p-4 border-b flex justify-between items-center bg-gray-50">
+                    <h3 className="text-lg font-black text-gray-800">Configuración</h3>
                     <button onClick={onClose}><X size={20} className="text-gray-400 hover:text-black" /></button>
                 </div>
 
-                <div className="space-y-5">
-                    {/* Identidad */}
-                    <div>
-                        <label className="label-input">Nombre del Negocio</label>
-                        <input className="input-field" value={appName} onChange={e => setAppName(e.target.value)} placeholder="Ej. LicoBar" />
-                    </div>
-                    <div>
-                        <label className="label-input">URL del Logo</label>
-                        <input className="input-field" value={logoUrl} onChange={e => setLogoUrl(e.target.value)} placeholder="https://..." />
-                    </div>
+                {/* Tabs */}
+                <div className="flex border-b">
+                    <button
+                        onClick={() => setActiveTab('general')}
+                        className={`flex-1 py-3 text-sm font-bold transition-colors ${activeTab === 'general' ? 'border-b-2 border-black text-black bg-gray-50' : 'text-gray-400 hover:text-gray-600'}`}
+                    >
+                        GENERAL
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('checklist')}
+                        className={`flex-1 py-3 text-sm font-bold transition-colors ${activeTab === 'checklist' ? 'border-b-2 border-black text-black bg-gray-50' : 'text-gray-400 hover:text-gray-600'}`}
+                    >
+                        CHECKLIST CIERRE
+                    </button>
+                </div>
 
-                    <div>
-                        <label className="label-input">Teléfono del Dueño (Para Reportes WhatsApp)</label>
-                        <input className="input-field" value={ownerPhone} onChange={e => setOwnerPhone(e.target.value)} placeholder="Ej. 59170000000" />
-                    </div>
+                <div className="p-6 overflow-y-auto">
+                    {activeTab === 'general' && (
+                        <div className="space-y-5">
+                            {/* Identidad */}
+                            <div>
+                                <label className="label-input">Nombre del Negocio</label>
+                                <input className="input-field" value={appName} onChange={e => setAppName(e.target.value)} placeholder="Ej. LicoBar" />
+                            </div>
+                            <div>
+                                <label className="label-input">URL del Logo</label>
+                                <input className="input-field" value={logoUrl} onChange={e => setLogoUrl(e.target.value)} placeholder="https://..." />
+                            </div>
+                            <div>
+                                <label className="label-input">Teléfono del Dueño (Whatsapp)</label>
+                                <input className="input-field" value={ownerPhone} onChange={e => setOwnerPhone(e.target.value)} placeholder="Ej. 59170000000" />
+                            </div>
 
-                    <div>
-                        <label className="label-input">Checklist de Cierre (Separado por comas)</label>
-                        <textarea
-                            className="input-field min-h-[80px]"
-                            value={closingChecklist}
-                            onChange={e => setClosingChecklist(e.target.value)}
-                            placeholder="Ej. Apagar luces, Cerrar gas, Activar alarma"
-                        />
-                    </div>
+                            <hr className="border-gray-100" />
 
-
-                    <hr className="border-gray-100" />
-
-                    {/* Seguridad */}
-                    <div>
-                        <div className="flex justify-between items-center mb-1">
-                            <label className="label-input mb-0">Cierre Automático (Garzones)</label>
-                            <span className="text-xs font-black bg-gray-100 px-2 py-1 rounded text-gray-600">{autoLockTime} seg</span>
+                            {/* Seguridad */}
+                            <div>
+                                <div className="flex justify-between items-center mb-1">
+                                    <label className="label-input mb-0">Cierre Auto. (Garzones)</label>
+                                    <span className="text-xs font-black bg-gray-100 px-2 py-1 rounded text-gray-600">{autoLockTime}s</span>
+                                </div>
+                                <input
+                                    type="range"
+                                    min="15"
+                                    max="120"
+                                    step="5"
+                                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-black"
+                                    value={autoLockTime}
+                                    onChange={e => setAutoLockTime(parseInt(e.target.value))}
+                                />
+                                <div className="bg-blue-50 p-2 rounded text-[10px] text-blue-700 mt-2 leading-tight flex gap-2 items-start">
+                                    <LayoutGrid size={14} className="shrink-0 mt-0.5" />
+                                    <span>
+                                        <b>Seguridad:</b> Cierra la sesión del garzón automáticamente tras {autoLockTime} segundos de inactividad para evitar pedidos no autorizados.
+                                    </span>
+                                </div>
+                            </div>
                         </div>
-                        <input
-                            type="range"
-                            min="15"
-                            max="120"
-                            step="5"
-                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-black"
-                            value={autoLockTime}
-                            onChange={e => setAutoLockTime(parseInt(e.target.value))}
-                        />
-                        <div className="flex justify-between text-[10px] text-gray-400 mt-1">
-                            <span>15s (Rápido)</span>
-                            <span>120s (Lento)</span>
-                        </div>
-                        <p className="text-[10px] text-gray-400 mt-2 leading-tight">
-                            Tiempo que la tablet espera inactiva antes de cerrar la sesión del garzón automáticamente.
-                        </p>
-                    </div>
+                    )}
 
+                    {activeTab === 'checklist' && (
+                        <div className="space-y-4 animate-in slide-in-from-right-2">
+                            <div className="bg-orange-50 p-3 rounded-lg border border-orange-100 mb-4">
+                                <p className="text-xs text-orange-800 font-medium leading-relaxed">
+                                    Define los pasos obligatorios que el encargado debe verificar antes de cerrar la caja.
+                                </p>
+                            </div>
+                            <div>
+                                <label className="label-input">Items del Checklist (Separar por comas)</label>
+                                <textarea
+                                    className="input-field min-h-[200px] text-sm leading-relaxed"
+                                    value={closingChecklist}
+                                    onChange={e => setClosingChecklist(e.target.value)}
+                                    placeholder="Ej. Apagar luces, Cerrar gas, Activar alarma..."
+                                />
+                                <p className="text-[10px] text-gray-400 mt-1 text-right">
+                                    {closingChecklist.split(',').filter(s => s.trim()).length} Pasos definidos
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <div className="p-4 border-t bg-gray-50">
                     <button
                         onClick={() => {
                             const checklistArray = closingChecklist.split(',').map(s => s.trim()).filter(s => s);
                             onSave(logoUrl, appName, autoLockTime, ownerPhone, checklistArray);
                             onClose();
                         }}
-                        className="w-full bg-black text-white py-3 rounded-xl font-bold mt-2 shadow-lg hover:bg-gray-800 transition-transform active:scale-95"
+                        className="w-full bg-black text-white py-3 rounded-xl font-bold shadow-lg hover:bg-gray-800 transition-transform active:scale-95"
                     >
-
                         GUARDAR CAMBIOS
                     </button>
                 </div>
