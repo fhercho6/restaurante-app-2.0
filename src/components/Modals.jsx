@@ -457,16 +457,6 @@ export const BrandingModal = ({ isOpen, onClose, onSave, currentLogo, currentNam
     const [ownerPhone, setOwnerPhone] = useState('');
     const [closingChecklist, setClosingChecklist] = useState('');
 
-    const { ownerPhone: savedPhone, closingChecklist: savedChecklist } = useData ? useData() : {}; // Safely access context data if passed or hook used. Wait, we are inside Modals.jsx, we need the props passed or access useData. BrandingModal props signature needs update or we use hooks inside if they are available.
-
-    // Better idea: Pass currentPhone and currentChecklist as props from AppContent.
-    // For now, let's assume we update AppContent to pass them.
-    // Wait, Modals.jsx doesn't use useData hook directly usually. 
-    // Let's check where BrandingModal is called. It's called in AppContent.
-    // We'll update AppContent to pass these new props.
-    // But first, let's add the UI here and state.
-
-
     // Actualizar estados al abrir
     useEffect(() => {
         setLogoUrl(currentLogo || '');
