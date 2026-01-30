@@ -1,9 +1,9 @@
 // src/components/LandingPage.jsx - EDICIÓN CYBERPUNK NEON
 import React, { useState } from 'react';
-import { ChefHat, User, Settings, UtensilsCrossed, Sparkles, Clock, Calculator, Zap, Crown, Calendar, Plus, Maximize, Minimize } from 'lucide-react';
+import { ChefHat, User, Settings, UtensilsCrossed, Sparkles, Clock, Calculator, Zap, Crown, Calendar, Plus, Maximize, Minimize, Scan } from 'lucide-react';
 import ServiceCalculatorModal from './ServiceCalculatorModal';
 
-export default function LandingPage({ appName, logo, onSelectClient, onSelectStaff, onSelectAdmin, onSelectReservations, isPublicMode = false }) {
+export default function LandingPage({ appName, logo, onSelectClient, onSelectStaff, onSelectAdmin, onSelectReservations, onOpenQR, isPublicMode = false }) {
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [pin, setPin] = useState('');
@@ -60,6 +60,14 @@ export default function LandingPage({ appName, logo, onSelectClient, onSelectSta
             title="Cotizar Costo"
           >
             <Calculator size={22} />
+          </button>
+
+          <button
+            onClick={onOpenQR}
+            className="p-3 rounded-full bg-white/5 hover:bg-white/10 text-pink-400 hover:text-white transition-all hover:scale-110 hover:shadow-[0_0_15px_rgba(244,114,182,0.4)] border border-pink-500/20"
+            title="Ver Código QR"
+          >
+            <Scan size={22} />
           </button>
 
           <button

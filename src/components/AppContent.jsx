@@ -699,6 +699,7 @@ export default function AppContent() {
                     onSelectStaff={handleEnterStaff}
                     onSelectAdmin={handleEnterAdmin}
                     onSelectReservations={() => setView('reservations')}
+                    onOpenQR={() => setIsQRModalOpen(true)}
                     isPublicMode={isPublicMode}
                 />
             ) : (
