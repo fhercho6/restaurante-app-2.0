@@ -75,6 +75,15 @@ export default function ClientQRModal({ isOpen, onClose, appName }) {
                     {/* Actions (Hidden on Print) */}
                     <div className="flex gap-3 w-full print:hidden">
                         <button
+                            onClick={() => {
+                                navigator.clipboard.writeText(publicUrl);
+                                toast.success("Enlace copiado al portapapeles");
+                            }}
+                            className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200"
+                        >
+                            <span className="flex items-center gap-2 uppercase text-xs"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg> Copiar Link</span>
+                        </button>
+                        <button
                             onClick={handlePrint}
                             className="flex-1 bg-gray-900 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-gray-800 transition-colors"
                         >

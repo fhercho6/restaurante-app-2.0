@@ -179,6 +179,8 @@
         *   **Corrección Crítica Menú:** Se solucionó el error de pantalla blanca `ReferenceError: menuItems is not defined` al entrar al Menú Digital.
         *   **Causa:** Referencia a una variable obsoleta tras la refactorización de filtros.
         *   **Solución:** Se reemplazó `menuItems` por `filteredItems` para asegurar que el menú respete la categoría seleccionada y cargue correctamente.
+        *   **Refinamiento Menú:** Se ocultaron los items "Invitación Digital" y "Decoración con Globos" de la vista pública (Menú Digital) ya que no se venden por separado.
+        *   **Compartir Menú:** Nuevo botón **"COPIAR LINK"** en la ventana de Código QR para compartir fácilmente el enlace del menú público.
 
 
 ---
