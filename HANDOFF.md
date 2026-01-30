@@ -182,6 +182,7 @@
         *   **Refinamiento Menú:** Se ocultaron los items "Invitación Digital" y "Decoración con Globos" de la vista pública (Menú Digital) ya que no se venden por separado.
         *   **Compartir Menú:** Nuevo botón **"COPIAR LINK"** en la ventana de Código QR para compartir fácilmente el enlace del menú público.
         *   **Acceso QR (Landing):** Se añadió el botón de Código QR (Icono Escáner) directamente en la Pantalla de Inicio (Landing Page) para facilitar el acceso rápido sin entrar al sistema.
+        *   **Fix Visibilidad QR:** Se corrigió un error donde el modal del QR no se abría desde la pantalla de inicio porque el componente estaba oculto en esa vista. Se movió a un alcance global.
 
 
 ---

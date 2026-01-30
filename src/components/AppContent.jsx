@@ -795,11 +795,7 @@ export default function AppContent() {
                                 )}
 
                                 {/* OTHER ADMIN VIEWS */}
-                                <ClientQRModal
-                                    isOpen={isQRModalOpen}
-                                    onClose={() => setIsQRModalOpen(false)}
-                                    appName={appName || 'Restaurante'}
-                                />
+
                                 {/* OTHER ADMIN VIEWS */}
                                 {view === 'register_control' && <RegisterControlView
                                     session={registerSession}
@@ -1017,6 +1013,11 @@ export default function AppContent() {
 
             {/* SHARED MODALS */}
             <OpenRegisterModal isOpen={isOpenRegisterModalOpen} onClose={() => { }} onOpenRegister={handleOpenRegister} />
+            <ClientQRModal
+                isOpen={isQRModalOpen}
+                onClose={() => setIsQRModalOpen(false)}
+                appName={appName || 'Restaurante'}
+            />
             <PaymentModal
                 isOpen={isPaymentModalOpen}
                 onClose={() => setIsPaymentModalOpen(false)}
