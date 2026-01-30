@@ -162,8 +162,24 @@
             *   **Acceso a Historial:** Se habilitaron las pestañas "Historial" y "Gastos" para el perfil Cajero (antes salían en blanco).
             *   **Corrección de Crashes:** Se arreglaron errores `ReferenceError` que cerraban la app al entrar como Cajero o Garzón debido a imports faltantes.
         *   **Zonificación Robusta:**
-            *   **Smart Table Selection:** Si un mesero entra a una zona con una sola mesa (o ninguna), el sistema auto-selecciona la opción disponible para ahorrar clics.
             *   **Inyección de Zona:** El sistema ahora asegura que la zona operativa del garzón se guarde en `sales` y `z-reports`, arreglando discrepancias en el "Reporte por Ambientes".
+
+    21. **Sesión: 29 de Enero 2026 (Protocolo de Cierre & Asistente):**
+        *   **Asistente de Cierre (Closing Wizard):**
+            *   **Checklist Obligatorio:** Se delegó la responsabilidad al sistema. Al cerrar caja, aparece un modal con pasos obligatorios (ej. "Apagar Luces", "Alarma"). Solo se puede continuar si se marcan todos.
+            *   **Reporte WhatsApp Automático:** Al finalizar el cierre, se genera un link directo a WhatsApp con un resumen financiero formateado (Ventas, Gastos, Efectivo en Mano).
+        *   **Refactorización de Configuración:**
+            *   **Diseño por Pestañas:** El `BrandingModal` se dividió en "General" y "Checklist Cierre" para mantener el orden.
+            *   **Explicaciones Claras:** Se añadieron textos de ayuda (ej. explicar qué hace el "Cierre Automático").
+        *   **Correcciones:**
+            *   **Borrado de Pagos:** Se arregló el bug donde no se podían eliminar pagos parciales (Efectivo/Tarjeta) en el modal de cobro debido a un ID incorrecto.
+            *   **Referencias:** Se solucionaron errores de referencia (`addCategory` vs `handleAddCategory`) introducidos durante refactorizaciones.
+
+    22. **Sesión: 30 de Enero 2026 (Fix Menu Error):**
+        *   **Corrección Crítica Menú:** Se solucionó el error de pantalla blanca `ReferenceError: menuItems is not defined` al entrar al Menú Digital.
+        *   **Causa:** Referencia a una variable obsoleta tras la refactorización de filtros.
+        *   **Solución:** Se reemplazó `menuItems` por `filteredItems` para asegurar que el menú respete la categoría seleccionada y cargue correctamente.
+
 
 ---
 
