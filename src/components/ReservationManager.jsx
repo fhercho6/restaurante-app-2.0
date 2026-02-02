@@ -18,6 +18,7 @@ const ReservationManager = () => {
         date: '',
         time: '',
         type: 'Cena',
+        location: '',
         notes: ''
     });
 
@@ -41,7 +42,7 @@ const ReservationManager = () => {
     }, []);
 
     const resetForm = () => {
-        setFormData({ name: '', phone: '', date: new Date().toISOString().split('T')[0], time: '20:00', type: 'Cena', notes: '' });
+        setFormData({ name: '', phone: '', date: new Date().toISOString().split('T')[0], time: '20:00', type: 'Cena', location: '', notes: '' });
         setCurrentRes(null);
     };
 
@@ -54,6 +55,7 @@ const ReservationManager = () => {
                 date: res.date,
                 time: res.time,
                 type: res.type || 'Cena',
+                location: res.location || '',
                 notes: res.notes || ''
             });
         } else {
@@ -123,6 +125,7 @@ const ReservationManager = () => {
                     <div><span class="label">FECHA:</span> ${new Date(res.date).toLocaleDateString()}</div>
                     <div><span class="label">HORA:</span> ${res.time}</div>
                     <div><span class="label">TIPO:</span> ${res.type}</div>
+                    <div><span class="label">LUGAR:</span> ${res.location || 'No asignado'}</div>
                     <div><span class="label">TEL:</span> ${res.phone}</div>
                 </div>
 
@@ -177,7 +180,8 @@ const ReservationManager = () => {
                     table { width: 100%; border-collapse: collapse; margin-top: 20px; }
                     th { background-color: #f0f0f0; text-align: left; padding: 10px; border-bottom: 2px solid #000; font-size: 12px; text-transform: uppercase; }
                     td { padding: 12px 10px; border-bottom: 1px solid #ddd; font-size: 14px; vertical-align: top; }
-                    .time-col { font-weight: bold; width: 80px; }
+                    .time-col { font-weight: bold; width: 60px; }
+                    .loc-col { font-weight: bold; width: 100px; color: #444; }
                     .name-col { font-weight: bold; color: #000; }
                     .type-tag { font-size: 10px; background: #eee; padding: 2px 6px; rounded: 4px; display: inline-block; margin-top: 4px; text-transform: uppercase; }
                     .notes { font-style: italic; color: #666; font-size: 12px; margin-top: 4px; }
@@ -194,6 +198,7 @@ const ReservationManager = () => {
                     <thead>
                         <tr>
                             <th>Hora</th>
+                            <th>Ubicación</th>
                             <th>Cliente / Evento</th>
                             <th>Teléfono</th>
                             <th>Notas</th>
@@ -203,6 +208,7 @@ const ReservationManager = () => {
                         ${list.sort((a, b) => a.time.localeCompare(b.time)).map(res => `
                             <tr>
                                 <td class="time-col">${res.time}</td>
+                                <td class="loc-col">${res.location || '---'}</td>
                                 <td>
                                     <div class="name-col">${res.name}</div>
                                     <div class="type-tag">${res.type || 'Reserva'}</div>
@@ -321,6 +327,11 @@ const ReservationManager = () => {
                                                     <div className="flex items-center gap-2 text-gray-600 text-sm">
                                                         <Clock size={16} className="text-indigo-400" />
                                                         <span className="font-bold text-lg">{res.time}</span>
+                                                        {res.location && (
+                                                            <span className="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs font-bold rounded border border-yellow-200 uppercase">
+                                                                {res.location}
+                                                            </span>
+                                                        )}
                                                     </div>
                                                     <div className="flex items-center gap-2 text-gray-600 text-sm">
                                                         <Phone size={16} className="text-green-500" />
@@ -381,6 +392,15 @@ const ReservationManager = () => {
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Hora</label>
                                     <input required type="time" className="w-full p-3 bg-gray-50 border rounded-xl outline-none focus:border-indigo-500" value={formData.time} onChange={e => setFormData({ ...formData, time: e.target.value })} />
+                                </div>
+                            </div>
+
+                            {/* LOCATION FIELD */}
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Ubicación / Mesa (Importante)</label>
+                                <div className="relative">
+                                    <Home className="absolute left-3 top-3 text-gray-400" size={18} />
+                                    <input type="text" className="w-full pl-10 p-3 bg-gray-50 border rounded-xl outline-none focus:border-indigo-500" placeholder="Ej: Mesa 5, Terraza, Vip..." value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} />
                                 </div>
                             </div>
 
