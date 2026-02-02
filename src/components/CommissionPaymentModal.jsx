@@ -268,8 +268,9 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                 if (success) {
                     onPrintReceipt({
                         type: 'expense',
+                        title: 'RECIBO',
                         amount: totalPay,
-                        description: `PAGO DE COMISIÓN<br/><br/>GARZÓN: ${data.name.toUpperCase()}<br/>----------------<br/>${breakdownHtml}----------------<br/>SUBTOTAL COMISIÓN: Bs. ${data.commissionAmount.toFixed(2)}<br/>PASAJE / BONO: Bs. ${bonus.toFixed(2)}`,
+                        description: `POR CONCEPTO DE PAGO DE COMISIONES<br/><br/>GARZÓN: ${data.name.toUpperCase()}<br/>----------------<br/>${breakdownHtml}----------------<br/>SUBTOTAL COMISIÓN: Bs. ${data.commissionAmount.toFixed(2)}<br/>PASAJE / BONO: Bs. ${bonus.toFixed(2)}`,
                         staffName: data.name,
                         cashierName: registerSession.openedBy || 'Cajero',
                         date: new Date().toLocaleString(),
@@ -291,8 +292,8 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
         onPrintReceipt({
             type: 'expense',
             amount: parseFloat(expense.amount),
-            description: expense.details ? `*** REIMPRESIÓN ***<br/><br/>${expense.details}` : `*** REIMPRESIÓN ***<br/><br/>FECHA ORIGINAL: ${date.toLocaleString()}<br/>----------------------<br/>${expense.description}`,
-            title: expense.details ? 'RECIBO' : 'VALE DE GASTO', // Force title change if it's a rich receipt
+            description: expense.details ? `*** REIMPRESIÓN ***<br/>POR CONCEPTO DE PAGO DE COMISIONES<br/><br/>${expense.details}` : `*** REIMPRESIÓN ***<br/><br/>FECHA ORIGINAL: ${date.toLocaleString()}<br/>----------------------<br/>${expense.description}`,
+            title: 'RECIBO', // Siempre Recibo para comisiones
             staffName: staffName,
             cashierName: registerSession.openedBy || 'Cajero',
             date: new Date().toLocaleString(),
