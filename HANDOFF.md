@@ -191,6 +191,10 @@
             *   **Checklist de Seguridad (Paso 1):** Nuevo botón de impresora en el encabezado. Imprime la lista de tareas (luces, gas, etc.) con casillas para verificación manual y firma.
             *   **Nómina Pendiente (Paso 2):** Botón de impresora en el resumen financiero. Imprime el detalle de sueldos y comisiones para respaldo antes del pago.
 
+    24. **Sesión: 02 de Febrero 2026 (Gestor de Reservas):**
+        *   **Agrupación por Fecha:** Las reservas ahora se muestran agrupadas visualmente por fecha (seccionadas) en lugar de una lista mezclada.
+        *   **Imprimir Lista Diaria:** Se añadió un botón "Imprimir Lista" en el encabezado de cada fecha. Genera una hoja A4/Carta con la tabla de todas las reservas de ese día (Hora, Cliente, Notas) para uso del personal.
+
 ---
 
 ## 🛠️ Instrucciones para la Nueva PC
