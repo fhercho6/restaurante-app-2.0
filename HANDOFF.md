@@ -187,10 +187,9 @@
     23. **Sesión: 02 de Febrero 2026 (Formalización Recibos & Wizard):**
         *   **Cambio de Título:** El ticket de pago de comisiones ahora se titula **"RECIBO"** en lugar de "VALE DE GASTO".
         *   **Glosa Estándar:** Se añadió la leyenda automática **"POR CONCEPTO DE PAGO DE COMISIONES"**.
-        *   **Impresión de Nómina Pendiente:**
-            *   **Nuevo Botón:** En el **Asistente de Cierre** (Closing Wizard), se añadió un botón de impresora junto al total de "Nómina & Comisiones".
-            *   **Recibo Resumen:** Permite imprimir una lista consolidada (Documento Interno) con todos los sueldos y comisiones pendientes del turno antes de proceder al pago final.
-            *   **Detalle:** Incluye desglose por garzón (Comisión + Sueldo Base) y Total General.
+        *   **Impresión de Protocolo y Nómina:**
+            *   **Checklist de Seguridad (Paso 1):** Nuevo botón de impresora en el encabezado. Imprime la lista de tareas (luces, gas, etc.) con casillas para verificación manual y firma.
+            *   **Nómina Pendiente (Paso 2):** Botón de impresora en el resumen financiero. Imprime el detalle de sueldos y comisiones para respaldo antes del pago.
 
 ---
 
