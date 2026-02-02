@@ -194,8 +194,11 @@
     24. **Sesión: 02 de Febrero 2026 (Gestor de Reservas):**
         *   **Agrupación por Fecha:** Las reservas ahora se muestran agrupadas visualmente por fecha.
         *   **Campo Ubicación:** Se añadió el campo **"Ubicación / Mesa"** en el formulario, tarjetas y tickets.
-        *   **Campo Adelanto (A cuenta):** Nuevo campo monetario para registrar pagos anticipados. Se muestra destacado en verde en la tarjeta de reserva y en una columna dedicada en la lista de impresión.
-        *   **Impresión de Lista Diaria:** Botón de impresión por día que incluye la columna de **Ubicación** para que los garzones sepan dónde acomodar a los clientes.
+        *   **Campo Adelanto (A cuenta):** Nuevo campo monetario para registrar pagos anticipados.
+        *   **Impresión de Lista Diaria:** Botón de impresión por día que incluye la columna de **Ubicación**.
+        *   **Centro de Contactos / Recordatorios:** Nuevo botón **"CONTACTOS"** 🔔. Abre una lista centralizada de todos los clientes con reservas filtradas.
+            *   Permite enviar **Recordatorios de WhatsApp** con un clic (mensaje pre-cargado).
+            *   Botón **"COPIAR LISTA"** para llevar los números a otra herramienta masiva si es necesario.
 
 ---
 
