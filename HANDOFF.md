@@ -184,10 +184,13 @@
         *   **Acceso QR (Landing):** Se añadió el botón de Código QR (Icono Escáner) directamente en la Pantalla de Inicio (Landing Page) para facilitar el acceso rápido sin entrar al sistema.
         *   **Fix Visibilidad QR:** Se corrigió un error donde el modal del QR no se abría desde la pantalla de inicio porque el componente estaba oculto en esa vista. Se movió a un alcance global.
 
-    23. **Sesión: 02 de Febrero 2026 (Formalización Recibos Comisiones):**
+    23. **Sesión: 02 de Febrero 2026 (Formalización Recibos & Wizard):**
         *   **Cambio de Título:** El ticket de pago de comisiones ahora se titula **"RECIBO"** en lugar de "VALE DE GASTO".
-        *   **Glosa Estándar:** Se añadió la leyenda automática **"POR CONCEPTO DE PAGO DE COMISIONES"** en la descripción de todos los recibos de pago.
-        *   **Reimpresiones:** La lógica se actualizó para que las reimpresiones también respeten el nuevo título y glosa.
+        *   **Glosa Estándar:** Se añadió la leyenda automática **"POR CONCEPTO DE PAGO DE COMISIONES"**.
+        *   **Impresión de Nómina Pendiente:**
+            *   **Nuevo Botón:** En el **Asistente de Cierre** (Closing Wizard), se añadió un botón de impresora junto al total de "Nómina & Comisiones".
+            *   **Recibo Resumen:** Permite imprimir una lista consolidada (Documento Interno) con todos los sueldos y comisiones pendientes del turno antes de proceder al pago final.
+            *   **Detalle:** Incluye desglose por garzón (Comisión + Sueldo Base) y Total General.
 
 ---
 
