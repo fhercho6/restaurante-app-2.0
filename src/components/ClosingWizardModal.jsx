@@ -125,7 +125,67 @@ export default function ClosingWizardModal({ isOpen, onClose, registerSession, s
                                 <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-4">
                                     <div className="flex justify-between items-center mb-2 border-b border-yellow-200 pb-2">
                                         <span className="font-bold text-yellow-800 text-xs uppercase flex items-center gap-1"><DollarSign size={12} /> Nómina & Comisiones</span>
-                                        <span className="font-black text-yellow-900">Bs. {totalSalaries.toFixed(2)}</span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-black text-yellow-900">Bs. {totalSalaries.toFixed(2)}</span>
+                                            <button
+                                                onClick={() => {
+                                                    const content = `
+                                                        <html>
+                                                            <head>
+                                                                <title>Nómina Pendiente</title>
+                                                                <style>
+                                                                    body { font-family: 'Arial', sans-serif; font-size: 12px; width: 72mm; margin: 0; padding: 10px; }
+                                                                    .header { text-align: center; margin-bottom: 10px; border-bottom: 1px dashed #000; padding-bottom: 5px; }
+                                                                    .title { font-weight: bold; font-size: 14px; }
+                                                                    .row { display: flex; justify-content: space-between; margin-bottom: 3px; }
+                                                                    .total { font-weight: bold; border-top: 1px dashed #000; margin-top: 5px; padding-top: 5px; font-size: 14px; }
+                                                                </style>
+                                                            </head>
+                                                            <body>
+                                                                <div class="header">
+                                                                    <div class="title">NÓMINA PENDIENTE</div>
+                                                                    <div>${new Date().toLocaleString()}</div>
+                                                                    <div>Resp: ${registerSession?.openedBy || 'Cajero'}</div>
+                                                                </div>
+                                                                
+                                                                <div style="font-weight:bold; margin-bottom:5px;">COMISIONES:</div>
+                                                                ${commissionDetails.map(c => `
+                                                                    <div class="row">
+                                                                        <span>${c.name.substring(0, 15)} (${Math.round(c.rate * 100)}%)</span>
+                                                                        <span>${c.amount.toFixed(2)}</span>
+                                                                    </div>
+                                                                `).join('')}
+                                                                
+                                                                <div style="font-weight:bold; margin-top:10px; margin-bottom:5px;">SUELDOS BASE:</div>
+                                                                ${attendanceList.map(a => `
+                                                                    <div class="row">
+                                                                        <span>${a.staffName.substring(0, 15)}</span>
+                                                                        <span>${Number(a.dailySalary || 0).toFixed(2)}</span>
+                                                                    </div>
+                                                                `).join('')}
+
+                                                                <div class="row total">
+                                                                    <span>TOTAL A PAGAR:</span>
+                                                                    <span>Bs. ${totalSalaries.toFixed(2)}</span>
+                                                                </div>
+                                                                <center style="margin-top:15px; font-size:10px;">-- DOCUMENTO INTERNO --</center>
+                                                            </body>
+                                                        </html>
+                                                    `;
+                                                    const win = window.open('', 'PRINT', 'height=600,width=400');
+                                                    if (win) {
+                                                        win.document.write(content);
+                                                        win.document.close();
+                                                        win.focus();
+                                                        setTimeout(() => { win.print(); win.close(); }, 500);
+                                                    }
+                                                }}
+                                                className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 p-1.5 rounded transition-colors"
+                                                title="Imprimir Lista"
+                                            >
+                                                <Printer size={14} />
+                                            </button>
+                                        </div>
                                     </div>
                                     <div className="space-y-1">
                                         {/* Simple list of people being paid */}
