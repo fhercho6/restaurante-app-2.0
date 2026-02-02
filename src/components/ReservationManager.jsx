@@ -19,6 +19,7 @@ const ReservationManager = () => {
         time: '',
         type: 'Cena',
         location: '',
+        deposit: '',
         notes: ''
     });
 
@@ -42,7 +43,7 @@ const ReservationManager = () => {
     }, []);
 
     const resetForm = () => {
-        setFormData({ name: '', phone: '', date: new Date().toISOString().split('T')[0], time: '20:00', type: 'Cena', location: '', notes: '' });
+        setFormData({ name: '', phone: '', date: new Date().toISOString().split('T')[0], time: '20:00', type: 'Cena', location: '', deposit: '', notes: '' });
         setCurrentRes(null);
     };
 
@@ -56,6 +57,7 @@ const ReservationManager = () => {
                 time: res.time,
                 type: res.type || 'Cena',
                 location: res.location || '',
+                deposit: res.deposit || '',
                 notes: res.notes || ''
             });
         } else {
@@ -126,6 +128,7 @@ const ReservationManager = () => {
                     <div><span class="label">HORA:</span> ${res.time}</div>
                     <div><span class="label">TIPO:</span> ${res.type}</div>
                     <div><span class="label">LUGAR:</span> ${res.location || 'No asignado'}</div>
+                    ${res.deposit ? `<div><span class="label">A CUENTA:</span> Bs. ${parseFloat(res.deposit).toFixed(2)}</div>` : ''}
                     <div><span class="label">TEL:</span> ${res.phone}</div>
                 </div>
 
@@ -182,6 +185,7 @@ const ReservationManager = () => {
                     td { padding: 12px 10px; border-bottom: 1px solid #ddd; font-size: 14px; vertical-align: top; }
                     .time-col { font-weight: bold; width: 60px; }
                     .loc-col { font-weight: bold; width: 100px; color: #444; }
+                    .money-col { font-weight: bold; width: 80px; color: #166534; text-align: right; }
                     .name-col { font-weight: bold; color: #000; }
                     .type-tag { font-size: 10px; background: #eee; padding: 2px 6px; rounded: 4px; display: inline-block; margin-top: 4px; text-transform: uppercase; }
                     .notes { font-style: italic; color: #666; font-size: 12px; margin-top: 4px; }
@@ -200,6 +204,7 @@ const ReservationManager = () => {
                             <th>Hora</th>
                             <th>Ubicación</th>
                             <th>Cliente / Evento</th>
+                            <th>A Cuenta</th>
                             <th>Teléfono</th>
                             <th>Notas</th>
                         </tr>
@@ -213,6 +218,7 @@ const ReservationManager = () => {
                                     <div class="name-col">${res.name}</div>
                                     <div class="type-tag">${res.type || 'Reserva'}</div>
                                 </td>
+                                <td class="money-col">${res.deposit ? 'Bs. ' + parseFloat(res.deposit).toFixed(2) : '-'}</td>
                                 <td>${res.phone || '-'}</td>
                                 <td>
                                     ${res.notes ? `<div class="notes">"${res.notes}"</div>` : '-'}
@@ -315,6 +321,11 @@ const ReservationManager = () => {
                                                         <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-400 mt-1">
                                                             <Tag size={12} /> {res.type}
                                                         </div>
+                                                        {res.deposit && (
+                                                            <div className="mt-1 flex items-center gap-1 text-green-600 font-bold text-xs bg-green-50 px-2 py-1 rounded-md border border-green-100">
+                                                                <DollarSign size={12} /> A cuenta: Bs. {parseFloat(res.deposit).toFixed(2)}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                     <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                                                         <button onClick={() => handlePrint(res)} className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg hover:text-gray-800" title="Imprimir Ticket"><Printer size={16} /></button>
@@ -401,6 +412,14 @@ const ReservationManager = () => {
                                 <div className="relative">
                                     <Home className="absolute left-3 top-3 text-gray-400" size={18} />
                                     <input type="text" className="w-full pl-10 p-3 bg-gray-50 border rounded-xl outline-none focus:border-indigo-500" placeholder="Ej: Mesa 5, Terraza, Vip..." value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">A cuenta / Adelanto (Bs.)</label>
+                                <div className="relative">
+                                    <DollarSign className="absolute left-3 top-3 text-gray-400" size={18} />
+                                    <input type="number" step="0.01" className="w-full pl-10 p-3 bg-gray-50 border rounded-xl outline-none focus:border-indigo-500" placeholder="0.00" value={formData.deposit} onChange={e => setFormData({ ...formData, deposit: e.target.value })} />
                                 </div>
                             </div>
 
