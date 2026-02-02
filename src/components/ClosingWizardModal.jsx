@@ -67,6 +67,57 @@ export default function ClosingWizardModal({ isOpen, onClose, registerSession, s
                         <h2 className="font-bold text-lg">
                             {step === 1 ? 'PROTOCOLO DE CIERRE' : 'CIERRE FINANCIERO'}
                         </h2>
+                        {/* PRINT CHECKLIST BUTTON (STEP 1 ONLY) */}
+                        {step === 1 && (
+                            <button
+                                onClick={() => {
+                                    const content = `
+                                        <html>
+                                            <head>
+                                                <title>Protocolo de Cierre</title>
+                                                <style>
+                                                    body { font-family: 'Arial', sans-serif; font-size: 12px; width: 72mm; margin: 0; padding: 10px; }
+                                                    .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+                                                    .title { font-weight: bold; font-size: 16px; margin-bottom: 5px; }
+                                                    .item { margin-bottom: 8px; font-size: 14px; display: flex; align-items: center; gap: 5px; }
+                                                    .box { width: 15px; height: 15px; border: 1px solid #000; display: inline-block; margin-right: 5px; }
+                                                    .footer { margin-top: 30px; text-align: center; font-size: 10px; border-top: 1px dashed #000; padding-top: 5px; }
+                                                </style>
+                                            </head>
+                                            <body>
+                                                <div class="header">
+                                                    <div class="title">PROTOCOLO DE CIERRE</div>
+                                                    <div>${new Date().toLocaleDateString()}</div>
+                                                    <div>Resp: ${registerSession?.openedBy || 'Cajero'}</div>
+                                                </div>
+                                                
+                                                ${closingChecklist.map(item => `
+                                                    <div class="item">
+                                                        <span class="box"></span> ${item}
+                                                    </div>
+                                                `).join('')}
+
+                                                <div class="footer">
+                                                    Firma Responsable<br/><br/><br/>
+                                                    _____________________
+                                                </div>
+                                            </body>
+                                        </html>
+                                    `;
+                                    const win = window.open('', 'PRINT', 'height=600,width=400');
+                                    if (win) {
+                                        win.document.write(content);
+                                        win.document.close();
+                                        win.focus();
+                                        setTimeout(() => { win.print(); win.close(); }, 500);
+                                    }
+                                }}
+                                className="ml-2 bg-white/10 hover:bg-white/20 p-1.5 rounded-full transition-colors text-white/80 hover:text-white"
+                                title="Imprimir Checklist"
+                            >
+                                <Printer size={16} />
+                            </button>
+                        )}
                     </div>
                     <button onClick={onClose} className="rounded-full p-1 hover:bg-white/10 text-white/50 hover:text-white transition-colors"><X size={20} /></button>
                 </div>
