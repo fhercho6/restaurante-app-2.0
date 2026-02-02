@@ -145,6 +145,11 @@ const ReservationManager = () => {
         }, 500);
     };
 
+    const filteredReservations = reservations.filter(r =>
+        r.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (r.phone && r.phone.includes(searchTerm))
+    );
+
     // Group by Date Logic
     const groupedReservations = filteredReservations.reduce((groups, res) => {
         const date = res.date;
