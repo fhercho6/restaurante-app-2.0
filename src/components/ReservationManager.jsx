@@ -22,7 +22,7 @@ const ReservationManager = () => {
         notes: ''
     });
 
-    const RESERVATION_TYPES = ['Cena', 'Cumpleaños', 'Aniversario', 'Reunión', 'Evento', 'Otro'];
+    const RESERVATION_TYPES = ['Cena', 'Cumpleaños', 'Aniversario', 'Reunión', 'Evento', 'Graduación', 'Despedida', 'Baby Shower', 'Otro'];
 
     useEffect(() => {
         const collName = isPersonalProject ? 'reservations' : `${ROOT_COLLECTION}reservations`;
@@ -406,13 +406,22 @@ const ReservationManager = () => {
 
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tipo de Evento</label>
-                                <div className="grid grid-cols-3 gap-2">
+                                <div className="mb-2">
+                                    <input
+                                        type="text"
+                                        className="w-full p-3 bg-gray-50 border rounded-xl outline-none focus:border-indigo-500"
+                                        placeholder="Escribe o selecciona..."
+                                        value={formData.type}
+                                        onChange={e => setFormData({ ...formData, type: e.target.value })}
+                                    />
+                                </div>
+                                <div className="flex flex-wrap gap-2">
                                     {RESERVATION_TYPES.map(type => (
                                         <button
                                             key={type}
                                             type="button"
                                             onClick={() => setFormData({ ...formData, type })}
-                                            className={`px-2 py-2 rounded-lg text-xs font-bold border ${formData.type === type ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+                                            className={`px-3 py-1 rounded-full text-xs font-bold border transition-colors ${formData.type === type ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'}`}
                                         >
                                             {type}
                                         </button>
