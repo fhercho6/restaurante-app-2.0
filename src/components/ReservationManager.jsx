@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db, ROOT_COLLECTION, isPersonalProject } from '../config/firebase';
-import { Calendar, Plus, Search, MessageCircle, Trash2, Edit2, X, Clock, User, Phone, Tag, Printer, Home, DollarSign } from 'lucide-react';
+import { Calendar, Plus, Search, MessageCircle, Trash2, Edit2, X, Clock, User, Phone, Tag, Printer, Home, DollarSign, Bell, Copy, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const ReservationManager = () => {
     const [reservations, setReservations] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isContactModalOpen, setIsContactModalOpen] = useState(false);
     const [currentRes, setCurrentRes] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -268,7 +269,11 @@ const ReservationManager = () => {
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
                         />
+
                     </div>
+                    <button onClick={() => setIsContactModalOpen(true)} className="px-4 py-3 bg-white text-indigo-600 font-bold rounded-xl shadow border border-indigo-100 hover:bg-indigo-50 flex items-center gap-2">
+                        <Bell size={20} /> CONTACTOS
+                    </button>
                     <button onClick={() => handleOpenModal()} className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-lg hover:bg-indigo-700 flex items-center gap-2">
                         <Plus size={20} /> NUEVA
                     </button>
@@ -457,6 +462,79 @@ const ReservationManager = () => {
                                 {currentRes ? 'GUARDAR CAMBIOS' : 'REGISTRAR RESERVA'}
                             </button>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* CONTACT LIST / REMINDERS MODAL */}
+            {isContactModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+                    <div className="bg-white rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden h-[80vh] flex flex-col">
+                        <div className="bg-indigo-600 p-4 flex justify-between items-center text-white shrink-0">
+                            <div className="flex items-center gap-3">
+                                <Bell size={24} />
+                                <div>
+                                    <h3 className="font-bold text-lg">Centro de Notificaciones</h3>
+                                    <p className="text-xs text-indigo-200">Envíe recordatorios o contacte a sus clientes</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setIsContactModalOpen(false)}><X /></button>
+                        </div>
+
+                        <div className="p-4 bg-gray-50 border-b flex justify-between items-center shrink-0">
+                            <div className="text-sm text-gray-500 font-medium">Mostrando {filteredReservations.length} contactos</div>
+                            <button
+                                onClick={() => {
+                                    const text = filteredReservations.map(r => `${r.name}\t${r.phone}\t${r.date}`).join('\n');
+                                    navigator.clipboard.writeText(text);
+                                    toast.success("Lista copiada al portapapeles");
+                                }}
+                                className="flex items-center gap-2 text-xs font-bold bg-white border px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700"
+                            >
+                                <Copy size={14} /> COPIAR LISTA
+                            </button>
+                        </div>
+
+                        <div className="overflow-auto p-4 flex-1">
+                            {filteredReservations.length === 0 ? (
+                                <p className="text-center text-gray-400 py-10">No se encontraron reservas con los filtros actuales.</p>
+                            ) : (
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="text-xs font-bold text-gray-500 uppercase border-b">
+                                            <th className="p-3">Cliente</th>
+                                            <th className="p-3">Teléfono</th>
+                                            <th className="p-3">Reserva Para</th>
+                                            <th className="p-3 text-right">Acción</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="text-sm text-gray-700">
+                                        {filteredReservations
+                                            .sort((a, b) => new Date(b.date) - new Date(a.date)) // Sort descending date for list view
+                                            .map(res => (
+                                                <tr key={res.id} className="border-b hover:bg-gray-50">
+                                                    <td className="p-3 font-bold">{res.name}</td>
+                                                    <td className="p-3 font-mono text-gray-500">{res.phone || '-'}</td>
+                                                    <td className="p-3">
+                                                        <span className={`px-2 py-1 rounded text-xs font-bold ${new Date(res.date + 'T12:00:00').toDateString() === new Date().toDateString() ? 'bg-green-100 text-green-700' : 'bg-gray-100'}`}>
+                                                            {new Date(res.date + 'T12:00:00').toLocaleDateString()}
+                                                        </span>
+                                                        <span className="ml-2 text-gray-500">{res.time}</span>
+                                                    </td>
+                                                    <td className="p-3 text-right">
+                                                        <button
+                                                            onClick={() => sendWhatsApp(res)}
+                                                            className="inline-flex items-center gap-1 bg-green-50 text-green-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-green-100 border border-green-200"
+                                                        >
+                                                            <MessageCircle size={14} /> WhatsApp
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}
