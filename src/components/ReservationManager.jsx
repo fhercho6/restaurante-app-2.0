@@ -145,10 +145,89 @@ const ReservationManager = () => {
         }, 500);
     };
 
-    const filteredReservations = reservations.filter(r =>
-        r.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (r.phone && r.phone.includes(searchTerm))
-    );
+    // Group by Date Logic
+    const groupedReservations = filteredReservations.reduce((groups, res) => {
+        const date = res.date;
+        if (!groups[date]) groups[date] = [];
+        groups[date].push(res);
+        return groups;
+    }, {});
+
+    // Sort groups by date
+    const sortedDates = Object.keys(groupedReservations).sort((a, b) => a.localeCompare(b));
+
+    const handlePrintDailyList = (date, list) => {
+        const printWindow = window.open('', 'PRINT', 'height=800,width=600');
+        const formattedDate = new Date(date + 'T12:00:00').toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+        const html = `
+            <html>
+            <head>
+                <title>Reservas - ${date}</title>
+                <style>
+                    body { font-family: 'Arial', sans-serif; padding: 20px; }
+                    .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+                    .title { font-weight: bold; font-size: 20px; text-transform: uppercase; }
+                    .date { color: #555; margin-top: 5px; font-size: 14px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    th { background-color: #f0f0f0; text-align: left; padding: 10px; border-bottom: 2px solid #000; font-size: 12px; text-transform: uppercase; }
+                    td { padding: 12px 10px; border-bottom: 1px solid #ddd; font-size: 14px; vertical-align: top; }
+                    .time-col { font-weight: bold; width: 80px; }
+                    .name-col { font-weight: bold; color: #000; }
+                    .type-tag { font-size: 10px; background: #eee; padding: 2px 6px; rounded: 4px; display: inline-block; margin-top: 4px; text-transform: uppercase; }
+                    .notes { font-style: italic; color: #666; font-size: 12px; margin-top: 4px; }
+                    .footer { margin-top: 30px; font-size: 10px; text-align: center; color: #888; }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <div class="title">LISTA DE RESERVAS</div>
+                    <div class="date">${formattedDate}</div>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Hora</th>
+                            <th>Cliente / Evento</th>
+                            <th>Teléfono</th>
+                            <th>Notas</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${list.sort((a, b) => a.time.localeCompare(b.time)).map(res => `
+                            <tr>
+                                <td class="time-col">${res.time}</td>
+                                <td>
+                                    <div class="name-col">${res.name}</div>
+                                    <div class="type-tag">${res.type || 'Reserva'}</div>
+                                </td>
+                                <td>${res.phone || '-'}</td>
+                                <td>
+                                    ${res.notes ? `<div class="notes">"${res.notes}"</div>` : '-'}
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+
+                <div class="footer">
+                    Impreso el ${new Date().toLocaleString()}
+                </div>
+            </body>
+            </html>
+        `;
+
+        if (printWindow) {
+            printWindow.document.write(html);
+            printWindow.document.close();
+            printWindow.focus();
+            setTimeout(() => {
+                printWindow.print();
+                printWindow.close();
+            }, 500);
+        }
+    };
 
     return (
         <div className="max-w-6xl mx-auto pb-20 animate-in fade-in">
@@ -182,54 +261,85 @@ const ReservationManager = () => {
             {loading ? (
                 <p className="text-center text-gray-500">Cargando reservas...</p>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {filteredReservations.length === 0 ? (
-                        <div className="col-span-full text-center py-10 bg-white rounded-xl border border-dashed border-gray-300">
+                <div className="space-y-8">
+                    {filteredReservations.length === 0 && (
+                        <div className="text-center py-10 bg-white rounded-xl border border-dashed border-gray-300">
                             <p className="text-gray-400 mb-2">No hay reservas registradas.</p>
                             <button onClick={() => handleOpenModal()} className="text-indigo-600 font-bold hover:underline">Crear la primera</button>
                         </div>
-                    ) : filteredReservations.map(res => (
-                        <div key={res.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow relative overflow-hidden">
-                            <div className={`absolute top-0 left-0 w-1 h-full ${res.type === 'Cumpleaños' ? 'bg-pink-500' : 'bg-indigo-500'}`}></div>
+                    )}
 
-                            <div className="flex justify-between items-start mb-3">
-                                <div>
-                                    <h3 className="font-bold text-gray-800 text-lg">{res.name}</h3>
-                                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-400 mt-1">
-                                        <Tag size={12} /> {res.type}
+                    {sortedDates.map(date => {
+                        const dayReservations = groupedReservations[date];
+                        const dateObj = new Date(date + 'T12:00:00');
+                        const isToday = new Date().toDateString() === dateObj.toDateString();
+
+                        return (
+                            <div key={date} className="animate-in slide-in-from-bottom-2">
+                                <div className="flex justify-between items-end mb-4 border-b border-gray-200 pb-2">
+                                    <div>
+                                        <h3 className={`text-xl font-bold ${isToday ? 'text-green-600' : 'text-gray-800'} capitalize`}>
+                                            {isToday && "Hoy, "} {dateObj.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' })}
+                                        </h3>
+                                        <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">{dayReservations.length} Reservas</p>
                                     </div>
+                                    <button
+                                        onClick={() => handlePrintDailyList(date, dayReservations)}
+                                        className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-indigo-600 bg-gray-50 hover:bg-indigo-50 px-4 py-2 rounded-lg transition-colors border border-gray-200 hover:border-indigo-200"
+                                    >
+                                        <Printer size={16} /> IMPRIMIR LISTA
+                                    </button>
                                 </div>
-                                <div className="flex gap-1">
-                                    <button onClick={() => handlePrint(res)} className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg hover:text-gray-800" title="Imprimir"><Printer size={16} /></button>
-                                    <button onClick={() => handleOpenModal(res)} className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg hover:text-blue-500"><Edit2 size={16} /></button>
-                                    <button onClick={() => handleDelete(res.id)} className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg hover:text-red-500"><Trash2 size={16} /></button>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {dayReservations
+                                        .sort((a, b) => a.time.localeCompare(b.time))
+                                        .map(res => (
+                                            <div key={res.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow relative overflow-hidden group">
+                                                <div className={`absolute top-0 left-0 w-1 h-full ${res.type === 'Cumpleaños' ? 'bg-pink-500' : 'bg-indigo-500'}`}></div>
+
+                                                <div className="flex justify-between items-start mb-3">
+                                                    <div>
+                                                        <h3 className="font-bold text-gray-800 text-lg">{res.name}</h3>
+                                                        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-400 mt-1">
+                                                            <Tag size={12} /> {res.type}
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                                        <button onClick={() => handlePrint(res)} className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg hover:text-gray-800" title="Imprimir Ticket"><Printer size={16} /></button>
+                                                        <button onClick={() => handleOpenModal(res)} className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg hover:text-blue-500"><Edit2 size={16} /></button>
+                                                        <button onClick={() => handleDelete(res.id)} className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg hover:text-red-500"><Trash2 size={16} /></button>
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-2 mb-4">
+                                                    <div className="flex items-center gap-2 text-gray-600 text-sm">
+                                                        <Clock size={16} className="text-indigo-400" />
+                                                        <span className="font-bold text-lg">{res.time}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 text-gray-600 text-sm">
+                                                        <Phone size={16} className="text-green-500" />
+                                                        <span>{res.phone || 'Sin teléfono'}</span>
+                                                    </div>
+                                                    {res.notes && (
+                                                        <div className="text-xs bg-gray-50 p-2 rounded-lg text-gray-500 italic">
+                                                            "{res.notes}"
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <button
+                                                    onClick={() => sendWhatsApp(res)}
+                                                    className="w-full py-2 bg-green-50 text-green-600 font-bold rounded-lg border border-green-200 hover:bg-green-100 flex items-center justify-center gap-2 transition-colors"
+                                                >
+                                                    <MessageCircle size={18} /> CONTACTAR
+                                                </button>
+                                            </div>
+                                        ))}
                                 </div>
                             </div>
-
-                            <div className="space-y-2 mb-4">
-                                <div className="flex items-center gap-2 text-gray-600 text-sm">
-                                    <Clock size={16} className="text-indigo-400" />
-                                    <span className="font-bold">{new Date(res.date + 'T' + res.time).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-gray-600 text-sm">
-                                    <Phone size={16} className="text-green-500" />
-                                    <span>{res.phone || 'Sin teléfono'}</span>
-                                </div>
-                                {res.notes && (
-                                    <div className="text-xs bg-gray-50 p-2 rounded-lg text-gray-500 italic">
-                                        "{res.notes}"
-                                    </div>
-                                )}
-                            </div>
-
-                            <button
-                                onClick={() => sendWhatsApp(res)}
-                                className="w-full py-2 bg-green-50 text-green-600 font-bold rounded-lg border border-green-200 hover:bg-green-100 flex items-center justify-center gap-2 transition-colors"
-                            >
-                                <MessageCircle size={18} /> CONTACTAR
-                            </button>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
 
