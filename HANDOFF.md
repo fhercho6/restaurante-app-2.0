@@ -192,8 +192,9 @@
             *   **Nómina Pendiente (Paso 2):** Botón de impresora en el resumen financiero. Imprime el detalle de sueldos y comisiones para respaldo antes del pago.
 
     24. **Sesión: 02 de Febrero 2026 (Gestor de Reservas):**
-        *   **Agrupación por Fecha:** Las reservas ahora se muestran agrupadas visualmente por fecha (seccionadas) en lugar de una lista mezclada.
-        *   **Imprimir Lista Diaria:** Se añadió un botón "Imprimir Lista" en el encabezado de cada fecha. Genera una hoja A4/Carta con la tabla de todas las reservas de ese día (Hora, Cliente, Notas) para uso del personal.
+        *   **Agrupación por Fecha:** Las reservas ahora se muestran agrupadas visualmente por fecha.
+        *   **Campo Ubicación:** Se añadió el campo **"Ubicación / Mesa"** en el formulario, tarjetas y tickets.
+        *   **Impresión de Lista Diaria:** Botón de impresión por día que incluye la columna de **Ubicación** para que los garzones sepan dónde acomodar a los clientes.
 
 ---
 
