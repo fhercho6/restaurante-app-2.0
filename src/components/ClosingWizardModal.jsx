@@ -1,6 +1,6 @@
 // src/components/ClosingWizardModal.jsx
 import React, { useState, useMemo } from 'react';
-import { X, Check, ShieldCheck, DollarSign, MessageCircle, AlertTriangle, Lock } from 'lucide-react';
+import { X, Check, ShieldCheck, DollarSign, MessageCircle, AlertTriangle, Lock, Printer } from 'lucide-react';
 import { useData } from '../context/DataContext';
 
 export default function ClosingWizardModal({ isOpen, onClose, registerSession, sessionStats, onConfirmClose, cashExpected, totalSalaries, attendanceList, commissionDetails }) {
