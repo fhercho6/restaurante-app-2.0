@@ -4,7 +4,7 @@ import { db, ROOT_COLLECTION, isPersonalProject } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useRegister } from '../context/RegisterContext';
-import { Wifi, WifiOff, Home, LogOut, ClipboardList, Users, FileText, Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign, ArrowLeft, Lock, Unlock, Wallet, Loader2, LayoutGrid, Gift, Trees, TrendingUp, Package, Filter, X, Zap, Wrench, Calendar, PieChart, Calculator, Trash2, ChevronUp, ChevronDown, Check, RefreshCw, Scan } from 'lucide-react';
+import { Wifi, WifiOff, Home, LogOut, ClipboardList, Users, FileText, Printer, Settings, Plus, Edit2, Search, ChefHat, DollarSign, ArrowLeft, Lock, Unlock, Wallet, Loader2, LayoutGrid, Gift, Trees, TrendingUp, Package, Filter, X, Zap, Wrench, Calendar, PieChart, Calculator, Trash2, ChevronUp, ChevronDown, Check, RefreshCw, Scan, PiggyBank } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 
 import LandingPage from './LandingPage';
@@ -30,6 +30,7 @@ import ServiceCalculatorModal from './ServiceCalculatorModal';
 import { MenuCard, PinLoginView, CredentialPrintView, PrintableView, AdminRow, AttendanceTicket } from './Views';
 import ClientQRModal from './ClientQRModal'; // [NEW]
 import ReservationManager from './ReservationManager'; // [NEW]
+import SavingsManager from './SavingsManager'; // [NEW] Savings
 
 // Hooks & Contexts
 
@@ -152,7 +153,7 @@ export default function AppContent() {
         if (!filter || filter === 'Todos') return items;
         return items.filter(i => i.category === filter);
     }, [items, filter]);
-    const isAdminMode = ['admin', 'report', 'staff_admin', 'cashier', 'register_control', 'maintenance', 'shift_history', 'expense_history', 'reservations'].includes(view);
+    const isAdminMode = ['admin', 'report', 'staff_admin', 'cashier', 'register_control', 'maintenance', 'shift_history', 'expense_history', 'reservations', 'savings'].includes(view);
     const isCashierOnly = staffMember && staffMember.role === 'Cajero';
 
     // 4. Handler Adaptations
@@ -741,6 +742,7 @@ export default function AppContent() {
                                         <button onClick={() => setView('shift_history')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'shift_history' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><Calendar size={18} /> Historial</button>
                                         <button onClick={() => setView('expense_history')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'expense_history' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><FileText size={18} /> Gastos</button>
                                         <button onClick={() => setView('reservations')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'reservations' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><Users size={18} /> Reservas</button>
+                                        <button onClick={() => setView('savings')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'savings' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><PiggyBank size={18} /> Ahorros</button>
                                     </div>
                                 </div>
 
@@ -797,6 +799,7 @@ export default function AppContent() {
                                 {/* OTHER ADMIN VIEWS */}
 
                                 {/* OTHER ADMIN VIEWS */}
+                                {view === 'savings' && <SavingsManager />}
                                 {view === 'register_control' && <RegisterControlView
                                     session={registerSession}
                                     onOpen={handleOpenRegister}
