@@ -204,6 +204,9 @@
         *   **Pagos de Comisiones Robustos:** Se implementó sistema de Metadatos. Ya no depende del texto del recibo.
         *   **Optimización:** El modal de comisiones reutiliza los datos descargados por la Caja, eliminando lecturas redundantes.
         *   **Historial de Ventas:** Se añadió desglose de totales por medio de pago (QR, Tarjeta, Efectivo) en la cabecera.
+        *   **Reservas Mejoradas:**
+            *   Ordenamiento cronológico inverso (más recientes primero).
+            *   **Orden Manual para Impresión:** Nuevo modal para organizar la lista diaria antes de imprimir.
 
 ---
 
