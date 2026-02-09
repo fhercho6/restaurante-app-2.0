@@ -203,6 +203,7 @@
         *   **Seguridad BD (Critico):** Se restringieron las reglas de Firestore. Ahora TODO es privado excepto `menuItems` y `settings`.
         *   **Pagos de Comisiones Robustos:** Se implementó sistema de Metadatos. Ya no depende del texto del recibo.
         *   **Optimización:** El modal de comisiones reutiliza los datos descargados por la Caja, eliminando lecturas redundantes.
+        *   **Historial de Ventas:** Se añadió desglose de totales por medio de pago (QR, Tarjeta, Efectivo) en la cabecera.
 
 ---
 
