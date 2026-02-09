@@ -227,6 +227,7 @@ const ReservationManager = () => {
                 <table>
                     <thead>
                         <tr>
+                            <th style="width: 30px; text-align: center;">#</th>
                             <th>Hora</th>
                             <th>Ubicación</th>
                             <th>Cliente / Evento</th>
@@ -236,8 +237,9 @@ const ReservationManager = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        ${list.map(res => `
+                        ${list.map((res, index) => `
                             <tr>
+                                <td style="text-align: center; font-weight: bold; color: #888;">${index + 1}</td>
                                 <td class="time-col">${res.time}</td>
                                 <td class="loc-col">${res.location || '---'}</td>
                                 <td>
