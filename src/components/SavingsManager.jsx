@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, orderBy, onSnapshot, addDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db, ROOT_COLLECTION, isPersonalProject } from '../config/firebase';
 import { PiggyBank, Plus, Trash2, TrendingUp, TrendingDown, DollarSign, X, History } from 'lucide-react';
+import { useAuth } from '../context/AuthContext'; // [NEW]
 import toast from 'react-hot-toast';
 
 const SavingsManager = () => {
+    const { currentUser, staffMember } = useAuth(); // [NEW] Auth Check
     const [savings, setSavings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -37,7 +39,23 @@ const SavingsManager = () => {
         return curr.type === 'deposit' ? acc + val : acc - val;
     }, 0);
 
+    const formatCurrency = (value) => {
+        if (value >= 1000) {
+            return (value / 1000).toFixed(1).replace('.0', '') + ' k';
+        }
+        return value.toFixed(2);
+    };
+
     const handleTransaction = async (type) => {
+        // [NEW] Security Check
+        const isOwner = currentUser && !currentUser.isAnonymous;
+        const isAdmin = staffMember && staffMember.role === 'Administrador';
+
+        if (!isOwner && !isAdmin) {
+            toast.error("⛔ Solo Administradores");
+            return;
+        }
+
         if (!amount || parseFloat(amount) <= 0) return toast.error("Monto inválido");
         if (!description) return toast.error("Falta descripción");
 
@@ -62,6 +80,14 @@ const SavingsManager = () => {
     };
 
     const handleDelete = async (id) => {
+        const isOwner = currentUser && !currentUser.isAnonymous;
+        const isAdmin = staffMember && staffMember.role === 'Administrador';
+
+        if (!isOwner && !isAdmin) {
+            toast.error("⛔ Solo Administradores");
+            return;
+        }
+
         if (!window.confirm("¿Borrar este registro? (Afectará el total)")) return;
         const collName = isPersonalProject ? 'savings' : `${ROOT_COLLECTION}savings`;
         try {
@@ -87,7 +113,7 @@ const SavingsManager = () => {
                     <h2 className="text-2xl font-bold uppercase tracking-widest text-pink-100 mb-2">Mi Alcancía</h2>
                     <div className="text-6xl font-black mb-2 tracking-tighter drop-shadow-lg flex items-start justify-center">
                         <span className="text-3xl mt-2 opacity-80 mr-1">Bs.</span>
-                        {totalSaved.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {formatCurrency(totalSaved)}
                     </div>
                     <p className="text-pink-100 font-medium bg-pink-700/30 px-4 py-1 rounded-full text-sm">
                         {savings.length} movimientos registrados

@@ -742,7 +742,11 @@ export default function AppContent() {
                                         <button onClick={() => setView('shift_history')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'shift_history' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><Calendar size={18} /> Historial</button>
                                         <button onClick={() => setView('expense_history')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'expense_history' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><FileText size={18} /> Gastos</button>
                                         <button onClick={() => setView('reservations')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'reservations' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><Users size={18} /> Reservas</button>
-                                        <button onClick={() => setView('savings')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'savings' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><PiggyBank size={18} /> Ahorros</button>
+                                        <button onClick={() => setView('reservations')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'reservations' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><Users size={18} /> Reservas</button>
+                                        {/* [MODIFIED] Hide if Cashier or Waiter (Only Owner/Admin) */}
+                                        {(!staffMember || staffMember.role === 'Administrador') && (
+                                            <button onClick={() => setView('savings')} className={`pb-3 px-5 text-base font-bold border-b-2 transition-colors flex gap-2 ${view === 'savings' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-400'}`}><PiggyBank size={18} /> Ahorros</button>
+                                        )}
                                     </div>
                                 </div>
 
