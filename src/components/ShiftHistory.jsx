@@ -70,9 +70,11 @@ export default function ShiftHistory({ onReprint }) {
         return {
             sales: acc.sales + (stats.cashSales || 0) + (stats.digitalSales || 0),
             expenses: acc.expenses + (stats.totalExpenses || 0),
-            cash: acc.cash + (stats.cashSales || 0)
+            cash: acc.cash + (stats.cashSales || 0),
+            qr: acc.qr + (stats.qrSales || 0),
+            card: acc.card + (stats.cardSales || 0)
         };
-    }, { sales: 0, expenses: 0, cash: 0 });
+    }, { sales: 0, expenses: 0, cash: 0, qr: 0, card: 0 });
 
     return (
         <div className="space-y-6 animate-in fade-in">
@@ -101,12 +103,25 @@ export default function ShiftHistory({ onReprint }) {
                     </div>
                 </div>
 
-                <div className="flex gap-4 text-sm w-full md:w-auto justify-end">
+                <div className="flex gap-4 text-sm w-full md:w-auto justify-end items-center flex-wrap">
                     <div className="text-right">
+                        <p className="text-[10px] text-gray-400 font-bold uppercase">QR</p>
+                        <p className="font-bold text-base text-gray-700">Bs. {totals.qr.toFixed(2)}</p>
+                    </div>
+                    <div className="text-right border-l pl-3 border-gray-200">
+                        <p className="text-[10px] text-gray-400 font-bold uppercase">Tarjeta</p>
+                        <p className="font-bold text-base text-gray-700">Bs. {totals.card.toFixed(2)}</p>
+                    </div>
+                    <div className="text-right border-l pl-3 border-gray-200">
+                        <p className="text-[10px] text-gray-400 font-bold uppercase">Efectivo</p>
+                        <p className="font-bold text-base text-gray-700">Bs. {totals.cash.toFixed(2)}</p>
+                    </div>
+
+                    <div className="text-right border-l pl-4 border-gray-300 ml-2">
                         <p className="text-xs text-gray-500 font-bold uppercase">Total Ventas</p>
                         <p className="font-black text-lg text-indigo-600">Bs. {totals.sales.toFixed(2)}</p>
                     </div>
-                    <div className="text-right border-l pl-4 border-gray-200">
+                    <div className="text-right border-l pl-4 border-gray-300">
                         <p className="text-xs text-gray-500 font-bold uppercase">Total Gastos</p>
                         <p className="font-black text-lg text-red-500">Bs. {totals.expenses.toFixed(2)}</p>
                     </div>
