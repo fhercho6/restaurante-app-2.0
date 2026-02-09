@@ -207,6 +207,7 @@
         *   **Reservas Mejoradas:**
             *   Ordenamiento cronológico inverso (más recientes primero).
             *   **Orden Manual para Impresión:** Nuevo modal para organizar la lista diaria antes de imprimir.
+            *   **Numeración:** Se añadió columna '#' en la lista impresa.
 
 ---
 
