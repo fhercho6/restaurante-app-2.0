@@ -52,6 +52,7 @@ const SavingsManager = () => {
         const isAdmin = staffMember && staffMember.role === 'Administrador';
 
         if (!isOwner && !isAdmin) {
+            console.error("Access Denied", { isOwner, isAdmin, currentUser, staffMember });
             toast.error("⛔ Solo Administradores");
             return;
         }
@@ -74,8 +75,8 @@ const SavingsManager = () => {
             setAmount('');
             setDescription('');
         } catch (error) {
-            console.error(error);
-            toast.error("Error al guardar");
+            console.error("Transaction Error:", error);
+            toast.error("Error al guardar: " + error.message);
         }
     };
 

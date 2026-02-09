@@ -45,7 +45,7 @@ service cloud.firestore {
     // Let's try that to be robust for the personalized prefixes.
     
     match /{collectionName}/{document=**} {
-      allow read: if collectionName.matches('.*menuItems') || collectionName.matches('.*settings');
+      allow read: if request.auth != null || collectionName.matches('.*menuItems') || collectionName.matches('.*settings');
       allow write: if request.auth != null;
     }
   }
