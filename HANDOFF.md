@@ -208,6 +208,7 @@
             *   Ordenamiento cronológico inverso (más recientes primero).
             *   **Orden Manual para Impresión:** Nuevo modal para organizar la lista diaria antes de imprimir.
             *   **Numeración:** Se añadió columna '#' en la lista impresa.
+        *   **Módulo de Ahorros:** Nuevo panel "Alcancía" en Admin para gestionar fondos de reserva de manera visual y separada de la caja principal.
 
 ---
 
