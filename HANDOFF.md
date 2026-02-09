@@ -196,9 +196,13 @@
         *   **Campo Ubicación:** Se añadió el campo **"Ubicación / Mesa"** en el formulario, tarjetas y tickets.
         *   **Campo Adelanto (A cuenta):** Nuevo campo monetario para registrar pagos anticipados.
         *   **Impresión de Lista Diaria:** Botón de impresión por día que incluye la columna de **Ubicación**.
-        *   **Centro de Contactos / Recordatorios:** Nuevo botón **"CONTACTOS"** 🔔. Abre una lista centralizada de todos los clientes con reservas filtradas.
             *   Permite enviar **Recordatorios de WhatsApp** con un clic (mensaje pre-cargado).
             *   Botón **"COPIAR LISTA"** para llevar los números a otra herramienta masiva si es necesario.
+
+    25. **Sesión: 09 de Febrero 2026 (Seguridad & Robustez):**
+        *   **Seguridad BD (Critico):** Se restringieron las reglas de Firestore. Ahora TODO es privado excepto `menuItems` y `settings`.
+        *   **Pagos de Comisiones Robustos:** Se implementó sistema de Metadatos. Ya no depende del texto del recibo.
+        *   **Optimización:** El modal de comisiones reutiliza los datos descargados por la Caja, eliminando lecturas redundantes.
 
 ---
 
