@@ -165,10 +165,35 @@ const ReservationManager = () => {
         return groups;
     }, {});
 
-    // Sort groups by date
-    const sortedDates = Object.keys(groupedReservations).sort((a, b) => a.localeCompare(b));
+    // Sort groups by date (DESCENDING: Newest/Future first)
+    const sortedDates = Object.keys(groupedReservations).sort((a, b) => b.localeCompare(a));
 
-    const handlePrintDailyList = (date, list) => {
+    // Print Sort State
+    const [isPrintSortModalOpen, setIsPrintSortModalOpen] = useState(false);
+    const [printListDate, setPrintListDate] = useState(null);
+    const [printListItems, setPrintListItems] = useState([]);
+
+    const openPrintSortModal = (date, list) => {
+        setPrintListDate(date);
+        // Default sort by time
+        setPrintListItems([...list].sort((a, b) => a.time.localeCompare(b.time)));
+        setIsPrintSortModalOpen(true);
+    };
+
+    const moveItem = (index, direction) => {
+        const newItems = [...printListItems];
+        if (direction === 'up' && index > 0) {
+            [newItems[index], newItems[index - 1]] = [newItems[index - 1], newItems[index]];
+        } else if (direction === 'down' && index < newItems.length - 1) {
+            [newItems[index], newItems[index + 1]] = [newItems[index + 1], newItems[index]];
+        }
+        setPrintListItems(newItems);
+    };
+
+    const handlePrintDailyList = () => {
+        const date = printListDate;
+        const list = printListItems;
+
         const printWindow = window.open('', 'PRINT', 'height=800,width=600');
         const formattedDate = new Date(date + 'T12:00:00').toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
@@ -211,7 +236,7 @@ const ReservationManager = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        ${list.sort((a, b) => a.time.localeCompare(b.time)).map(res => `
+                        ${list.map(res => `
                             <tr>
                                 <td class="time-col">${res.time}</td>
                                 <td class="loc-col">${res.location || '---'}</td>
@@ -257,7 +282,7 @@ const ReservationManager = () => {
                             <Calendar className="text-indigo-600" size={32} /> Reservas
                         </h2>
                     </div>
-                    <p className="text-gray-500 text-sm ml-12">Administra citas y contacta clientes.</p>
+                    <p className="text-gray-500 text-sm ml-12">Administra citas y contacte clientes.</p>
                 </div>
                 <div className="flex gap-2 w-full md:w-auto">
                     <div className="relative flex-1">
@@ -306,7 +331,7 @@ const ReservationManager = () => {
                                         <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">{dayReservations.length} Reservas</p>
                                     </div>
                                     <button
-                                        onClick={() => handlePrintDailyList(date, dayReservations)}
+                                        onClick={() => openPrintSortModal(date, dayReservations)}
                                         className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-indigo-600 bg-gray-50 hover:bg-indigo-50 px-4 py-2 rounded-lg transition-colors border border-gray-200 hover:border-indigo-200"
                                     >
                                         <Printer size={16} /> IMPRIMIR LISTA
@@ -375,7 +400,58 @@ const ReservationManager = () => {
                 </div>
             )}
 
+            {/* PRINT SORT MODAL */}
+            {isPrintSortModalOpen && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+                    <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                        <div className="bg-gray-800 p-4 flex justify-between items-center text-white shrink-0">
+                            <h3 className="font-bold text-lg">Ordenar para Impresión</h3>
+                            <button onClick={() => setIsPrintSortModalOpen(false)}><X /></button>
+                        </div>
+                        <div className="p-4 bg-gray-50 border-b shrink-0">
+                            <p className="text-sm text-gray-500">Usa las flechas para ordenar la lista de reservas antes de imprimir.</p>
+                        </div>
+                        <div className="overflow-y-auto p-2 flex-1 space-y-2">
+                            {printListItems.map((res, index) => (
+                                <div key={res.id} className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <span className="font-bold text-gray-400 w-6">{index + 1}.</span>
+                                        <div>
+                                            <div className="font-bold text-sm text-gray-800">{res.name}</div>
+                                            <div className="text-xs text-gray-500">{res.time} - {res.location || 'S/U'}</div>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-1">
+                                        <button
+                                            onClick={() => moveItem(index, 'up')}
+                                            disabled={index === 0}
+                                            className="p-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
+                                        >
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
+                                        </button>
+                                        <button
+                                            onClick={() => moveItem(index, 'down')}
+                                            disabled={index === printListItems.length - 1}
+                                            className="p-1 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
+                                        >
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="p-4 border-t bg-gray-50 shrink-0 flex justify-end gap-2">
+                            <button onClick={() => setIsPrintSortModalOpen(false)} className="px-4 py-2 text-gray-600 font-bold hover:bg-gray-200 rounded-lg">Cancelar</button>
+                            <button onClick={handlePrintDailyList} className="px-4 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 flex items-center gap-2">
+                                <Printer size={16} /> IMPRIMIR AHORA
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* MODAL */}
+
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
                     <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
