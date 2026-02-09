@@ -20,23 +20,15 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
             return;
         }
 
-        setLoading(true);
-
-        const salesColl = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`;
-        const qSales = query(collection(db, salesColl), where('registerId', '==', registerSession.id));
-
-        const unsubscribe = onSnapshot(qSales, (snapSales) => {
-            calculateCommissions(snapSales);
-            // Don't set loading false here immediately if you want smooth updates, 
-            // but for initial load we need it off.
+        // OPTIMIZATION: Use sales already loaded in RegisterContext
+        if (sessionStats && sessionStats.allSales) {
+            calculateCommissions(sessionStats.allSales);
             setLoading(false);
-        }, (error) => {
-            console.error("Error fetching sales:", error);
-            toast.error("Error cargando ventas");
+        } else {
+            // Fallback or initial state
             setLoading(false);
-        });
+        }
 
-        return () => unsubscribe();
     }, [registerSession, staff, sessionStats]); // Dependency on sessionStats allows re-calc if expenses change (paidSoFar)
 
     // Calculate commissions using the PROVIDED snapshot
@@ -48,6 +40,21 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
 
             if (sessionStats && sessionStats.expensesList) {
                 sessionStats.expensesList.forEach(e => {
+                    // [ROBUST] Try to read from metadata first
+                    if (e.meta && e.meta.type === 'commission_payment' && e.meta.staffName) {
+                        const name = e.meta.staffName;
+                        const amountPaid = parseFloat(e.meta.amountPaid) || parseFloat(e.amount); // total amount
+
+                        // We track total paid. If bonus was included, meta.bonusAmount should be there.
+                        // But logic below expects "paidSoFar" to be the TOTAL money given.
+                        paidSoFar[name] = (paidSoFar[name] || 0) + amountPaid;
+
+                        if (!paymentHistory[name]) paymentHistory[name] = [];
+                        paymentHistory[name].push(e);
+                        return; // Done with this expense
+                    }
+
+                    // [FALLBACK] Legacy String Parsing
                     if (!e.description || typeof e.description !== 'string') return;
 
                     const match = e.description.match(/Pago Comisión: (.+) \((?:\d+%|Mix)\)/);
@@ -56,7 +63,21 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                         const name = match[1];
                         let amountPaid = parseFloat(e.amount);
 
-                        // Extract "Pasaje" amount if present to deduct it
+                        // Extract "Pasaje" amount if present to deduct it? 
+                        // Actually, if we paid Pasaje, it counts as money given. 
+                        // The logic calculated "Pending" as "Total Earned - Total Paid". 
+                        // Total Earned = Commission + Base Salary.
+                        // Pasaje is a BONUS on top. 
+                        // If I owe 100, and I pay 100 + 10 bonus = 110. 
+                        // Pending = 100 - 110 = -10 (Blue/Green status).
+                        // So we should count the full amount. 
+
+                        // OLD LOGIC deducted pasaje? 
+                        // "amountPaid -= parseFloat(bonusMatch[1]);"
+                        // This means the old logic treated Pasaje as separate from commission debt.
+                        // If I owe 100, and pay 100 + 10:
+                        // amountPaid for comm = 100. Pending = 100 - 100 = 0.
+                        // We will STICK TO OLD LOGIC for backward compatibility on parsing.
                         const bonusMatch = e.description.match(/\+ Pasaje \(Bs\. (\d+(?:\.\d+)?)\)/);
                         if (bonusMatch) {
                             amountPaid -= parseFloat(bonusMatch[1]);
@@ -79,9 +100,11 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
             // 2. Identify Commissioned Staff
             const commissionedStaff = staff.filter(s => s.commissionEnabled);
 
-            // 3. Process Sales (Using snapSales from listener)
-            snapSales.forEach(doc => {
-                const sale = doc.data();
+            // 3. Process Sales (Using array passed)
+            // snapSales might be a Snapshot object OR a simple array (if from Context)
+            const salesArray = Array.isArray(snapSales) ? snapSales : snapSales.docs.map(d => d.data());
+
+            salesArray.forEach(sale => {
                 const waiterName = sale.staffName;
 
                 if (waiterName && commissionedStaff.some(s => s.name === waiterName)) {
@@ -263,7 +286,53 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                     breakdownHtml += `</table><br/>`;
                 }
 
-                const success = await addExpense(descText, totalPay, 'Comisiones', breakdownHtml);
+                const metaData = {
+                    type: 'commission_payment',
+                    staffName: data.name,
+                    staffId: data.name, // We use name as ID often
+                    commissionAmount: data.commissionAmount,
+                    bonusAmount: bonus,
+                    amountPaid: totalPay, // Total transaction
+                    date: new Date().toISOString()
+                };
+
+                // Pass object as 'details' for RegisterContext to pick up 'meta'
+                // The RegisterContext signature is: addExpense(desc, amount, type, details)
+                // We'll pass { html: breakdownHtml, meta: metaData } as the 4th arg
+                const richDetails = {
+                    html: breakdownHtml,
+                    meta: metaData
+                };
+
+                // NOTE: RegisterContext expects just valid HTML usually? 
+                // Let's check RegisterContext update we just made:
+                // details, // [NEW] Rich HTML breakdown for reprints
+                // meta: details?.meta || null, 
+                // So if we pass an object with .meta, it extracts it. 
+                // BUT 'details' is saved as the HTML usually. 
+                // We need to pass the HTML string as 'details' prop if we want it to render in standard lists?
+                // The context line: `details, // Rich HTML`
+                // Wait, if we pass an object, `details` becomes that object. 
+                // Existing code (Expenses Modal) might expect details to be a string?
+                // Standard expenses don't use details. 
+                // Reimbursements use it? 
+
+                // Let's pass the object `richDetails` which has `html`. 
+                // The Expense component rendering (if any) needs to handle it.
+                // Re-reading RegisterContext:
+                // details, meta: details?.meta 
+                // It saves 'details' as is. 
+                // If we save an object, we must update the Reprint logic to read details.html
+                // Reprinter in THIS file:
+                // `expense.details ? ... expense.details`
+                // If details is object, this prints [object Object].
+
+                // FIX: We need robust handling.
+                // Let's modify the call to be safe.
+                // We will pass the HTML string *augmented* with a hidden meta property if possible? No.
+                // Let's pass the OBJECT, and update handleReprint to handle it.
+
+                const success = await addExpense(descText, totalPay, 'Comisiones', richDetails);
 
                 if (success) {
                     onPrintReceipt({
@@ -292,7 +361,9 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
         onPrintReceipt({
             type: 'expense',
             amount: parseFloat(expense.amount),
-            description: expense.details ? `*** REIMPRESIÓN ***<br/>POR CONCEPTO DE PAGO DE COMISIONES<br/><br/>${expense.details}` : `*** REIMPRESIÓN ***<br/><br/>FECHA ORIGINAL: ${date.toLocaleString()}<br/>----------------------<br/>${expense.description}`,
+            description: (expense.details && (typeof expense.details === 'string' || expense.details.html))
+                ? `*** REIMPRESIÓN ***<br/>POR CONCEPTO DE PAGO DE COMISIONES<br/><br/>${typeof expense.details === 'string' ? expense.details : expense.details.html}`
+                : `*** REIMPRESIÓN ***<br/><br/>FECHA ORIGINAL: ${date.toLocaleString()}<br/>----------------------<br/>${expense.description}`,
             title: 'RECIBO', // Siempre Recibo para comisiones
             staffName: staffName,
             cashierName: registerSession.openedBy || 'Cajero',

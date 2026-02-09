@@ -2,11 +2,50 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Regla General:
-    // 1. Lectura Pública: Cualquiera puede leer (necesario para ver el menú sin loguearse)
-    // 2. Escritura Protegida: Solo usuarios autenticados pueden crear/editar/borrar
+    // 🔒 REGLA GENERAL: 
+    // Por defecto, nadie puede leer ni escribir si no está autenticado.
+    // Esto previene descargas masivas de datos sensibles.
     match /{document=**} {
-      allow read: if true;
+      allow read, write: if request.auth != null;
+    }
+
+    // 🌍 EXCEPCIONES PÚBLICAS (Modo Menú Digital):
+    // El "Modo Clientes" necesita leer el Menú y la Configuración Básica sin login.
+    
+    // 1. Items del Menú (Para mostrar productos)
+    match /menuItems/{docId} {
+        allow read: if true;
+        allow write: if request.auth != null;
+    }
+    
+    // 2. Configuración (Para leer categorías, moneda, branding, etc)
+    match /settings/{docId} {
+        allow read: if true;
+        allow write: if request.auth != null;
+    }
+
+    // Support for multi-tenant collections if strictly needed (currently root is used often)
+    // If you use prefixes like 'user_XYZ/menuItems', add rules for those too if needed.
+    // Based on codebase: const ROOT_COLLECTION = `${currentUser.uid}_`; 
+    // The codebase reads `${ROOT_COLLECTION}menuItems`.
+    // So we need a recursive match or specific match for the prefixed collections?
+    // Firestore rules don't support dynamic collection names easily with wildcards for public access 
+    // UNLESS we know the structure.
+    //
+    // However, the rule `match /{document=**} { allow read: if request.auth != null; }` covers everything else.
+    // We need to explicitly allow public read on the specific paths.
+    // Since collection names are dynamic (`${uid}_menuItems`), we can't easily hardcode them 
+    // unless we use a wildcard match on the collection name itself?
+    //
+    // NO, we can match specific patterns.
+    // match /{collectionName}/{docId} {
+    //   allow read: if collectionName.matches('.*menuItems') || collectionName.matches('.*settings');
+    // }
+    //
+    // Let's try that to be robust for the personalized prefixes.
+    
+    match /{collectionName}/{document=**} {
+      allow read: if collectionName.matches('.*menuItems') || collectionName.matches('.*settings');
       allow write: if request.auth != null;
     }
   }

@@ -23,6 +23,7 @@ export const RegisterProvider = ({ children }) => {
         totalExpenses: 0, totalCostOfGoods: 0,
         courtesyTotal: 0, courtesyCost: 0,
         expensesList: [], soldProducts: [],
+        allSales: [], // [NEW] Store raw sales for detailed analysis (Commissions, etc)
         zoneStats: {} // [NEW] Track Zone Revenue
     });
     const [isOpenRegisterModalOpen, setIsOpenRegisterModalOpen] = useState(false);
@@ -55,6 +56,11 @@ export const RegisterProvider = ({ children }) => {
                 const ic = v.payments?.some(p => p.method === 'Cortesía');
                 const zone = v.zone || 'Salón'; // Default zone
                 const waiterName = v.staffName; // Get staff name
+
+                // Store raw sale for other components
+                const saleDataWithId = { id: d.id, ...v };
+                // We'll accumulate this below
+
 
                 // Track Zone Revenue (Only active sales, exclude voids if they exist here? Query gets everything?)
                 // Assuming "sales" collection only has valid sales. Voids are usually deleted or moved?
@@ -146,9 +152,15 @@ export const RegisterProvider = ({ children }) => {
                 courtesyTotal: ct,
                 courtesyCost: cc,
                 soldProducts: soldArray,
+                allSales: [], // populated below
                 zoneStats: zs, // [NEW]
                 staffUtility: su // [NEW]
             }));
+
+            // Re-populate allSales from snapshot directly (easier than accumulating in loop above safely)
+            const fullSalesList = s.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setSessionStats(prev => ({ ...prev, allSales: fullSalesList }));
+
         });
 
         const uE = onSnapshot(qE, (s) => {
@@ -234,7 +246,13 @@ export const RegisterProvider = ({ children }) => {
             };
 
             setRegisterSession(null);
-            setSessionStats({ cashSales: 0, qrSales: 0, cardSales: 0, digitalSales: 0, totalExpenses: 0, totalCostOfGoods: 0, courtesyTotal: 0, courtesyCost: 0, expensesList: [], soldProducts: [], zoneStats: {} });
+            setRegisterSession(null);
+            setSessionStats({
+                cashSales: 0, qrSales: 0, cardSales: 0, digitalSales: 0,
+                totalExpenses: 0, totalCostOfGoods: 0,
+                courtesyTotal: 0, courtesyCost: 0,
+                expensesList: [], soldProducts: [], allSales: [], zoneStats: {}
+            });
 
             return zReportData; // Return Z-Report for printing
         } catch (error) {
@@ -256,7 +274,12 @@ export const RegisterProvider = ({ children }) => {
                 description,
                 amount,
                 type,
+                description,
+                amount,
+                type,
                 details, // [NEW] Rich HTML breakdown for reprints
+                meta: details?.meta || null, // [NEW] Structured metadata (staffId, commissionAmount, etc)
+
                 date: new Date().toISOString(),
                 createdBy: staffMember ? staffMember.name : 'Admin'
             };
