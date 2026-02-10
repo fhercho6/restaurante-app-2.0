@@ -213,6 +213,8 @@
             *   **Formato Inteligente:** Las cifras grandes se abrevian (ej. "40k") para discreción.
             *   **Seguridad:** Acceso restringido exclusivamente a Administradores (oculto para Cajeros).
             *   **Independencia:** Datos aislados que no afectan el Cierre de Caja.
+        *   **Corrección UI:**
+            *   Se eliminó la pestaña duplicada de "Reservas" que aparecía dos veces en la barra de navegación del Administrador.
 
 ---
 
