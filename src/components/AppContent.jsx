@@ -231,7 +231,9 @@ export default function AppContent() {
                 toast.success(`Zona asignada: ${effectiveZone}`);
             }
             setView(result);
+            return true;
         }
+        return false;
     };
 
     const handleClockAction = async (member, type, zone = '') => { // [UPDATED] Accept Zone

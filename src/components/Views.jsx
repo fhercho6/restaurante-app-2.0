@@ -70,7 +70,7 @@ export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onC
         setShuffledKeys(shuffleArray(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']));
     };
 
-    const handleNumClick = (num) => {
+    const handleNumClick = async (num) => {
         // Si ya estamos procesando, ignorar clics (ANTI-REBOTE)
         if (isProcessing) return;
 
@@ -109,9 +109,17 @@ export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onC
 
                         // DIRECT LOGIN (No Zone Check here anymore)
                         if (mode === 'system') {
-                            onLoginSuccess(selectedStaff);
+                            const success = await onLoginSuccess(selectedStaff);
+                            if (success === false) {
+                                // If login failed (e.g. Firebase rule denied it), return to normal state
+                                setTimeout(() => {
+                                    setPin('');
+                                    setShuffledKeys(shuffleArray(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']));
+                                    setIsProcessing(false);
+                                }, 500);
+                            }
                         } else {
-                            onClockAction(selectedStaff, 'clock-in');
+                            await onClockAction(selectedStaff, 'clock-in');
                         }
                     } else {
                         // VALIDACIÓN CAJA CERRADA (ASISTENCIA)
