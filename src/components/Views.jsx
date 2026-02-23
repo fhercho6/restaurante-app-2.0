@@ -299,12 +299,16 @@ export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onC
         const code = prompt("🔐 INGRESE CÓDIGO MAESTRO DE ACTIVACIÓN:");
         if (code === 'ZZIF2026') {
             try {
-                if (auth.currentUser) {
-                    await setDoc(doc(db, 'allowed_terminals', auth.currentUser.uid), {
-                        authorizedAt: new Date().toISOString(),
-                        userAgent: navigator.userAgent
-                    });
+                if (!auth.currentUser) {
+                    toast.error("⏳ Conectando... Intente apretar el candado de nuevo en 2 segundos.");
+                    return;
                 }
+
+                await setDoc(doc(db, 'allowed_terminals', auth.currentUser.uid), {
+                    authorizedAt: new Date().toISOString(),
+                    userAgent: navigator.userAgent
+                });
+
                 localStorage.setItem('isAuthorizedTerminal', 'true');
                 toast.success("✅ TERMINAL AUTORIZADA\nAcceso habilitado.", { duration: 5000, icon: '🔓' });
             } catch (err) {
