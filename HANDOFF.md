@@ -98,6 +98,12 @@
         *   **Corrección Pago Comisiones:** Se solucionó el `ReferenceError` que impedía pagar comisiones. Ahora el desglose se genera antes de la transacción.
         *   **App Nativa (Standalone):** Se configuró el manifiesto PWA (`display: standalone`) para ocultar la barra de navegación del navegador al instalar la app.
         *   **Seguridad Firebase:** Se implementaron reglas persistentes (`storage.rules` y `firestore.rules`) para proteger la base de datos y evitar el bloqueo de imágenes por caducidad del modo prueba.
+    
+    16. **Sesión: 23 de Febrero 2026 (Seguridad Crítica de Base de Datos - Opción 2):**
+        *   **Vulnerabilidad Resuelta:** Se detectó y parcheó una vulnerabilidad crítica donde la autenticación anónima (`signInAnonymously`) permitía a cualquier persona con el link web (o extraños al restaurante) leer y escribir en todas las colecciones de ventas, gastos y empleados, ignorando la protección visual del PIN.
+        *   **Seguridad por Terminal Autorizada:** Se modificaron radicalmente `firestore.rules` y `storage.rules`. Ahora, la base de datos a nivel servidor exige que el dispositivo que intenta leer/escribir datos confidenciales (Ventas, Gastos, Recibos) debe existir en una colección llamada `allowed_terminals`.
+        *   **Integración Web:** El botón del "Candadito" (Login) fue modificado para enviar el ID del navegador a la colección `allowed_terminals` si se ingresa el Código Maestro (`ZZIF2026`). Si un usuario de caja o administrador intenta ingresar sin que su terminal esté autorizada, Firebase bloquea el acceso en seco (Data Protection Server-Side).
+        *   **Menú Digital Protegido:** Se agregó una excepción expresa en las reglas para permitir que cualquier dispositivo acceda libremente **solo en modo lectura** a las colecciones `menuItems`, `settings`, y `staffMembers`, garantizando que los clientes sigan viendo el QR y los empleados puedan ver sus fotos para el login.
         *   **Impresión Instantánea:** Se redujeron los tiempos de espera en `Receipt.jsx` (0.3s -> 0.1s) para impresión ultra-rápida. Se documentó el modo Kiosko en `GUIA_IMPRESION_SILENCIOSA.md`.
         *   **Optimización Imágenes:** Implementación de `ImageWithLoader` con lazy loading y esqueletos de carga (pulse) para evitar que la interfaz se congele al entrar al menú. Pre-conexión a servidores de Google.
 
