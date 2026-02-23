@@ -5,6 +5,8 @@ import toast from 'react-hot-toast';
 import { QRCodeSVG } from 'qrcode.react';
 import Barcode from 'react-barcode';
 import ImageWithLoader from './ImageWithLoader'; // [NEW]
+import { doc, setDoc } from 'firebase/firestore';
+import { db, auth } from '../config/firebase';
 
 // --- TARJETA DE MENÚ (CLIENTE) ---
 export const MenuCard = ({ item }) => {
@@ -292,12 +294,23 @@ export const PinLoginView = ({ staffMembers, registerStatus, onLoginSuccess, onC
     }, [pin, isProcessing, staffMembers, onLoginSuccess, activeZones]);
 
     // MASTER CODE UNLOCK
-    const handleMasterUnlock = (e) => {
+    const handleMasterUnlock = async (e) => {
         e.stopPropagation();
         const code = prompt("🔐 INGRESE CÓDIGO MAESTRO DE ACTIVACIÓN:");
         if (code === 'ZZIF2026') {
-            localStorage.setItem('isAuthorizedTerminal', 'true');
-            toast.success("✅ TERMINAL AUTORIZADA\nAcceso de Cajeros habilitado.", { duration: 5000, icon: '🔓' });
+            try {
+                if (auth.currentUser) {
+                    await setDoc(doc(db, 'allowed_terminals', auth.currentUser.uid), {
+                        authorizedAt: new Date().toISOString(),
+                        userAgent: navigator.userAgent
+                    });
+                }
+                localStorage.setItem('isAuthorizedTerminal', 'true');
+                toast.success("✅ TERMINAL AUTORIZADA\nAcceso habilitado.", { duration: 5000, icon: '🔓' });
+            } catch (err) {
+                console.error("Error registrando terminal en BD:", err);
+                toast.error("❌ FALLO DE RED: No se pudo registrar la terminal en la base de datos.");
+            }
         } else if (code) {
             toast.error("❌ CÓDIGO INCORRECTO");
         }

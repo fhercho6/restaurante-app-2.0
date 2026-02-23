@@ -6,22 +6,20 @@ service cloud.firestore {
     // Por defecto, nadie puede leer ni escribir si no está autenticado.
     // Esto previene descargas masivas de datos sensibles.
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if request.auth != null && exists(/databases/$(database)/documents/allowed_terminals/$(request.auth.uid));
     }
 
     // 🌍 EXCEPCIONES PÚBLICAS (Modo Menú Digital):
     // El "Modo Clientes" necesita leer el Menú y la Configuración Básica sin login.
     
-    // 1. Items del Menú (Para mostrar productos)
     match /menuItems/{docId} {
         allow read: if true;
-        allow write: if request.auth != null;
+        allow write: if request.auth != null && exists(/databases/$(database)/documents/allowed_terminals/$(request.auth.uid));
     }
     
-    // 2. Configuración (Para leer categorías, moneda, branding, etc)
     match /settings/{docId} {
         allow read: if true;
-        allow write: if request.auth != null;
+        allow write: if request.auth != null && exists(/databases/$(database)/documents/allowed_terminals/$(request.auth.uid));
     }
 
     // Support for multi-tenant collections if strictly needed (currently root is used often)
@@ -45,8 +43,8 @@ service cloud.firestore {
     // Let's try that to be robust for the personalized prefixes.
     
     match /{collectionName}/{document=**} {
-      allow read: if request.auth != null || collectionName.matches('.*menuItems') || collectionName.matches('.*settings');
-      allow write: if request.auth != null;
+      allow read: if (request.auth != null && exists(/databases/$(database)/documents/allowed_terminals/$(request.auth.uid))) || collectionName.matches('.*menuItems') || collectionName.matches('.*settings');
+      allow write: if request.auth != null && exists(/databases/$(database)/documents/allowed_terminals/$(request.auth.uid));
     }
   }
 }
