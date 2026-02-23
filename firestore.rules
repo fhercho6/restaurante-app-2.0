@@ -2,11 +2,17 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // 🔒 REGLA GENERAL: 
-    // Por defecto, nadie puede leer ni escribir si no está autenticado.
-    // Esto previene descargas masivas de datos sensibles.
+    // 🔒 REGLA GENERAL PARA COLECCIONES DINÁMICAS Y RAÍZ:
+    // Solo permitir lectura/escritura si existe en terminales autorizadas.
     match /{document=**} {
       allow read, write: if request.auth != null && exists(/databases/$(database)/documents/allowed_terminals/$(request.auth.uid));
+    }
+
+    // 🔑 EXCEPCIÓN: Colección de Terminales Autorizadas
+    // Permitimos a un usuario anónimo *crear* o *actualizar* su propio registro 
+    // cuando ingresa el código maestro en la interfaz web (ver Views.jsx).
+    match /allowed_terminals/{terminalId} {
+      allow read, write: if request.auth != null && request.auth.uid == terminalId;
     }
 
     // 🌍 EXCEPCIONES PÚBLICAS (Modo Menú Digital):
