@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 // CORRECCIÓN AQUÍ: Se agregó 'User' a la lista de iconos importados
-import { Search, ShoppingCart, Clock, Filter, Trash2, Printer, CheckSquare, Square, DollarSign, X, User, Users, Percent } from 'lucide-react';
+import { Search, ShoppingCart, Clock, Filter, Trash2, Printer, CheckSquare, Square, DollarSign, X, User, Users, Percent, Grid } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { collection, query, where, onSnapshot, orderBy, updateDoc, doc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, updateDoc, doc, getDocs } from 'firebase/firestore';
 import { db, ROOT_COLLECTION, isPersonalProject } from '../config/firebase';
 import CommissionPaymentModal from './CommissionPaymentModal'; // [RESTORED]
 import { useRegister } from '../context/RegisterContext'; // [NEW]
@@ -186,6 +186,69 @@ export default function CashierView({ items, categories, tables, tableZones = {}
         }
     };
 
+    // --- REPORTE QR ---
+    const handlePrintQRReport = async () => {
+        if (!registerSession || !registerSession.id) {
+            toast.error("No hay un turno de caja abierto.");
+            return;
+        }
+
+        const tId = toast.loading("Generando reporte QR...");
+        try {
+            const salesCol = isPersonalProject ? 'sales' : `${ROOT_COLLECTION}sales`;
+            const qSales = query(collection(db, salesCol), where('registerId', '==', registerSession.id));
+            const snapshot = await getDocs(qSales);
+
+            const qrPayments = [];
+            let totalQR = 0;
+
+            snapshot.forEach(doc => {
+                const sale = doc.data();
+                if (sale.payments && Array.isArray(sale.payments)) {
+                    sale.payments.forEach(payment => {
+                        if (payment.method === 'QR') {
+                            qrPayments.push({
+                                orderId: sale.orderId || 'S/N',
+                                date: sale.date,
+                                reference: payment.reference || 'Sin Ref.',
+                                amount: payment.amount || 0
+                            });
+                            totalQR += (parseFloat(payment.amount) || 0);
+                        }
+                    });
+                }
+            });
+
+            if (qrPayments.length === 0) {
+                toast.dismiss(tId);
+                toast.error("No hay pagos con QR registrados en este turno.");
+                return;
+            }
+
+            // Ordenar por fecha/hora natural
+            qrPayments.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            const reportData = {
+                type: 'qr-report',
+                businessName: 'LicoBar', // O appName si llegara acá, pero hardcoded temporal safe fallback
+                date: new Date().toLocaleString(),
+                cashierName: registerSession.openedBy || 'Cajero',
+                totalQR: totalQR,
+                qrPayments: qrPayments,
+                status: 'preview',
+                autoPrint: false
+            };
+
+            toast.dismiss(tId);
+            onPrintReceipt(reportData);
+
+        } catch (error) {
+            console.error("Error fetching QR payments:", error);
+            toast.dismiss(tId);
+            toast.error("Error al generar el reporte QR.");
+        }
+    };
+
     // FILTRADO VISUAL
     const filteredOrders = pendingOrders.filter(order => {
         if (filterType === 'services') return false;
@@ -238,6 +301,13 @@ export default function CashierView({ items, categories, tables, tableZones = {}
                         className="flex-1 md:flex-none px-4 py-2.5 bg-red-50 text-red-600 font-bold rounded-lg border border-red-100 hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
                     >
                         <DollarSign size={18} /> Gastos/Retiros
+                    </button>
+                    <button
+                        onClick={handlePrintQRReport}
+                        className="flex-1 md:flex-none px-4 py-2.5 bg-blue-50 text-blue-600 font-bold rounded-lg border border-blue-100 hover:bg-blue-100 transition-colors flex items-center justify-center gap-2"
+                        title="Ver detalle de todos los pagos QR del turno actual"
+                    >
+                        <Grid size={18} /> Resumen QR
                     </button>
                     <button
                         onClick={() => onPrintReceipt({ type: 'z-report-preview' })}

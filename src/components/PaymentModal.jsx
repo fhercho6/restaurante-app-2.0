@@ -90,6 +90,10 @@ export default function PaymentModal({ isOpen, onClose, total, onConfirm, staff 
     };
 
     const handleConfirmReference = () => {
+        if (!paymentReference.trim()) {
+            toast.error('Debes ingresar la hora o referencia del pago.');
+            return;
+        }
         executeAddPayment(pendingMethod, paymentReference);
         setIsReferencePromptOpen(false);
         setPendingMethod(null);
@@ -324,15 +328,20 @@ export default function PaymentModal({ isOpen, onClose, total, onConfirm, staff 
                     <div className="absolute inset-0 bg-gray-900/40 z-50 flex items-center justify-center p-6 backdrop-blur-[2px] animate-in fade-in zoom-in-95">
                         <div className="bg-white p-6 rounded-xl shadow-2xl w-full text-center">
                             <h4 className="font-bold text-lg mb-2 text-gray-800">Referencia de Pago {pendingMethod}</h4>
-                            <p className="text-xs text-gray-500 mb-4">Ingresa la **Hora del Comprobante** (Ej. 14:35) o los últimos dígitos para facilitar la revisión del Cajero.</p>
+                            <p className="text-xs text-gray-500 mb-4">
+                                {pendingMethod === 'QR'
+                                    ? "Ingresa la hora de la transferencia. Si son varios QR, ingresa todas las horas separadas por comas."
+                                    : "Ingresa la Hora del Comprobante (Ej. 14:35) o los últimos dígitos para facilitar la revisión."
+                                }
+                            </p>
 
                             <input
                                 type="text"
                                 value={paymentReference}
                                 onChange={(e) => setPaymentReference(e.target.value)}
                                 onKeyDown={(e) => { if (e.key === 'Enter') handleConfirmReference(); }}
-                                placeholder="Ej: 14:35, Ref: 1234, o dejar vacío"
-                                className="w-full text-center p-3 border-2 border-orange-200 rounded-lg focus:border-orange-500 outline-none mb-6 font-bold text-gray-700 placeholder:font-normal placeholder:text-gray-300"
+                                placeholder={pendingMethod === 'QR' ? "Obligatorio (Ej: 14:35, 14:40...)" : "Ej: 14:35, Ref: 1234, o dejar vacío"}
+                                className={`w-full text-center p-3 border-2 rounded-lg outline-none mb-6 font-bold text-gray-700 placeholder:font-normal placeholder:text-gray-300 ${!paymentReference.trim() ? 'border-red-300 focus:border-red-500' : 'border-orange-200 focus:border-orange-500'}`}
                                 autoFocus
                             />
 

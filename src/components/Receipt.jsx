@@ -261,6 +261,7 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
 
         if (data.type === 'expense') title = data.title || 'VALE DE GASTO';
         if (data.type === 'void') title = '*** ANULADO ***';
+        if (data.type === 'qr-report') title = 'REPORTE DE TRANSFERENCIAS QR';
         if (isCourtesySale) title = 'RECIBO DE CORTESÍA';
 
         const soldProducts = (data.soldProducts && data.soldProducts.length > 0) ? data.soldProducts : (stats.soldProducts || []);
@@ -300,6 +301,23 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                     <br/><br/>
                     <div class="text-center" style="font-size:10px;border-top:1px solid ${BORDER_COLOR};padding-top:5px;">FIRMA</div>
                 </div>
+            `;
+        } else if (data.type === 'qr-report') {
+            const qrListHtml = data.qrPayments?.map(p => `
+                <div class="row" style="margin-bottom:4px; border-bottom:1px dotted #ccc; padding-bottom:2px;">
+                    <div style="width:30%">Ref: ${p.reference}</div>
+                    <div style="width:40%; padding-left:2px;">#${p.orderId.replace(/[^0-9]/g, '').slice(-4)}</div>
+                    <div style="width:30%" class="text-right bold text-base">Bs. ${fmt(p.amount)}</div>
+                </div>
+            `).join('') || '<div class="text-center">No hay pagos QR</div>';
+
+            reportBody = `
+                <div class="row bold" style="font-size:10px;border-bottom:1px solid ${BORDER_COLOR};margin-bottom:4px;">
+                    <div style="width:30%">HORA/REF</div><div style="width:40%">COMANDA</div><div style="width:30%" class="text-right">MONTO</div>
+                </div>
+                ${qrListHtml}
+                <div class="border-b" style="margin:5px 0;"></div>
+                <div class="flex-between bold" style="font-size:18px;"><span>TOTAL QR:</span><span>Bs. ${fmt(data.totalQR || 0)}</span></div>
             `;
         } else {
             // ORDER, QUICK_SALE, VOID
