@@ -309,7 +309,10 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
             } else if (data.type === 'void') {
                 footer = `<div class="void-box">PEDIDO ELIMINADO<br/>(TRANSACCIÓN ANULADA)</div><div class="flex-between bold" style="font-size:18px; text-decoration: line-through;"><span>TOTAL:</span><span>Bs. ${fmt(data.total)}</span></div>`;
             } else {
-                let paymentsHtml = data.payments ? `<div style="margin-top:5px;font-size:10px;">${data.payments.map(p => `<div class="flex-between"><span>PAGO ${p.method.toUpperCase()}:</span><span>${fmt(p.amount)}</span></div>`).join('')}</div>` : '';
+                let paymentsHtml = data.payments ? `<div style="margin-top:5px;font-size:10px;">${data.payments.map(p => `
+                    <div class="flex-between"><span>PAGO ${p.method.toUpperCase()}:</span><span>${fmt(p.amount)}</span></div>
+                    ${p.reference ? `<div class="text-left" style="font-size:9px; color:#555; margin-bottom:2px;">Ref/Hora: ${p.reference}</div>` : ''}
+                `).join('')}</div>` : '';
                 let changeHtml = data.changeGiven > 0 ? `<div class="text-right bold" style="margin-top:2px;">CAMBIO: ${fmt(data.changeGiven)}</div>` : '';
                 footer = `<div class="flex-between bold" style="font-size:18px;"><span>TOTAL:</span><span>Bs. ${fmt(data.total)}</span></div>${paymentsHtml}${changeHtml}`;
             }

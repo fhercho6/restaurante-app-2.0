@@ -13,6 +13,12 @@ export default function PaymentModal({ isOpen, onClose, total, onConfirm, staff 
     const [showUnlockInput, setShowUnlockInput] = useState(false);
     const [unlockPin, setUnlockPin] = useState('');
 
+    // [NEW] Reference Input State
+    const [isReferencePromptOpen, setIsReferencePromptOpen] = useState(false);
+    const [pendingMethod, setPendingMethod] = useState(null);
+    const [paymentReference, setPaymentReference] = useState('');
+
+
     // Reiniciar al abrir
     useEffect(() => {
         if (isOpen) {
@@ -72,11 +78,39 @@ export default function PaymentModal({ isOpen, onClose, total, onConfirm, staff 
             // Advertencia opcional.
         }
 
+        // Si es pago digital (QR o Tarjeta), pedimos la referencia primero
+        if (method === 'QR' || method === 'Tarjeta') {
+            setPendingMethod(method);
+            setPaymentReference('');
+            setIsReferencePromptOpen(true);
+            return; // Detenemos aquí, la confirmación ocurre en handleConfirmReference
+        }
+
+        executeAddPayment(method, '');
+    };
+
+    const handleConfirmReference = () => {
+        executeAddPayment(pendingMethod, paymentReference);
+        setIsReferencePromptOpen(false);
+        setPendingMethod(null);
+        setPaymentReference('');
+    };
+
+    const handleCancelReference = () => {
+        setIsReferencePromptOpen(false);
+        setPendingMethod(null);
+        setPaymentReference('');
+    };
+
+    const executeAddPayment = (method, reference) => {
+        const amountToAdd = parseFloat(currentAmount);
+
         // Agregar a la lista
         const newPayment = {
             id: Date.now(),
             method,
-            amount: amountToAdd
+            amount: amountToAdd,
+            reference: reference // [NEW] Save the reference/time
         };
         setPayments([...payments, newPayment]);
 
@@ -253,9 +287,12 @@ export default function PaymentModal({ isOpen, onClose, total, onConfirm, staff 
                         <div className="bg-gray-50 rounded-xl p-3 mb-4 space-y-2 max-h-40 overflow-y-auto">
                             {payments.map((p, idx) => (
                                 <div key={p.id} className="flex justify-between items-center bg-white p-2 rounded border border-gray-200 shadow-sm animate-in slide-in-from-left-2">
-                                    <span className="font-bold text-xs text-gray-700 uppercase flex items-center gap-2">
-                                        {p.method === 'Cortesía' ? <Gift size={14} className="text-yellow-500" /> : <Check size={14} className="text-green-500" />}
-                                        {p.method}
+                                    <span className="font-bold text-xs text-gray-700 uppercase flex flex-col justify-center">
+                                        <div className="flex items-center gap-2">
+                                            {p.method === 'Cortesía' ? <Gift size={14} className="text-yellow-500" /> : <Check size={14} className="text-green-500" />}
+                                            {p.method}
+                                        </div>
+                                        {p.reference && <span className="text-[9px] text-gray-400 mt-0.5 ml-5">Ref: {p.reference}</span>}
                                     </span>
                                     <div className="flex items-center gap-3">
                                         <span className="font-mono font-bold">Bs. {p.amount.toFixed(2)}</span>
@@ -281,6 +318,35 @@ export default function PaymentModal({ isOpen, onClose, total, onConfirm, staff 
                         {hasCourtesy ? 'CONFIRMAR CORTESÍA' : 'FINALIZAR VENTA'}
                     </button>
                 </div>
+
+                {/* MODAL PARA PEDIR REFERENCIA / HORA (SOBREPUESTO) */}
+                {isReferencePromptOpen && (
+                    <div className="absolute inset-0 bg-gray-900/40 z-50 flex items-center justify-center p-6 backdrop-blur-[2px] animate-in fade-in zoom-in-95">
+                        <div className="bg-white p-6 rounded-xl shadow-2xl w-full text-center">
+                            <h4 className="font-bold text-lg mb-2 text-gray-800">Referencia de Pago {pendingMethod}</h4>
+                            <p className="text-xs text-gray-500 mb-4">Ingresa la **Hora del Comprobante** (Ej. 14:35) o los últimos dígitos para facilitar la revisión del Cajero.</p>
+
+                            <input
+                                type="text"
+                                value={paymentReference}
+                                onChange={(e) => setPaymentReference(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') handleConfirmReference(); }}
+                                placeholder="Ej: 14:35, Ref: 1234, o dejar vacío"
+                                className="w-full text-center p-3 border-2 border-orange-200 rounded-lg focus:border-orange-500 outline-none mb-6 font-bold text-gray-700 placeholder:font-normal placeholder:text-gray-300"
+                                autoFocus
+                            />
+
+                            <div className="flex gap-2 w-full">
+                                <button onClick={handleCancelReference} className="flex-1 py-3 text-sm font-bold text-gray-500 bg-gray-100 rounded-lg hover:bg-gray-200">
+                                    CANCELAR
+                                </button>
+                                <button onClick={handleConfirmReference} className="flex-1 py-3 text-sm font-bold text-white bg-orange-600 rounded-lg hover:bg-orange-700">
+                                    AGREGAR PAGO
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
             </div>
         </div>
