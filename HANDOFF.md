@@ -222,6 +222,12 @@
         *   **Corrección UI:**
             *   Se eliminó la pestaña duplicada de "Reservas" que aparecía dos veces en la barra de navegación del Administrador.
 
+    26. **Sesión: 24 de Febrero 2026 (Reporte QR y Conciliación Bancaria):**
+        *   **Registro de Hora Obligatorio (Auditoría):** Al seleccionar el método de pago 'QR', el campo "Referencia" es ahora estrictamente obligatorio. El cajero debe ingresar la hora visible en el comprobante del cliente (ej. `14:35`). Esto previene el auto-rellenado con la hora actual que generaba desfases, mejorando drásticamente la exactitud de la auditoría.
+        *   **Soporte para Pagos Múltiples:** La interfaz instruye al cajero a separar con comas las referencias si un solo pedido es pagado con más de un QR (ej. `14:35, 14:40`).
+        *   **Nueva Herramienta de Caja "Resumen QR":** Se integró un nuevo botón en el panel de control del Cajero (`CashierView`) diseñado específicamente para agilizar la revisión del banco.
+        *   **Ticket de Conciliación:** Al presionar "Resumen QR", el sistema localiza todas las transacciones del turno activo, extrae sub-pagos marcados como `QR` y genera un listado en formato térmico optimizado. Muestra en 3 columnas: la Referencia (hora), el Número de Comanda (`orderId`) y el Monto exacto ingresado, facilitando el chequeo uno a uno en la app del banco.
+
 ---
 
 ## 🛠️ Instrucciones para la Nueva PC

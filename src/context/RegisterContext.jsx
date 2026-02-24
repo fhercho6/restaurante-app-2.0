@@ -274,9 +274,6 @@ export const RegisterProvider = ({ children }) => {
                 description,
                 amount,
                 type,
-                description,
-                amount,
-                type,
                 details, // [NEW] Rich HTML breakdown for reprints
                 meta: details?.meta || null, // [NEW] Structured metadata (staffId, commissionAmount, etc)
 
