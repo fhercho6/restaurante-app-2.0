@@ -43,7 +43,11 @@ export const AuthProvider = ({ children }) => {
     };
 
     const logout = async () => {
-        await signOut(auth);
+        // [FIX] CÓDIGO MAESTRO:
+        // No llamamos a signOut(auth) porque eso destruye la sesión Anónima en Firebase
+        // que es la que se vincula con la autorización de la terminal (código maestro).
+        // Solo limpiamos la sesión local y recargamos.
+        setStaffMember(null);
         window.location.reload();
     };
 

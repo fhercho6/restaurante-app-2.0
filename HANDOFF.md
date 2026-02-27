@@ -228,6 +228,7 @@
         *   **Nueva Herramienta de Caja "Resumen QR":** Se integró un nuevo botón en el panel de control del Cajero (`CashierView`) diseñado específicamente para agilizar la revisión del banco.
         *   **Ticket de Conciliación:** Al presionar "Resumen QR", el sistema localiza todas las transacciones del turno activo, extrae sub-pagos marcados como `QR` y genera un listado en formato térmico optimizado. Muestra en 3 columnas: la Referencia (hora), el Número de Comanda (`orderId`) y el Monto exacto ingresado, facilitando el chequeo uno a uno en la app del banco.
         *   **Limpieza Automática de Comandas (Hotfix):** El proceso de "Cerrar Caja" ahora escanea y purga la colección `pending_orders` automáticamente de la base de datos al finalizar el día. Esto resuelve un bug donde las comandas no cobradas o abandonadas de un turno anterior reaparecían al abrir un turno nuevo al día siguiente.
+        *   **Persistencia de Autorización de Terminal (Hotfix):** Se modificó la función de deslogueo en `AuthContext.jsx`. Anteriormente, apretar "Salir" destruía la sesión de Firebase anónima (`signOut`), lo que causaba que el sistema "olvidara" la autorización de la computadora y volviera a pedir el Código Maestro (`ZZIF2026`). Ahora solo se limpia la sesión del personal, manteniendo la autorización de hardware intacta.
 
 ---
 
