@@ -139,9 +139,8 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                 <div class="biz-name">${data.businessName || 'LicoBar'}</div>
                 <div class="report-title">REPORTE DE CIERRE DE CAJA (CORTE Z)</div>
                 <div class="meta-info">
-                    JORNADA: ${new Date(data.openedAt || Date.now()).toLocaleDateString()} al ${data.date}<br/>
+                    JORNADA: ${data.openingNote ? data.openingNote.toUpperCase() + ' - ' : ''}${new Date(data.openedAt || Date.now()).toLocaleDateString()} al ${data.date}<br/>
                     RESPONSABLE: ${staffName.toUpperCase()} | CAJERO: ${cashierName.toUpperCase()}
-                    ${data.openingNote ? `<br/><div style="margin-top:5px; font-style:italic; font-size:12px;">" ${data.openingNote} "</div>` : ''}
                 </div>
             </div>
 
