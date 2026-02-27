@@ -245,7 +245,17 @@ export const RegisterProvider = ({ children }) => {
                 autoPrint: true
             };
 
-            setRegisterSession(null);
+            // [NEW] Clear all pending orders when closing the register
+            try {
+                const pendingOrdersRef = collection(db, isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`);
+                const pendingSnapshot = await getDocs(pendingOrdersRef);
+                const deletePromises = pendingSnapshot.docs.map(docSnap => deleteDoc(doc(db, isPersonalProject ? 'pending_orders' : `${ROOT_COLLECTION}pending_orders`, docSnap.id)));
+                await Promise.all(deletePromises);
+            } catch (err) {
+                console.error("Error clearing pending orders upon close:", err);
+                // We don't fail the whole close register process if this fails, but we log it.
+            }
+
             setRegisterSession(null);
             setSessionStats({
                 cashSales: 0, qrSales: 0, cardSales: 0, digitalSales: 0,
