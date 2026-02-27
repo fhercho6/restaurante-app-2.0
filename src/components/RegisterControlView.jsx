@@ -1,6 +1,6 @@
-// src/components/RegisterControlView.jsx
 import React, { useState } from 'react';
-import { Lock, Unlock, DollarSign, Clock, User, AlertTriangle, CheckCircle, Wallet, Users, TrendingDown, TrendingUp, Plus, Trash2, Printer } from 'lucide-react';
+import { Lock, Unlock, DollarSign, Clock, User, AlertTriangle, CheckCircle, Wallet, Users, TrendingDown, TrendingUp, Plus, Trash2, Printer, FileText } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const RegisterControlView = ({ session, onOpen, onClose, staff, stats, onAddExpense, onDeleteExpense, onReprintExpense }) => {
     const [amount, setAmount] = useState('');
@@ -13,7 +13,10 @@ const RegisterControlView = ({ session, onOpen, onClose, staff, stats, onAddExpe
     const handleOpenSubmit = (e) => {
         e.preventDefault();
         if (!amount) return;
-        // activeTeam removed as per user request
+        if (!note.trim()) {
+            toast.error("La Glosa / Observación es obligatoria", { duration: 4000 });
+            return;
+        }
         // activeTeam removed as per user request
         onOpen(parseFloat(amount), [], note);
         setAmount('');
@@ -88,6 +91,16 @@ const RegisterControlView = ({ session, onOpen, onClose, staff, stats, onAddExpe
                                                 <span key={i} className="text-[10px] bg-white/20 px-2 py-0.5 rounded">{s.name}</span>
                                             ))}
                                         </div>
+                                    </div>
+                                )}
+                                {session.openingNote && (
+                                    <div className="mt-4 p-3 bg-white/5 border border-white/10 rounded-xl relative overflow-hidden group">
+                                        <div className="absolute top-0 left-0 w-1 h-full bg-orange-500 rounded-l-xl"></div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <FileText size={12} className="text-orange-400" />
+                                            <span className="text-[10px] uppercase font-bold tracking-widest text-orange-400 opacity-90">Notas del Turno</span>
+                                        </div>
+                                        <p className="text-sm font-medium leading-tight opacity-90 pl-1">{session.openingNote}</p>
                                     </div>
                                 )}
                             </div>
@@ -199,11 +212,11 @@ const RegisterControlView = ({ session, onOpen, onClose, staff, stats, onAddExpe
 
                                 </div>
 
-                                <label className="block text-sm font-bold text-gray-700 mb-2">Glosa / Observación (Opcional)</label>
+                                <label className="block text-sm font-bold text-gray-700 mb-2">Glosa / Observación (Obligatorio)</label>
                                 <textarea
-                                    className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 outline-none mb-6 resize-none"
+                                    className={`w-full p-3 border-2 rounded-xl outline-none mb-6 resize-none transition-colors ${!note.trim() ? 'border-red-300 bg-red-50 focus:border-red-500' : 'border-gray-200 focus:border-blue-500'}`}
                                     rows="2"
-                                    placeholder="Ej: Caja inicial entregada por Gerencia..."
+                                    placeholder="Ej: Turno Mañana 27/02/2026..."
                                     value={note}
                                     onChange={e => setNote(e.target.value)}
                                 />
