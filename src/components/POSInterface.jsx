@@ -71,26 +71,32 @@ export default function POSInterface({ items, categories, staffMember, tables = 
       hasStock = true;
     }
 
-    const isComboLike = ['combos', 'baldes', 'paquetes de cumple', 'paquetes de cumpleaños'].includes(item.category.toLowerCase());
-    if (isComboLike && item.recipe && item.recipe.length > 0) {
-      const recipe = item.recipe;
-      const maxCombos = recipe.map(ing => {
-        const realItem = allItems.find(i => i.id === ing.itemId);
-        // [FIX] Servicios son infinitos
-        if (realItem && realItem.category === 'Servicios') return Infinity;
+    const categoryName = (item.category || '').trim().toLowerCase();
+    const isComboLike = ['combos', 'baldes', 'paquetes de cumple', 'paquetes de cumpleaños'].includes(categoryName);
 
-        if (!realItem || !realItem.stock) return 0;
-        return Math.floor(parseInt(realItem.stock) / ing.qty);
-      });
-      // Filter out Infinity before calculating min, unless all are Infinity (unlikely for a combo but possible)
-      // If map returns [Infinity, 10], min is 10. Perfect.
-      // If map returns [Infinity, Infinity], min is Infinity.
+    if (isComboLike) {
+      if (item.recipe && item.recipe.length > 0) {
+        const recipe = item.recipe;
+        const maxCombos = recipe.map(ing => {
+          const realItem = allItems.find(i => i.id === ing.itemId);
 
-      stockNum = Math.min(...maxCombos);
-      if (stockNum === Infinity) stockNum = 100; // Fallback visual
+          if (!realItem) return 0;
+          if (realItem.category === 'Servicios') return Infinity;
+          if (realItem.stock === undefined || realItem.stock === '') return Infinity; // Ingrediente sin control de stock
 
-      if (maxCombos.length === 0) stockNum = 0;
-      hasStock = true; // Siempre tiene "stock" (calculado)
+          return Math.floor(parseInt(realItem.stock) / ing.qty);
+        });
+
+        stockNum = Math.min(...maxCombos);
+        if (stockNum === Infinity) stockNum = 100; // Fallback visual
+
+        if (maxCombos.length === 0) stockNum = 0;
+        hasStock = true; // Siempre tiene "stock" (calculado)
+      } else {
+        // Combo sin receta definida: forzamos disponibilidad
+        stockNum = 100;
+        hasStock = false;
+      }
     }
 
     const isLowStock = hasStock && stockNum < 5 && stockNum > 0;

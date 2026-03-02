@@ -502,7 +502,8 @@ export const AdminRow = ({ item, onEdit, onDelete, isQuickEdit, onQuickUpdate, a
     let limitingInfo = '';
 
     // CÁLCULO DINÁMICO DE STOCK PARA COMBOS Y NUEVAS CATEGORÍAS
-    const isComboLike = ['combos', 'baldes', 'paquetes de cumple', 'paquetes de cumpleaños'].includes(item.category.toLowerCase());
+    const categoryName = (item.category || '').trim().toLowerCase();
+    const isComboLike = ['combos', 'baldes', 'paquetes de cumple', 'paquetes de cumpleaños'].includes(categoryName);
     if (isComboLike && item.recipe && item.recipe.length > 0) {
         const recipe = item.recipe;
         let minYield = Infinity;
@@ -510,21 +511,18 @@ export const AdminRow = ({ item, onEdit, onDelete, isQuickEdit, onQuickUpdate, a
 
         recipe.forEach(ing => {
             const realItem = allItems.find(i => i.id === ing.itemId);
-            // Tratamos stock negativo como 0 para lógica de disponibilidad real
-            // Pero si es negativo, queremos saberlo.
-            // parseInt("-5") = -5.
-            const currentStock = realItem && realItem.stock ? parseInt(realItem.stock) : 0;
 
-            // [FIX] Servicios son infinitos
-            if (realItem && realItem.category === 'Servicios') {
-                return; // Continue to next ingredient, don't limit minYield
+            if (!realItem) { minYield = 0; culprit = 'Desconocido'; return; }
+            if (realItem.category === 'Servicios' || realItem.stock === undefined || realItem.stock === '') {
+                return; // Ingrediente sin límite de stock
             }
 
+            const currentStock = parseInt(realItem.stock) || 0;
             const yieldVal = Math.floor(currentStock / ing.qty);
 
             if (yieldVal < minYield) {
                 minYield = yieldVal;
-                culprit = realItem ? realItem.name : 'Desconocido';
+                culprit = realItem.name;
             }
         });
 
