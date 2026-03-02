@@ -99,8 +99,8 @@ export default function POSInterface({ items, categories, staffMember, tables = 
       }
     }
 
-    const isLowStock = hasStock && stockNum < 5 && stockNum > 0;
-    const isOut = hasStock && stockNum <= 0;
+    const isLowStock = hasStock && stockNum < 5 && stockNum > 0 && !isComboLike && item.category !== 'Servicios';
+    const isOut = hasStock && stockNum <= 0 && !isComboLike && item.category !== 'Servicios';
 
     // [VISUAL UTILITY INDICATOR] "Golden Star"
     // Logic: High Commission (Combos) OR High Profit (> 15 Bs)

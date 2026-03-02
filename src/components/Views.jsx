@@ -23,8 +23,8 @@ export const MenuCard = ({ item }) => {
         stockNum = 100;
     }
 
-    const isOut = hasStock && stockNum <= 0;
-    const isLow = hasStock && stockNum <= 5 && stockNum > 0;
+    const isOut = hasStock && stockNum <= 0 && !isComboLike && item.category !== 'Servicios';
+    const isLow = hasStock && stockNum <= 5 && stockNum > 0 && !isComboLike && item.category !== 'Servicios';
 
     return (
         <div className={`relative bg-black/40 backdrop-blur-md rounded-xl overflow-hidden border border-white/10 group h-full flex flex-col ${isOut ? 'opacity-60 grayscale' : ''}`}>
