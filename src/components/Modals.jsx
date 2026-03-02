@@ -92,7 +92,7 @@ export const ProductModal = ({ isOpen, onClose, onSave, item, categories, items 
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        const isCombo = ['combos', 'baldes', 'paquetes de cumple'].includes(formData.category.toLowerCase());
+        const isCombo = ['combos', 'baldes', 'paquetes de cumple', 'paquetes de cumpleaños'].includes(formData.category.toLowerCase());
         // If it's a combo, we force stock to be handled dynamically (infinity symbol usually), but user might want to track manual stock too. 
         // Usually combos don't have stock themselves, they depend on ingredients.
         // We'll pass the recipe regardless.
@@ -100,7 +100,7 @@ export const ProductModal = ({ isOpen, onClose, onSave, item, categories, items 
     };
 
 
-    const isComboCategory = ['combos', 'baldes', 'paquetes de cumple'].includes(formData.category.toLowerCase());
+    const isComboCategory = ['combos', 'baldes', 'paquetes de cumple', 'paquetes de cumpleaños'].includes(formData.category.toLowerCase());
 
     // Helper para etiqueta dinámica
     const getCategoryLabel = () => {

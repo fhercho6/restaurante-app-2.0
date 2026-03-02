@@ -71,7 +71,7 @@ export default function POSInterface({ items, categories, staffMember, tables = 
       hasStock = true;
     }
 
-    const isComboLike = ['combos', 'baldes', 'paquetes de cumple'].includes(item.category.toLowerCase());
+    const isComboLike = ['combos', 'baldes', 'paquetes de cumple', 'paquetes de cumpleaños'].includes(item.category.toLowerCase());
     if (isComboLike && item.recipe && item.recipe.length > 0) {
       const recipe = item.recipe;
       const maxCombos = recipe.map(ing => {
