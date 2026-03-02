@@ -90,12 +90,12 @@ export default function POSInterface({ items, categories, staffMember, tables = 
         stockNum = Math.min(...maxCombos);
         if (stockNum === Infinity) stockNum = 100; // Fallback visual
 
-        if (maxCombos.length === 0) stockNum = 0;
-        hasStock = true; // Siempre tiene "stock" (calculado)
+        if (maxCombos.length === 0) stockNum = 100; // Si no hay receta válida, asumimos disponible
+        hasStock = true; // Siempre tiene "stock" (calculado o asumido)
       } else {
         // Combo sin receta definida: forzamos disponibilidad
         stockNum = 100;
-        hasStock = false;
+        hasStock = true; // <-- CORRECCIÓN: debe ser fallback stock positivo
       }
     }
 

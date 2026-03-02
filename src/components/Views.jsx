@@ -12,7 +12,17 @@ import { db, auth } from '../config/firebase';
 export const MenuCard = ({ item }) => {
     if (!item) return null; // [FIX] Prevent crash if item is undefined
     const stockNum = Number(item.stock);
-    const hasStock = item.stock !== undefined && item.stock !== '';
+    const categoryName = (item.category || '').trim().toLowerCase();
+    const isComboLike = ['combos', 'baldes', 'paquetes de cumple', 'paquetes de cumpleaños'].includes(categoryName);
+
+    // Si es un combo sin receta configurada (o si todos los maxCombos se evalúan en cero y es servicio),
+    // el POS Interface ya lo maneja. Aquí, como es una vista de menú, si es combo simplemente NO mostramos "Agotado".
+    // La forma más fácil para la vista menú es ignorar el stock si es combo o servicio
+    if (isComboLike || item.category === 'Servicios') {
+        hasStock = true;
+        stockNum = 100;
+    }
+
     const isOut = hasStock && stockNum <= 0;
     const isLow = hasStock && stockNum <= 5 && stockNum > 0;
 
