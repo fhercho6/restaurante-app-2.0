@@ -11,7 +11,8 @@ import { db, auth } from '../config/firebase';
 // --- TARJETA DE MENÚ (CLIENTE) ---
 export const MenuCard = ({ item }) => {
     if (!item) return null; // [FIX] Prevent crash if item is undefined
-    const stockNum = Number(item.stock);
+    let stockNum = Number(item.stock);
+    let hasStock = item.stock !== undefined && item.stock !== '';
     const categoryName = (item.category || '').trim().toLowerCase();
     const isComboLike = ['combos', 'baldes', 'paquetes de cumple', 'paquetes de cumpleaños'].includes(categoryName);
 
