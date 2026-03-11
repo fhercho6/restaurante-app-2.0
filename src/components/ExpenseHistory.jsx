@@ -100,6 +100,15 @@ export default function ExpenseHistory({ onBack }) {
     const totalAmount = filteredExpenses.reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0);
     const totalCount = filteredExpenses.length;
 
+    // Calculate Monthly Subtotals
+    const monthlySubtotals = {};
+    filteredExpenses.forEach(expense => {
+        const d = new Date(expense.date);
+        const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        if (!monthlySubtotals[monthKey]) monthlySubtotals[monthKey] = 0;
+        monthlySubtotals[monthKey] += parseFloat(expense.amount) || 0;
+    });
+
     // Print Handler
     const handlePrint = () => {
         window.print();
@@ -227,29 +236,52 @@ export default function ExpenseHistory({ onBack }) {
                         </thead>
                         <tbody className="divide-y divide-gray-100">
                             {filteredExpenses.length > 0 ? (
-                                filteredExpenses.map((expense) => (
-                                    <tr key={expense.id} className="hover:bg-gray-50 transition-colors">
-                                        <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
-                                            {new Date(expense.date).toLocaleString()}
-                                        </td>
-                                        <td className="px-4 py-3 font-medium text-gray-800">
-                                            {expense.description || expense.reason || 'Sin descripción'}
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            {expense.type ? (
-                                                <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-1 rounded font-bold uppercase">{expense.type}</span>
-                                            ) : (
-                                                <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-1 rounded">Varios</span>
+                                filteredExpenses.map((expense, index) => {
+                                    const d = new Date(expense.date);
+                                    const currentMonthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+
+                                    // Comprobar si es el último registro de ese mes específico
+                                    const isLastInMonth = index === filteredExpenses.length - 1 || (() => {
+                                        const nextD = new Date(filteredExpenses[index + 1].date);
+                                        const nextMonthKey = `${nextD.getFullYear()}-${String(nextD.getMonth() + 1).padStart(2, '0')}`;
+                                        return currentMonthKey !== nextMonthKey;
+                                    })();
+
+                                    // Nombre formateado para mostrar en español (ej. "Marzo 2026")
+                                    const monthName = d.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+
+                                    return (
+                                        <React.Fragment key={expense.id}>
+                                            <tr className="hover:bg-gray-50 transition-colors">
+                                                <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                                                    {new Date(expense.date).toLocaleString()}
+                                                </td>
+                                                <td className="px-4 py-3 font-medium text-gray-800">
+                                                    {expense.description || expense.reason || 'Sin descripción'}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    {expense.type ? (
+                                                        <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-1 rounded font-bold uppercase">{expense.type}</span>
+                                                    ) : (
+                                                        <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-1 rounded">Varios</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-3 text-gray-600">
+                                                    {expense.createdBy || expense.staffNames || 'Sistema'}
+                                                </td>
+                                                <td className="px-4 py-3 text-right font-bold text-red-600">
+                                                    Bs. {parseFloat(expense.amount).toFixed(2)}
+                                                </td>
+                                            </tr>
+                                            {isLastInMonth && (
+                                                <tr className="bg-orange-50/50 print:bg-gray-100 font-bold border-b-2 border-orange-200">
+                                                    <td colSpan="4" className="px-4 py-2 text-right text-orange-800 uppercase print:text-gray-700">Subtotal {monthName}:</td>
+                                                    <td className="px-4 py-2 text-right text-orange-700 print:text-gray-900">Bs. {monthlySubtotals[currentMonthKey]?.toFixed(2) || '0.00'}</td>
+                                                </tr>
                                             )}
-                                        </td>
-                                        <td className="px-4 py-3 text-gray-600">
-                                            {expense.createdBy || expense.staffNames || 'Sistema'}
-                                        </td>
-                                        <td className="px-4 py-3 text-right font-bold text-red-600">
-                                            Bs. {parseFloat(expense.amount).toFixed(2)}
-                                        </td>
-                                    </tr>
-                                ))
+                                        </React.Fragment>
+                                    );
+                                })
                             ) : (
                                 <tr>
                                     <td colSpan="5" className="px-4 py-8 text-center text-gray-400">
