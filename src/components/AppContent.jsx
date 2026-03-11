@@ -463,10 +463,10 @@ export default function AppContent() {
         setIsPaymentModalOpen(true);
     };
 
-    const handlePOSCheckout = (cart, clearCart) => {
+    const handlePOSCheckout = (cart, clearCart, tableName) => {
         if (!checkRegisterStatus(true)) return;
         setOrderToPay(null);
-        setPendingSale({ cart, clearCart });
+        setPendingSale({ cart, clearCart, tableName, zone: staffZone });
         setIsPaymentModalOpen(true);
     };
 
