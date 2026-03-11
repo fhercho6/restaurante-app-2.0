@@ -81,7 +81,7 @@ const SavingsManager = () => {
     };
 
     const handleDelete = async (id) => {
-        const isOwner = currentUser && !currentUser.isAnonymous;
+        const isOwner = currentUser && currentUser.email; // Basic Firebase Auth check
         const isAdmin = staffMember && staffMember.role === 'Administrador';
 
         if (!isOwner && !isAdmin) {
