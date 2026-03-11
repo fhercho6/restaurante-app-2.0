@@ -232,6 +232,14 @@
         *   **Glosa de Apertura de Caja Obligatoria y Visible:** Se modificó la vista de Control de Caja (`RegisterControlView.jsx`) para que el campo "Glosa / Observación" sea estrictamente obligatorio al iniciar un turno (ideal para exigir la fecha, ej. "Turno Mañana 27/02/2026"). Además, esta glosa se mantiene permanentemente visible en el panel superior izquierdo de la caja mientras dure el turno.
         *   **Glosa en Reporte Z (Corte de Caja):** Se actualizó el formato de impresión principal (`Receipt.jsx`). La Glosa de Apertura ahora se adjunta directamente al nombre de la 'JORNADA' en la cabecera (ej: `JORNADA: TURNO MAÑANA 27/02/2026 - 27/2/2026 al 27/2/2026`), asegurando un registro físico de cómo se recibió el turno para auditorías físicas.
 
+    27. **Sesión: 11 de Marzo 2026 (Correcciones Estructurales y Puesta en Producción):**
+        *   **Gestión de Stock en Combos:** El POS y la Vista Web Pública (Menú Digital) ahora leen correctamente la disponibilidad de Combos sin mostrar erróneamente el letrero 'Agotado'.
+        *   **Obligatoriedad de Glosa en Caja:** Se hizo obligatorio registrar un detalle/nota al abrir turno para llevar bitácora estricta de incidencias, y esta observación ahora es visible persistentemente en el panel de Caja.
+        *   **Prioridad en Ventas por Zona:** Se optimizó `processSale` para que en 'Ventas Rápidas' la ganancia se asigne automáticamente a la zona configurada del cajero/mesero conectado si no hay mesa física designada.
+        *   **Fix Crítico: Crash al Cerrar Caja (Firebase Limit):** Se eliminó permanentemente el arreglo expansivo `sessionStats.allSales` del comando de Cierre de Caja para evitar que turnos mayores a 1 o 2 días excedan el límite físico de documentos de Firebase de 1MB, curando el pantallazo blanco y el reporte ciego.
+        *   **Recuperación "Sueldo Base 0.00" al Pagar Nóminas:** El motor de cálculo en `ClosingWizard` ahora purga las asistencias múltiples de un mismo turno y extrae el salario de cada garzón interrogando a la matriz maestra `staff` en Tiempo Real para prevenir el pago en 0 a trabajadores históricos y respetar siempre el *salaryEnabled*.
+        *   **Flexibilización de Permisos en Alcancía/Ahorros:** Se destituyó el control riguroso de propiedad (Dueños Autentificados) en favor de una validación semántica del Panel, permitiendo a cualquier "Administrador" (por PIN temporal o acceso fijo) revertir las transacciones y re-abonar la caja ahorros sin obstrucción.
+
 ---
 
 ## 🛠️ Instrucciones para la Nueva PC
