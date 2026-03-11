@@ -154,7 +154,7 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                             <tr><td>VENTAS QR / TRANSF.</td><td class="text-right">${fmt(stats.qrSales)}</td></tr>
                             <tr><td>VENTAS TARJETA</td><td class="text-right">${fmt(stats.cardSales)}</td></tr>
                             <tr><td>VENTAS RESERVA</td><td class="text-right">${fmt(stats.reservationSales || 0)}</td></tr>
-                            <tr class="row-total"><td>TOTAL INGRESOS</td><td class="text-right">${fmt(data.openingAmount + stats.cashSales + stats.qrSales + stats.cardSales + (stats.reservationSales || 0))}</td></tr>
+                            <tr class="row-total"><td>TOTAL INGRESOS</td><td class="text-right">${fmt(stats.cashSales + stats.qrSales + stats.cardSales + (stats.reservationSales || 0))}</td></tr>
                         </table>
                     </div>
 
