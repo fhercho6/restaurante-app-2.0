@@ -81,13 +81,10 @@ const SavingsManager = () => {
     };
 
     const handleDelete = async (id) => {
-        const isOwner = currentUser && currentUser.email; // Basic Firebase Auth check
-        const isAdmin = staffMember && staffMember.role === 'Administrador';
+        // [UPDATE] Removidas las credenciales estrictas; permitiendo borrar mediante confirmación de UI
+        // a cualquier persona que tenga acceso a esta vista (usualmente Dueños o Cajeros) para evitar el bloqueo 'Solo Administradores'.
 
-        if (!isOwner && !isAdmin) {
-            toast.error("⛔ Solo Administradores");
-            return;
-        }
+        // Remove isOwner and isAdmin checks.
 
         if (!window.confirm("¿Borrar este registro? (Afectará el total)")) return;
         const collName = isPersonalProject ? 'savings' : `${ROOT_COLLECTION}savings`;
