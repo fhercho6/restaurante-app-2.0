@@ -399,8 +399,15 @@ export default function AppContent() {
             }
         } catch (err) { console.error("Error calculating Commissions:", err); }
 
-        // 4. Sum Totals
-        const baseSalaries = attendanceList.reduce((acc, curr) => acc + (parseFloat(curr.dailySalary) || 0), 0);
+        // 4. Sum Totals and sanitize attendance for payment
+        // Remove duplicate attendances (if staff clocked in twice in a long register open)
+        const uniqueAttendanceIds = [...new Set(attendanceList.map(a => a.staffId))];
+
+        // Find them in the current actual database (so salary modifications reflect immediately)
+        // and discard those with salaryEnabled: false
+        const payableStaff = staff.filter(s => uniqueAttendanceIds.includes(s.id) && s.salaryEnabled);
+
+        const baseSalaries = payableStaff.reduce((acc, curr) => acc + (parseFloat(curr.dailySalary) || 0), 0);
         totalSalaries = baseSalaries + totalCommissions;
 
         // NEW: Launch Wizard instead of direct Toast
@@ -409,7 +416,7 @@ export default function AppContent() {
             totalSalaries,
             baseSalaries,
             commissionDetails,
-            attendanceList
+            attendanceList: payableStaff // We replace the raw historical attendance list with the clean payable staff
         });
         setIsClosingWizardOpen(true);
     };
@@ -428,7 +435,7 @@ export default function AppContent() {
                     type: 'Adelanto Sueldo',
                     registerId: registerSession.id,
                     date: new Date().toISOString(),
-                    staffNames: attendanceList.map(a => a.staffName).join(', '),
+                    staffNames: attendanceList.map(s => s.name).join(', '),
                     details: { base: baseSalaries, commissions: commissionDetails }
                 });
                 // Recalculate Final Cash after payment
