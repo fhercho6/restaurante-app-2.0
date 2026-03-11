@@ -786,6 +786,7 @@ export default function AppContent() {
                                                     date: new Date().toLocaleString(),
                                                     openedAt: registerSession?.openedAt,
                                                     openingAmount: registerSession?.openingAmount || 0,
+                                                    openingNote: registerSession?.openingNote || '', // [FIX] Igualar con Reporte Z
                                                     finalCash: getCalculatedCash(),
                                                     stats: sessionStats,
                                                     zoneStats: sessionStats.zoneStats, // [FIX] Explicitly pass zoneStats
