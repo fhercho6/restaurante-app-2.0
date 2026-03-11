@@ -424,10 +424,10 @@ export default function AppContent() {
                 const expColl = isPersonalProject ? 'expenses' : `${ROOT_COLLECTION}expenses`;
                 await addDoc(collection(db, expColl), {
                     amount: totalSalaries,
-                    reason: `Nómina Turno (Inc. Comisiones)`,
+                    description: `Nómina Turno (Inc. Comisiones)`,
                     type: 'Adelanto Sueldo',
                     registerId: registerSession.id,
-                    timestamp: new Date().toISOString(),
+                    date: new Date().toISOString(),
                     staffNames: attendanceList.map(a => a.staffName).join(', '),
                     details: { base: baseSalaries, commissions: commissionDetails }
                 });

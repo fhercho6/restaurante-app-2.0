@@ -220,12 +220,15 @@ export const RegisterProvider = ({ children }) => {
 
     const confirmCloseRegister = async (finalCash) => {
         try {
+            const statsToSave = { ...sessionStats };
+            delete statsToSave.allSales; // Avoids 1MB payload limit in Firestore for very long shifts
+
             await updateDoc(doc(db, isPersonalProject ? 'cash_registers' : `${ROOT_COLLECTION}cash_registers`, registerSession.id), {
                 status: 'closed',
                 closedAt: new Date().toISOString(),
                 closedBy: staffMember ? staffMember.name : 'Admin',
                 finalCashCalculated: finalCash,
-                finalSalesStats: sessionStats
+                finalSalesStats: statsToSave
             });
 
             const zReportData = {
