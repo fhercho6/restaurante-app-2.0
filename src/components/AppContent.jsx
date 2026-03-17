@@ -89,6 +89,59 @@ export default function AppContent() {
     const [isQRModalOpen, setIsQRModalOpen] = useState(false); // [NEW]
     const [staffZone, setStaffZone] = useState(''); // [NEW] Staff Zone
     const [activeZones, setActiveZones] = useState({}); // [NEW] Zone Cache
+    
+    // [NEW] Inactivity Lock State
+    const [isSessionLocked, setIsSessionLocked] = useState(false);
+    const [unlockPin, setUnlockPin] = useState('');
+    const [unlockError, setUnlockError] = useState(false);
+    
+    // [NEW] Inactivity Timer Logic
+    React.useEffect(() => {
+        let timeoutId;
+        
+        const resetTimer = () => {
+            clearTimeout(timeoutId);
+            // Solo bloquear si hay un staff logueado y es Cajero o Admin (o Mesero si así lo deciden, pero enfocado a Caja)
+            if (staffMember && !isSessionLocked) {
+                // 5 minutos de inactividad por defecto (300000 ms)
+                timeoutId = setTimeout(() => {
+                    setIsSessionLocked(true);
+                    setUnlockPin('');
+                    setUnlockError(false);
+                }, 300000); 
+            }
+        };
+
+        // Escuchar eventos de usuario
+        const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'];
+        
+        const handleUserActivity = () => {
+            if (!isSessionLocked) resetTimer();
+        };
+
+        events.forEach(event => document.addEventListener(event, handleUserActivity));
+        
+        // Iniciar timer
+        resetTimer();
+
+        return () => {
+            clearTimeout(timeoutId);
+            events.forEach(event => document.removeEventListener(event, handleUserActivity));
+        };
+    }, [staffMember, isSessionLocked]);
+
+    const handleUnlockSession = (e) => {
+        e.preventDefault();
+        if (staffMember && staffMember.pin === unlockPin) {
+            setIsSessionLocked(false);
+            setUnlockPin('');
+            setUnlockError(false);
+            toast.success('Sesión reanudada');
+        } else {
+            setUnlockError(true);
+            toast.error('PIN incorrecto');
+        }
+    };
 
     React.useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -682,6 +735,63 @@ export default function AppContent() {
                 <RefreshCw size={16} />
             </button>
             <Toaster position="top-center" reverseOrder={false} />
+
+            {/* [NEW] GLOBAL LOCK SCREEN OVERLAY */}
+            {isSessionLocked && staffMember && (
+                <div className="fixed inset-0 bg-gray-900/95 z-[99999] flex flex-col items-center justify-center p-6 animate-in fade-in zoom-in-95 backdrop-blur-md">
+                    <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center border-t-8 border-orange-500">
+                        <div className="bg-orange-100 p-4 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-6 shadow-inner">
+                            <Lock size={40} className="text-orange-600" />
+                        </div>
+                        <h2 className="text-2xl font-black mb-2 text-gray-800">Caja Bloqueada</h2>
+                        <p className="text-gray-500 mb-6 text-sm">
+                            Tu sesión se pausó por inactividad protectora. Ingresa tu PIN de 4 dígitos para continuar.
+                        </p>
+                        
+                        <div className="bg-gray-100 p-4 rounded-xl mb-6">
+                            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Usuario Actual</span>
+                            <span className="text-lg font-bold text-gray-800 flex items-center justify-center gap-2">
+                                <User size={18} className="text-orange-500"/>
+                                {staffMember.name}
+                            </span>
+                        </div>
+
+                        <form onSubmit={handleUnlockSession}>
+                            <input
+                                type="password"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                maxLength="4"
+                                value={unlockPin}
+                                onChange={(e) => {
+                                    setUnlockPin(e.target.value.replace(/[^0-9]/g, ''));
+                                    if(unlockError) setUnlockError(false);
+                                }}
+                                placeholder="****"
+                                className={`w-full text-center text-4xl tracking-[1em] p-4 border-2 rounded-xl outline-none font-bold placeholder:text-gray-300 transition-colors mb-6 ${unlockError ? 'border-red-500 bg-red-50 text-red-600' : 'border-gray-200 focus:border-orange-500 focus:ring-4 focus:ring-orange-100'}`}
+                                autoFocus
+                            />
+                            
+                            <button 
+                                type="submit"
+                                disabled={unlockPin.length !== 4}
+                                className="w-full bg-orange-600 hover:bg-orange-700 disabled:bg-orange-300 text-white font-bold py-4 rounded-xl shadow-lg transition-all flex justify-center items-center gap-2 mb-4"
+                            >
+                                <Unlock size={20} />
+                                DESBLOQUEAR
+                            </button>
+                        </form>
+
+                        <button 
+                            onClick={logout}
+                            type="button"
+                            className="w-full text-gray-500 font-bold py-3 rounded-lg hover:bg-gray-100 transition-colors text-sm"
+                        >
+                            Cerrar Sesión Completamente
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* STATUS BAR - HIDE IN PUBLIC MODE */}
             {view !== 'landing' && !isPublicMode && (
