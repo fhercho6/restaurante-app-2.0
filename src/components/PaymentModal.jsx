@@ -90,14 +90,38 @@ export default function PaymentModal({ isOpen, onClose, total, onConfirm, staff 
     };
 
     const handleConfirmReference = () => {
-        if (!paymentReference.trim()) {
+        if (!isReferencePromptOpen || !pendingMethod) return; // Prevent double execution
+        
+        const trimmedRef = paymentReference.trim();
+        
+        if (!trimmedRef) {
             toast.error('Debes ingresar la hora o referencia del pago.');
             return;
         }
-        executeAddPayment(pendingMethod, paymentReference);
+
+        // Validación estricta formato 24h para pagos QR
+        if (pendingMethod === 'QR') {
+            // Permitir una o varias horas separadas por comas (ej: "14:35, 15:00")
+            const timeEntries = trimmedRef.split(',').map(entry => entry.trim());
+            const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+            
+            for (const time of timeEntries) {
+                if (!time) continue; // Ignorar espacios vacíos entre comas
+                if (!timeRegex.test(time)) {
+                    toast.error(`Formato inválido: "${time}".\nUsa formato 24h (Ej. 14:35).`);
+                    return;
+                }
+            }
+        }
+        
+        const methodToSave = pendingMethod;
+        const refToSave = trimmedRef;
+        
         setIsReferencePromptOpen(false);
         setPendingMethod(null);
         setPaymentReference('');
+        
+        executeAddPayment(methodToSave, refToSave);
     };
 
     const handleCancelReference = () => {
@@ -132,11 +156,16 @@ export default function PaymentModal({ isOpen, onClose, total, onConfirm, staff 
         setCurrentAmount((total - currentPaid).toFixed(2));
     };
 
-    const handleSubmit = () => {
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleSubmit = async () => {
         if (totalPaid < total && !hasCourtesy) {
             toast.error(`Faltan Bs. ${remaining.toFixed(2)} para completar el pago.`);
             return;
         }
+        
+        if (isSubmitting) return;
+        setIsSubmitting(true);
 
         // Find the selected staff object
         const assignedWaiter = selectedWaiterId ? staff.find(s => s.id === selectedWaiterId) : null;
@@ -150,7 +179,11 @@ export default function PaymentModal({ isOpen, onClose, total, onConfirm, staff 
             assignedWaiter: assignedWaiter // [NEW] Pass assigned waiter
         };
 
-        onConfirm(finalData);
+        try {
+            await onConfirm(finalData);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     // [NEW] PIN Verification Logic
@@ -313,11 +346,11 @@ export default function PaymentModal({ isOpen, onClose, total, onConfirm, staff 
                 <div className="p-4 bg-gray-50 border-t border-gray-100">
                     <button
                         onClick={handleSubmit}
-                        disabled={totalPaid < total && !hasCourtesy}
+                        disabled={isSubmitting || (totalPaid < total && !hasCourtesy)}
                         className={`w-full py-4 rounded-xl font-black text-lg flex items-center justify-center gap-2 shadow-lg transition-all ${(totalPaid >= total || hasCourtesy)
                             ? (hasCourtesy ? 'bg-yellow-500 text-black hover:bg-yellow-600' : 'bg-blue-600 text-white hover:bg-blue-700')
                             : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                            }`}
+                            } ${isSubmitting ? 'opacity-50 cursor-wait' : ''}`}
                     >
                         {hasCourtesy ? 'CONFIRMAR CORTESÍA' : 'FINALIZAR VENTA'}
                     </button>
@@ -338,9 +371,17 @@ export default function PaymentModal({ isOpen, onClose, total, onConfirm, staff 
                             <input
                                 type="text"
                                 value={paymentReference}
-                                onChange={(e) => setPaymentReference(e.target.value)}
+                                onChange={(e) => {
+                                    // Auto-formateo opcional pero permitimos escribir comas
+                                    // Filtramos letras para QR y dejamos números, comas y dos puntos
+                                    let val = e.target.value;
+                                    if(pendingMethod === 'QR') {
+                                        val = val.replace(/[^0-9:, ]/g, '');
+                                    }
+                                    setPaymentReference(val);
+                                }}
                                 onKeyDown={(e) => { if (e.key === 'Enter') handleConfirmReference(); }}
-                                placeholder={pendingMethod === 'QR' ? "Obligatorio (Ej: 14:35, 14:40...)" : "Ej: 14:35, Ref: 1234, o dejar vacío"}
+                                placeholder={pendingMethod === 'QR' ? "Obligatorio (Ej: 14:35, 14:40)" : "Ej: 14:35, Ref: 1234, o dejar vacío"}
                                 className={`w-full text-center p-3 border-2 rounded-lg outline-none mb-6 font-bold text-gray-700 placeholder:font-normal placeholder:text-gray-300 ${!paymentReference.trim() ? 'border-red-300 focus:border-red-500' : 'border-orange-200 focus:border-orange-500'}`}
                                 autoFocus
                             />

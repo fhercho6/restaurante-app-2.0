@@ -225,8 +225,8 @@ export default function CashierView({ items, categories, tables, tableZones = {}
                 return;
             }
 
-            // Ordenar por fecha/hora natural
-            qrPayments.sort((a, b) => new Date(a.date) - new Date(b.date));
+            // Ordenar por Monto (De mayor a menor)
+            qrPayments.sort((a, b) => parseFloat(b.amount) - parseFloat(a.amount));
 
             const reportData = {
                 type: 'qr-report',

@@ -240,6 +240,11 @@
         *   **Recuperación "Sueldo Base 0.00" al Pagar Nóminas:** El motor de cálculo en `ClosingWizard` ahora purga las asistencias múltiples de un mismo turno y extrae el salario de cada garzón interrogando a la matriz maestra `staff` en Tiempo Real para prevenir el pago en 0 a trabajadores históricos y respetar siempre el *salaryEnabled*.
         *   **Flexibilización de Permisos en Alcancía/Ahorros:** Se destituyó el control riguroso de propiedad (Dueños Autentificados) en favor de una validación semántica del Panel, permitiendo a cualquier "Administrador" (por PIN temporal o acceso fijo) revertir las transacciones y re-abonar la caja ahorros sin obstrucción.
 
+    28. **Sesión: 17 de Marzo 2026 (Mejoras en Resumen QR y Prevención de Duplicados):**
+        *   **Control de "Doble Clic":** Se bloqueó estructuralmente el doble-envío de pagos en el Modal de Pagos introduciendo estados de carga (`isSubmitting`) tanto para los botones de enviar como para la lectura de teclas rápidas (`Enter`). Esto erradica el bug crítico que duplicaba ingresos en las cuentas cuando la red estaba lenta.
+        *   **Validación Estricta de Horarios (QR):** Para contrarrestar errores humanos en conciliación bancaria, el input de Referencia de QR ahora rechaza preventivamente cualquier carácter no numérico y audita de forma rigurosa la coherencia aritmética (solo formato de 24hs Ej: `14:35`), bloqueando el cobro en horas irreales e incitando a la inserción de múltiples horas separadas por comas.
+        *   **Rediseño de Reporte Térmico QR:** Se reconstruyó el comprobante fiscal 'Resumen QR' del Cajero. Los pagos han sido re-estructurados algorítmicamente para visualizarse en **orden descendente** (de montos mayores a menores) y ahora adjuntan la fecha original exacta de la orden (Día/Mes), agilizando brutalmente el emparejamiento manual con el estado de cuenta bancario al priorizar remesas fuertes.
+
 ---
 
 ## 🛠️ Instrucciones para la Nueva PC
