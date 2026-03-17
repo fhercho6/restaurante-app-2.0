@@ -17,6 +17,7 @@ export default function PaymentModal({ isOpen, onClose, total, onConfirm, staff 
     const [isReferencePromptOpen, setIsReferencePromptOpen] = useState(false);
     const [pendingMethod, setPendingMethod] = useState(null);
     const [paymentReference, setPaymentReference] = useState('');
+    const [qrReferencesList, setQrReferencesList] = useState([]); // [NEW] Chips array para QR
 
 
     // Reiniciar al abrir
@@ -82,6 +83,7 @@ export default function PaymentModal({ isOpen, onClose, total, onConfirm, staff 
         if (method === 'QR' || method === 'Tarjeta') {
             setPendingMethod(method);
             setPaymentReference('');
+            setQrReferencesList([]); // Limpiar chips al abrir
             setIsReferencePromptOpen(true);
             return; // Detenemos aquí, la confirmación ocurre en handleConfirmReference
         }
@@ -89,45 +91,87 @@ export default function PaymentModal({ isOpen, onClose, total, onConfirm, staff 
         executeAddPayment(method, '');
     };
 
-    const handleConfirmReference = () => {
-        if (!isReferencePromptOpen || !pendingMethod) return; // Prevent double execution
-        
+    // [NEW] Handle adding a single QR chip
+    const handleAddQrChip = () => {
         const trimmedRef = paymentReference.trim();
+        if (!trimmedRef) return;
+
+        const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
         
-        if (!trimmedRef) {
-            toast.error('Debes ingresar la hora o referencia del pago.');
+        if (!timeRegex.test(trimmedRef)) {
+            toast.error(`Formato inválido: "${trimmedRef}".\nUsa formato 24h (Ej. 14:35).`);
             return;
         }
 
-        // Validación estricta formato 24h para pagos QR
+        if (qrReferencesList.includes(trimmedRef)) {
+            toast.error('Esta hora ya fue agregada.');
+            return;
+        }
+
+        setQrReferencesList([...qrReferencesList, trimmedRef]);
+        setPaymentReference(''); // Limpiar input para la siguiente
+    };
+
+    // [NEW] Remove a QR chip
+    const handleRemoveQrChip = (timeToRemove) => {
+        setQrReferencesList(qrReferencesList.filter(time => time !== timeToRemove));
+    };
+
+    const handleConfirmReference = () => {
+        if (!isReferencePromptOpen || !pendingMethod) return; // Prevent double execution
+        
+        let finalRefToSave = '';
+
         if (pendingMethod === 'QR') {
-            // Permitir una o varias horas separadas por comas (ej: "14:35, 15:00")
-            const timeEntries = trimmedRef.split(',').map(entry => entry.trim());
-            const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+            // Si el input tiene algo escrito que no fue "agregado" como chip aún, intentamos validarlo y agregarlo
+            let currentList = [...qrReferencesList];
+            const trimmedInput = paymentReference.trim();
             
-            for (const time of timeEntries) {
-                if (!time) continue; // Ignorar espacios vacíos entre comas
-                if (!timeRegex.test(time)) {
-                    toast.error(`Formato inválido: "${time}".\nUsa formato 24h (Ej. 14:35).`);
+            if (trimmedInput) {
+                const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+                if (timeRegex.test(trimmedInput)) {
+                    if (!currentList.includes(trimmedInput)) {
+                        currentList.push(trimmedInput);
+                    }
+                } else {
+                    toast.error(`La hora en el recuadro es inválida: "${trimmedInput}".\nCorrígela o bórrala antes de continuar.`);
                     return;
                 }
             }
+
+            if (currentList.length === 0) {
+                toast.error('Debes agregar al menos una hora.');
+                return;
+            }
+
+            // Unir todos los chips con comas para la base de datos
+            finalRefToSave = currentList.join(', ');
+            
+        } else {
+            // Lógica normal para Tarjetas (texto libre)
+            const trimmedRef = paymentReference.trim();
+            if (!trimmedRef) {
+                toast.error('Debes ingresar la referencia del pago.');
+                return;
+            }
+            finalRefToSave = trimmedRef;
         }
         
         const methodToSave = pendingMethod;
-        const refToSave = trimmedRef;
         
         setIsReferencePromptOpen(false);
         setPendingMethod(null);
         setPaymentReference('');
+        setQrReferencesList([]);
         
-        executeAddPayment(methodToSave, refToSave);
+        executeAddPayment(methodToSave, finalRefToSave);
     };
 
     const handleCancelReference = () => {
         setIsReferencePromptOpen(false);
         setPendingMethod(null);
         setPaymentReference('');
+        setQrReferencesList([]);
     };
 
     const executeAddPayment = (method, reference) => {
@@ -363,35 +407,68 @@ export default function PaymentModal({ isOpen, onClose, total, onConfirm, staff 
                             <h4 className="font-bold text-lg mb-2 text-gray-800">Referencia de Pago {pendingMethod}</h4>
                             <p className="text-xs text-gray-500 mb-4">
                                 {pendingMethod === 'QR'
-                                    ? "Ingresa la hora de la transferencia. Si son varios QR, ingresa todas las horas separadas por comas."
+                                    ? "Agrega las horas de las transferencias. (Ej: 14:35)"
                                     : "Ingresa la Hora del Comprobante (Ej. 14:35) o los últimos dígitos para facilitar la revisión."
                                 }
                             </p>
 
-                            <input
-                                type="text"
-                                value={paymentReference}
-                                onChange={(e) => {
-                                    // Auto-formateo opcional pero permitimos escribir comas
-                                    // Filtramos letras para QR y dejamos números, comas y dos puntos
-                                    let val = e.target.value;
-                                    if(pendingMethod === 'QR') {
-                                        val = val.replace(/[^0-9:, ]/g, '');
-                                    }
-                                    setPaymentReference(val);
-                                }}
-                                onKeyDown={(e) => { if (e.key === 'Enter') handleConfirmReference(); }}
-                                placeholder={pendingMethod === 'QR' ? "Obligatorio (Ej: 14:35, 14:40)" : "Ej: 14:35, Ref: 1234, o dejar vacío"}
-                                className={`w-full text-center p-3 border-2 rounded-lg outline-none mb-6 font-bold text-gray-700 placeholder:font-normal placeholder:text-gray-300 ${!paymentReference.trim() ? 'border-red-300 focus:border-red-500' : 'border-orange-200 focus:border-orange-500'}`}
-                                autoFocus
-                            />
+                            {/* CHIPS AREA FOR QR */}
+                            {pendingMethod === 'QR' && qrReferencesList.length > 0 && (
+                                <div className="flex flex-wrap gap-2 justify-center mb-4 min-h-[40px] p-2 bg-gray-50 rounded-lg border border-gray-100">
+                                    {qrReferencesList.map((time, idx) => (
+                                        <div key={idx} className="bg-orange-100 text-orange-700 border border-orange-200 px-3 py-1.5 rounded-full text-sm font-bold flex items-center gap-1 shadow-sm animate-in zoom-in duration-200">
+                                            {time}
+                                            <button 
+                                                onClick={() => handleRemoveQrChip(time)}
+                                                className="hover:bg-orange-200 rounded-full p-0.5 transition-colors"
+                                                title="Eliminar hora"
+                                            >
+                                                <X size={14} className="text-orange-600" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            <div className="flex gap-2 mb-6">
+                                <input
+                                    type="text"
+                                    value={paymentReference}
+                                    onChange={(e) => {
+                                        let val = e.target.value;
+                                        if (pendingMethod === 'QR') {
+                                            // Solo números y dos puntos permitidos para una sola hora
+                                            val = val.replace(/[^0-9:]/g, '');
+                                        }
+                                        setPaymentReference(val);
+                                    }}
+                                    onKeyDown={(e) => { 
+                                        if (e.key === 'Enter') {
+                                            if (pendingMethod === 'QR') handleAddQrChip();
+                                            else handleConfirmReference();
+                                        } 
+                                    }}
+                                    placeholder={pendingMethod === 'QR' ? "Ej: 14:35" : "Ej: 14:35, Ref: 1234, o dejar vacío"}
+                                    className={`w-full text-center p-3 border-2 rounded-lg outline-none font-bold text-gray-700 placeholder:font-normal placeholder:text-gray-300 ${!paymentReference.trim() && (pendingMethod !== 'QR' || qrReferencesList.length === 0) ? 'border-red-300 focus:border-red-500' : 'border-orange-200 focus:border-orange-500'}`}
+                                    autoFocus
+                                />
+                                {pendingMethod === 'QR' && (
+                                    <button 
+                                        onClick={handleAddQrChip}
+                                        disabled={!paymentReference.trim()}
+                                        className="bg-blue-100 text-blue-700 font-bold px-4 rounded-lg border border-blue-200 hover:bg-blue-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                                    >
+                                        + Añadir
+                                    </button>
+                                )}
+                            </div>
 
                             <div className="flex gap-2 w-full">
                                 <button onClick={handleCancelReference} className="flex-1 py-3 text-sm font-bold text-gray-500 bg-gray-100 rounded-lg hover:bg-gray-200">
                                     CANCELAR
                                 </button>
-                                <button onClick={handleConfirmReference} className="flex-1 py-3 text-sm font-bold text-white bg-orange-600 rounded-lg hover:bg-orange-700">
-                                    AGREGAR PAGO
+                                <button onClick={handleConfirmReference} className="flex-1 py-3 text-sm font-bold text-white bg-orange-600 rounded-lg hover:bg-orange-700 shadow-md">
+                                    CONFIRMAR PAGO
                                 </button>
                             </div>
                         </div>
