@@ -12,6 +12,7 @@ export default function POSInterface({ items, categories, staffMember, tables = 
   const [categoryFilter, setCategoryFilter] = useState('Todos');
   const [searchTerm, setSearchTerm] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false); // [NEW] Separate state for printing
   const [expandCategories, setExpandCategories] = useState(false);
   const [selectedTable, setSelectedTable] = useState(''); // [NEW] Selected Table
 
@@ -166,8 +167,13 @@ export default function POSInterface({ items, categories, staffMember, tables = 
     }
 
     setIsProcessing(true);
+    const tId = toast.loading("Guardando comanda...");
     try {
       await onPrintOrder(cart, setCart, selectedTable);
+      toast.success("Comanda enviada correctamente", { id: tId });
+    } catch (err) {
+      toast.error("Error al enviar comanda", { id: tId });
+      console.error(err);
     } finally {
       setIsProcessing(false);
     }
@@ -176,8 +182,13 @@ export default function POSInterface({ items, categories, staffMember, tables = 
   const handleCheckoutSafe = async () => {
     if (isProcessing) return;
     setIsProcessing(true);
+    const tId = toast.loading("Procesando pago...");
     try {
       await onCheckout(cart, setCart, selectedTable);  // [UPDATED] Pass selectedTable
+      toast.success("Venta procesada", { id: tId });
+    } catch (err) {
+      toast.error("Error al procesar cobro", { id: tId });
+      console.error(err);
     } finally {
       setIsProcessing(false);
     }
@@ -322,8 +333,22 @@ export default function POSInterface({ items, categories, staffMember, tables = 
           <div className="p-3 bg-gray-50 border-t border-gray-200 space-y-2">
             <div className="flex justify-between items-end mb-1"><span className="text-gray-500 font-medium text-sm">Total</span><span className="text-2xl font-black text-gray-900">Bs. {cartTotal.toFixed(2)}</span></div>
             <div className={`grid ${canCharge ? 'grid-cols-2' : 'grid-cols-1'} gap-2`}>
-              <button onClick={handleSendOrderSafe} disabled={cart.length === 0 || isProcessing} className="bg-gray-800 text-white py-3 rounded-lg font-bold shadow hover:bg-gray-900 disabled:opacity-50 text-xs flex flex-col items-center justify-center">{isProcessing ? 'Enviando...' : <><Send size={16} className="mb-1" /> ENVIAR + SALIR</>}</button>
-              {canCharge && (<button onClick={handleCheckoutSafe} disabled={cart.length === 0 || isProcessing} className="bg-green-600 text-white py-3 rounded-lg font-bold shadow hover:bg-green-700 disabled:opacity-50 text-xs flex flex-col items-center justify-center">{isProcessing ? 'Cobrando...' : <><div className="text-sm">COBRAR</div><span className="text-[9px] opacity-80">Directo</span></>}</button>)}
+              <button 
+                onClick={handleSendOrderSafe} 
+                disabled={cart.length === 0 || isProcessing || isPrinting} 
+                className="bg-gray-800 text-white py-3 rounded-lg font-bold shadow hover:bg-gray-900 disabled:opacity-50 text-xs flex flex-col items-center justify-center"
+              >
+                {isProcessing ? 'Guardando...' : isPrinting ? 'Imprimiendo...' : <><Send size={16} className="mb-1" /> ENVIAR + SALIR</>}
+              </button>
+              {canCharge && (
+                <button 
+                onClick={handleCheckoutSafe} 
+                disabled={cart.length === 0 || isProcessing || isPrinting} 
+                className="bg-green-600 text-white py-3 rounded-lg font-bold shadow hover:bg-green-700 disabled:opacity-50 text-xs flex flex-col items-center justify-center"
+                >
+                  {isProcessing ? 'Cargando...' : isPrinting ? 'Imprimiendo...' : <><div className="text-sm">COBRAR</div><span className="text-[9px] opacity-80">Directo</span></>}
+                </button>
+              )}
             </div>
           </div>
         </div>

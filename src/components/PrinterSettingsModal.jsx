@@ -6,6 +6,7 @@ const PrinterSettingsModal = ({ isOpen, onClose, currentType, onSelect }) => {
     const [isAuthorized, setIsAuthorized] = useState(false);
     // MANDATORY ATTENDANCE STATE
     const [requireClockIn, setRequireClockIn] = useState(false);
+    const [fastMode, setFastMode] = useState(false); // [NEW] Fast Mode State
 
     useEffect(() => {
         const storedAuth = localStorage.getItem('isAuthorizedTerminal');
@@ -13,6 +14,9 @@ const PrinterSettingsModal = ({ isOpen, onClose, currentType, onSelect }) => {
 
         const storedClockIn = localStorage.getItem('requireClockIn');
         setRequireClockIn(storedClockIn === 'true');
+
+        const storedFastMode = localStorage.getItem('printerFastMode');
+        setFastMode(storedFastMode === 'true');
     }, [isOpen]);
 
     const toggleAuthorization = () => {
@@ -32,6 +36,16 @@ const PrinterSettingsModal = ({ isOpen, onClose, currentType, onSelect }) => {
             localStorage.setItem('requireClockIn', 'true');
         } else {
             localStorage.removeItem('requireClockIn');
+        }
+    };
+
+    const toggleFastMode = () => {
+        const newState = !fastMode;
+        setFastMode(newState);
+        if (newState) {
+            localStorage.setItem('printerFastMode', 'true');
+        } else {
+            localStorage.setItem('printerFastMode', 'false');
         }
     };
 
@@ -74,6 +88,20 @@ const PrinterSettingsModal = ({ isOpen, onClose, currentType, onSelect }) => {
                             </div>
                             <div className={`w-10 h-5 rounded-full relative transition-colors ${requireClockIn ? 'bg-blue-500' : 'bg-gray-300'}`}>
                                 <div className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all ${requireClockIn ? 'left-6' : 'left-1'}`}></div>
+                            </div>
+                        </div>
+
+                        {/* [NEW] FAST MODE TOGGLE */}
+                        <div onClick={toggleFastMode} className={`cursor-pointer p-3 rounded-xl border transition-all flex items-center gap-3 mt-3 ${fastMode ? 'bg-orange-50 border-orange-200 text-orange-800' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
+                            <div className={`p-2 rounded-full ${fastMode ? 'bg-orange-200 text-orange-700' : 'bg-gray-200 text-gray-500'}`}>
+                                <ShieldCheck size={20} />
+                            </div>
+                            <div className="text-left flex-1">
+                                <span className="block font-bold text-xs">{fastMode ? 'IMPRESIÓN RÁPIDA (ON)' : 'IMPRESIÓN NORMAL'}</span>
+                                <span className="text-[10px] opacity-80">{fastMode ? 'Optimiza envío para Epson/China' : 'Formato con más diseño'}</span>
+                            </div>
+                            <div className={`w-10 h-5 rounded-full relative transition-colors ${fastMode ? 'bg-orange-500' : 'bg-gray-300'}`}>
+                                <div className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all ${fastMode ? 'left-6' : 'left-1'}`}></div>
                             </div>
                         </div>
                     </div>

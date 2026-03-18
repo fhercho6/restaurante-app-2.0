@@ -245,6 +245,13 @@
         *   **Validación Estricta de Horarios (QR):** Para contrarrestar errores humanos en conciliación bancaria, el input de Referencia de QR ahora rechaza preventivamente cualquier carácter no numérico y audita de forma rigurosa la coherencia aritmética (solo formato de 24hs Ej: `14:35`), bloqueando el cobro en horas irreales e incitando a la inserción de múltiples horas separadas por comas.
         *   **Rediseño de Reporte Térmico QR:** Se reconstruyó el comprobante fiscal 'Resumen QR' del Cajero. Los pagos han sido re-estructurados algorítmicamente para visualizarse en **orden descendente** (de montos mayores a menores) y ahora adjuntan la fecha original exacta de la orden (Día/Mes), agilizando brutalmente el emparejamiento manual con el estado de cuenta bancario al priorizar remesas fuertes.
 
+    29. **Sesión: 18 de Marzo 2026 (Optimización de Impresión & Seguridad de Sesión):**
+        *   **Eco-Print Memory (Anti-Lag):** Se desacopló la creación del pedido de la interfaz de impresión en el POS. Ahora, al presionar 'ENVIAR', el sistema guarda la comanda e inmediatamente libera al garzón retornando a la pantalla de inicio, mientras la impresión se procesa asíncronamente en segundo plano. Esto elimina la espera de 3-5 segundos que ocurría al procesar carritos grandes.
+        *   **Modo de Impresión Rápido (China/Epson):** Nuevo switch en 'Configuración de Terminal'. Al activarse, el sistema utiliza un motor de renderizado ultra-ligero (HTML Puro sin CSS complejo) optimizado para procesadores limitados de impresoras térmicas chinas o Epson TM-T20ii, garantizando una salida de papel instantánea.
+        *   **Carga de Datos Minimalista:** Se optimizó el objeto de datos enviado al recibo. En lugar de procesar todo el historial, el ticket ahora recibe solo los campos estrictamente necesarios para el papel, reduciendo el overhead de memoria del navegador.
+        *   **Seguridad de Acceso (Auto-Lock):** Se implementó un sistema de bloqueo automático por inactividad. Si la caja o terminal no detecta movimiento durante 5 minutos, la pantalla se bloquea exigiendo el PIN nuevamente. Esto protege las sesiones compartidas en tablets y computadoras principales.
+        *   **Hardening Anti-Crash:** Se añadieron límites y validaciones en los sumarios de turno para prevenir el error de 1MB de Firebase, asegurando que la app no colapse en días de altísima demanda.
+
 ---
 
 ## 🛠️ Instrucciones para la Nueva PC

@@ -1091,12 +1091,51 @@ export default function AppContent() {
                                 tables={tables} // [NEW] Pass tables for selection
                                 tableZones={tableZones} // [NEW] Pass Zone Map
                                 staffZone={staffZone} // [NEW] Pass selected zone
-                                onCheckout={handlePOSCheckout}
+                                onCheckout={async (cart, clearCart, tableName) => {
+                                    const res = await handlePOSCheckout(cart, clearCart, tableName);
+                                    // handlePOSCheckout normally sets the view/receipt if successful.
+                                    // No changes needed here if handlePOSCheckout is already fast.
+                                }}
                                 onPrintOrder={async (cart, clearCart, tableName) => {
-                                    const receipt = await createOrder(cart, clearCart, tableName, staffZone);
-                                    if (receipt) {
-                                        setLastSale(receipt);
-                                        setView('receipt_view');
+                                    // 1. Save order immediately
+                                    const orderData = await createOrder(cart, clearCart, tableName, staffZone);
+                                    if (orderData) {
+                                        // 2. Prep minimal data for printing
+                                        const minimalReceipt = {
+                                            ...orderData,
+                                            items: orderData.items.map(i => ({ name: i.name, qty: i.qty, price: i.price, id: i.id })),
+                                            type: 'order',
+                                            businessName: appName,
+                                            date: new Date().toLocaleString(),
+                                            staffName: staffMember ? staffMember.name : 'Personal'
+                                        };
+                                        
+                                        // 3. Set last sale so receipt component is ready
+                                        setLastSale(minimalReceipt);
+                                        
+                                        // 4. Return to home immediately (don't wait for printing UI)
+                                        setStaffMember(null);
+                                        setView('landing');
+
+                                        // 5. Trigger print from the receipt hidden state if needed, 
+                                        // or just let User see receipt if they prefer (currently we shift view)
+                                        // Since the user agreed to "enviar + salir", going to landing is correct.
+                                        // But they might still want the BROWSER print dialog to trigger.
+                                        // For that, we stay in receipt_view.
+                                        
+                                        /* 
+                                        PARA MÁXIMA VELOCIDAD:
+                                        Si 'view' cambia a 'receipt_view', el componente 'Receipt' se monta.
+                                        Si 'Receipt' tiene autoPrint={true}, lanza el diálogo.
+                                        */
+                                        
+                                        // User request says "tarda mucho al imprimir".
+                                        // Staying in POS while it "thinks" is the bottleneck.
+                                        // Solution: shift to receipt view with minimal data ASAP.
+                                        
+                                        setTimeout(() => {
+                                            setView('receipt_view');
+                                        }, 100);
                                     }
                                 }}
                                 onExit={() => {

@@ -4,6 +4,12 @@ import { X, Printer, Loader2, CheckCircle } from 'lucide-react';
 
 const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
     const [status, setStatus] = useState('preview');
+    const [isFastMode, setIsFastMode] = useState(false);
+
+    useEffect(() => {
+        const storedFastMode = localStorage.getItem('printerFastMode');
+        setIsFastMode(storedFastMode === 'true');
+    }, []);
 
     if (!data) return null;
 
@@ -346,6 +352,38 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                 <div class="border-b" style="margin:5px 0;"></div>
                 ${footer}
             `;
+        }
+
+        if (isFastMode) {
+            // [OPTIMIZED] ULTRA-LIGHTWEIGHT HTML FOR FAST MODE
+            return `<html><head><style>
+                body { font-family: 'monospace'; margin: 0; padding: 0; width: 72mm; font-size: 14px; color: #000; }
+                .text-center { text-align: center; }
+                .text-right { text-align: right; }
+                .bold { font-weight: bold; }
+                .border-b { border-bottom: 1px solid #000; margin: 5px 0; }
+                .flex-between { display: flex; justify-content: space-between; }
+                .row { display: flex; width: 100%; border-bottom: 0.5px solid #eee; }
+                .col-qty { width: 15%; text-align: left; }
+                .col-name { width: 60%; }
+                .col-price { width: 25%; text-align: right; }
+            </style></head><body>
+                <div class="text-center">
+                    <div class="bold">${title}</div>
+                    <div style="font-size:10px;">${data.date}</div>
+                    ${data.zone ? `<div class="bold">ZONA: ${data.zone}</div>` : ''}
+                    <div class="bold" style="font-size:24px; border:1px solid #000; margin:5px 0;">#${displayCode}</div>
+                </div>
+                <div class="border-b"></div>
+                ${data.items ? data.items.map(item => `<div class="row">
+                    <div class="col-qty">${item.qty}x</div>
+                    <div class="col-name">${item.name}</div>
+                    <div class="col-price">${fmt(item.price * item.qty)}</div>
+                </div>`).join('') : ''}
+                <div class="border-b"></div>
+                <div class="flex-between bold" style="font-size:20px;"><span>TOTAL:</span><span>Bs. ${fmt(data.total)}</span></div>
+                <div style="margin-top:10px;text-align:center;">*** GRACIAS ***</div>
+            </body></html>`;
         }
 
         return `<html><head><style>
