@@ -564,7 +564,7 @@ export const AdminRow = ({ item, onEdit, onDelete, isQuickEdit, onQuickUpdate, a
             <td className="p-4 text-center">
                 <div className="w-10 h-10 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center overflow-hidden mx-auto">
                     {item.image ? (
-                        <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                        <ImageWithLoader src={item.image} alt={item.name} className="w-full h-full" />
                     ) : (
                         <div className="text-gray-300"><ImageIcon size={16} /></div>
                     )}
