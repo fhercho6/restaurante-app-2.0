@@ -1,6 +1,6 @@
 // src/components/PaymentModal.jsx - SOPORTE MULTI-PAGO Y CORTESÍA CORRECTA
 import React, { useState, useEffect } from 'react';
-import { X, DollarSign, CreditCard, Grid, Gift, Check, Trash2, Calendar, User, ChevronDown, Lock, Unlock } from 'lucide-react'; // [UPDATED] Added Lock/Unlock
+import { X, DollarSign, CreditCard, Grid, Gift, Check, Trash2, Calendar, User, ChevronDown, Lock, Unlock, Clock } from 'lucide-react'; // [UPDATED] Added Clock
 import toast from 'react-hot-toast';
 
 export default function PaymentModal({ isOpen, onClose, total, onConfirm, staff = [], initialWaiter = null }) {
@@ -17,7 +17,8 @@ export default function PaymentModal({ isOpen, onClose, total, onConfirm, staff 
     const [isReferencePromptOpen, setIsReferencePromptOpen] = useState(false);
     const [pendingMethod, setPendingMethod] = useState(null);
     const [paymentReference, setPaymentReference] = useState('');
-    const [qrReferencesList, setQrReferencesList] = useState([]); // [NEW] Chips array para QR
+    const [qrSubPayments, setQrSubPayments] = useState([]); // [NEW] Desglose de pagos QR individuales
+    const [qrAmountInput, setQrAmountInput] = useState(''); // [NEW] Monto del sub-pago QR
 
 
     // Reiniciar al abrir
@@ -83,7 +84,8 @@ export default function PaymentModal({ isOpen, onClose, total, onConfirm, staff 
         if (method === 'QR' || method === 'Tarjeta') {
             setPendingMethod(method);
             setPaymentReference('');
-            setQrReferencesList([]); // Limpiar chips al abrir
+            setQrSubPayments([]); // Limpiar sub-pagos al abrir
+            setQrAmountInput(amountToAdd.toFixed(2)); // Sugerir el monto total del input principal
             setIsReferencePromptOpen(true);
             return; // Detenemos aquí, la confirmación ocurre en handleConfirmReference
         }
@@ -91,62 +93,113 @@ export default function PaymentModal({ isOpen, onClose, total, onConfirm, staff 
         executeAddPayment(method, '');
     };
 
-    // [NEW] Handle adding a single QR chip
-    const handleAddQrChip = () => {
+    // [NEW] Handle adding a single QR sub-payment
+    const handleAddQrSubPayment = () => {
         const trimmedRef = paymentReference.trim();
+        const amt = parseFloat(qrAmountInput);
+        
         if (!trimmedRef) return;
+        if (!amt || amt <= 0) {
+            toast.error('Monto inválido.');
+            return;
+        }
 
         const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
-        
         if (!timeRegex.test(trimmedRef)) {
             toast.error(`Formato inválido: "${trimmedRef}".\nUsa formato 24h (Ej. 14:35).`);
             return;
         }
 
-        if (qrReferencesList.includes(trimmedRef)) {
-            toast.error('Esta hora ya fue agregada.');
+        if (qrSubPayments.some(sp => sp.time === trimmedRef)) {
+            toast.error('Esta hora ya fue agregada en este desglose.');
             return;
         }
 
-        setQrReferencesList([...qrReferencesList, trimmedRef]);
-        setPaymentReference(''); // Limpiar input para la siguiente
+        const currentTotalAdded = qrSubPayments.reduce((acc, sp) => acc + sp.amount, 0);
+        const parentTargetAmount = parseFloat(currentAmount);
+        
+        if (currentTotalAdded + amt > parentTargetAmount) {
+             toast.error(`El monto supera el total esperado para este QR (Faltan Bs. ${(parentTargetAmount - currentTotalAdded).toFixed(2)})`);
+             return;
+        }
+
+        setQrSubPayments([...qrSubPayments, { time: trimmedRef, amount: amt, id: Date.now() + Math.random() }]);
+        setPaymentReference(''); 
+        
+        // Auto sugerir el resto del monto
+        const newRemaining = parentTargetAmount - (currentTotalAdded + amt);
+        if (newRemaining > 0) {
+             setQrAmountInput(newRemaining.toFixed(2));
+        } else {
+             setQrAmountInput('');
+        }
     };
 
-    // [NEW] Remove a QR chip
-    const handleRemoveQrChip = (timeToRemove) => {
-        setQrReferencesList(qrReferencesList.filter(time => time !== timeToRemove));
+    // [NEW] Remove a QR sub-payment
+    const handleRemoveQrSubPayment = (idToRemove) => {
+        const filtered = qrSubPayments.filter(sp => sp.id !== idToRemove);
+        setQrSubPayments(filtered);
+        
+        // Actualizar el monto sugerido al borrar
+        const currentTotalAdded = filtered.reduce((acc, sp) => acc + sp.amount, 0);
+        const parentTargetAmount = parseFloat(currentAmount);
+        setQrAmountInput((parentTargetAmount - currentTotalAdded).toFixed(2));
     };
 
     const handleConfirmReference = () => {
         if (!isReferencePromptOpen || !pendingMethod) return; // Prevent double execution
         
-        let finalRefToSave = '';
-
         if (pendingMethod === 'QR') {
-            // Si el input tiene algo escrito que no fue "agregado" como chip aún, intentamos validarlo y agregarlo
-            let currentList = [...qrReferencesList];
-            const trimmedInput = paymentReference.trim();
+            const parentTargetAmount = parseFloat(currentAmount);
+            let currentList = [...qrSubPayments];
             
-            if (trimmedInput) {
+            // Si hay algo escrito en la cajita de hora, intentamos agregarlo antes de confirmar todo
+            const trimmedInput = paymentReference.trim();
+            const amt = parseFloat(qrAmountInput);
+            if (trimmedInput && amt > 0) {
                 const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
                 if (timeRegex.test(trimmedInput)) {
-                    if (!currentList.includes(trimmedInput)) {
-                        currentList.push(trimmedInput);
+                    if (!currentList.some(sp => sp.time === trimmedInput)) {
+                        const newTotal = currentList.reduce((acc, sp) => acc + sp.amount, 0) + amt;
+                        if (newTotal <= parentTargetAmount) {
+                            currentList.push({ time: trimmedInput, amount: amt, id: Date.now() + Math.random() });
+                        } else {
+                            toast.error('El último monto ingresado excede el resto permitido. Añádelo correctamente antes de confirmar.');
+                            return;
+                        }
                     }
                 } else {
-                    toast.error(`La hora en el recuadro es inválida: "${trimmedInput}".\nCorrígela o bórrala antes de continuar.`);
+                    toast.error(`Hora inválida: "${trimmedInput}". Corrígela o bórrala antes de continuar.`);
                     return;
                 }
             }
 
             if (currentList.length === 0) {
-                toast.error('Debes agregar al menos una hora.');
+                toast.error('Debes agregar al menos una transferencia QR.');
                 return;
             }
 
-            // Unir todos los chips con comas para la base de datos
-            finalRefToSave = currentList.join(', ');
+            const totalInQr = currentList.reduce((acc, sp) => acc + sp.amount, 0);
+            if (totalInQr < parentTargetAmount) {
+                toast.error(`Tus transferencias suman Bs. ${totalInQr.toFixed(2)}, pero indicaste cobrar Bs. ${parentTargetAmount.toFixed(2)}. Completa la diferencia.`);
+                return;
+            }
+
+            // Inyectar DIRECTAMENTE cada sub-pago como un pago individual en la lista maestra
+            const newPaymentsToPush = currentList.map(sp => ({
+                id: sp.id, 
+                method: 'QR',
+                amount: sp.amount,
+                reference: sp.time
+            }));
+
+            setPayments([...payments, ...newPaymentsToPush]);
             
+            // Recalcular saldo restante global
+            const newTotalPaid = totalPaid + parentTargetAmount;
+            const newRemaining = Math.max(0, total - newTotalPaid);
+            setCurrentAmount(newRemaining > 0 ? newRemaining.toFixed(2) : '');
+
         } else {
             // Lógica normal para Tarjetas (texto libre)
             const trimmedRef = paymentReference.trim();
@@ -154,24 +207,23 @@ export default function PaymentModal({ isOpen, onClose, total, onConfirm, staff 
                 toast.error('Debes ingresar la referencia del pago.');
                 return;
             }
-            finalRefToSave = trimmedRef;
+            executeAddPayment(pendingMethod, trimmedRef);
         }
         
-        const methodToSave = pendingMethod;
-        
+        // Limpiamos la UI del prompt
         setIsReferencePromptOpen(false);
         setPendingMethod(null);
         setPaymentReference('');
-        setQrReferencesList([]);
-        
-        executeAddPayment(methodToSave, finalRefToSave);
+        setQrSubPayments([]);
+        setQrAmountInput('');
     };
 
     const handleCancelReference = () => {
         setIsReferencePromptOpen(false);
         setPendingMethod(null);
         setPaymentReference('');
-        setQrReferencesList([]);
+        setQrSubPayments([]);
+        setQrAmountInput('');
     };
 
     const executeAddPayment = (method, reference) => {
@@ -412,56 +464,76 @@ export default function PaymentModal({ isOpen, onClose, total, onConfirm, staff 
                                 }
                             </p>
 
-                            {/* CHIPS AREA FOR QR */}
-                            {pendingMethod === 'QR' && qrReferencesList.length > 0 && (
-                                <div className="flex flex-wrap gap-2 justify-center mb-4 min-h-[40px] p-2 bg-gray-50 rounded-lg border border-gray-100">
-                                    {qrReferencesList.map((time, idx) => (
-                                        <div key={idx} className="bg-orange-100 text-orange-700 border border-orange-200 px-3 py-1.5 rounded-full text-sm font-bold flex items-center gap-1 shadow-sm animate-in zoom-in duration-200">
-                                            {time}
-                                            <button 
-                                                onClick={() => handleRemoveQrChip(time)}
-                                                className="hover:bg-orange-200 rounded-full p-0.5 transition-colors"
-                                                title="Eliminar hora"
-                                            >
-                                                <X size={14} className="text-orange-600" />
-                                            </button>
+                            {/* AREA PARA SUB-PAGOS QR */}
+                            {pendingMethod === 'QR' && qrSubPayments.length > 0 && (
+                                <div className="flex flex-col gap-2 mb-4 bg-gray-50 rounded-lg border border-gray-200 p-2 max-h-[160px] overflow-y-auto w-full mx-auto shadow-inner">
+                                    {qrSubPayments.map((sp) => (
+                                        <div key={sp.id} className="bg-orange-100 text-orange-900 border border-orange-200 px-3 py-2.5 rounded-lg text-sm font-bold flex items-center justify-between shadow-sm animate-in zoom-in duration-200">
+                                            <span className="flex items-center gap-2"><Clock size={16} className="text-orange-600"/> {sp.time}</span>
+                                            <div className="flex items-center gap-4">
+                                                <span className="text-base">Bs. {sp.amount.toFixed(2)}</span>
+                                                <button 
+                                                    onClick={() => handleRemoveQrSubPayment(sp.id)}
+                                                    className="hover:bg-orange-200 text-orange-500 hover:text-red-500 rounded p-1 transition-colors"
+                                                    title="Eliminar Sub-pago"
+                                                >
+                                                    <X size={16} />
+                                                </button>
+                                            </div>
                                         </div>
                                     ))}
+                                    {qrSubPayments.reduce((acc, sp) => acc + sp.amount, 0) < parseFloat(currentAmount) && (
+                                         <div className="text-xs text-red-500 font-bold bg-red-50 p-2 rounded border border-red-100 mt-1">
+                                             ⚠️ Falta desglosar Bs. {(parseFloat(currentAmount) - qrSubPayments.reduce((acc, sp) => acc + sp.amount, 0)).toFixed(2)}
+                                         </div>
+                                    )}
                                 </div>
                             )}
 
-                            <div className="flex gap-2 mb-6">
-                                <input
-                                    type="text"
-                                    value={paymentReference}
-                                    onChange={(e) => {
-                                        let val = e.target.value;
-                                        if (pendingMethod === 'QR') {
-                                            // Solo números y dos puntos permitidos para una sola hora
-                                            val = val.replace(/[^0-9:]/g, '');
-                                        }
-                                        setPaymentReference(val);
-                                    }}
-                                    onKeyDown={(e) => { 
-                                        if (e.key === 'Enter') {
-                                            if (pendingMethod === 'QR') handleAddQrChip();
-                                            else handleConfirmReference();
-                                        } 
-                                    }}
-                                    placeholder={pendingMethod === 'QR' ? "Ej: 14:35" : "Ej: 14:35, Ref: 1234, o dejar vacío"}
-                                    className={`w-full text-center p-3 border-2 rounded-lg outline-none font-bold text-gray-700 placeholder:font-normal placeholder:text-gray-300 ${!paymentReference.trim() && (pendingMethod !== 'QR' || qrReferencesList.length === 0) ? 'border-red-300 focus:border-red-500' : 'border-orange-200 focus:border-orange-500'}`}
-                                    autoFocus
-                                />
-                                {pendingMethod === 'QR' && (
+                            {pendingMethod === 'QR' ? (
+                                <div className="flex gap-2 mb-6">
+                                    <div className="flex-1 relative">
+                                        <span className="absolute left-3 top-3.5 text-gray-400 font-bold text-sm">Bs.</span>
+                                        <input
+                                            type="number"
+                                            value={qrAmountInput}
+                                            onChange={(e) => setQrAmountInput(e.target.value)}
+                                            placeholder="Monto"
+                                            className="w-full text-center pl-8 p-3 border-2 border-orange-200 rounded-lg outline-none font-bold text-gray-700 focus:border-orange-500 bg-orange-50/30"
+                                        />
+                                    </div>
+                                    <div className="flex-1 relative">
+                                        <input
+                                            type="text"
+                                            value={paymentReference}
+                                            onChange={(e) => setPaymentReference(e.target.value.replace(/[^0-9:]/g, ''))}
+                                            onKeyDown={(e) => e.key === 'Enter' && handleAddQrSubPayment()}
+                                            placeholder="Hora Ej: 14:35"
+                                            className="w-full text-center p-3 border-2 border-orange-200 rounded-lg outline-none font-bold text-gray-700 focus:border-orange-500 bg-orange-50/30"
+                                            autoFocus
+                                        />
+                                    </div>
                                     <button 
-                                        onClick={handleAddQrChip}
-                                        disabled={!paymentReference.trim()}
-                                        className="bg-blue-100 text-blue-700 font-bold px-4 rounded-lg border border-blue-200 hover:bg-blue-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                                        onClick={handleAddQrSubPayment}
+                                        disabled={!paymentReference.trim() || !parseFloat(qrAmountInput)}
+                                        className="bg-blue-100 text-blue-700 shadow-sm font-bold px-4 rounded-lg border border-blue-200 hover:bg-blue-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                                     >
                                         + Añadir
                                     </button>
-                                )}
-                            </div>
+                                </div>
+                            ) : (
+                                <div className="flex gap-2 mb-6">
+                                    <input
+                                        type="text"
+                                        value={paymentReference}
+                                        onChange={(e) => setPaymentReference(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleConfirmReference()}
+                                        placeholder="Ej: 14:35, Ref: 1234, o dejar vacío"
+                                        className="w-full text-center p-3 border-2 border-orange-200 rounded-lg outline-none font-bold text-gray-700 focus:border-orange-500"
+                                        autoFocus
+                                    />
+                                </div>
+                            )}
 
                             <div className="flex gap-2 w-full">
                                 <button onClick={handleCancelReference} className="flex-1 py-3 text-sm font-bold text-gray-500 bg-gray-100 rounded-lg hover:bg-gray-200">
