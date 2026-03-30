@@ -502,16 +502,35 @@ export default function PaymentModal({ isOpen, onClose, total, onConfirm, staff 
                                             className="w-full text-center pl-8 p-3 border-2 border-orange-200 rounded-lg outline-none font-bold text-gray-700 focus:border-orange-500 bg-orange-50/30"
                                         />
                                     </div>
-                                    <div className="flex-1 relative">
+                                    <div className="flex-1 relative flex items-center justify-center">
                                         <input
                                             type="text"
                                             value={paymentReference}
-                                            onChange={(e) => setPaymentReference(e.target.value.replace(/[^0-9:]/g, ''))}
+                                            onChange={(e) => {
+                                                let val = e.target.value.replace(/[^0-9]/g, '');
+                                                if (val.length > 4) val = val.substring(0, 4);
+                                                if (val.length >= 3) {
+                                                    val = val.substring(0, 2) + ':' + val.substring(2);
+                                                }
+                                                setPaymentReference(val);
+                                            }}
                                             onKeyDown={(e) => e.key === 'Enter' && handleAddQrSubPayment()}
-                                            placeholder="Hora Ej: 14:35"
-                                            className="w-full text-center p-3 border-2 border-orange-200 rounded-lg outline-none font-bold text-gray-700 focus:border-orange-500 bg-orange-50/30"
+                                            placeholder="Hora Ej: 1435"
+                                            className="w-full text-center p-3 pr-14 border-2 border-orange-200 rounded-lg outline-none font-bold text-gray-700 focus:border-orange-500 bg-orange-50/30 tracking-widest"
                                             autoFocus
                                         />
+                                        <button 
+                                            title="Poner hora actual"
+                                            onClick={() => {
+                                                const now = new Date();
+                                                const hh = String(now.getHours()).padStart(2, '0');
+                                                const mm = String(now.getMinutes()).padStart(2, '0');
+                                                setPaymentReference(`${hh}:${mm}`);
+                                            }}
+                                            className="absolute right-2 text-[10px] font-black tracking-wider text-orange-600 bg-orange-100 border border-orange-200 px-2 py-1.5 rounded shadow-sm hover:bg-orange-200 active:scale-95 transition-all"
+                                        >
+                                            AHORA
+                                        </button>
                                     </div>
                                     <button 
                                         onClick={handleAddQrSubPayment}
