@@ -1,13 +1,30 @@
 # 🚀 Estado del Proyecto: Sistema ZZIF (Restaurante App)
 
-## 📅 Fecha: 18 de Marzo, 2026
-**Estado Actual:** Release 2.9 (Optimizado & Seguro) 🚀🔒
+## 📅 Fecha: 30 de Marzo, 2026
+**Estado Actual:** Release 2.9.5 (Precisión Financiera & Multi-QR) 🚀🏦
 
 ---
 
-## ✅ Últimos Cambios Realizados
+## ✅ Últimos Cambios Realizados (Marzo 30)
 
-1.  **Integración de Lector de Códigos de Barras (Staff Login):**
+1.  **Auditoría y Desglose Multi-QR (Precisión Bancaria):**
+    *   **Objetivo:** Erradicar errores de conciliación donde los pagos múltiples por QR se mezclaban en un solo bloque.
+    *   **Solución:** Se reconstruyó `PaymentModal.jsx` para inyectar transacciones hijas. El Reporte Z térmico ahora itera sobre `qrPayments` imprimiendo *cada* transferencia como una fila individual, calcando los extractos del banco.
+
+2.  **Protección Anti-Errores en Caja (UX/UI):**
+    *   **Bloqueo de Sobrepagos Digitales:** Se erradicó el error de tecleo al cobrar tarjetas o QRs validando estrictamente que `amountToAdd` no supere el saldo deudor. El sistema emite una alerta y auto-corrige el input al faltante real.
+    *   **Máscara Inteligente de Tiempo:** El ingreso clásico de tiempo se reemplazó por un Regex en vivo: escribir '1435' formatea automáticamente a '14:35'.
+    *   **Botón AHORA:** Atajo visual para que el cajero rellene la hora del dispositivo de inmediato.
+    *   **Remoción de Spin Buttons:** Se cambió el input numérico central a `inputMode="decimal"` para destruir las flechas nativas del navegador causantes de descuadres accidentales.
+
+3.  **Gestión de Inventario Robusta:**
+    *   Se implementó `ImageWithLoader` en la tabla de inventario administrativo, previniendo visualmente íconos de imágenes rotas causados por URLs huérfanas o errores de carga PWA.
+
+---
+
+## 📌 Histórico de Versiones Anteriores
+
+4.  **Integración de Lector de Códigos de Barras (Staff Login):**
     *   **Objetivo:** Permitir login inmediato escaneando la credencial con lector láser (no QR).
     *   **Solución:** Code 128, 6 caracteres, ancho de barra 1.2 "Anti-Sangrado ID".
 
