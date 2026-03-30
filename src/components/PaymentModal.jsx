@@ -73,11 +73,12 @@ export default function PaymentModal({ isOpen, onClose, total, onConfirm, staff 
             return;
         }
 
-        // Validación tarjeta/qr exacto
-        if ((method === 'Tarjeta' || method === 'QR') && amountToAdd > remaining && remaining > 0) {
-            // Permitir sobrepago en tarjeta? Usualmente no se da cambio de tarjeta.
-            // Asumimos que si pagan mas, es propina o error, pero el sistema calcula cambio.
-            // Advertencia opcional.
+        // [FIX] Bloqueo estricto para métodos digitales (Requisito: Prevenir descuadres por error de tipeo)
+        // El Efectivo sí permite sobrepago para que el sistema calcule el Cambio.
+        if (method !== 'Efectivo' && method !== 'Cortesía' && amountToAdd > remaining && remaining > 0) {
+            toast.error(`No puedes cobrar más del saldo faltante con ${method}.\nMonto máximo: Bs. ${remaining.toFixed(2)}`);
+            setCurrentAmount(remaining.toFixed(2));
+            return;
         }
 
         // Si es pago digital (QR o Tarjeta), pedimos la referencia primero
@@ -395,9 +396,16 @@ export default function PaymentModal({ isOpen, onClose, total, onConfirm, staff 
                         <div className="relative">
                             <span className="absolute left-4 top-3.5 text-gray-400 font-bold">Bs.</span>
                             <input
-                                type="number"
+                                type="text"
+                                inputMode="decimal"
                                 value={currentAmount}
-                                onChange={(e) => setCurrentAmount(e.target.value)}
+                                onChange={(e) => {
+                                    const val = e.target.value.replace(/[^0-9.]/g, ''); // Remover cualquier char no numérico/punto
+                                    // Prevenir doble punto decimal
+                                    if (/^\d*\.?\d*$/.test(val)) {
+                                        setCurrentAmount(val);
+                                    }
+                                }}
                                 onFocus={(e) => e.target.select()}
                                 className="w-full pl-12 pr-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl text-2xl font-bold focus:border-blue-500 focus:bg-white outline-none transition-all text-center"
                                 placeholder="0.00"
