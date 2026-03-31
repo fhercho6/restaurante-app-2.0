@@ -11,7 +11,8 @@
     *   **Objetivo:** Eliminar el descuadre del Reporte Z donde los gastos transferidos (Ej. comisiones por QR) restaban dinero físico del cajón del cajero.
     *   **Solución:** Se implementó un parámetro `method` (Efectivo / Transferencia). El Motor de Caja ahora calcula `Fondo + Efectivo - Gastos Efectivo = Efectivo en Caja`.
     *   **Interfaz de Usuario:** Tanto en "Nuevo Gasto" como en "Pagar Comisiones" ahora hay selectores duales físicos/digitales.
-    *   **Rediseño de UX en Reportes X / Z:** El ticket térmico y el documento A4 se dividieron en 3 bloques independientes ("1. Arqueo Físico", "2. Banco", "3. Resumen") haciendo el cuadre "a prueba de tontos" para el personal.
+    *   **Rediseño UX en Reportes X / Z:** El ticket térmico y el documento A4 se dividieron en 3 bloques independientes ("1. Arqueo Físico", "2. Banco", "3. Resumen").
+    *   **Claridad de Arqueo Físico:** El rótulo "Fondo Inicial (Base)" fue reemplazado por **"Fondo (Cambiado)"** o **"Fondo Inicial (Cambiado)"** en ambos formatos de impresión para indicarle al cajero explícitamente que ese dinero es "suelto" (cambio) que debe ser devuelto junto con la venta física.
 
 ---
 
