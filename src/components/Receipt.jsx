@@ -155,7 +155,7 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                     <div class="box">
                         <div class="box-header">I. ARQUEO FÍSICO (BILLETES A ENTREGAR)</div>
                         <table class="table-clean">
-                            <tr><td>[+] FONDO INICIAL (BASE)</td><td class="text-right">${fmt(data.openingAmount)}</td></tr>
+                            <tr><td>[+] FONDO INICIAL (CAMBIADO)</td><td class="text-right">${fmt(data.openingAmount)}</td></tr>
                             <tr><td>[+] VENTAS EFECTIVO</td><td class="text-right">${fmt(stats.cashSales)}</td></tr>
                             <tr><td style="color:#d32f2f;">[-] GASTOS EN EFECTIVO</td><td class="text-right" style="color:#d32f2f;">${fmt(stats.cashExpenses || stats.totalExpenses)}</td></tr>
                             <tr class="row-total"><td>TOTAL A ENTREGAR EN CAJA</td><td class="text-right">${fmt(data.finalCash)}</td></tr>
@@ -298,7 +298,7 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                 <div style="background:#000; color:#fff; text-align:center; font-weight:bold; padding:4px 0; margin:10px 0 5px 0;">
                     1. ARQUEO FÍSICO (BILLETES)
                 </div>
-                <div class="flex-between"><span>[+] Fondo Apertura:</span><span>${fmt(data.openingAmount)}</span></div>
+                <div class="flex-between"><span>[+] Fondo (Cambiado):</span><span>${fmt(data.openingAmount)}</span></div>
                 <div class="flex-between"><span>[+] Ventas Efectivo:</span><span>${fmt(stats.cashSales)}</span></div>
                 <div class="flex-between"><span>[-] Gastos Efectivo:</span><span>${fmt(stats.cashExpenses || stats.totalExpenses)}</span></div>
                 <div class="border-b" style="margin:5px 0;"></div>
