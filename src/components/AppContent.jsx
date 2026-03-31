@@ -313,10 +313,10 @@ export default function AppContent() {
         if (success) setIsOpenRegisterModalOpen(false);
     };
 
-    const handleAddExpenseWithReceipt = async (description, amount, type) => {
+    const handleAddExpenseWithReceipt = async (description, amount, type, details = null, method = 'Efectivo') => {
         const tId = toast.loading('Procesando gasto...');
         try {
-            const success = await addExpense(description, amount, type);
+            const success = await addExpense(description, amount, type, details, method);
             if (success) {
                 toast.dismiss(tId);
                 const expenseReceipt = {
@@ -326,6 +326,7 @@ export default function AppContent() {
                     staffName: staffMember ? staffMember.name : 'Admin',
                     description: description,
                     amount: amount,
+                    method: method, // [NEW] Print Method
                     autoPrint: true
                 };
                 setLastSale(expenseReceipt);
@@ -346,7 +347,7 @@ export default function AppContent() {
     const handleCloseRegisterAction = async () => {
 
         // 1. Calculate Expected Cash
-        let cashFinal = (registerSession.openingAmount || 0) + sessionStats.cashSales - sessionStats.totalExpenses;
+        let cashFinal = (registerSession.openingAmount || 0) + sessionStats.cashSales - (sessionStats.cashExpenses || 0);
         let totalSalaries = 0;
         let totalCommissions = 0;
         let attendanceList = [];
@@ -485,6 +486,7 @@ export default function AppContent() {
                     amount: totalSalaries,
                     description: `Nómina Turno (Inc. Comisiones)`,
                     type: 'Adelanto Sueldo',
+                    method: 'Efectivo', // [FIX] Payroll de cajero descuenta efectivo físico
                     registerId: registerSession.id,
                     date: new Date().toISOString(),
                     staffNames: attendanceList.map(s => s.name).join(', '),
@@ -905,6 +907,7 @@ export default function AppContent() {
                                                     soldProducts: sessionStats.soldProducts,
                                                     staffName: staffMember?.name || currentUser?.displayName || currentUser?.email || 'Cajero',
                                                     cashierName: staffMember?.name || currentUser?.displayName || currentUser?.email || 'Cajero',
+                                                    isXReport: true, // [NEW] Flag para que Receipt sepa que es Arqueo X
                                                     status: 'preview'
                                                 };
                                             }

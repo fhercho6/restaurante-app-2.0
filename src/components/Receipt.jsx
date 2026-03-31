@@ -83,7 +83,7 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
         // GENERATE ROWS HTML
         const renderExpenseRows = (list) => {
             if (list.length === 0) return '<tr><td colspan="2" style="font-style:italic;padding:5px 0;text-align:center;color:#777;">- Sin registros -</td></tr>';
-            return list.map(e => `<tr><td style="padding:5px 0;">• ${e.description}</td><td style="text-align:right;padding:5px 0;">${fmt(e.amount)}</td></tr>`).join('');
+            return list.map(e => `<tr><td style="padding:5px 0;">• ${e.description} <b>[${(e.method || 'Efectivo').substring(0,2)}]</b></td><td style="text-align:right;padding:5px 0;">${fmt(e.amount)}</td></tr>`).join('');
         };
 
         const renderZoneRows = () => {
@@ -143,7 +143,7 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
             
             <div class="main-header">
                 <div class="biz-name">${data.businessName || 'LicoBar'}</div>
-                <div class="report-title">REPORTE DE CIERRE DE CAJA (CORTE Z)</div>
+                <div class="report-title">${data.isXReport ? 'REPORTE X (ARQUEO EN CURSO)' : 'REPORTE DE CIERRE DE CAJA (CORTE Z)'}</div>
                 <div class="meta-info">
                     JORNADA: ${data.openingNote ? data.openingNote.toUpperCase() + ' - ' : ''}${new Date(data.openedAt || Date.now()).toLocaleDateString()} al ${data.date}<br/>
                     RESPONSABLE: ${staffName.toUpperCase()} | CAJERO: ${cashierName.toUpperCase()}
@@ -153,14 +153,21 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
             <div class="container">
                 <div class="col">
                     <div class="box">
-                        <div class="box-header">I. INGRESOS (DINERO ENTRANTE)</div>
+                        <div class="box-header">I. ARQUEO FÍSICO (BILLETES A ENTREGAR)</div>
                         <table class="table-clean">
-                            <tr><td>FONDO INICIAL (BASE)</td><td class="text-right">${fmt(data.openingAmount)}</td></tr>
-                            <tr><td>VENTAS EFECTIVO</td><td class="text-right">${fmt(stats.cashSales)}</td></tr>
-                            <tr><td>VENTAS QR / TRANSF.</td><td class="text-right">${fmt(stats.qrSales)}</td></tr>
-                            <tr><td>VENTAS TARJETA</td><td class="text-right">${fmt(stats.cardSales)}</td></tr>
-                            <tr><td>VENTAS RESERVA</td><td class="text-right">${fmt(stats.reservationSales || 0)}</td></tr>
-                            <tr class="row-total"><td>TOTAL INGRESOS</td><td class="text-right">${fmt(stats.cashSales + stats.qrSales + stats.cardSales + (stats.reservationSales || 0))}</td></tr>
+                            <tr><td>[+] FONDO INICIAL (BASE)</td><td class="text-right">${fmt(data.openingAmount)}</td></tr>
+                            <tr><td>[+] VENTAS EFECTIVO</td><td class="text-right">${fmt(stats.cashSales)}</td></tr>
+                            <tr><td style="color:#d32f2f;">[-] GASTOS EN EFECTIVO</td><td class="text-right" style="color:#d32f2f;">${fmt(stats.cashExpenses || stats.totalExpenses)}</td></tr>
+                            <tr class="row-total"><td>TOTAL A ENTREGAR EN CAJA</td><td class="text-right">${fmt(data.finalCash)}</td></tr>
+                        </table>
+                    </div>
+
+                    <div class="box" style="margin-top: 20px;">
+                        <div class="box-header">II. MOVIMIENTOS DIGITALES (BANCO)</div>
+                        <table class="table-clean">
+                            <tr><td>[+] COBROS QR / TRANSF.</td><td class="text-right">${fmt(stats.qrSales)}</td></tr>
+                            <tr><td>[+] COBROS TARJETA</td><td class="text-right">${fmt(stats.cardSales)}</td></tr>
+                            <tr><td style="color:#d32f2f;">[-] PAGOS DIGITALES / QR</td><td class="text-right" style="color:#d32f2f;">${fmt(Math.max(0, (stats.totalExpenses || 0) - (stats.cashExpenses || 0)))}</td></tr>
                         </table>
                     </div>
 
@@ -182,28 +189,30 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
 
                 <div class="col">
                     <div class="box">
-                        <div class="box-header">II. GASTOS OPERATIVOS</div>
+                        <div class="box-header">III. DETALLE EGRESOS Y NÓMINA</div>
                         <table class="table-clean">
+                            <tr><td colspan="2" style="font-weight:bold; font-size:10px; color:#555;">OPERATIVOS:</td></tr>
                             ${operatingRows}
-                            <tr class="row-total"><td>SUBTOTAL GASTOS</td><td class="text-right">${fmt(totalOperatingExpenses)}</td></tr>
-                        </table>
-                    </div>
-
-                    <div class="box" style="margin-top: 20px;">
-                        <div class="box-header">III. COMISIONES Y NÓMINA</div>
-                        <table class="table-clean">
+                            <tr><td colspan="2" style="font-weight:bold; font-size:10px; color:#555; padding-top:10px;">COMISIONES / SUELDOS:</td></tr>
                             ${commissionRows}
-                            <tr class="row-total"><td>SUBTOTAL NÓMINA</td><td class="text-right">${fmt(totalCommissionExpenses)}</td></tr>
+                            <tr class="row-total"><td>TOTAL EGRESOS GENERAL</td><td class="text-right">${fmt(stats.totalExpenses)}</td></tr>
                         </table>
                     </div>
 
-                    <div class="box-thick">
-                        <div class="real-cash-title">EFECTIVO REAL EN CAJA</div>
+                    <div class="box-thick" style="background:#000; color:#fff; border-color:#000;">
+                        <div class="real-cash-title" style="color:#ccc;">EFECTIVO REAL A ENTREGAR</div>
                         <div class="real-cash-amount">Bs. ${fmt(data.finalCash)}</div>
-                        <div class="text-right" style="font-size:10px;">(Ingresos Efectivo - Total Egresos)</div>
-                        <div class="text-right" style="font-size:10px; margin-top:5px; font-weight:bold;">
-                            Total Egresos: Bs. ${fmt(stats.totalExpenses)}
+                        <div class="text-right" style="font-size:10px; color:#aaa; margin-top:5px;">
+                            Solo Billetes (Fondo + Efvo - Gastos Efvo)
                         </div>
+                    </div>
+                    
+                    <div class="box" style="margin-top: 20px;">
+                        <div class="box-header">IV. MÉTRICAS EXTRA</div>
+                        <table class="table-clean">
+                            <tr><td>RESERVAS CONFIRMADAS</td><td class="text-right">${fmt(stats.reservationSales || 0)}</td></tr>
+                            <tr class="row-total"><td>Suma Total Ventas (Fís+Dig+Res)</td><td class="text-right">${fmt((stats.cashSales || 0) + (stats.qrSales || 0) + (stats.cardSales || 0) + (stats.reservationSales || 0))}</td></tr>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -282,27 +291,46 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
             const zones = data.zoneStats || {};
             const zoneHtml = Object.entries(zones).map(([z, a]) => `<div class="flex-between"><span>> ${z}:</span><span>${fmt(a)}</span></div>`).join('');
 
+            const totalEgresosDigit = (stats.totalExpenses || 0) - (stats.cashExpenses || 0);
+            const totalGralVentas = (stats.cashSales || 0) + (stats.qrSales || 0) + (stats.cardSales || 0) + (stats.reservationSales || 0);
+
             reportBody = `
-                <div class="flex-between"><span>Fondo Inicial:</span><span>${fmt(data.openingAmount)}</span></div>
-                <div class="flex-between bold"><span>(+) Ventas:</span><span>${fmt((stats.cashSales || 0) + (stats.digitalSales || 0))}</span></div>
-                <div style="font-size:10px; margin-left:10px;">
-                    <div class="flex-between"><span>- Efectivo:</span><span>${fmt(stats.cashSales)}</span></div>
-                    <div class="flex-between"><span>- Digital:</span><span>${fmt((stats.qrSales || 0) + (stats.cardSales || 0))}</span></div>
-                    <div class="flex-between font-bold"><span>- Reservas:</span><span>${fmt(stats.reservationSales)}</span></div>
+                <div style="background:#000; color:#fff; text-align:center; font-weight:bold; padding:4px 0; margin:10px 0 5px 0;">
+                    1. ARQUEO FÍSICO (BILLETES)
                 </div>
-                ${zoneHtml ? `<div class="border-b" style="margin:5px 0;"></div><div class="bold text-center">POR ZONA</div><div style="font-size:10px;">${zoneHtml}</div>` : ''}
-                <div class="flex-between"><span>(-) Gastos:</span><span>${fmt(stats.totalExpenses)}</span></div>
+                <div class="flex-between"><span>[+] Fondo Apertura:</span><span>${fmt(data.openingAmount)}</span></div>
+                <div class="flex-between"><span>[+] Ventas Efectivo:</span><span>${fmt(stats.cashSales)}</span></div>
+                <div class="flex-between"><span>[-] Gastos Efectivo:</span><span>${fmt(stats.cashExpenses || stats.totalExpenses)}</span></div>
                 <div class="border-b" style="margin:5px 0;"></div>
-                <div class="flex-between bold" style="font-size:18px;"><span>CAJA:</span><span>Bs. ${fmt(data.finalCash)}</span></div>
-                <br/><div class="bold text-center border-b">PRODUCTOS</div>${zReportRows}
+                <div class="flex-between bold" style="font-size:16px;"><span>ENTREGAR CAJA:</span><span>Bs. ${fmt(data.finalCash)}</span></div>
+                
+                <div style="text-align:center; font-weight:bold; padding:3px 0; margin:10px 0 5px 0; border-top:1px dashed #000; border-bottom:1px dashed #000;">
+                    2. MOVIMIENTOS DE BANCO
+                </div>
+                <div class="flex-between"><span>[+] Cobros QR:</span><span>${fmt(stats.qrSales || 0)}</span></div>
+                <div class="flex-between"><span>[+] Cobros Tarjeta:</span><span>${fmt(stats.cardSales || 0)}</span></div>
+                <div class="flex-between"><span>[-] Pagos Digitales:</span><span>${fmt(Math.max(0, totalEgresosDigit))}</span></div>
+
+                <div style="text-align:center; font-weight:bold; padding:3px 0; margin:10px 0 5px 0; border-top:1px dashed #000; border-bottom:1px dashed #000;">
+                    3. RESUMEN CONTABLE
+                </div>
+                <div class="flex-between"><span>Reservas (Señas):</span><span>${fmt(stats.reservationSales || 0)}</span></div>
+                <div class="flex-between"><span>Cortesías Cedidas:</span><span>${fmt(stats.courtesyTotal || 0)}</span></div>
+                <div class="border-b" style="margin:5px 0;"></div>
+                <div class="flex-between bold" style="font-size:13px;"><span>TOTAL VENTAS:</span><span>Bs. ${fmt(totalGralVentas)}</span></div>
+                <div style="font-size:9px; text-align:right; color:#555;">(Físico + Banco + Reservas)</div>
+
+                ${zoneHtml ? `<div style="text-align:center; font-weight:bold; padding:3px 0; margin:10px 0 5px 0; border-top:1px dashed #000; border-bottom:1px dashed #000;">VENTAS POR ZONA</div><div style="font-size:10px;">${zoneHtml}</div>` : ''}
+                
+                <br/><div class="bold text-center border-b">PRODUCTOS VENDIDOS</div>${zReportRows}
             `;
         } else if (data.type === 'expense') {
             reportBody = `
                 <div style="margin-top:10px;">
                     <span style="font-size:10px;">CONCEPTO:</span><br/>
-                    <span class="bold uppercase" style="font-size:14px;">${data.description}</span>
+                    <span class="bold uppercase" style="font-size:14px;">${data.description} ${data.method ? `[${data.method.toUpperCase()}]` : ''}</span>
                     <div class="border-b" style="margin:5px 0;"></div>
-                    <div class="flex-between bold" style="font-size:18px;"><span>RETIRO:</span><span>Bs. ${fmt(data.amount)}</span></div>
+                    <div class="flex-between bold" style="font-size:18px;"><span>MONTO:</span><span>Bs. ${fmt(data.amount)}</span></div>
                     <br/><br/>
                     <div class="text-center" style="font-size:10px;border-top:1px solid ${BORDER_COLOR};padding-top:5px;">FIRMA</div>
                 </div>
@@ -403,7 +431,7 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
             .void-box { border: 2px solid ${BORDER_COLOR}; padding: 5px; margin: 10px 0; text-align: center; font-weight:bold; font-size: 14px; }
             </style></head><body>
             <div class="text-center border-b">
-                <div class="bold" style="font-size:16px;">${data.type === 'z-report' ? 'CIERRE DE CAJA' : title}</div>
+                <div class="bold" style="font-size:16px;">${data.type === 'z-report' ? (data.isXReport ? 'REPORTE X (ARQUEO)' : 'CIERRE DE CAJA Z') : title}</div>
                 <div style="font-size:10px;">${data.date}</div>
                 <div style="font-size:10px;margin-top:2px;">Atiende: ${staffName.split(' ')[0]} | Caja: ${cashierName.split(' ')[0]}</div>
                 ${data.zone ? `<div style="font-size:11px;font-weight:bold;margin-top:2px;text-transform:uppercase;">ZONA: ${data.zone}</div>` : ''}

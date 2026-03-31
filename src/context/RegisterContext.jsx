@@ -20,7 +20,7 @@ export const RegisterProvider = ({ children }) => {
     const [registerSession, setRegisterSession] = useState(null);
     const [sessionStats, setSessionStats] = useState({
         cashSales: 0, qrSales: 0, cardSales: 0, digitalSales: 0,
-        totalExpenses: 0, totalCostOfGoods: 0,
+        totalExpenses: 0, cashExpenses: 0, totalCostOfGoods: 0,
         courtesyTotal: 0, courtesyCost: 0,
         expensesList: [], soldProducts: [],
         allSales: [], // [NEW] Store raw sales for detailed analysis (Commissions, etc)
@@ -165,13 +165,19 @@ export const RegisterProvider = ({ children }) => {
 
         const uE = onSnapshot(qE, (s) => {
             let te = 0;
+            let ce = 0; // Cash Expenses
             const el = [];
             s.forEach(d => {
                 const e = d.data();
-                te += parseFloat(e.amount);
+                const amt = parseFloat(e.amount);
+                te += amt;
+                // Si no tiene método o es explícitamente Efectivo, lo sumamos a los gastos físicos
+                if (!e.method || e.method === 'Efectivo') {
+                    ce += amt;
+                }
                 el.push({ id: d.id, ...e });
             });
-            setSessionStats(prev => ({ ...prev, totalExpenses: te, expensesList: el }));
+            setSessionStats(prev => ({ ...prev, totalExpenses: te, cashExpenses: ce, expensesList: el }));
         });
 
         return () => { uS(); uE(); };
@@ -262,7 +268,7 @@ export const RegisterProvider = ({ children }) => {
             setRegisterSession(null);
             setSessionStats({
                 cashSales: 0, qrSales: 0, cardSales: 0, digitalSales: 0,
-                totalExpenses: 0, totalCostOfGoods: 0,
+                totalExpenses: 0, cashExpenses: 0, totalCostOfGoods: 0,
                 courtesyTotal: 0, courtesyCost: 0,
                 expensesList: [], soldProducts: [], allSales: [], zoneStats: {}
             });
@@ -276,7 +282,7 @@ export const RegisterProvider = ({ children }) => {
     };
 
     // 4. Expense Actions
-    const addExpense = async (description, amount, type = 'Varios', details = null) => {
+    const addExpense = async (description, amount, type = 'Varios', details = null, method = 'Efectivo') => {
         if (!registerSession) {
             toast.error("Error Interno: No se detecta turno activo (registerSession lost). Refresca la página.");
             return false;
@@ -287,6 +293,7 @@ export const RegisterProvider = ({ children }) => {
                 description,
                 amount,
                 type,
+                method, // [NEW] Rastrear si fue Efectivo o Transferencia Banco
                 details, // [NEW] Rich HTML breakdown for reprints
                 meta: details?.meta || null, // [NEW] Structured metadata (staffId, commissionAmount, etc)
 
@@ -322,7 +329,8 @@ export const RegisterProvider = ({ children }) => {
     // Helper to calculate final cash
     const getCalculatedCash = () => {
         if (!registerSession) return 0;
-        return (registerSession.openingAmount || 0) + sessionStats.cashSales - sessionStats.totalExpenses;
+        // Solo descontamos los gastos pagados en EFECTIVO de la caja física
+        return (registerSession.openingAmount || 0) + sessionStats.cashSales - (sessionStats.cashExpenses || 0);
     };
 
     const value = {

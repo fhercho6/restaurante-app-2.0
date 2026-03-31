@@ -5,13 +5,23 @@
 
 ---
 
-## ✅ Últimos Cambios Realizados (Marzo 30)
+## ✅ Últimos Cambios Realizados (Marzo 31)
 
-1.  **Auditoría y Desglose Multi-QR (Precisión Bancaria):**
+1.  **Auditoría y Descuadre de Caja (Efectivo vs Digital):**
+    *   **Objetivo:** Eliminar el descuadre del Reporte Z donde los gastos transferidos (Ej. comisiones por QR) restaban dinero físico del cajón del cajero.
+    *   **Solución:** Se implementó un parámetro `method` (Efectivo / Transferencia). El Motor de Caja ahora calcula `Fondo + Efectivo - Gastos Efectivo = Efectivo en Caja`.
+    *   **Interfaz de Usuario:** Tanto en "Nuevo Gasto" como en "Pagar Comisiones" ahora hay selectores duales físicos/digitales.
+    *   **Rediseño de UX en Reportes X / Z:** El ticket térmico y el documento A4 se dividieron en 3 bloques independientes ("1. Arqueo Físico", "2. Banco", "3. Resumen") haciendo el cuadre "a prueba de tontos" para el personal.
+
+---
+
+## 📌 Histórico de Versiones Anteriores
+
+2.  **Auditoría y Desglose Multi-QR (Precisión Bancaria - Marzo 30):**
     *   **Objetivo:** Erradicar errores de conciliación donde los pagos múltiples por QR se mezclaban en un solo bloque.
     *   **Solución:** Se reconstruyó `PaymentModal.jsx` para inyectar transacciones hijas. El Reporte Z térmico ahora itera sobre `qrPayments` imprimiendo *cada* transferencia como una fila individual, calcando los extractos del banco.
 
-2.  **Protección Anti-Errores en Caja (UX/UI):**
+3.  **Protección Anti-Errores en Caja (UX/UI):**
     *   **Bloqueo de Sobrepagos Digitales:** Se erradicó el error de tecleo al cobrar tarjetas o QRs validando estrictamente que `amountToAdd` no supere el saldo deudor. El sistema emite una alerta y auto-corrige el input al faltante real.
     *   **Máscara Inteligente de Tiempo:** El ingreso clásico de tiempo se reemplazó por un Regex en vivo: escribir '1435' formatea automáticamente a '14:35'.
     *   **Botón AHORA:** Atajo visual para que el cajero rellene la hora del dispositivo de inmediato.

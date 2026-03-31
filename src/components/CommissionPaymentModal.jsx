@@ -226,13 +226,14 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
         }));
     };
 
-    const handlePayCommission = async (data) => {
+    const handlePayCommission = async (data, method = 'Efectivo') => {
         if (data.commissionAmount <= 0) return;
 
         const bonus = bonuses[data.name] || 0;
         const totalPay = data.commissionAmount + bonus;
 
-        if (confirm(`¿Pagar Bs. ${totalPay.toFixed(2)} a ${data.name}? \n(Comisión: Bs. ${data.commissionAmount.toFixed(2)} + Pasaje: Bs. ${bonus.toFixed(2)})`)) {
+        const msgMethod = method === 'Efectivo' ? 'EN EFECTIVO DE CAJA' : 'POR TRANSFERENCIA / QR';
+        if (confirm(`¿Pagar Bs. ${totalPay.toFixed(2)} a ${data.name} ${msgMethod}? \n(Comisión: Bs. ${data.commissionAmount.toFixed(2)} + Pasaje: Bs. ${bonus.toFixed(2)})`)) {
             try {
                 let descText = `Pago Comisión: ${data.name}`;
                 if (data.cmbCommission > 0) descText += ` (Mix)`;
@@ -332,14 +333,14 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                 // We will pass the HTML string *augmented* with a hidden meta property if possible? No.
                 // Let's pass the OBJECT, and update handleReprint to handle it.
 
-                const success = await addExpense(descText, totalPay, 'Comisiones', richDetails);
+                const success = await addExpense(descText, totalPay, 'Comisiones', richDetails, method);
 
                 if (success) {
                     onPrintReceipt({
                         type: 'expense',
                         title: 'RECIBO',
                         amount: totalPay,
-                        description: `POR CONCEPTO DE PAGO DE COMISIONES<br/><br/>GARZÓN: ${data.name.toUpperCase()}<br/>----------------<br/>${breakdownHtml}----------------<br/>SUBTOTAL COMISIÓN: Bs. ${data.commissionAmount.toFixed(2)}<br/>PASAJE / BONO: Bs. ${bonus.toFixed(2)}`,
+                        description: `POR CONCEPTO DE PAGO DE COMISIONES<br/>VÍA: <b>${method.toUpperCase()}</b><br/><br/>GARZÓN: ${data.name.toUpperCase()}<br/>----------------<br/>${breakdownHtml}----------------<br/>SUBTOTAL COMISIÓN: Bs. ${data.commissionAmount.toFixed(2)}<br/>PASAJE / BONO: Bs. ${bonus.toFixed(2)}`,
                         staffName: data.name,
                         cashierName: registerSession.openedBy || 'Cajero',
                         date: new Date().toLocaleString(),
@@ -452,12 +453,20 @@ const CommissionPaymentModal = ({ onClose, onPrintReceipt }) => {
                                                     </td>
                                                     <td className="px-4 py-3 flex justify-center items-center gap-2">
                                                         {d.commissionAmount > 0 ? (
-                                                            <button
-                                                                onClick={() => handlePayCommission(d)}
-                                                                className="bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1 shadow-sm transition-all active:scale-95"
-                                                            >
-                                                                <DollarSign size={14} /> PAGAR {bonuses[d.name] > 0 && `+${bonuses[d.name]}`}
-                                                            </button>
+                                                            <div className="flex flex-col gap-1 w-full max-w-[120px]">
+                                                                <button
+                                                                    onClick={() => handlePayCommission(d, 'Efectivo')}
+                                                                    className="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 px-2 py-1.5 rounded font-bold text-[10px] flex items-center justify-center gap-1 shadow-sm transition-all"
+                                                                >
+                                                                    💵 Efectivo {bonuses[d.name] > 0 && `+${bonuses[d.name]}`}
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handlePayCommission(d, 'Transferencia')}
+                                                                    className="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-2 py-1.5 rounded font-bold text-[10px] flex items-center justify-center gap-1 shadow-sm transition-all"
+                                                                >
+                                                                    📱 Transf/QR {bonuses[d.name] > 0 && `+${bonuses[d.name]}`}
+                                                                </button>
+                                                            </div>
                                                         ) : d.pending < -0.01 ? (
                                                             <span className="flex items-center gap-1 text-red-600 font-bold bg-red-50 px-3 py-1 rounded-full text-xs border border-red-200" title="Se pagó más de lo generado">
                                                                 <AlertCircle size={14} /> ADELANTO

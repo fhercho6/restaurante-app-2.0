@@ -603,6 +603,7 @@ export const ExpenseModal = ({ isOpen, onClose, onSave, expenseTypes }) => {
     const [selectedType, setSelectedType] = useState(expenseTypes && expenseTypes.length > 0 ? expenseTypes[0] : '');
     const [detail, setDetail] = useState('');
     const [amount, setAmount] = useState('');
+    const [paymentMethod, setPaymentMethod] = useState('Efectivo');
 
     useEffect(() => {
         if (expenseTypes && expenseTypes.length > 0 && !selectedType) {
@@ -615,9 +616,10 @@ export const ExpenseModal = ({ isOpen, onClose, onSave, expenseTypes }) => {
     const handleSubmit = () => {
         if (amount) {
             const finalDesc = detail || selectedType;
-            onSave(finalDesc, parseFloat(amount), selectedType);
+            onSave(finalDesc, parseFloat(amount), selectedType, null, paymentMethod);
             setDetail('');
             setAmount('');
+            setPaymentMethod('Efectivo');
             onClose();
         }
     };
@@ -670,6 +672,27 @@ export const ExpenseModal = ({ isOpen, onClose, onSave, expenseTypes }) => {
                             value={detail}
                             onChange={e => setDetail(e.target.value)}
                         />
+                    </div>
+
+                    {/* MÉTODO DE PAGO */}
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wide ml-1">Pagado con:</label>
+                        <div className="flex gap-2">
+                            <button
+                                type="button" 
+                                onClick={() => setPaymentMethod('Efectivo')}
+                                className={`flex-1 py-2 rounded-xl border text-sm font-bold transition-all ${paymentMethod === 'Efectivo' ? 'bg-red-50 text-red-700 border-red-500 shadow-sm' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'}`}
+                            >
+                                💵 Efec. Caja
+                            </button>
+                            <button
+                                type="button" 
+                                onClick={() => setPaymentMethod('Transferencia')}
+                                className={`flex-1 py-2 rounded-xl border text-sm font-bold transition-all ${paymentMethod === 'Transferencia' ? 'bg-blue-50 text-blue-700 border-blue-500 shadow-sm' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'}`}
+                            >
+                                📱 Transf/QR
+                            </button>
+                        </div>
                     </div>
 
                     {/* MONTO */}
