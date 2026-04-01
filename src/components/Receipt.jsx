@@ -336,21 +336,22 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                 </div>
             `;
         } else if (data.type === 'qr-report') {
-            const qrListHtml = data.qrPayments?.map(p => {
+            const sortedQRPayments = [...(data.qrPayments || [])].sort((a, b) => new Date(a.date) - new Date(b.date));
+            const qrListHtml = sortedQRPayments.map(p => {
                 const dateObj = new Date(p.date);
-                const shortDate = dateObj.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+                const timeStr = dateObj.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: false });
                 return `
-                <div class="row" style="margin-bottom:4px; border-bottom:1px dotted #ccc; padding-bottom:2px; flex-wrap: wrap;">
-                    <div style="width:40%; font-size:9px;">${shortDate} | Ref: ${p.reference}</div>
-                    <div style="width:30%; padding-left:2px;">#${p.orderId.replace(/[^0-9]/g, '').slice(-4)}</div>
+                <div class="row" style="margin-bottom:6px; border-bottom:1px dashed #000; padding-bottom:6px; flex-wrap: wrap; align-items:center;">
+                    <div style="width:40%; font-size:11px; font-weight:bold;">🕒 ${timeStr}<br/><span style="font-size:9px;font-weight:normal;color:#555;">Ref: ${p.reference || '-'}</span></div>
+                    <div style="width:30%; padding-left:2px; font-size:11px;">#${p.orderId.replace(/[^0-9]/g, '').slice(-4)}</div>
                     <div style="width:30%" class="text-right bold text-base">Bs. ${fmt(p.amount)}</div>
                 </div>
             `;
             }).join('') || '<div class="text-center">No hay pagos QR</div>';
 
             reportBody = `
-                <div class="row bold" style="font-size:10px;border-bottom:1px solid ${BORDER_COLOR};margin-bottom:4px;">
-                    <div style="width:40%">FECHA/REF</div><div style="width:30%">CMD</div><div style="width:30%" class="text-right">MONTO</div>
+                <div class="row bold" style="font-size:10px;border-bottom:2px solid ${BORDER_COLOR};margin-bottom:6px;padding-bottom:2px;">
+                    <div style="width:40%">HORA / REF</div><div style="width:30%">COMANDA</div><div style="width:30%" class="text-right">Monto</div>
                 </div>
                 ${qrListHtml}
                 <div class="border-b" style="margin:5px 0;"></div>
