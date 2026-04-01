@@ -13,6 +13,7 @@
     *   **Interfaz de Usuario:** Tanto en "Nuevo Gasto" como en "Pagar Comisiones" ahora hay selectores duales físicos/digitales.
     *   **Rediseño UX en Reportes X / Z:** El ticket térmico y el documento A4 se dividieron en 3 bloques independientes ("1. Arqueo Físico", "2. Banco", "3. Resumen").
     *   **Claridad de Arqueo Físico:** El rótulo "Fondo Inicial (Base)" fue reemplazado por **"Fondo (Cambiado)"** o **"Fondo Inicial (Cambiado)"** en ambos formatos de impresión para indicarle al cajero explícitamente que ese dinero es "suelto" (cambio) que debe ser devuelto junto con la venta física.
+    *   **Auditoría QR de Alta Precisión:** En el Reporte QR térmico se invirtió la jerarquía visual: Ahora la **[Ref: HH:MM]** (escrita por el garzón) aparece en negrita y tamaño grande, mientras que extraemos la **[🕒 Hora del Sistema]** en que se guardó el cobro y la imprimimos pequeña debajo. También se ordenaron cronológicamente y se añadieron márgenes/líneas punteadas cortantes para separar transacciones sin confusión.
 
 ---
 
