@@ -342,7 +342,7 @@ const Receipt = ({ data, onPrint, onClose, printerType = 'thermal' }) => {
                 const timeStr = dateObj.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: false });
                 return `
                 <div class="row" style="margin-bottom:6px; border-bottom:1px dashed #000; padding-bottom:6px; flex-wrap: wrap; align-items:center;">
-                    <div style="width:40%; font-size:11px; font-weight:bold;">🕒 ${timeStr}<br/><span style="font-size:9px;font-weight:normal;color:#555;">Ref: ${p.reference || '-'}</span></div>
+                    <div style="width:40%; font-size:12px; font-weight:bold;">Ref: ${p.reference || '-'}<br/><span style="font-size:9px;font-weight:normal;color:#666;">Sist: ${timeStr}</span></div>
                     <div style="width:30%; padding-left:2px; font-size:11px;">#${p.orderId.replace(/[^0-9]/g, '').slice(-4)}</div>
                     <div style="width:30%" class="text-right bold text-base">Bs. ${fmt(p.amount)}</div>
                 </div>
